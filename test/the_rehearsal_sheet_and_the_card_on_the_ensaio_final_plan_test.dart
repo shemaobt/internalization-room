@@ -511,21 +511,54 @@ void main() {
           reason: 'o título começava no alto da folha, sob a volta',
         );
         expect(
-          tester
-              .getRect(
-                find.descendant(
-                  of: find.byType(RehearsalSheet),
-                  matching: find.byType(Scrollable),
-                ),
-              )
-              .top,
+          tester.getRect(byLabel(_sent(3))).top,
           greaterThanOrEqualTo(back.bottom),
-          reason: 'as linhas rolavam por baixo da volta',
+          reason: 'as linhas começavam sob a volta',
         );
         semantics.dispose();
       },
     );
   }
+
+  testWidgets(
+    'on the SE the way back scrolls away with the sheet, as hers, instead of '
+    'standing in a band of its own',
+    (tester) async {
+      _on(tester, const Size(375, 667), bar: 20);
+      final semantics = tester.ensureSemantics();
+      await _seeded(
+        tester,
+        (s) => [
+          for (var n = 1; n <= 7; n++)
+            _rehearsal(s, n: n, scene: 'S1', sentAt: _sentAt('10:0$n')),
+        ],
+      );
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      final page = find.descendant(
+        of: find.byType(RehearsalSheet),
+        matching: find.byType(Scrollable),
+      );
+      expect(
+        tester.getRect(page).top,
+        0,
+        reason: 'a folha rolava numa faixa abaixo da volta, não a tela toda',
+      );
+      final before = tester.getRect(byLabel(_back)).top;
+      await tester.drag(page, const Offset(0, -120));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final scrolled = tester.state<ScrollableState>(page).position.pixels;
+      expect(scrolled, greaterThan(0));
+      expect(
+        tester.getRect(byLabel(_back)).top,
+        closeTo(before - scrolled, 0.01),
+        reason: 'a volta ficava parada enquanto a folha rolava',
+      );
+      semantics.dispose();
+    },
+  );
 
   for (final (device, screen) in [
     ('the SE', const Size(375, 667)),
@@ -533,7 +566,7 @@ void main() {
   ]) {
     testWidgets(
       'on $device «✓ em uso» and every «usar este» sit on their own line '
-      'under the facts, starting where the facts start',
+      'under the play, starting where the card starts, not where the facts do',
       (tester) async {
         _on(tester, screen, bar: 20);
         final semantics = tester.ensureSemantics();
@@ -541,20 +574,175 @@ void main() {
         await _openThePlan(tester);
         await _openTheSheetOf(tester, 1);
 
-        for (final (n, action) in [(3, _useThis), (2, _inUse), (1, _useThis)]) {
+        for (final (n, action) in [
+          (3, byLabel('$_useThis — ${_sent(3)}')),
+          (2, _onLine(_sent(2), find.text(_inUse))),
+          (1, byLabel('$_useThis — ${_sent(1)}')),
+        ]) {
           final facts = tester.getRect(find.text(_sent(n)));
-          final said = tester.getRect(_onLine(_sent(n), find.text(action)));
+          final play = tester.getRect(byLabel('Ouvir — ${_sent(n)}'));
+          final said = tester.getRect(action);
           expect(
             said.left,
-            closeTo(facts.left, 0.01),
+            closeTo(play.left, 0.01),
             reason:
-                'no iPad «usar este» ficava no meio da linha e «✓ em uso» na '
-                'borda direita: $action do ensaio $n',
+                'a linha das ações começava sob os fatos, não no começo do '
+                'cartão como a dela: ensaio $n',
           );
           expect(
             said.top,
             greaterThanOrEqualTo(facts.bottom),
-            reason: '$action do ensaio $n dividia a linha com os fatos',
+            reason: 'a ação do ensaio $n dividia a linha com os fatos',
+          );
+          expect(said.top, greaterThanOrEqualTo(play.bottom));
+        }
+        semantics.dispose();
+      },
+    );
+  }
+
+  for (final (device, screen, left, right) in [
+    ('the SE', const Size(375, 667), 30.0, 345.0),
+    ('an iPad', const Size(820, 1180), 175.0, 645.0),
+  ]) {
+    testWidgets(
+      'on $device the sheet stands in her centred column, never a wide one '
+      'pushed to the left',
+      (tester) async {
+        _on(tester, screen, bar: 20);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        for (final n in [3, 2, 1]) {
+          final card = tester.getRect(byLabel(_sent(n)));
+          expect(
+            card.left,
+            closeTo(left, 0.01),
+            reason: 'a coluna da folha tinha 600 de largura e 16 de margem',
+          );
+          expect(card.right, closeTo(right, 0.01));
+        }
+        for (final said in [
+          'Cena 1',
+          _threeScenes[0].title,
+          _swap,
+          _recordAgain,
+        ]) {
+          expect(
+            tester.getCenter(find.text(said)).dx,
+            closeTo(screen.width / 2, 0.01),
+            reason: 'o texto da folha começava na borda esquerda: $said',
+          );
+        }
+        semantics.dispose();
+      },
+    );
+  }
+
+  for (final (look, verde, verdeClaro) in [
+    ('light', const Color(0xFF3F3E20), const Color(0xFF777D45)),
+    ('dark', const Color(0xFFECEADC), const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the $look look the sheet is headed in her verde and her quieter '
+      'verde-claro, not in ink and grey',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        TextStyle styleOf(String said) =>
+            tester.widget<Text>(find.text(said)).style!;
+        final heading = styleOf('Cena 1');
+        expect(
+          heading.fontSize,
+          24,
+          reason: 'o título da folha tinha 22 em tinta',
+        );
+        expect(heading.fontWeight, FontWeight.w500);
+        expect(heading.color, verde);
+        final scene = styleOf(_threeScenes[0].title);
+        expect(
+          scene.fontSize,
+          closeTo(15.2, 0.001),
+          reason: 'o nome da cena vinha no cinza do texto',
+        );
+        expect(scene.fontWeight, FontWeight.w400);
+        expect(scene.color, verdeClaro);
+        final sub = styleOf(_swap);
+        expect(
+          sub.fontSize,
+          closeTo(14.72, 0.001),
+          reason: 'a linha de baixo tinha 14 em cinza',
+        );
+        expect(sub.color, verdeClaro);
+        semantics.dispose();
+      },
+    );
+  }
+
+  for (final (look, areia, azul, fill) in [
+    (
+      'light',
+      const Color(0xFFC5C29F),
+      const Color(0xFF89AAA3),
+      const Color.fromRGBO(255, 255, 255, .4),
+    ),
+    (
+      'dark',
+      const Color(0xFF6E6A57),
+      const Color(0xFF8FB1A9),
+      const Color.fromRGBO(236, 234, 220, .05),
+    ),
+  ]) {
+    testWidgets(
+      'in the $look look each rehearsal is her framed card, the one in use '
+      'framed in azul, not a row over a hairline',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final lines = [_sent(3), _sent(2), _sent(1)];
+        for (final line in lines) {
+          final card =
+              tester
+                      .widget<DecoratedBox>(
+                        find
+                            .descendant(
+                              of: byLabel(line),
+                              matching: find.byType(DecoratedBox),
+                            )
+                            .first,
+                      )
+                      .decoration
+                  as BoxDecoration;
+          expect(
+            card.border,
+            Border.all(color: line == _sent(2) ? azul : areia, width: 1.2),
+            reason: 'cada ensaio era uma linha sobre um fio, sem moldura',
+          );
+          expect(card.borderRadius, BorderRadius.circular(14));
+          expect(card.color, fill);
+          final play = tester.getRect(byLabel('Ouvir — $line'));
+          expect(
+            play.left - tester.getRect(byLabel(line)).left,
+            closeTo(1.2 + 12, 0.01),
+            reason: 'o play encostava a 8 da borda da linha',
+          );
+        }
+        for (var i = 1; i < lines.length; i++) {
+          expect(
+            tester.getRect(byLabel(lines[i])).top -
+                tester.getRect(byLabel(lines[i - 1])).bottom,
+            closeTo(8.8, 0.01),
+            reason: 'as linhas da folha se encostavam umas nas outras',
           );
         }
         semantics.dispose();
@@ -635,6 +823,238 @@ void main() {
       });
     }
   });
+
+  for (final (look, verdeClaro, telha) in [
+    ('light', const Color(0xFF777D45), const Color(0xFFBE4A01)),
+    ('dark', const Color(0xFFAAB07E), const Color(0xFFD6612A)),
+  ]) {
+    testWidgets(
+      'in the $look look the facts are her small verde-claro figures and the '
+      'note her smaller telha under them',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(
+          tester,
+          (s) => [
+            _rehearsal(s, n: 4, scene: 'S2', sentAt: _sentAt('10:05')),
+            _rehearsal(s, n: 5, scene: 'S2', contentType: 'audio/mp4'),
+          ],
+        );
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 2);
+
+        for (final line in [_sent(4), _sent(5)]) {
+          final facts = tester.widget<Text>(find.text(line)).style!;
+          expect(
+            facts.fontSize,
+            closeTo(12.48, 0.001),
+            reason: 'os fatos tinham 15 em tinta',
+          );
+          expect(facts.color, verdeClaro);
+          expect(facts.fontFeatures, [const FontFeature.tabularFigures()]);
+        }
+        final note = _onLine(_sent(5), find.text(_cannotEnter));
+        final style = tester.widget<Text>(note).style!;
+        expect(
+          style.fontSize,
+          closeTo(12.16, 0.001),
+          reason: 'a nota tinha 14, maior que os fatos dela',
+        );
+        expect(style.color, telha);
+        final facts = tester.getRect(find.text(_sent(5)));
+        expect(tester.getRect(note).left, closeTo(facts.left, 0.01));
+        expect(tester.getRect(note).top, greaterThanOrEqualTo(facts.bottom));
+        semantics.dispose();
+      },
+    );
+  }
+
+  for (final (look, verde) in [
+    ('light', const Color(0xFF3F3E20)),
+    ('dark', const Color(0xFFECEADC)),
+  ]) {
+    testWidgets(
+      'in the $look look «✓ em uso» is her small bold verde badge, not grey '
+      'body text',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final badge = tester
+            .widget<Text>(_onLine(_sent(2), find.text(_inUse)))
+            .style!;
+        expect(
+          badge.fontSize,
+          closeTo(12.8, 0.001),
+          reason: '«✓ em uso» tinha 15 no cinza do texto',
+        );
+        expect(badge.fontWeight, FontWeight.w600);
+        expect(badge.color, verde);
+        semantics.dispose();
+      },
+    );
+  }
+
+  for (final (look, areia, verdeClaro) in [
+    ('light', const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    ('dark', const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the $look look «usar este» is her quiet bordered pill, not a telha '
+      'word',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final button = byLabel('$_useThis — ${_sent(3)}');
+        final pill =
+            tester
+                    .widget<DecoratedBox>(
+                      find
+                          .descendant(
+                            of: button,
+                            matching: find.byType(DecoratedBox),
+                          )
+                          .first,
+                    )
+                    .decoration
+                as BoxDecoration;
+        expect(
+          pill.border,
+          Border.all(color: areia, width: 1.4),
+          reason: '«usar este» era uma palavra telha solta, sem a borda dela',
+        );
+        expect(pill.borderRadius, BorderRadius.circular(999));
+        expect(pill.color, isNull);
+        final word = find.descendant(of: button, matching: find.text(_useThis));
+        final style = tester.widget<Text>(word).style!;
+        expect(style.fontSize, closeTo(13.44, 0.001));
+        expect(style.color, verdeClaro);
+        final frame = tester.getRect(
+          find
+              .descendant(of: button, matching: find.byType(DecoratedBox))
+              .first,
+        );
+        expect(
+          tester.getRect(word).left - frame.left,
+          closeTo(1.4 + 17.6, 0.01),
+        );
+        expect(tester.getRect(word).top - frame.top, closeTo(1.4 + 8, 0.01));
+        semantics.dispose();
+      },
+    );
+  }
+
+  testWidgets(
+    'on the SE «usar este» takes a finger over 44 high while its frame stays '
+    'her size',
+    (tester) async {
+      _on(tester, const Size(375, 667), bar: 20);
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      final button = byLabel('$_useThis — ${_sent(3)}');
+      await tester.ensureVisible(button);
+      await tester.pump();
+      final hit = tester.getRect(button);
+      final frame = tester.getRect(
+        find.descendant(of: button, matching: find.byType(DecoratedBox)).first,
+      );
+      expect(
+        hit.height,
+        greaterThanOrEqualTo(44),
+        reason: 'a pílula só aceitava o dedo dentro da moldura, abaixo de 44',
+      );
+      expect(frame.height, lessThan(44));
+
+      await tester.tapAt(Offset(frame.center.dx, hit.top + 1));
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'um toque logo acima da moldura não usava o ensaio',
+      );
+      expect(_onRow(1, find.text(_facts(3))), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  for (final (look, verdeClaro) in [
+    ('light', const Color(0xFF777D45)),
+    ('dark', const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the $look look «gravar esta cena de novo» is her quiet underlined '
+      'link at .7, not a telha button',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final foot = find.text(_recordAgain);
+        final style = tester.widget<Text>(foot).style!;
+        expect(
+          style.color,
+          verdeClaro,
+          reason: 'o pé da folha era um botão telha de 15',
+        );
+        expect(style.fontSize, closeTo(13.44, 0.001));
+        expect(style.decoration, TextDecoration.underline);
+        expect(_seenOpacity(tester, foot), closeTo(0.7, 0.001));
+        expect(
+          find.ancestor(of: foot, matching: find.byType(TextButton)),
+          findsOneWidget,
+        );
+        semantics.dispose();
+      },
+    );
+  }
+
+  testWidgets(
+    'the line in use is announced as the selected one, and no other line is',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      expect(
+        _pressedAt(tester, _sent(2)),
+        Tristate.isTrue,
+        reason: 'a linha em uso só dizia «✓ em uso» em texto, sem o estado',
+      );
+      for (final n in [3, 1]) {
+        expect(_pressedAt(tester, _sent(n)), isNot(Tristate.isTrue));
+      }
+      await _tapLabel(tester, 'Ouvir — ${_sent(3)}');
+      expect(_pressedAt(tester, 'Ouvir — ${_sent(3)}'), Tristate.isTrue);
+      expect(
+        _pressedAt(tester, _sent(3)),
+        isNot(Tristate.isTrue),
+        reason: 'a linha que toca não é a linha em uso',
+      );
+      await _tapLabel(tester, 'Ouvir — ${_sent(3)}');
+
+      await _useThe(tester, _sent(1));
+      await _openTheSheetOf(tester, 1);
+
+      expect(_pressedAt(tester, _sent(1)), Tristate.isTrue);
+      expect(_pressedAt(tester, _sent(2)), isNot(Tristate.isTrue));
+      semantics.dispose();
+    },
+  );
 
   testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
@@ -845,6 +1265,29 @@ void main() {
     expect(find.text('record this scene again'), findsOneWidget);
     semantics.dispose();
   });
+
+  testWidgets(
+    'the card is headed by «De que cena é este ensaio?» as a heading, not by '
+    'a line of text',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _twoUnlabelled);
+      await _openThePlan(tester);
+
+      final title = tester
+          .getSemantics(_onCard(find.text(_whichScene)))
+          .getSemanticsData();
+      expect(
+        title.flagsCollection.isHeader,
+        isTrue,
+        reason: 'o título do cartão era texto mudo, sem ser um título',
+      );
+      expect(title.headingLevel, 2);
+      expect(title.label, _whichScene);
+      expect(byLabel(_whichScene), findsOneWidget);
+      semantics.dispose();
+    },
+  );
 
   testWidgets(
     '10. the card puts the older unlabelled rehearsal first, and a scene tap '
