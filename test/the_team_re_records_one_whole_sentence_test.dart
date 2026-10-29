@@ -1898,6 +1898,24 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a new part is owed no row offers «regravar», not even '
+      'the row of the sentence that waits for it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason:
+            'a frase $n oferecia regravar por cima de uma frase que ainda '
+            'não chegou',
+      );
+    }
+    closeTheRoom(container);
+  });
+
   testWidgets('a re-record left for the rehearsal does not stand when the team '
       'comes back to the telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

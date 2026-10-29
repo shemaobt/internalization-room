@@ -627,7 +627,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lengths = {};
     _newestCount = 0;
     _fraseNaFila = null;
-    _aFraseDevida = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
   }
@@ -10156,13 +10155,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Retro());
     if (trocada == null) return;
     if (!trocada) {
-      _aFraseDevida = nome;
+      state = state.copyWith(btFraseDevida: nome);
       return _guardarAFrase(frase);
     }
     await _aFraseNovaNoLugar(nome, generation);
   }
-
-  late String? _aFraseDevida;
 
   Future<void> _aFraseNovaNoLugar(String nome, int generation) async {
     await _sayALine(
@@ -10176,7 +10173,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _buscarAParteDeNovo() async {
     final sessionId = state.sessionId;
-    final nome = _aFraseDevida;
+    final nome = state.btFraseDevida;
     final trecho = state.trechoChamado(nome);
     final frase = state.btFraseGuardada;
     if (sessionId == null || nome == null || trecho == null || frase == null) {
