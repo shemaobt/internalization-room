@@ -6026,7 +6026,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Microphone():
         return;
       case _ when !shown.listened:
-        return;
+        _playTheSceneRehearsal();
       case _ when shown.translatingAgain != null || shown.pausa != null:
         final held = _frases.of(shown.rehearsal!.rehearsalId);
         if (held != null) {

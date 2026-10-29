@@ -770,5 +770,23 @@ void main() {
         expect(screen.playback.playedFrom.last, _s(9.0));
       },
     );
+
+    testWidgets(
+      'the circle is lit and plays the take from where the translation stopped, opening no microphone',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+
+        expect(
+          screen.lit(_tell),
+          isTrue,
+          reason: 'o círculo ficava apagado até «traduzir o ensaio da cena»',
+        );
+        await screen.tap(_tell);
+
+        expect(screen.state.channel, isA<PartPlaying>());
+        expect(screen.playback.playedFrom.last, _s(9.0));
+        expect(screen.theFraseMicrophoneIsOpen, isFalse);
+      },
+    );
   });
 }

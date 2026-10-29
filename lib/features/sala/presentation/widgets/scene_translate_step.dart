@@ -132,7 +132,7 @@ class SceneTranslateStep extends ConsumerWidget {
               ? ButtonMood.beckoning
               : scene.waiting
               ? ButtonMood.waiting
-              : sending || !scene.listened
+              : sending
               ? ButtonMood.dimmed
               : ButtonMood.lit,
           halo: colors.vermelhoMic,
