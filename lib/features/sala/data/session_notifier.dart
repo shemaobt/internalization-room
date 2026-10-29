@@ -4884,8 +4884,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final plan = _thePlan;
     if (plan == null || state.planBusy) return;
     final (read, sessionId) = plan;
-    if (unlabelledRehearsalsOf(read, sessionId).firstOrNull?.rehearsalId !=
-            rehearsalId ||
+    if (!unlabelledRehearsalsOf(
+          read,
+          sessionId,
+        ).any((rehearsal) => rehearsal.rehearsalId == rehearsalId) ||
         !read.scenes.any((scene) => scene.sceneId == sceneId)) {
       return;
     }
