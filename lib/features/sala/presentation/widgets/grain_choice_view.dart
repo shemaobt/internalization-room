@@ -146,8 +146,10 @@ class _GrainButton extends StatelessWidget {
   }
 }
 
-/// One of her `grain-change` controls: her text, dimmed and taking no tap while nothing
-/// may start on the home (`nothingStartsNow`) or while its own arm has not woken yet.
+/// One of her `grain-change` controls: her text, dimmed and taking no tap while it may not
+/// act — on the home and the plan while nothing may start (`nothingStartsNow`), on the
+/// check by its own rule (`wholeSwitchActsOnTheCheck`) — or while its own arm has not
+/// woken yet.
 class GrainChange extends StatelessWidget {
   final String label;
   final bool open;
@@ -192,7 +194,7 @@ GrainChange wholeAtOnce(
   SalaSessionState session,
   String language,
   VoidCallback onTap, {
-  bool open = true,
+  bool? open,
 }) => _armed(
   session,
   'whole',
@@ -223,15 +225,14 @@ GrainChange _armed(
   String label, {
   required String armed,
   required VoidCallback onTap,
-  bool open = true,
+  bool? open,
 }) {
   final arm = session.armedTap;
   final mine = arm?.control == control;
   return GrainChange(
     label: mine ? armed : label,
     open:
-        open &&
-        !session.nothingStartsNow &&
+        (open ?? !session.nothingStartsNow) &&
         !(mine && arm?.phase == BtRecomeco.armado),
     onTap: onTap,
   );

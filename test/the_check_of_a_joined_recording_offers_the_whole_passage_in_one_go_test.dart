@@ -13,6 +13,8 @@ import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/grain_choice_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -666,5 +668,26 @@ void main() {
     );
     await tester.pump(_theArmLapses);
     closeTheRoom(container);
+  });
+
+  testWidgets('on the check its own rule decides whether it rests, never the '
+      'home\'s rule of what may start', (tester) async {
+    const naCasa = SalaSessionState(grainSwitching: true);
+    expect(naCasa.nothingStartsNow, isTrue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: wholeAtOnce(naCasa, 'pt', () {}, open: true),
+      ),
+    );
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isTrue,
+      reason:
+          'uma parte subindo apagava o botão na conferência, sem palavra '
+          'que explicasse; o dela só descansa pelo que a conferência faz',
+    );
   });
 }
