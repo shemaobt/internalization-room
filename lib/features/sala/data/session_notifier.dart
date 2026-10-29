@@ -8468,13 +8468,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _play(
       PartSound(parte, state.partes[parte].path, from: de),
       onComplete: () => _fimDeParte(seguir: seguir),
-      onFailed: _aParteNaoTocou,
     );
   }
 
   void _aParteNaoTocou() {
-    if (!state.btSoOuvir) return;
-    state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+    if (state.btRegravacao != null) return;
+    state = state.copyWith(btAviso: BtAviso.tocarFalhou);
+  }
+
+  void _aParteTocou() {
+    if (state.btAviso != BtAviso.tocarFalhou) return;
+    state = state.copyWith(clearAviso: true);
   }
 
   void _fimDeParte({required bool seguir}) {
@@ -11617,6 +11621,12 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearTheDiskFailed() => _notifier._theDiskFailed();
+
+  @override
+  void hearThePlayFailed() => _notifier._aParteNaoTocou();
+
+  @override
+  void hearThePlayOpened() => _notifier._aParteTocou();
 
   @override
   void hearTheSendFailed() => _notifier._theSendFailed();
