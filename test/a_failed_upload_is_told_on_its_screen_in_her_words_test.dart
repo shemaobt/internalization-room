@@ -250,6 +250,13 @@ class _Casa {
     await ate('a cena $n assentar', () => assentou(n));
   }
 
+  Future<void> quinzeMinutos() async {
+    for (var minuto = 0; minuto < 15; minuto++) {
+      await tester.pump(const Duration(minutes: 1));
+      await emTempoReal(() => settle(const Duration(milliseconds: 100)));
+    }
+  }
+
   Future<void> ateVer(Finder alvo) async {
     final waited = Stopwatch()..start();
     for (
@@ -338,29 +345,6 @@ Future<_Casa> _deVoltaParaRegravarAParteQuatro(
     partBeingRecordedAgain: 3,
   );
   return _naCasa(tester, harness: sala);
-}
-
-Future<_Casa> _comUmaTomadaNaPassagemDeUmaPerdida(
-  WidgetTester tester, {
-  bool aSalaAlcancavel = false,
-}) async {
-  final casa = await _naCasa(tester);
-  await casa.guardarEFalharDeNovo(2);
-  await casa.perderAGravacao(2);
-  final depois = await _relancada(casa);
-  await depois.guardarSemEsperar(2);
-  final aFalhada = (await _semPrender(
-    tester,
-    depois.harness.takes.entries,
-  ))!.firstWhere((row) => row.scope == 'parte-2');
-  if (aSalaAlcancavel) depois.room.unreachableTake = null;
-  await depois.emTempoReal(() async {
-    File(aFalhada.path).deleteSync();
-    await depois.harness.takes.flush();
-    await depois.sala.refreshUnsent();
-    await settle();
-  });
-  return depois;
 }
 
 Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
@@ -589,9 +573,46 @@ void main() {
   );
 
   testWidgets(
+    'a sentence held from a gone session keeps the approval from being '
+    'offered until it is sent',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.retroSoFar = const BackTranslationProgress(checked: true);
+      final frase = (await _semPrender(
+        tester,
+        () => casa.harness.takes.enqueue(
+          casa.harness.recorder.aFile('frase-de-outra-visita'),
+          sessionId: null,
+          passage: 'Ruth/P01/pt',
+          kind: sentenceKind,
+          scope: '3',
+        ),
+      ))!;
+      for (final n in [1, 2, 3]) {
+        await casa.guardar(n);
+      }
+      await casa.emTempoReal(() async {
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+
+      expect(_aprovar, findsNothing);
+
+      await casa.emTempoReal(() async {
+        await casa.harness.takes.withdraw(frase);
+        await casa.sala.refreshUnsent();
+        await settle();
+      });
+      await casa.ateVer(_aprovar);
+
+      expect(_aprovar, findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'after a switch to the whole passage the approval is offered while a part '
-    'take spent before it is still on its way, and that take still reaches '
-    'the room',
+    'take spent before it is still on its way, and that take goes up with the '
+    "team's next tap",
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room
@@ -611,14 +632,13 @@ void main() {
       expect(naSala, ['ensaio/${KeptScope.whole}']);
 
       casa.room.unreachableTake = null;
-      await casa.emTempoReal(
-        () => _esperar(
-          'a parte 2 chegar à sala',
-          () => casa.room.takesKept.length == 2,
-        ),
-      );
+      await casa.quinzeMinutos();
+      expect(casa.room.takesKept, naSala);
+
+      await casa.guardar(1);
 
       expect(casa.room.takesKept, [
+        'ensaio/${KeptScope.whole}',
         'ensaio/${KeptScope.whole}',
         'ensaio/parte-2',
       ]);
@@ -627,8 +647,8 @@ void main() {
 
   testWidgets(
     'after a switch to scene by scene the approval is offered while a whole '
-    'take spent before it is still on its way, and that take still reaches '
-    'the room',
+    'take spent before it is still on its way, and that take goes up with the '
+    "team's next tap",
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.retroSoFar = const BackTranslationProgress(checked: true);
@@ -650,12 +670,10 @@ void main() {
       expect(naSala, ['ensaio/parte-1', 'ensaio/parte-2', 'ensaio/parte-3']);
 
       casa.room.unreachableTake = null;
-      await casa.emTempoReal(
-        () => _esperar(
-          'a inteira chegar à sala',
-          () => casa.room.takesKept.length == 4,
-        ),
-      );
+      await casa.quinzeMinutos();
+      expect(casa.room.takesKept, naSala);
+
+      await casa.guardar(3);
 
       expect(casa.room.takesKept.last, 'ensaio/${KeptScope.whole}');
     },
@@ -1127,39 +1145,6 @@ void main() {
       expect(depois.naLinha(2, find.text(_perdida)), findsNothing);
     },
   );
-
-  testWidgets(
-    'a take still on the tablet at the pass of a gone take keeps its tap after a relaunch',
-    (tester) async {
-      final depois = await _comUmaTomadaNaPassagemDeUmaPerdida(tester);
-
-      await depois.ateVer(depois.naLinha(2, find.text(_falhou)));
-
-      expect(depois.naLinha(2, find.text(_falhou)), findsOneWidget);
-      expect(depois.naLinha(2, find.byType(TextButton)), findsOneWidget);
-      expect(depois.naLinha(2, find.text(_perdida)), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'a take that lands at the pass of a gone take reads salvo after a relaunch',
-    (tester) async {
-      final depois = await _comUmaTomadaNaPassagemDeUmaPerdida(
-        tester,
-        aSalaAlcancavel: true,
-      );
-
-      await depois.ateVer(depois.naLinha(2, find.text(_salvo)));
-      await depois.emTempoReal(() async {
-        await depois.sala.refreshUnsent();
-        await settle();
-      });
-
-      expect(depois.naLinha(2, find.text(_salvo)), findsOneWidget);
-      expect(depois.naLinha(2, find.text(_perdida)), findsNothing);
-    },
-  );
-
   testWidgets(
     'an older pass that lands keeps telling its part\'s newer gone take, '
     'also after a relaunch',
@@ -1332,8 +1317,8 @@ void main() {
   );
 
   testWidgets(
-    'a tap on a part whose newest take never reached the Outbox sends the '
-    'spent take ahead of it, then the new one',
+    'a tap on a part whose newest take never reached the Outbox sends it, the '
+    'spent take before it having left at the tap to record again',
     (tester) async {
       late _AQueueThatHoldsTheKeep fila;
       final casa = await _naCasa(
@@ -1360,7 +1345,7 @@ void main() {
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
       await casa.ve(casa.naLinha(3, find.text(_salvo)));
 
-      expect(casa.room.takePasses, [1, 2]);
+      expect(casa.room.takePasses, [2]);
       expect(casa.naLinha(3, find.text(_salvo)), findsOneWidget);
     },
   );
@@ -1500,7 +1485,8 @@ void main() {
 
   testWidgets(
     'a part whose newest take is gone is sent again by recording it again: '
-    'the tap on the new take sends the spent pass ahead of it first',
+    'the keep sends the new take alone, the spent pass having left at the tap '
+    'to record again',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.unreachableTake = 'ensaio/parte-3';
@@ -1527,18 +1513,16 @@ void main() {
 
       await casa.gravar(3);
       await casa.emTempoReal(() async => casa.sala.takeKeep());
-      await casa.ve(casa.naLinha(3, find.text(_falhou)));
-      await casa.tocar(casa.naLinha(3, find.text(_falhou)));
       await casa.ve(casa.naLinha(3, find.text(_salvo)));
 
-      expect(casa.room.takePasses, [1, 3]);
+      expect(casa.room.takePasses, [3]);
       expect(casa.naLinha(3, find.text(_salvo)), findsOneWidget);
     },
   );
 
   testWidgets(
-    'a tap on a part sends the spent pass ahead of a newest take that again '
-    'cannot reach the Outbox',
+    'a tap on a part whose newest take again cannot reach the Outbox sends '
+    'nothing, the spent pass having left at the tap to record again',
     (tester) async {
       late _AQueueThatHoldsTheKeep fila;
       final casa = await _naCasa(
@@ -1559,12 +1543,9 @@ void main() {
       casa.room.unreachableTake = null;
 
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.ate(
-        'a passada gasta subir',
-        () => casa.room.takePasses.isNotEmpty && casa.assentou(3),
-      );
+      await casa.emTempoReal(() => settle(const Duration(milliseconds: 400)));
 
-      expect(casa.room.takePasses, [1]);
+      expect(casa.room.takePasses, isEmpty);
       expect(casa.naLinha(3, find.text(_falhou)), findsOneWidget);
     },
   );
@@ -1592,10 +1573,6 @@ void main() {
       fila.falhar = false;
       File(casa.harness.recorder.lastPath!).deleteSync();
       await casa.tocar(casa.naLinha(3, find.text(_falhou)));
-      await casa.ate(
-        'a passada gasta tentar de novo',
-        () => casa.envios == 6 && casa.assentou(3),
-      );
       await casa.ve(casa.naLinha(3, find.text(_perdida)));
       expect(casa.naLinha(3, find.text(_perdida)), findsOneWidget);
       final antes = casa.envios;
@@ -1705,7 +1682,11 @@ void main() {
         await settle(const Duration(milliseconds: 400));
       });
 
-      expect(casa.envios, antes);
+      expect(
+        casa.envios,
+        antes + 1,
+        reason: 'só a própria guarda manda a tomada; o toque não manda nada',
+      );
     },
   );
 
@@ -1871,7 +1852,11 @@ void main() {
       await settle(const Duration(milliseconds: 400));
     });
 
-    expect(casa.envios, antes);
+    expect(
+      casa.envios,
+      antes + 1,
+      reason: 'só a própria guarda manda a tomada; o toque não manda nada',
+    );
   });
 
   testWidgets('a tap whose app run ends while it reads the Outbox sends '
@@ -2417,15 +2402,19 @@ class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
   bool falhar = false;
 
   @override
-  Future<OutboxTally> tally({required String? sessionId}) async {
+  Future<OutboxTally> tally({
+    required String? sessionId,
+    String? passage,
+  }) async {
     await segurarAContagem?.future;
-    return super.tally(sessionId: sessionId);
+    return super.tally(sessionId: sessionId, passage: passage);
   }
 
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -2437,6 +2426,7 @@ class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,

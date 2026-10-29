@@ -40,8 +40,8 @@ failure lines out of the room.
   tries back and the Outbox flushes, in the order recorded (ADR 0025); a take refused for
   good is sent once more. A keep that never reached the Outbox is put in
   it again. The tap does nothing while a microphone records on the home.
-- **The automatic retry stays**, untouched, until Marcia rules; it is never the only way to
-  send.
+- **The automatic retry is gone** (0087, amended 28 October, ENG-1777): the team's tap is the only way a take is
+  sent.
 - **No voice tells a stranded recording.** The line, its kind and its clip in both languages
   are gone. A take refused for good is told by its row, not the voice (ADR 0087). A scene
   take refused for good keeps the scene screen's not-kept words at the moment; nothing tells
@@ -59,7 +59,7 @@ lines.
 **One notice block with every button in it, as her app.** Rejected: the Definer put
 «enviar agora» on its row.
 
-**Drop the automatic retry.** Rejected until Marcia rules.
+**Drop the automatic retry.** Rejected until Marcia rules; done since (0087, amended 28 October, ENG-1777).
 
 **A visit is each arrival at the Rehearsal.** Rejected: a failure of this run would turn
 into an earlier visit's take on the way back from a finding, with no event the team caused.

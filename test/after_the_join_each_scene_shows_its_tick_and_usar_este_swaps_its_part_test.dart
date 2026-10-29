@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Tristate;
 
@@ -478,7 +477,7 @@ Future<_Room> _atRest(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1407-troca');
+  final home = aTempHome('sala-1407-troca');
   final harness = SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
@@ -1392,8 +1391,10 @@ void main() {
     },
   );
 
-  testWidgets('a swap the tablet was closed on, landed behind the relaunch\'s '
-      'conversation, is the part when the dot opens the home', (tester) async {
+  testWidgets('a swap the tablet was closed on sends nothing after the '
+      "relaunch, and its scene row's enviar agora makes it the part", (
+    tester,
+  ) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);
     await it.joined();
@@ -1408,13 +1409,16 @@ void main() {
     await it.settle();
     await it.relaunchOnTheConversation();
     it.room.unreachableTake = null;
+    await it.wait(const Duration(seconds: 30));
+    expect(it.takesOf(2), hasLength(1));
+    it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+    await it.until('a casa voltar', it.showsTheHome);
+    await it.tapThe(it.onRow(2, find.textContaining('enviar agora')));
     await it.within(
       const Duration(seconds: 30),
       'a troca chegar à sala',
       () => it.takesOf(2).length == 2,
     );
-    it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
-    await it.until('a casa voltar', it.showsTheHome);
     await it.within(
       const Duration(seconds: 10),
       'a casa pedir a escuta da cena nova',
