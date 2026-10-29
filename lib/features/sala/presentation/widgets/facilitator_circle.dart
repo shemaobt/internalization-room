@@ -81,8 +81,8 @@ class FacilitatorCircle extends StatelessWidget {
       children: [
         if (!_halted && !still && voice == VoiceState.listening)
           ...canvas
-              ? _herRipples(colors, 3200, const [0, 0.665625, 0.33125])
-              : _herRipples(colors, 3000, const [0, 0.5]),
+              ? _herRipples(colors, 3200, const [0, 1070, 2140])
+              : _herRipples(colors, 3000, const [0, 1500]),
         if (canvas && voice == VoiceState.thinking)
           KeyedSubtree(
             key: const ValueKey(VoiceState.thinking),
@@ -142,7 +142,15 @@ class FacilitatorCircle extends StatelessWidget {
                     scale: !_halted && voice == VoiceState.speaking ? 0.9 : 1,
                     duration: const Duration(milliseconds: 1400),
                     curve: Curves.ease,
-                    child: drawing,
+                    child: Loop(
+                      period: const Duration(milliseconds: 6500),
+                      animate:
+                          !_herNote &&
+                          (voice == VoiceState.invite ||
+                              voice == VoiceState.done),
+                      builder: (context, t) =>
+                          Transform.scale(scale: 1 + 0.035 * t, child: drawing),
+                    ),
                   )
                 : drawing,
           ),
@@ -169,19 +177,8 @@ class FacilitatorCircle extends StatelessWidget {
 
   Widget _body(BuildContext context, SalaColors colors, bool still) {
     if (!canvas) return _checkBody(context, colors, still);
-    if (_herNote) return _herRing(context, colors);
-    if (_teamTalk) return _liveBreath(colors);
-
-    switch (voice) {
-      case VoiceState.invite:
-      case VoiceState.done:
-        return _liveBreath(colors);
-      case VoiceState.listening:
-      case VoiceState.speaking:
-        return _herRing(context, colors);
-      case VoiceState.thinking:
-        return _waiting(context, colors, still);
-    }
+    if (voice == VoiceState.thinking) return _waiting(context, colors, still);
+    return _herRing(context, colors);
   }
 
   Widget _checkBody(BuildContext context, SalaColors colors, bool still) {
@@ -306,12 +303,6 @@ class FacilitatorCircle extends StatelessWidget {
     ),
   );
 
-  Widget _liveBreath(SalaColors colors) => Loop(
-    period: const Duration(milliseconds: 6500),
-    builder: (context, t) =>
-        Transform.scale(scale: 1 + 0.035 * t, child: _herRing(context, colors)),
-  );
-
   Widget _checkRing(SalaColors colors, bool dark) => AnimatedContainer(
     duration: const Duration(milliseconds: 1000),
     curve: Curves.ease,
@@ -360,10 +351,10 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  List<Widget> _herRipples(SalaColors colors, int period, List<double> phases) {
-    Widget ring(double phase) => Ripple(
+  List<Widget> _herRipples(SalaColors colors, int period, List<int> waits) {
+    Widget ring(int wait) => Ripple(
       period: Duration(milliseconds: period),
-      phase: phase,
+      delay: Duration(milliseconds: wait),
       curve: Curves.linear,
       builder: (context, t) => Transform.scale(
         scale: 0.62 + 0.88 * Curves.easeOut.transform(t),
@@ -380,7 +371,7 @@ class FacilitatorCircle extends StatelessWidget {
         ),
       ),
     );
-    return [for (final phase in phases) ring(phase)];
+    return [for (final wait in waits) ring(wait)];
   }
 
   Widget _herLight(double alpha, double reach) => OverflowBox(

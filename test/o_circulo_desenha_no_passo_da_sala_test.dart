@@ -159,13 +159,13 @@ void main() {
   );
 
   testWidgets(
-    'a ring whose pace changes answers to the new pace, not the one it woke up with',
+    'a ring whose pace changes mid-lap answers to the new pace, not the one it woke up with',
     (tester) async {
       double? drawn;
-      Future<void> ring(int period, double phase) => tester.pumpWidget(
+      Future<void> ring(int period, int wait) => tester.pumpWidget(
         Ripple(
           period: Duration(milliseconds: period),
-          phase: phase,
+          delay: Duration(milliseconds: wait),
           curve: Curves.linear,
           builder: (context, t) {
             drawn = t;
@@ -174,17 +174,49 @@ void main() {
         ),
       );
 
-      await ring(3200, 0.5);
-      await ring(3400, 0.65);
-      await tester.pump(const Duration(milliseconds: 1190));
+      await ring(3200, 0);
+      await tester.pump(const Duration(milliseconds: 1000));
+      await ring(3400, 500);
+      await tester.pump(const Duration(milliseconds: 3900));
 
       expect(
         drawn,
         closeTo(0, 1e-9),
         reason:
-            'o anel ainda estava na fase 0,5 dos 3200 ms de quando nasceu — '
-            '1190 ms depois da troca ele devia ter voltado ao começo do '
-            'laço novo (3400 ms, fase 0,65), não seguir a 0,87 do laço velho',
+            'o anel seguia nos 3200 ms de quando nasceu (0,06) ou contava do '
+            'seu primeiro quadro (0,29) — 3,9 s depois da troca ele devia ter '
+            'esperado os 500 ms e voltado ao começo do laço novo de 3400 ms',
+      );
+    },
+  );
+
+  testWidgets(
+    'a ring given a new wait mid-lap waits it from the rebuild, not from its first frame',
+    (tester) async {
+      double? drawn;
+      Future<void> ring(int wait) => tester.pumpWidget(
+        Ripple(
+          period: const Duration(milliseconds: 3200),
+          delay: Duration(milliseconds: wait),
+          curve: Curves.linear,
+          builder: (context, t) {
+            drawn = t;
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+
+      await ring(0);
+      await tester.pump(const Duration(milliseconds: 1000));
+      await ring(500);
+      await tester.pump(const Duration(milliseconds: 3700));
+
+      expect(
+        drawn,
+        closeTo(0, 1e-9),
+        reason:
+            'com o mesmo laço a espera nova não reabria o anel: ele contava '
+            'do primeiro quadro e estava a 0,31 em vez de no começo',
       );
     },
   );
