@@ -1,7 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/approval_answer.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -32,6 +35,29 @@ Future<ProviderContainer> _conferidaPelaSala(
   expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
   expect(container.read(salaSessionProvider).btChecked, isTrue);
   return container;
+}
+
+Future<void> _conferidaDeNovoComUmaParteNaoOuvida(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final parte = container.read(salaSessionProvider).partes.single.takeId!;
+  harness.room
+    ..verdictRefusal = CheckRefusal.partUnheard
+    ..verdictUnheardTakeIds = [parte]
+    ..listeningUnheardTakeIds = [parte];
+  await tocar(tester, conferir);
+  await waitFor(
+    'a sala dizer que falta ouvir',
+    () =>
+        container.read(salaSessionProvider).btRecusa ==
+            CheckRefusal.partUnheard &&
+        container.read(salaSessionProvider).btPhase == BtPhase.playing,
+    step: () => tester.pump(const Duration(milliseconds: 100)),
+  );
+  await tester.pump(const Duration(milliseconds: 600));
+  expect(container.read(salaSessionProvider).btClipEnded, isFalse);
 }
 
 SalaSessionNotifier _sala(ProviderContainer container) =>
@@ -176,6 +202,76 @@ void main() {
       reason: 'o botão aceso fora da conferida não pedia a soltura à sala',
     );
     expect(container.read(salaSessionProvider).ensaioSalvo, 1);
+    closeTheRoom(container);
+  });
+
+  for (final (caso, texto, recusar)
+      in <(String, String, void Function(FakeRoom))>[
+        (
+          'telling_back_not_checked',
+          'para aprovar, a tradução precisa estar conferida',
+          (room) => room.releaseBlockers = ['telling_back_not_checked'],
+        ),
+        (
+          'an answer that approved nothing',
+          'não deu para conferir agora — tentem de novo',
+          (room) => room.release = const ApprovalAnswer(),
+        ),
+        (
+          'a refused request',
+          'não deu para conferir agora — tentem de novo',
+          (room) => room.failReleaseWith = const Refused('CONFLICT'),
+        ),
+      ]) {
+    testWidgets('a refused approval ($caso) only writes «$texto», and the '
+        'check stays as it was, approve button and terminei lit', (
+      tester,
+    ) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _conferidaPelaSala(tester, harness);
+      recusar(harness.room);
+      final sons = harness.sounds.length;
+
+      await pressTheApproval(tester, aprovar);
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text(texto), findsOneWidget);
+      expect(
+        container.read(salaSessionProvider).btPhase,
+        BtPhase.conferida,
+        reason: 'a recusa devolvia a tradução para antes do terminei',
+      );
+      expect(byLabel(aprovar), findsOneWidget);
+      expect(
+        _aprovarAceso(tester),
+        isTrue,
+        reason: 'o dela escreve o motivo e deixa o botão como estava',
+      );
+      expect(byLabel(conferir), findsOneWidget);
+      expect(harness.sounds.skip(sons), isNot(contains('playback:play')));
+      closeTheRoom(container);
+    });
+  }
+
+  testWidgets('a refused approval while a part is still unheard leaves the '
+      'terminei dimmed, not lit over what nobody heard', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+    await _conferidaDeNovoComUmaParteNaoOuvida(tester, harness, container);
+    harness.room.releaseBlockers = ['playback_did_not_cover_the_clip'];
+
+    await pressTheApproval(tester, aprovar);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('ainda falta ouvir um trecho da gravação'), findsWidgets);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(
+      container.read(salaSessionProvider).canFinishBackTranslation,
+      isFalse,
+      reason:
+          'a recusa dava o fim do clipe por ouvido e o terminei acendia por '
+          'cima da parte que a sala ainda não ouviu',
+    );
     closeTheRoom(container);
   });
 }

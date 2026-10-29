@@ -10863,9 +10863,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The team makes what it recorded its final draft.
   ///
   /// A passage the room called checked stays on screen until somebody presses, and an
-  /// approval ends on the Saved screen over it, never on the Choice. The phase never leaves
-  /// [BtPhase.conferida] while the request is out, which is what keeps the affordance
-  /// alive under a transport failure — [_leaveThinking] has nothing to undo there.
+  /// approval ends on the Saved screen over it, never on the Choice. The press is taken only
+  /// at [BtPhase.playing] or [BtPhase.conferida] and the phase never moves while the request
+  /// is out, nor after a refusal, which is what keeps the affordance alive under a transport
+  /// failure — [_leaveThinking] has nothing to undo there.
   Future<void> aprovarRascunhoFinal() =>
       _gestureThen(() => _aprovarRascunhoFinal());
 
@@ -10889,7 +10890,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     void failed(RoomFailure failure) {
       if (_abandoned(generation)) return;
-      if (failure case Refused()) _backToBeforeTerminei();
+      if (failure case Refused()) {
+        fromTheHome ? _backToBeforeTerminei() : _theListeningThePressCutEnds();
+      }
       _decideTheFailure(failure);
     }
 
@@ -10914,7 +10917,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (!resposta.minted) {
         _saysWhy(_recusaDaCasa(resposta.blockers));
-        _backToBeforeTerminei();
+        _theListeningThePressCutEnds();
         return;
       }
       state = state.copyWith(btAprovadoAgora: resposta.version);
@@ -10985,6 +10988,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     btClipEnded: true,
     awaitingTheGuide: false,
   );
+
+  void _theListeningThePressCutEnds() {
+    if (state.btPhase == BtPhase.conferida) {
+      state = state.copyWith(btClipEnded: true);
+    }
+  }
 
   void _esperarQueFalteOuvir(String sessionId, int generation) {
     final armadas = _OQueFaltaOuvir([
