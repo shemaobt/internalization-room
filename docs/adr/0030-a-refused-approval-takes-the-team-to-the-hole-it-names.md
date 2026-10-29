@@ -14,6 +14,16 @@ Wherever this record says the team is taken to a part or a stretch, read that th
 shown the reason and left before *terminei*; the person's remainder, the version race and
 "by the field that is there" stand.
 
+Amended by ENG-1878 (2026-10-29, the same rule): *terminei* is not a button the room can
+simply hand back. Hers cannot be pressed until the telling is complete (`Drafting.tsx`
+`canCheck` :2340-2341, `.draft-save` :2466): a frase told, every part heard as the room
+counts it, no frase awaiting, no sentence re-recorded or splice open, no voice speaking and
+no microphone open, and on a joined recording a fresh frase on every part (`ensaioFinal.ts`
+`everyClipTold` :419). Ours is dimmed and takes no tap outside that gate, so the check's
+door opens on a complete telling; a refusal that still comes back is a race, and where it
+leaves the team is ENG-1852's. Wherever this record says *terminei* comes back, read that
+it comes back under that gate.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal
