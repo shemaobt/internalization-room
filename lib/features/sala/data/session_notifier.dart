@@ -1199,7 +1199,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
-  /// (ADR 0140).
+  /// (ADR 0152).
   ///
   /// [asked] is a replay, which goes straight to speaking for a line already held.
   /// [remember] is false only for a retro verdict the room could not compose. Every
