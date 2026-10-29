@@ -140,7 +140,7 @@ class SceneTranslateStep extends ConsumerWidget {
           const SizedBox(height: 8),
           _WrittenButton(
             said('keepTheEarlier'),
-            live: !scene.waiting && !telling,
+            live: idle,
             onTap: notifier.keepTheEarlierTranslation,
             bare: true,
           ),
