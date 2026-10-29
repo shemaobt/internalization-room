@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0160
 date: 2026-10-29
 amends: 0026 (the mark has no gesture that sets it on the check), 0040 (in part: the wood button of a finding), 0045 (the resume row carries no mark from the check)
 ---
