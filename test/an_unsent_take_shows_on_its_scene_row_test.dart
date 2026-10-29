@@ -99,6 +99,19 @@ class _Casa {
     await settle(const Duration(milliseconds: 400));
   });
 
+  bool falhou(int n) {
+    final linha = estado.sceneRows.firstWhere((row) => row.number == n);
+    return linha.inTheAir == null &&
+        linha.unsent?.failure == SendFailure.failed;
+  }
+
+  Future<void> tocarAte(Finder alvo, String what, bool Function() done) =>
+      emTempoReal(() async {
+        await tester.ensureVisible(alvo);
+        await tester.tap(alvo);
+        await waitFor(what, done);
+      });
+
   Future<void> gravar(int n) => emTempoReal(() async {
     sala.gravarACena(n);
     await waitFor(
@@ -331,9 +344,17 @@ void main() {
     final casa = await _naCasa(tester);
     casa.room.unreachableTake = 'ensaio/parte-2';
     await casa.guardar(2);
+    await casa.emTempoReal(
+      () => waitFor('a cena 2 falhar', () => casa.falhou(2)),
+    );
     final antes = casa.envios;
     for (var toque = 0; toque < 3; toque++) {
-      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      final antesDoToque = casa.envios;
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'o toque ${toque + 1} falhar de novo',
+        () => casa.envios > antesDoToque && casa.falhou(2),
+      );
     }
     expect(casa.envios - antes, greaterThanOrEqualTo(9));
 
