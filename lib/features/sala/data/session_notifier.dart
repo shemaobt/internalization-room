@@ -4177,7 +4177,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// «A passagem inteira» or «Cena por cena» on the grain choice.
-  /// Over an approved draft it takes the Armed tap, whose second tap re-opens it.
   void chooseTheGrain(Grain grain) => _gesture(() {
     final sessionId = state.sessionId;
     if (sessionId == null ||
@@ -4185,16 +4184,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.grainSwitching) {
       return;
     }
-    _armedTap(
-      'choose:${grain.wire}',
-      needs: state.overAnApprovedDraft,
-      then: () => _handOff(
-        _switchTheGrain(
-          grain,
-          reopens: state.overAnApprovedDraft,
-          then: () => _toTheGrainsHome(grain, sessionId),
-          fromTheChoice: true,
-        ),
+    _handOff(
+      _switchTheGrain(
+        grain,
+        reopens: true,
+        then: () => _toTheGrainsHome(grain, sessionId),
+        fromTheChoice: true,
       ),
     );
   });
