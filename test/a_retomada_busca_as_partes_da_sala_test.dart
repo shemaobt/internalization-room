@@ -691,6 +691,22 @@ void main() {
     );
   });
 
+  test('gravar a parte 2 depois das partes 1 e 3 deixa a frase regravada da '
+      'parte 3 na parte 3', () async {
+    final it = await semAParteDoisComRegravadas(SalaHarness());
+
+    await gravarACena(it, 2);
+
+    expect(numerosDasPartes(it), [1, 2, 3]);
+    expect(
+      asRegravadasNaTela(it),
+      [('trecho-velho-1', 1), ('trecho-velho-3', 3)],
+      reason:
+          'a parte 2 entrava antes da 3 e a frase regravada da parte 3 passava '
+          'a ler «parte 2»',
+    );
+  });
+
   group('uma parte que a sala nao tem mais', () {
     test('deixa a linha dela nao gravada e as outras com as suas', () async {
       final it = await semAParteDois(SalaHarness());

@@ -3534,21 +3534,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   List<Trecho> _osTrechosSemAParte(List<Trecho> trechos, int fora) => [
     for (final trecho in trechos)
       if (trecho.parte != fora)
-        trecho.parte < fora
-            ? trecho
-            : Trecho(
-                segmentId: trecho.segmentId,
-                takeId: trecho.takeId,
-                retroPath: trecho.retroPath,
-                parte: trecho.parte - 1,
-                from: trecho.from,
-                to: trecho.to,
-                contado: trecho.contado,
-                lugarFrom: trecho.lugarFrom,
-                lugarTo: trecho.lugarTo,
-                frase: trecho.frase,
-              ),
+        trecho.parte < fora ? trecho : _naParte(trecho, trecho.parte - 1),
   ];
+
+  Trecho _naParte(Trecho trecho, int parte) => Trecho(
+    segmentId: trecho.segmentId,
+    takeId: trecho.takeId,
+    retroPath: trecho.retroPath,
+    parte: parte,
+    from: trecho.from,
+    to: trecho.to,
+    contado: trecho.contado,
+    lugarFrom: trecho.lugarFrom,
+    lugarTo: trecho.lugarTo,
+    frase: trecho.frase,
+  );
 
   /// How long each part turned out to be, so the room knows where each part ends.
   ///
@@ -7377,6 +7377,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
+    );
+    final onde = state.partes.indexOf(nova);
+    state = state.copyWith(
+      btTrechosRegravados: [
+        for (final trecho in state.btTrechosRegravados)
+          trecho.parte < onde ? trecho : _naParte(trecho, trecho.parte + 1),
+      ],
     );
     _deixarOInteiroDeLado();
     _weighTheRehearsal();
