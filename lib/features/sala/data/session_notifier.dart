@@ -3961,7 +3961,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// on the tablet, in the Outbox or in the room, came from a join, while a scene is left
   /// to join. A read that fails or has not answered within [planReadWait], a passage with
   /// no scenes and rehearsals only in the other language's session ask the grain while
-  /// none is in force, and open that grain's recording home otherwise (ADR 0134).
+  /// none is in force, and open that grain's recording home otherwise; a read that fails
+  /// or runs out with the room's listing unread asks the grain whatever is in force
+  /// (ADR 0134).
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
