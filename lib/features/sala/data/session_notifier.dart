@@ -508,6 +508,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late List<Completer<MicOutcome>> _closings;
   late VoidCallback? _onPlaybackComplete;
   late VoidCallback? _onPlaybackFailed;
+  late SceneScreen? _theTranslationAsked;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
   SoundPort get _sound => ref.read(soundPortProvider);
@@ -622,6 +623,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _closings = [];
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
+    _theTranslationAsked = null;
     _launching = null;
     _launched = false;
     _hand = RaisedHand(
@@ -991,6 +993,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _quietTheRoom({bool holdTheClip = false}) {
     _anotarOQueFoiOuvido();
+    _theTranslationAsked = null;
     if (holdTheClip) {
       _holdClip();
     } else {
@@ -1144,6 +1147,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ouvida.unheardTakeIds != null &&
             ordem > (_oQueASalaDisse?.ordem ?? 0)) {
       _oQueASalaDisse = (sessionId: sessionId, ordem: ordem, ouvida: ouvida);
+      state = state.copyWith(btNaoOuvidas: ouvida.unheardTakeIds);
     }
     return resposta;
   }
@@ -5798,14 +5802,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ),
     movedOn,
     generation,
+    failed: (failure) => _decideAt(failure, door: Door.sceneRehearsal),
   );
 
   Future<String?> _fetchASceneClip(
     String name,
     String url,
     bool Function() movedOn,
-    int generation,
-  ) async {
+    int generation, {
+    required void Function(RoomFailure failure) failed,
+  }) async {
     final held = await _heldOnTheTablet(name);
     if (held != null || _abandoned(generation)) return held;
     final clip = await _room.fetchClip(url);
@@ -5828,7 +5834,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered():
         return null;
       case final RoomFailure failure:
-        _decideAt(failure, door: Door.sceneRehearsal);
+        failed(failure);
         return null;
     }
   }
@@ -6749,11 +6755,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       on: const {SceneStep.sent, SceneStep.translate},
     );
     if (frase == null) return;
-    final asked = shown.step == SceneStep.sent
-        ? shown.copyWith()
-        : shown.asWaiting;
+    final asked = shown.copyWith();
     _silenceTheRoom();
     state = state.copyWith(scene: asked);
+    _theTranslationAsked = asked;
     _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
   }
 
@@ -6764,6 +6769,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen waiting,
   ) async {
     final generation = _waitOnTheGeneration;
+    bool movedOn() =>
+        _theSceneMovedOn(waiting, generation) ||
+        !identical(_theTranslationAsked, waiting);
     final path = await _fetchASceneClip(
       'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
       RoomRepository.sceneFraseAudioUrl(
@@ -6771,10 +6779,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal.rehearsalId,
         frase.fraseId,
       ),
-      () => _theSceneMovedOn(waiting, generation),
+      movedOn,
       generation,
+      failed: (_) {},
     );
-    if (_theSceneMovedOn(waiting, generation)) return;
+    if (movedOn()) return;
     state = state.copyWith(scene: shown);
     if (path != null) _play(PartSound(0, path));
   }
@@ -8397,6 +8406,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       clearFindingSegment: true,
       btParteFronteira: false,
+      clearBtParteQueTocou: true,
       btFimDasPartesMs: const [],
       btParteNoArMs: 0,
       btOuvidoMs: 0,
@@ -8672,6 +8682,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // the circle dead, because holding the clip and letting it go reads the mark and
       // refuses to start anything.
       btClipEnded: false,
+      btParteQueTocou: parte,
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
       btOuvidoAlemDoCursor: false,
@@ -11150,7 +11161,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (sent > _stretchesAt) {
           _stretchesAt = sent;
           final trechos = _trechosFrom(snapshot.backTranslation.segments);
-          if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+          if (trechos.isNotEmpty) {
+            final nomes = {
+              for (final trecho in state.btTrechos)
+                ?trecho.frase: ?trecho.segmentId,
+            };
+            final frases = {
+              for (final trecho in trechos) ?trecho.segmentId: trecho.frase,
+            };
+            state = state.copyWith(
+              btTrechos: trechos,
+              btFindings: [
+                for (final finding in state.btFindings)
+                  switch (nomes[finding.frase]) {
+                    null => finding,
+                    final nome => BtFinding(
+                      kind: finding.kind,
+                      frase: frases[nome],
+                      segmentId: finding.segmentId,
+                    ),
+                  },
+              ],
+            );
+          }
           final numeros = {
             for (final regravada in snapshot.backTranslation.stale)
               regravada.segmentId: regravada.frase,
