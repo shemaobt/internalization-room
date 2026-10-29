@@ -331,6 +331,32 @@ void main() {
     },
   );
 
+  testWidgets(
+    'once «manter a tradução de antes» lets the frase that waited go, each frase\'s bar is lit again',
+    (tester) async {
+      final (harness, container) = await _theLastFraseTranslatedAgain(tester);
+      await _aFraseHeldToBeSentAgain(tester, harness, container);
+      expect(_lit(tester, _bar(1)), isFalse);
+
+      await tester.tap(byLabel(_keepTheEarlier));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        container.read(salaSessionProvider).scene.translatingAgain,
+        isNull,
+      );
+      for (final n in [1, 2]) {
+        expect(
+          _lit(tester, _bar(n)),
+          isTrue,
+          reason:
+              'o manter soltou a frase guardada, e a barra da frase $n '
+              'continuava apagada',
+        );
+      }
+    },
+  );
+
   for (final (control, refusals) in [
     (_playPause, [_Refusal.waiting, _Refusal.sending, _Refusal.microphone]),
     (_hearMine(1), [_Refusal.waiting, _Refusal.sending, _Refusal.microphone]),
