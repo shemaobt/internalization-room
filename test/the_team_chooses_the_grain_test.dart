@@ -19,7 +19,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, thePersonSign;
+import 'scenario_helpers.dart'
+    show byLabel, relaunch, thePersonSign, voiceOverTap;
 
 const _how = 'Como vocês querem gravar?';
 const _whole = 'A passagem inteira';
@@ -1243,6 +1244,28 @@ void main() {
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_whole), findsOneWidget);
       expect(harness.room.grainSwitches, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'a VoiceOver double-tap on «$_sceneInstead» on the home switches the grain, '
+    'as a finger does',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      final switches = harness.room.grainSwitches.length;
+
+      voiceOverTap(tester, _sceneInstead);
+      await _settles(tester);
+
+      expect(
+        harness.room.grainSwitches,
+        hasLength(switches + 1),
+        reason:
+            'o VoiceOver anunciava o botão e o toque duplo não trocava nada',
+      );
+      expect(find.text('Cena 1'), findsOneWidget);
+      semantics.dispose();
     },
   );
 
