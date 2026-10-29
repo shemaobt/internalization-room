@@ -280,6 +280,30 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('VoiceOver hears it not pressed before the first tap and '
+      'pressed while it is armed, as hers', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+
+    expect(
+      tester.getSemantics(byLabel(_wholeAtOnce)),
+      isSemantics(hasToggledState: true, isToggled: false),
+      reason: 'o VoiceOver não sabia que o botão arma antes de trocar',
+    );
+
+    await _tap(tester, _wholeAtOnce);
+
+    expect(
+      tester.getSemantics(byLabel(_wholeArmed)),
+      isSemantics(hasToggledState: true, isToggled: true),
+      reason: 'o botão armado soava solto para o VoiceOver',
+    );
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   testWidgets('in english the armed text reads «tap again: the scenes and the '
       'translations are kept»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
