@@ -19,6 +19,7 @@ import 'the_team_re_records_one_whole_sentence_test.dart'
 import 'the_pause_snaps_to_silence_test.dart'
     show
         entrarComAFala,
+        ouvirAPausa,
         pausarAos,
         rotuloDoCirculo,
         s,
@@ -102,6 +103,27 @@ void main() {
       ),
       findsOneWidget,
       reason: 'a pausa marcada não dizia onde ficou ao lado do play',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('«ouvir a pausa» sounding over the held part keeps the part\'s '
+      'place beside play, not a line with no place', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    await tocar(tester, ouvirAPausa);
+
+    expect(container.read(salaSessionProvider).btCortado, isTrue);
+    expect(harness.playback.sounding, isTrue);
+    expect(
+      naTela(
+        'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo '
+        'para traduzir — parte 1 · 0:04 / 0:10',
+      ),
+      findsOneWidget,
+      reason: 'ouvir a pausa apagava o lugar da parte segurada embaixo',
     );
     closeTheRoom(container);
   });

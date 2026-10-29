@@ -943,14 +943,13 @@ class _ALinhaDaEscuta extends ConsumerWidget {
       builder: (context, _) {
         final lugar = switch (parte) {
           null => null,
-          final parte
-              when session.partes.elementAtOrNull(parte)?.scopeId ==
-                  KeptScope.whole =>
-            sceneClockOf(playback.position, playback.playingLength),
-          final parte => firstListenPositionFor(
-            KeptScope.numberOf(session.partes[parte].scopeId) ?? parte + 1,
-            playback.position,
-            playback.playingLength,
+          (:final parte, :final ondeFicou) => _oLugar(
+            session,
+            parte,
+            ondeFicou ?? playback.position,
+            ondeFicou == null
+                ? playback.playingLength
+                : session.partLoudness[session.partes[parte].path]?.length,
             language,
           ),
         };
@@ -967,12 +966,34 @@ class _ALinhaDaEscuta extends ConsumerWidget {
   }
 }
 
-int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
-  PartPlaying(:final part) => part.part,
-  Paused(what: final PartSound part) ||
-  Microphone(held: Paused(what: final PartSound part)) => part.part,
-  _ => null,
-};
+String _oLugar(
+  SalaSessionState session,
+  int parte,
+  Duration at,
+  Duration? length,
+  String language,
+) => session.partes.elementAtOrNull(parte)?.scopeId == KeptScope.whole
+    ? sceneClockOf(at, length)
+    : firstListenPositionFor(
+        KeptScope.numberOf(session.partes[parte].scopeId) ?? parte + 1,
+        at,
+        length,
+        language,
+      );
+
+({int parte, Duration? ondeFicou})? _parteNoAr(SalaSessionState session) =>
+    switch (session.channel) {
+      PartPlaying(:final part) ||
+      Paused(what: final PartSound part) ||
+      Microphone(
+        held: Paused(what: final PartSound part),
+      ) => (parte: part.part, ondeFicou: null),
+      Playing(held: Paused(what: final PartSound part)) => (
+        parte: part.part,
+        ondeFicou: part.from,
+      ),
+      _ => null,
+    };
 
 class _ManterADeAntes extends StatelessWidget {
   final String label;
