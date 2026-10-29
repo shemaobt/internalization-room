@@ -917,9 +917,10 @@ class SalaSessionState {
     return index < 0 ? null : index;
   }
 
-  /// The Scene the circle records: the first Scene with no part, else none. A passage the room answered with no scenes
-  /// takes the lowest number free. With no scene list answered it never goes past the
-  /// parts already held: only a number missing below the highest, or the first part.
+  /// The Scene the circle records: the first Scene with no part, else none. A passage
+  /// the room answered with no scenes takes the lowest number free. With no scene list
+  /// answered it never goes past the parts already held: only a number missing below the
+  /// highest, or the first part.
   int? get sceneForTheCircle {
     if (recordsTheWhole) return partes.isEmpty ? 1 : null;
     final numbers = partNumbers;
