@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0136, amended by 0138, amended by 0150)
+status: accepted (amended by 0136, amended by 0138, amended by 0150, amended by ENG-2028)
 date: 2026-10-20
 amends: 0063 (in part: a session found on no row asks its Opening when not Opened), 0064 (in part: a relaunch with no row lands on the Canvas)
 ---
@@ -10,6 +10,13 @@ This amends ADR 0063 and ADR 0064 without editing their decisions: it adds "amen
 to their status lines. The server half is ADR 0071 of the API (ENG-1235): the team's **Draft**
 is its live session of the passage, and the Session read says `approved` while the passage's
 latest release is still the packet the session composes now.
+
+Amended by ENG-2028 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4 wins): the badge on
+the Back-translation is not decided in the checked phase alone. Hers draws it whenever the
+draft holds a release (`Drafting.tsx:2469`), so on the tell view it stands at every phase,
+still only while nothing of this session waits in the Outbox. At the checked phase a version
+nobody forced keeps its badge in place of the approve button, as before; at any other phase
+the badge stands where the approve button is drawn, under it.
 
 ## Context
 
