@@ -226,7 +226,6 @@ void main() {
         fixedLine: '',
         transcript: '',
         peerCue: false,
-        usedFailSafe: false,
         degraded: false,
         coverage: null,
         done: false,
