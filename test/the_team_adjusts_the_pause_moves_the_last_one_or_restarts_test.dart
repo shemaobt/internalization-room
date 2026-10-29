@@ -344,7 +344,7 @@ void main() {
     testWidgets(
       'under the circle «manter a tradução de antes» comes before her line, not after it',
       (tester) async {
-        final screen = await _theLastBarTapped(tester);
+        await _theLastBarTapped(tester);
         double top(String label) => tester.getTopLeft(byLabel(label)).dy;
 
         expect(top(_tell), lessThan(top(_keepTheEarlier)));
