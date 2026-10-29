@@ -729,6 +729,45 @@ void main() {
   );
 
   testWidgets(
+    'while «recomeçar» is in the air on places unknown the circle waits instead of fading, and still takes no tap',
+    (tester) async {
+      final (harness, _) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final circle = byLabel(
+        'Toque para traduzir esta frase do ensaio da cena',
+      );
+      double opacity() => tester
+          .widget<AnimatedOpacity>(
+            find.descendant(of: circle, matching: find.byType(AnimatedOpacity)),
+          )
+          .opacity;
+      expect(opacity(), 0.35);
+      harness.room.holdNextRestart();
+
+      await tester.tap(byLabel('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(
+        byLabel('toque de novo para apagar as 1 frases traduzidas'),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        opacity(),
+        1.0,
+        reason: 'no dela o círculo respira enquanto o recomeço está no ar',
+      );
+      expect(tester.widget<Semantics>(circle).properties.enabled, isFalse);
+      harness.room.finishHeldRestart();
+      await tester.pump(const Duration(seconds: 7));
+    },
+  );
+
+  testWidgets(
     'on an iPhone SE the places-unknown screen keeps every control whole, apart and on the screen, down to «gravar de novo» above the list',
     (tester) async {
       tester.view.padding = const FakeViewPadding(top: 20);
