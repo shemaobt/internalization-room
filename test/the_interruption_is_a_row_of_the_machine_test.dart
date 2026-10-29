@@ -57,6 +57,25 @@ void main() {
     }
   });
 
+  test('an interruption on the Panorama cuts her and opens the microphone as '
+      'it does on the Canvas', () {
+    const before = Machine(
+      station: Panorama('OV-Ruth'),
+      channel: GuideSpeaking(_guide),
+    );
+
+    final (machine, effects) = reduce(before, _interrupted);
+
+    expect(
+      machine.channel,
+      const Microphone(MicOwner.conversation, cut: _cut),
+      reason: 'no Panorama o toque com ela falando não fazia nada',
+    );
+    expect(effects, _theCut);
+    expect(machine.lastLine?.line, _guide);
+    expect(machine.lastLine?.said, Said.cut);
+  });
+
   test('an interruption over the acknowledgement takes the waiting reply out '
       'of the queue and ends it cut', () {
     final (machine, effects) = reduce(
@@ -78,6 +97,29 @@ void main() {
     expect(effects, _theCut);
   });
 
+  test('an interruption over the Panorama\'s acknowledgement ends the waiting '
+      'reply cut at its start, as on the Canvas', () {
+    const before = Machine(
+      station: Panorama('OV-Ruth'),
+      channel: GuideSpeaking(_acknowledgement),
+      queue: [_guide],
+    );
+
+    final (machine, effects) = reduce(before, _interrupted);
+
+    expect(
+      machine.channel,
+      const Microphone(MicOwner.conversation, cut: CutPoint(Duration.zero)),
+      reason:
+          'no Panorama a resposta na fila atrás do reconhecimento seguia '
+          'para ser dita depois do toque',
+    );
+    expect(machine.queue, isNot(contains(_guide)));
+    expect(machine.lastLine?.line, _guide);
+    expect(machine.lastLine?.said, Said.cut);
+    expect(effects, _theCut);
+  });
+
   group('an interruption changes nothing when the Guide is not speaking', () {
     final rows = <String, Machine>{
       'silence, the voice thinking': _onTheCanvas(const Silence()),
@@ -90,10 +132,6 @@ void main() {
         station: Canvas(),
         channel: GuideSpeaking(_guide),
         halt: Blocking(),
-      ),
-      'the Panorama station': const Machine(
-        station: Panorama('OV-Ruth'),
-        channel: GuideSpeaking(_guide),
       ),
     };
     for (final MapEntry(key: row, value: before) in rows.entries) {
