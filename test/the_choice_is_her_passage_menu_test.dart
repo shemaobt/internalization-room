@@ -539,7 +539,7 @@ void main() {
     'a tap on the tinted Panorama comes back to it, as the way back does, '
     'without its opening again',
     (tester) async {
-      final harness = _aRoomListing(_ruth);
+      final harness = _aRoomListing(_ruth)..room.resumesTheLatest = true;
       final container = await _theChoice(tester, harness);
       await tester.tap(find.text(_panoramaPt));
       await _catchUp(tester);
