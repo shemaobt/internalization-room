@@ -100,10 +100,6 @@ const testLanguage = 'pt';
 /// The line this room composes for a *terminei* it answered.
 const falaDoVeredito = '/api/internalization-room/voice/veredito';
 
-/// The line this room composes for a *terminei* it refused, because a part of the
-/// rehearsal is not covered by the report. Its own line, as the refusal is its own answer.
-const falaDaParteNaoOuvida = '/api/internalization-room/voice/parte-nao-ouvida';
-
 /// The line this room composes for a *terminei* it refused, because a current part has no
 /// stretch told over it. Its own line, as the refusal is its own answer.
 const falaDaParteNaoContada =
@@ -3329,8 +3325,6 @@ class FakeRoom implements RoomRepository {
     final String linha;
     if (verdictUntoldTakeIds.isNotEmpty) {
       linha = falaDaParteNaoContada;
-    } else if (verdictUnheardTakeIds.isNotEmpty) {
-      linha = falaDaParteNaoOuvida;
     } else {
       linha = verdictAudioUrl ?? falaDoVeredito;
     }
@@ -3341,7 +3335,6 @@ class FakeRoom implements RoomRepository {
         checked: verdictChecked,
         findingSegmentId: _oQueOAnalistaAponta(),
         untoldSegmentId: verdictUntoldSegmentId,
-        unheardTakeIds: verdictUnheardTakeIds,
         untoldTakeIds: verdictUntoldTakeIds,
         findings: verdictFindings,
         findingsRemaining: verdictHasFinding ? 1 : 0,

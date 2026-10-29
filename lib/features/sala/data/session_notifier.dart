@@ -10801,17 +10801,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
 
-      final naoOuvidas = verdict.unheardTakeIds;
-      if (naoOuvidas.isNotEmpty) {
-        if (verdict.refusal == CheckRefusal.partUnheard) {
-          _esperarQueFalteOuvir(sessionId, generation);
-          return;
-        }
-        await _levarAsPartesApontadasPelaRecusa(
-          naoOuvidas,
-          generation,
-          semChaoTraduzido: false,
-        );
+      if (verdict.unheardTakeIds.isNotEmpty &&
+          verdict.refusal == CheckRefusal.partUnheard) {
+        _esperarQueFalteOuvir(sessionId, generation);
         return;
       }
 

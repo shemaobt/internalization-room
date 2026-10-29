@@ -40,8 +40,7 @@ the ticket (ENG-1419) on 19 and 20 October.
   name the parts: today's path.
 - **A refusal for unheard parts** (`PART_UNHEARD`, her P2) plays nothing: see the
   amendment below. A verdict that names unheard parts with no refusal, which only a room
-  older than 19 October sends, still plays every part it names in row order, crossing from
-  one to the next, with the crossing after the last left offered.
+  older than 19 October sends, starts nothing: see the second amendment below.
 - The replay has no rule for a blocking halt: under ADR 0093 none of her six cases can land
   while it plays, and a Session read saying `needs_person` changes nothing.
 - The reports, the mark and the replay's list live in the notifier beside the Retro screen's
@@ -86,3 +85,13 @@ back after the team has pressed play changes nothing: the replay's last part cle
 
 The refusal's replay keeps living in the notifier beside the Retro screen's other fields,
 under ADR 0046's written exception.
+
+## Amendment · 2026-10-29 (ENG-2037)
+
+No room sends a verdict that names unheard parts without a refusal any more: since
+19 October the room names them only on `PART_UNHEARD` (tripod-backend 3d6b3481), and hers
+has no such answer at all, only the 409 the amendment above follows (`Drafting.tsx:1515`, at
+18fa7c4). The rule that played every part such a verdict named, in row order, is withdrawn.
+
+A verdict that names unheard parts with no refusal is read as the verdict it otherwise is:
+the parts it names start nothing, and nothing goes in the air on their account. A `PART_UNHEARD` refusal keeps the amendment above.
