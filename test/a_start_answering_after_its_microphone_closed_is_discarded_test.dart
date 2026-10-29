@@ -112,9 +112,9 @@ void main() {
 
       notifier.goEnsaio();
       harness.recorder.holdNextStart();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await waitFor(
         'a tomada voltar',
         () => read().ensaio == EnsaioStatus.recorded,
@@ -136,7 +136,7 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       harness.recorder.holdNextStart();
-      notifier.ensaioTap();
+      notifier.gravarACena(2);
       await waitFor(
         'o ensaio começar a gravar',
         () => read().ensaio == EnsaioStatus.recording,
@@ -188,15 +188,15 @@ void main() {
 
       notifier.goEnsaio();
       harness.recorder.holdNextStart();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await waitFor(
         'a primeira tomada voltar',
         () => read().ensaio == EnsaioStatus.recorded,
       );
       harness.recorder.holdNextStart();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await waitFor(
         'a segunda abertura sair',
         () => read().ensaio == EnsaioStatus.recording,
@@ -255,15 +255,15 @@ void main() {
 
       notifier.goEnsaio();
       harness.recorder.holdNextStart();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await waitFor(
         'a primeira tomada voltar',
         () => read().ensaio == EnsaioStatus.recorded,
       );
       harness.recorder.startThrows = true;
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
       harness.recorder.startThrows = false;
       final soundsBefore = harness.sounds.length;
@@ -289,13 +289,13 @@ void main() {
 
     notifier.goEnsaio();
     harness.recorder.holdNextStart();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
     await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor('P02 abrir', () => read().voice == VoiceState.invite);
     notifier.goEnsaio();
     harness.recorder.startThrows = true;
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
     harness.recorder.startThrows = false;
     final soundsBefore = harness.sounds.length;
@@ -323,15 +323,15 @@ void main() {
 
     notifier.goEnsaio();
     harness.recorder.holdNextStart();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await waitFor(
       'a primeira tomada voltar',
       () => read().ensaio == EnsaioStatus.recorded,
     );
     harness.recorder.holdNextStart();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
     await notifier.goConversa(book: 'Ruth', pericope: 'P02');
     await waitFor('P02 abrir', () => read().voice == VoiceState.invite);

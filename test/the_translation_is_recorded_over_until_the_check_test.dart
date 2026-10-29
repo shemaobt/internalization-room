@@ -168,8 +168,8 @@ Future<ProviderContainer> entrarNaTraducao(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var gravada = 0; gravada < 2; gravada++) {
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(gravada + 1);
+    notifier.gravarACena(gravada + 1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: gravada + 1);
@@ -806,8 +806,8 @@ void main() {
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);

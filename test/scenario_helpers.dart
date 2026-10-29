@@ -161,10 +161,11 @@ const umaParteInteira = Duration(seconds: 30);
 Future<void> gravarUmaParte(
   WidgetTester tester,
   ProviderContainer container,
+  int cena,
 ) async {
   final notifier = container.read(salaSessionProvider.notifier);
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
+  notifier.gravarACena(cena);
   await waitFor(
     'a gravação da parte chegar',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,

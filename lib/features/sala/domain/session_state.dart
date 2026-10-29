@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'bt_finding.dart';
 import 'channel.dart';
 import 'halt.dart';
@@ -528,15 +526,6 @@ class SalaSessionState {
   final Machine machine;
   final DateTime? recorderStartedAt;
 
-  /// Which part of the rehearsal the team came back to record again, 0-based, or null when
-  /// the next recording is a part of its own.
-  ///
-  /// The rehearsal screen draws it and the record circle names it, so it is a fact of the
-  /// session rather than a private count in the notifier: mirrored in two places the two
-  /// drifted, and the screen said a new part was being recorded over a gesture that was
-  /// replacing one.
-  final int? parteARegravar;
-
   /// The Scene the open or pending recording of the Rehearsal is for, from 1; null while
   /// nothing is being recorded there.
   final int? cenaDaGravacao;
@@ -636,17 +625,6 @@ class SalaSessionState {
   /// The current parts the room holds that this tablet does not yet, by take id.
   final Map<String, PartAway> partsAway;
 
-  /// Whether Scene row [scene] does not apply right now (ADR 0040: dimmed means it does
-  /// not apply). True for every row but the one a finding sent the team back to record,
-  /// while that record-again stands open and nothing has been recorded for it yet. Once
-  /// that recording is pending — waiting for the green check — every row applies again,
-  /// so this reads false throughout: the one rule the row and its gestures both read,
-  /// instead of the row drawing dim where a gesture would still act.
-  bool sceneRowIsDimmed(int scene) {
-    final marked = _numberAt(parteARegravar);
-    return ensaio == EnsaioStatus.idle && marked != null && marked != scene;
-  }
-
   const SalaSessionState({
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
@@ -717,7 +695,6 @@ class SalaSessionState {
     this.heldScenes = const {},
     this.machine = const Machine(),
     this.recorderStartedAt,
-    this.parteARegravar,
     this.cenaDaGravacao,
     this.scene = const SceneScreen(),
     this.externalCheck = const ExternalCheckScreen(),
@@ -818,11 +795,9 @@ class SalaSessionState {
       naRoda!.every((passagem) => passagem.isPanorama);
 
   /// The advance disc lights: every Scene has its Part, every Part is on the tablet and
-  /// none waits in the Outbox, with nothing recorded and waiting and no finding's mark
-  /// standing.
+  /// none waits in the Outbox, with nothing recorded and waiting.
   bool get ensaioDone =>
       ensaio == EnsaioStatus.idle &&
-      parteARegravar == null &&
       everySceneHasItsPart &&
       everyPartIsHere &&
       everyPartIsSent;
@@ -940,24 +915,6 @@ class SalaSessionState {
     return index < 0 ? null : index;
   }
 
-  /// The Scene the circle records: the part a finding sent the team back for, else the
-  /// first Scene with no part, else none. A passage the room answered with no scenes
-  /// takes the lowest number free. With no scene list answered it never goes past the
-  /// parts already held: only a number missing below the highest, or the first part.
-  int? get sceneForTheCircle {
-    final marked = _numberAt(parteARegravar);
-    if (marked != null) return marked;
-    if (recordsTheWhole) return partes.isEmpty ? 1 : null;
-    final numbers = partNumbers;
-    final free = KeptScope.firstFree(numbers);
-    return switch (scenes) {
-      ScenesHad(scenes: final had) when had.isNotEmpty =>
-        free <= had.length ? free : null,
-      ScenesHad() => free,
-      _ => free <= numbers.fold(1, max) ? free : null,
-    };
-  }
-
   bool get aTakeFromAnEarlierVisitWaits =>
       sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
 
@@ -985,7 +942,6 @@ class SalaSessionState {
       _ => const [],
     };
     final playing = parteDoEnsaioTocando;
-    final again = parteARegravar;
     final saved = machine.savedParts(sessionId);
     return [
       for (final (number, title, beyondTheScenes) in numbered)
@@ -1007,8 +963,7 @@ class SalaSessionState {
             null => null,
           },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
-          dimmed: sceneRowIsDimmed(number),
-          current: _numberAt(playing ?? again) == number,
+          playing: _numberAt(playing) == number,
         ),
     ];
   }
@@ -1884,8 +1839,6 @@ class SalaSessionState {
     Machine? machine,
     DateTime? recorderStartedAt,
     bool clearRecorderStartedAt = false,
-    int? parteARegravar,
-    bool clearParteARegravar = false,
     int? cenaDaGravacao,
     bool clearCenaDaGravacao = false,
     SceneScreen? scene,
@@ -2035,9 +1988,6 @@ class SalaSessionState {
       recorderStartedAt: clearRecorderStartedAt
           ? null
           : (recorderStartedAt ?? this.recorderStartedAt),
-      parteARegravar: clearParteARegravar
-          ? null
-          : (parteARegravar ?? this.parteARegravar),
       cenaDaGravacao: clearCenaDaGravacao
           ? null
           : (cenaDaGravacao ?? this.cenaDaGravacao),
@@ -2105,11 +2055,9 @@ class SceneRow {
   final bool saved;
   final PartAway? away;
   final bool recording;
-  final bool dimmed;
 
-  /// The part in the air, playing or held, or else the part a finding sent the team back
-  /// to record again.
-  final bool current;
+  /// The part in the air, playing or held.
+  final bool playing;
 
   const SceneRow({
     required this.number,
@@ -2121,8 +2069,7 @@ class SceneRow {
     required this.saved,
     required this.away,
     required this.recording,
-    required this.dimmed,
-    required this.current,
+    required this.playing,
   });
 
   /// Whether «Ouvir» would play the take that is gone: the room's own part, which carries

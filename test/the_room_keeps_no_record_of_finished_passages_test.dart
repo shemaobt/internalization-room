@@ -51,8 +51,8 @@ void main() {
       await sala.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       sala.goEnsaio();
-      sala.ensaioTap();
-      sala.ensaioTap();
+      sala.gravarACena(1);
+      sala.gravarACena(1);
       await settle();
       sala.takeKeep();
       sala.startRetro();

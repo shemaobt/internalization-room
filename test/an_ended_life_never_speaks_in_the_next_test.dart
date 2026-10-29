@@ -86,8 +86,8 @@ void main() {
       await sala.goConversa(book: 'Ruth');
       await settle();
       sala.goEnsaio();
-      sala.ensaioTap();
-      sala.ensaioTap();
+      sala.gravarACena(1);
+      sala.gravarACena(1);
       await waitFor(
         'a tomada ser oferecida',
         () =>

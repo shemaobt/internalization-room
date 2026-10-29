@@ -376,19 +376,19 @@ void main() {
       await notifier.goConversa(book: 'Ruth');
       await settle();
       notifier.goEnsaio();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
 
       harness.recorder.failsTheNextStop = PlatformException(
         code: 'the platform broke',
       );
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
 
       expect(read().needsPerson, isFalse);
       expect(read().ensaio, EnsaioStatus.recording);
 
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
 
       expect(read().ensaio, EnsaioStatus.recorded);

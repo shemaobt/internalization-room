@@ -76,8 +76,8 @@ void _theTurnTakesLongAndNothingLands(FakeRoom room) => room.holdNextTurn();
 
 Future<void> _keepARehearsalPart(SalaSessionNotifier sala) async {
   sala.goEnsaio();
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await Future<void>.delayed(const Duration(milliseconds: 120));
   sala.takeKeep();
 }

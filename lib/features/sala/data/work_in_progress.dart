@@ -34,11 +34,6 @@ class ResumePoint {
   /// existed, or before this stage carried the language forward on its own rewrites.
   final String? language;
 
-  /// The part the team came back to the Rehearsal to record again (ADR 0026), 0-based
-  /// like `parteARegravar` in the session it mirrors. Null when no part is marked, and
-  /// for a row written before this field existed.
-  final int? partBeingRecordedAgain;
-
   /// For each part number the team has yet to record where the room's part is gone, the
   /// room's pass for it, so the recording goes up above it. Empty for any other row.
   final Map<int, int> passesToGoAbove;
@@ -65,7 +60,6 @@ class ResumePoint {
     this.takes = const [],
     this.savedAt,
     this.language,
-    this.partBeingRecordedAgain,
     this.passesToGoAbove = const {},
     this.listener,
     this.wholeHeldByTheRoom = const [],
@@ -77,7 +71,6 @@ class ResumePoint {
     'stage': stage.name,
     'saved_at': ?savedAt?.millisecondsSinceEpoch,
     'language': ?language,
-    'part_being_recorded_again': ?partBeingRecordedAgain,
     if (passesToGoAbove.isNotEmpty)
       'passes_to_go_above': {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
@@ -115,7 +108,6 @@ class ResumePoint {
           ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
           : null,
       language: json['language'] as String?,
-      partBeingRecordedAgain: json['part_being_recorded_again'] as int?,
       passesToGoAbove: {
         for (final MapEntry(:key, :value)
             in (json['passes_to_go_above'] as Map? ?? const {}).entries)

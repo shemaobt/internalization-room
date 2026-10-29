@@ -95,7 +95,6 @@ Future<void> _retomadaJuntada(
       ],
       savedAt: value.savedAt,
       language: value.language,
-      partBeingRecordedAgain: value.partBeingRecordedAgain,
       passesToGoAbove: value.passesToGoAbove,
     );
   }

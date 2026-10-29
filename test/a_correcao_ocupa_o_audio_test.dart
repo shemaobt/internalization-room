@@ -28,8 +28,8 @@ Future<Sala> _aSalaNaPergunta({int lugar = 1}) async {
   await it.sala.goConversa(book: 'Ruth');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  await gravarUmaParteDoEnsaio(it);
-  await gravarUmaParteDoEnsaio(it);
+  await gravarUmaParteDoEnsaio(it, 1);
+  await gravarUmaParteDoEnsaio(it, 2);
   it.sala.startRetro();
   await waitFor(
     'a tradução começar a tocar a primeira parte',

@@ -523,8 +523,8 @@ void main() {
         ..room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
       final room = await _onTheCanvas(harness);
       room.sala.goEnsaio();
-      room.sala.ensaioTap();
-      room.sala.ensaioTap();
+      room.sala.gravarACena(1);
+      room.sala.gravarACena(1);
       await settle();
       room.sala.takeKeep();
       await waitFor('a parte ficar pendente', () => room.state.unsentTakes > 0);
@@ -1037,9 +1037,9 @@ void main() {
     room.sala.goEnsaio();
     harness.recorder.returnsEmpty = true;
 
-    room.sala.ensaioTap();
+    room.sala.gravarACena(1);
     await settle();
-    room.sala.ensaioTap();
+    room.sala.gravarACena(1);
     await settle();
     room.sala.takeKeep();
     await settle();

@@ -37,8 +37,8 @@ Future<void> _intoFindings(
   ProviderContainer container,
 ) async {
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   // A stretch is a slice of a recording the room can name, and the name is adopted only
@@ -79,8 +79,8 @@ Future<void> _intoConferida(
   SalaSessionNotifier notifier,
 ) async {
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   notifier.startRetro();
@@ -104,8 +104,8 @@ Future<void> tellTwoStretches(
 ) async {
   final notifier = container.read(salaSessionProvider.notifier);
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await waitFor(
     'a tomada ser oferecida',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -485,8 +485,8 @@ void main() {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await waitFor(
         'a tomada ser oferecida',
         () =>
@@ -654,8 +654,8 @@ void main() {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await waitFor(
         'a tomada ser oferecida',
         () =>
@@ -1923,8 +1923,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       notifier.startRetro();
@@ -4164,8 +4164,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     await waitFor(
@@ -4194,8 +4194,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     harness.room.reachable = false;
     notifier.takeKeep();
@@ -4239,8 +4239,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     harness.room.reachable = false;
     notifier.takeKeep();
@@ -4415,8 +4415,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.playTheRehearsal();
@@ -4443,8 +4443,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();
@@ -4474,8 +4474,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();
@@ -4525,8 +4525,8 @@ void main() {
           final notifier = container!.read(salaSessionProvider.notifier);
 
           notifier.goEnsaio();
-          notifier.ensaioTap();
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
+          notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
           notifier.startRetro();
@@ -4647,8 +4647,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await waitFor(
       'a gravação da parte terminar',
       () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -4731,8 +4731,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       await waitFor(
@@ -4776,8 +4776,8 @@ void main() {
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await settle();
 
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(2);
+    notifier.gravarACena(2);
     await settle();
     notifier.takeKeep();
     await waitFor(
@@ -4890,7 +4890,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
 
     expect(
@@ -4912,8 +4912,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       await waitFor(
@@ -5058,8 +5058,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await waitFor(
       'a tomada ser oferecida',
       () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -5082,8 +5082,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await waitFor(
       'a gravação da parte terminar',
       () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -5133,8 +5133,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await waitFor(
       'a gravação da parte terminar',
       () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -5180,8 +5180,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();
@@ -5263,8 +5263,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await waitFor(
         'a gravação da parte terminar',
         () =>
@@ -5314,10 +5314,10 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
     harness.recorder.holdNextStop();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
 
     expect(
@@ -5354,8 +5354,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     final guardada = container.read(salaSessionProvider).partes.firstOrNull;
@@ -5363,8 +5363,8 @@ void main() {
 
     final contadas = container.read(salaSessionProvider).partes.length;
     harness.recorder.returnsNothing = true;
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(2);
+    notifier.gravarACena(2);
     await settle();
 
     final state = container.read(salaSessionProvider);
@@ -5398,8 +5398,8 @@ void main() {
 
     notifier.goEnsaio();
     harness.recorder.returnsEmpty = true;
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     await settle();
@@ -5440,8 +5440,8 @@ void main() {
       harness.recorder.rehearsalSpeaks = aWavTake(
         samples: List.filled(3200, 4000),
       );
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -5482,8 +5482,8 @@ void main() {
       notifier.goEnsaio();
       final soundsBefore = harness.sounds.length;
       harness.recorder.returnsNothing = true;
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
 
       final state = container.read(salaSessionProvider);
@@ -5513,12 +5513,12 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     final primeira = harness.recorder.lastPath;
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     final segunda = harness.recorder.lastPath;
     notifier.takeKeep();
@@ -5547,8 +5547,8 @@ void main() {
 
     notifier.goEnsaio();
     harness.recorder.returnsEmpty = true;
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
 
     final path = harness.recorder.lastPath;
@@ -5569,8 +5569,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await waitFor(
         'a gravação da parte terminar',
         () =>
@@ -5623,8 +5623,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       notifier.startRetro();
@@ -5861,8 +5861,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     await waitFor(
@@ -5941,19 +5941,19 @@ void main() {
     await settle();
   });
 
-  Future<void> gravaParte(SalaSessionNotifier notifier) async {
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+  Future<void> gravaParte(SalaSessionNotifier notifier, int cena) async {
+    notifier.gravarACena(cena);
+    notifier.gravarACena(cena);
     await settle();
     notifier.takeKeep();
     await settle();
   }
 
-  Future<void> gravaEGuardaAParte(ProviderContainer container) async {
+  Future<void> gravaEGuardaAParte(ProviderContainer container, int cena) async {
     final notifier = container.read(salaSessionProvider.notifier);
     final guardadas = container.read(salaSessionProvider).partes.length;
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(cena);
+    notifier.gravarACena(cena);
     await waitFor(
       'a tomada ser oferecida',
       () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -5978,9 +5978,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
+    await gravaParte(notifier, 3);
 
     final state = container.read(salaSessionProvider);
     expect(state.partes.length, 3);
@@ -6013,9 +6013,9 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      await gravaParte(notifier);
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      await gravaParte(notifier, 1);
+      notifier.gravarACena(2);
+      notifier.gravarACena(2);
       await settle();
 
       expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
@@ -6045,8 +6045,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    notifier.ensaioTap();
+    await gravaParte(notifier, 1);
+    notifier.gravarACena(2);
     await settle();
 
     notifier.startRetro();
@@ -6069,8 +6069,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
 
     notifier.playTheRehearsal();
     await settle();
@@ -6094,8 +6094,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     notifier.startRetro();
     await settle();
     final primeira = harness.playback.played.single;
@@ -6209,8 +6209,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 6);
@@ -6236,8 +6236,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     harness.playback.length = const Duration(seconds: 10);
     notifier.startRetro();
     await settle();
@@ -6257,8 +6257,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     harness.playback.length = const Duration(seconds: 10);
     harness.playback.measured = const Duration(seconds: 10);
     notifier.startRetro();
@@ -6293,7 +6293,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
     notifier.startRetro();
     await settle();
 
@@ -6353,8 +6353,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaEGuardaAParte(container);
-    await gravaEGuardaAParte(container);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
     await waitFor(
@@ -6413,8 +6413,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
@@ -6464,8 +6464,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaEGuardaAParte(container);
-    await gravaEGuardaAParte(container);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
     await waitFor(
@@ -6510,7 +6510,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
     notifier.startRetro();
     await settle();
     final captures = harness.recorder.captures;
@@ -6535,8 +6535,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
@@ -6585,8 +6585,8 @@ void main() {
     final room = notifier as _RoomThatKeepsAnOwnTake;
 
     notifier.goEnsaio();
-    await gravaParte(notifier);
-    await gravaParte(notifier);
+    await gravaParte(notifier, 1);
+    await gravaParte(notifier, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
     await settle();
@@ -6657,8 +6657,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       container.dispose();
@@ -6840,8 +6840,8 @@ void main() {
       await notifier.goConversa(book: 'Ruth');
       await settle();
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
 
       notifier.takeKeep();

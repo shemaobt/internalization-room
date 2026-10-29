@@ -18,8 +18,8 @@ Future<void> _gravaParte(
   SalaSessionNotifier notifier,
 ) async {
   final partesAntes = container.read(salaSessionProvider).partes.length;
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   await waitFor('a sala nomear a parte', () {

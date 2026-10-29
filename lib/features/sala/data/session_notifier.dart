@@ -837,7 +837,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       clearLastSpoken: true,
       roomSaysItAgain: false,
-      clearParteARegravar: true,
       clearHomeSheet: true,
       clearSwapLine: true,
       clearSwapping: true,
@@ -2603,7 +2602,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       };
 
   ({String scope, int pass, int? number})? get _thePartBeingRecorded {
-    final numero = state.cenaDaGravacao ?? state.sceneForTheCircle;
+    final numero = state.cenaDaGravacao;
     if (numero == null) return null;
     if (state.partIndexOf(numero) case final parte?) {
       final escopo = state.partes[parte].scopeId;
@@ -3138,7 +3137,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             takes: state.keptTakes,
             savedAt: _sessionSavedAt,
             language: _sessionLanguage,
-            partBeingRecordedAgain: state.parteARegravar,
             passesToGoAbove: _passadasDaSala ?? const {},
             listener: _listenerInProgress,
             wholeHeldByTheRoom: [...state.wholeHeldByTheRoom],
@@ -3285,7 +3283,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       keptTakes: takes,
       wholeHeldByTheRoom: heldByTheRoom,
-      parteARegravar: waiting.partBeingRecordedAgain,
       grainInForce: waiting.grain,
       partsAway: {for (final takeId in aBuscar) takeId: PartAway.coming},
     );
@@ -3527,7 +3524,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final fora = state.partes.indexWhere(
         (take) => take.takeId == parte.takeId,
       );
-      final regravando = state.parteARegravar;
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
@@ -3539,11 +3535,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           state.btTrechosRegravados,
           fora,
         ),
-        parteARegravar: switch (regravando) {
-          final at? when at > fora => at - 1,
-          _ => regravando,
-        },
-        clearParteARegravar: regravando == fora,
       );
     }
     if (perdidas.isEmpty) return false;
@@ -4377,7 +4368,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btChecked: false,
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,
-      clearParteARegravar: true,
     );
     _theTellingStartsOver(const []);
     _weighTheRehearsal();
@@ -7254,8 +7244,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.station is! Ensaio || state.needsPerson || state.playPing) {
       return;
     }
+    if (!state.aBackTranslationGestureActs) return;
     final row = state.sceneRows.where((row) => row.number == cena).firstOrNull;
-    if (row == null || row.dimmed || row.beyondTheScenes) return;
+    if (row == null || row.beyondTheScenes) return;
     final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
@@ -7274,7 +7265,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _ouvirACena(int cena) {
     final indice = state.partIndexOf(cena);
-    if (indice == null || state.sceneRowIsDimmed(cena)) return;
+    if (indice == null) return;
     final takeId = state.partes[indice].takeId;
     if (state.partsAway[takeId] == PartAway.missed) {
       state = state.copyWith(
@@ -7283,26 +7274,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _bringThePartsDown(const Ensaio());
     }
     _tocarAParte(indice);
-  }
-
-  /// The circle records the part a finding sent the team back for, else the first Scene
-  /// with no part; with every Scene recorded it records nothing.
-  void ensaioTap() => _gesture(() => _ensaioTap());
-
-  void _ensaioTap() {
-    if (state.needsPerson || state.playPing) return;
-    if (!state.aBackTranslationGestureActs) return;
-    switch (state.ensaio) {
-      case EnsaioStatus.idle:
-        _readTheScenesForTheRehearsal();
-        final cena = state.sceneForTheCircle;
-        if (cena != null) _abrirOMicrofoneDaCena(cena);
-      case EnsaioStatus.recorded:
-        final cena = state.cenaDaGravacao ?? state.sceneForTheCircle;
-        if (cena != null) _abrirOMicrofoneDaCena(cena);
-      case EnsaioStatus.recording:
-        _handOff(_finishTake());
-    }
   }
 
   void _abrirOMicrofoneDaCena(int cena) {
@@ -7396,7 +7367,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     // Part N is Scene N: the recording is kept under the number of the row it was made
     // from, in place of the part already there.
-    final numero = state.cenaDaGravacao ?? state.sceneForTheCircle;
+    final numero = state.cenaDaGravacao;
     if (numero == null) {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
@@ -7405,7 +7376,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btChecked: false,
       clearBtRecusa: true,
-      clearParteARegravar: true,
       clearCenaDaGravacao: true,
     );
     // A scene list not answered yet is asked again at each keep, the moment the team
@@ -11618,9 +11588,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _voltarAoEnsaio();
-    if (state.partes[parte].scopeId != KeptScope.whole) {
-      state = state.copyWith(parteARegravar: parte);
-    }
     _asPartesPerdidasSaem();
     _rememberWhereTheyAre(const Ensaio());
   }

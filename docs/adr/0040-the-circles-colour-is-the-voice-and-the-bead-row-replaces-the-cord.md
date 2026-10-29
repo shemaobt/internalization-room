@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102, amended by ENG-1441 (2026-10-21: the Conversation's green check of ADR 0037 is gone; the confirming check on the recording rows stays), amended by ENG-1843 (2026-10-27: the circle takes her size per screen and the canvas circle is her hollow ring), amended by 0153, amended by 0158
+status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102, amended by ENG-1441 (2026-10-21: the Conversation's green check of ADR 0037 is gone; the confirming check on the recording rows stays), amended by ENG-1843 (2026-10-27: the circle takes her size per screen and the canvas circle is her hollow ring), amended by 0153, amended by 0158, amended by ENG-1872 (2026-10-29: the recording home has no circle)
 date: 2026-09-25
 ---
 
@@ -74,3 +74,10 @@ grow out of the circle while the team speaks, and while she speaks the circle dr
 .9 over a breathing glow, with no ripple. The colour-is-the-voice rule and its inward and
 outward ripples stand on the Back-translation, the Rehearsal and the external check, whose
 circles keep their discs.
+
+## Amendment · 2026-10-29 (ENG-1872)
+
+The recording home has no Circle and no current row, as hers (`app/components/Drafting.tsx`
+at 18fa7c4, :2498-2576). Each Scene row records, stops and records again through its own
+controls, so «the Circle is the room's one control» no longer holds on the home. The
+`min(46vw, 180px)` size above stays with the scene rehearsal's record circle.

@@ -16,8 +16,8 @@ Future<ProviderContainer> pumpAoGravado(SalaHarness harness) async {
   final notifier = container.read(salaSessionProvider.notifier);
 
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
 
   return container;
@@ -164,8 +164,8 @@ void main() {
       await notifier.goConversa(book: 'Ruth');
       await tester.pump(const Duration(milliseconds: 200));
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await tester.pump(const Duration(milliseconds: 100));
 
       IconData playIcon(String label) => tester

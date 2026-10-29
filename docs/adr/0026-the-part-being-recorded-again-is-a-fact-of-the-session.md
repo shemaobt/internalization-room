@@ -1,3 +1,4 @@
+Superseded on the recording home by ENG-1872 (2026-10-29): no part is marked; «voltar e regravar uma parte» lands with every row live, as hers.
 Amended by 0158 (the check no longer marks a part).
 
 # The part being recorded again is a fact of the session

@@ -13,10 +13,11 @@ import 'scenario_helpers.dart' show settle;
 Future<void> _gravaParte(
   ProviderContainer container,
   SalaSessionNotifier notifier,
+  int cena,
 ) async {
   final partesAntes = container.read(salaSessionProvider).partes.length;
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
+  notifier.gravarACena(cena);
   await settle();
   notifier.takeKeep();
   await waitFor('a sala nomear a parte', () {
@@ -36,7 +37,7 @@ Future<ProviderContainer> _inRetro(
   await settle();
   notifier.goEnsaio();
   for (var parte = 0; parte < partes; parte++) {
-    await _gravaParte(container, notifier);
+    await _gravaParte(container, notifier, parte + 1);
   }
   notifier.startRetro();
   await settle();

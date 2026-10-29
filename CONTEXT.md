@@ -267,7 +267,7 @@ The rows at the top of the Back-translation and the findings, one per Part, hers
 _Avoid_: Bead row (retired on 2026-10-27), cord, reading head (retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
-The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it. On the First listen its tap does nothing.
+The room's control on every station but the recording home, whose Scene rows record; its size is hers per screen (ADR 0040). Its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it. On the First listen its tap does nothing.
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:

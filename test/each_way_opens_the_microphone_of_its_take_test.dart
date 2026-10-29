@@ -27,7 +27,7 @@ void main() {
       final capturesBefore = it.harness.recorder.captures;
 
       it.sala.gravarAParteDeNovo();
-      it.sala.ensaioTap();
+      it.sala.gravarACena(2);
       await waitFor(
         'a gravação da parte começar',
         () => it.estado.ensaio == EnsaioStatus.recording,

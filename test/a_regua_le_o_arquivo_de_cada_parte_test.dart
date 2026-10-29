@@ -35,12 +35,12 @@ Future<void> _regravarASegundaParte(
     'a sala voltar ao ensaio',
     () => it.estado.stage == SalaStage.ensaio,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(2);
   await waitFor(
     'a gravação da parte começar',
     () => it.estado.ensaio == EnsaioStatus.recording,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(2);
   await waitFor(
     'a gravação da parte terminar',
     () => it.estado.ensaio == EnsaioStatus.recorded,

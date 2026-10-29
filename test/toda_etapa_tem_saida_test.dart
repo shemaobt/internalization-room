@@ -50,8 +50,8 @@ final _wayOut =
       SalaStage.ensaio: (
         name: 'startRetro',
         take: (n, _) async {
-          n.ensaioTap();
-          n.ensaioTap();
+          n.gravarACena(1);
+          n.gravarACena(1);
           await settle();
           n.takeKeep();
           n.startRetro();
@@ -166,8 +166,8 @@ Future<void> _standIn(
   await settle();
   if (stage == SalaStage.ensaio) return;
 
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   notifier.startRetro();

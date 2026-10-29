@@ -112,7 +112,7 @@ Future<_Cena> _noRetro({int partes = 1}) async {
   final cena = _cena(harness, container);
   cena.sala.goEnsaio();
   for (var feita = 0; feita < partes; feita++) {
-    await gravaParte(container, cena.sala);
+    await gravaParte(container, cena.sala, feita + 1);
   }
   cena.sala.startRetro();
   await waitFor(
@@ -130,8 +130,8 @@ Future<_Cena> _comATomadaNaMao() async {
   addTearDown(container.dispose);
   final cena = _cena(harness, container);
   cena.sala.goEnsaio();
-  cena.sala.ensaioTap();
-  cena.sala.ensaioTap();
+  cena.sala.gravarACena(1);
+  cena.sala.gravarACena(1);
   await waitFor(
     'a tomada ser oferecida',
     () => _estado(cena).ensaio == EnsaioStatus.recorded,
@@ -529,7 +529,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.ensaioTap();
+        cena.sala.gravarACena(2);
         await waitFor(
           'o microfone abrir',
           () => _estado(cena).ensaio == EnsaioStatus.recording,
@@ -551,7 +551,7 @@ void main() {
         return cena;
       },
       (cena) async {
-        cena.sala.ensaioTap();
+        cena.sala.gravarACena(1);
         await waitFor(
           'o microfone abrir por cima da tomada',
           () => _estado(cena).ensaio == EnsaioStatus.recording,
@@ -574,7 +574,7 @@ void main() {
         addTearDown(container.dispose);
         final cena = _cena(harness, container);
         cena.sala.goEnsaio();
-        await gravaParte(container, cena.sala);
+        await gravaParte(container, cena.sala, 1);
         return cena;
       },
       (cena) async {

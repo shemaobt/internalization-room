@@ -353,8 +353,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.playTheRehearsal();
     await settle();
@@ -464,8 +464,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     final recorded = harness.recorder.lastPath;
     expect(recorded, isNotNull);
@@ -483,8 +483,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     await waitFor('a sala nomear a parte', () {
@@ -538,8 +538,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();
@@ -578,7 +578,7 @@ void main() {
         reason: 'não haver ensaio nenhum não abre a tradução',
       );
       expect(state.needsPerson, isFalse);
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
       expect(
         container.read(salaSessionProvider).ensaio,
@@ -597,8 +597,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       await settle();
@@ -616,7 +616,7 @@ void main() {
             'preso tocando, o toque no círculo não faz nada e o play não '
             'desenha o glifo de tocar — a tela move e não responde',
       );
-      notifier.ensaioTap();
+      notifier.gravarACena(2);
       expect(
         container.read(salaSessionProvider).ensaio,
         EnsaioStatus.recording,
@@ -751,8 +751,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       container.dispose();
@@ -811,7 +811,7 @@ void main() {
 
     notifier.goEnsaio();
     harness.recorder.permitted = false;
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
 
     expect(
@@ -996,8 +996,8 @@ void main() {
           }
 
           notifier.goEnsaio();
-          notifier.ensaioTap();
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
+          notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
           notifier.startRetro();
@@ -1027,8 +1027,8 @@ void main() {
           );
           await settle();
           notifier.goEnsaio();
-          notifier.ensaioTap();
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
+          notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
           notifier.startRetro();
@@ -1212,8 +1212,8 @@ void main() {
       await settle();
       expect(await harness.emAberto.startedIn('Ruth', 'pt'), contains('P01'));
 
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       notifier.startRetro();
@@ -1277,8 +1277,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();

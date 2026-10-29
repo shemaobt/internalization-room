@@ -18,7 +18,7 @@ Future<(SalaHarness, ProviderContainer)> _aParte3QueNaoChegou() async {
     traduzidasAte: [30000, 30000],
   );
   harness.room.unreachableTake = 'ensaio/$_parte3';
-  await gravarSemEsperarNome(container);
+  await gravarSemEsperarNome(container, 3);
   await waitFor(
     'a parte 3 ficar na Fila',
     () async =>
@@ -138,7 +138,7 @@ void main() {
       traduzidasAte: [30000, 30000],
     );
     harness.room.holdNextTake(_parte3);
-    await gravarSemEsperarNome(container);
+    await gravarSemEsperarNome(container, 3);
     await harness.room.untilTakeHeld();
     container.read(salaSessionProvider.notifier).leaveThePassage();
     await settle();

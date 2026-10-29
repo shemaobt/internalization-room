@@ -222,8 +222,8 @@ _Caso _umaSala({TakeUploadQueue Function(FakeRoom, Directory)? fila}) => _Caso(
 Future<void> _gravarUmaParte(_Caso caso) async {
   caso.sala
     ..goEnsaio()
-    ..ensaioTap()
-    ..ensaioTap();
+    ..gravarACena(1)
+    ..gravarACena(1);
   await waitFor(
     'a tomada ser oferecida',
     () => caso.estado.ensaio == EnsaioStatus.recorded,
