@@ -15,12 +15,15 @@ enum BtFindingKind {
   addition,
   missing,
   unclear,
-  nuance;
+  nuance,
+  other;
 
   static BtFindingKind? fromJson(Object? raw) => switch (raw) {
-    'addition' => BtFindingKind.addition,
+    'addition' || 'silence' => BtFindingKind.addition,
     'missing' => BtFindingKind.missing,
     'unclear' => BtFindingKind.unclear,
+    'nuance' => null,
+    String() => BtFindingKind.other,
     _ => null,
   };
 }

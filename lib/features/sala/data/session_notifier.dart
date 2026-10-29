@@ -3545,20 +3545,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (KeptScope.numberOf(parte.scopeId) case final ordinal?) {
         _passadasDaSala = {...?_passadasDaSala, ordinal: parte.pass};
       }
-      final fora = state.partes.indexWhere(
-        (take) => take.takeId == parte.takeId,
-      );
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
             if (take.takeId != parte.takeId) take,
         ],
         partsAway: {...state.partsAway}..remove(parte.takeId),
-        btTrechos: _osTrechosSemAParte(state.btTrechos, fora),
-        btTrechosRegravados: _osTrechosSemAParte(
-          state.btTrechosRegravados,
-          fora,
-        ),
       );
     }
     if (perdidas.isEmpty) return false;
@@ -3574,28 +3566,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state.keptTakes.any(
         (take) => take.takeId == parte.takeId && take.scopeId == parte.scopeId,
       );
-
-  /// The stretches as they stand once the part at [fora] has left the parts: its own go
-  /// with it, and each later one moves down to its part's new place (ADR 0022).
-  List<Trecho> _osTrechosSemAParte(List<Trecho> trechos, int fora) => [
-    for (final trecho in trechos)
-      if (trecho.parte != fora)
-        trecho.parte < fora ? trecho : _naParte(trecho, trecho.parte - 1),
-  ];
-
-  Trecho _naParte(Trecho trecho, int parte) => Trecho(
-    segmentId: trecho.segmentId,
-    takeId: trecho.takeId,
-    retroPath: trecho.retroPath,
-    parte: parte,
-    from: trecho.from,
-    to: trecho.to,
-    contado: trecho.contado,
-    lugarFrom: trecho.lugarFrom,
-    lugarTo: trecho.lugarTo,
-    frase: trecho.frase,
-    bridgeTakeId: trecho.bridgeTakeId,
-  );
 
   /// How long each part turned out to be, so the room knows where each part ends.
   ///
@@ -7449,13 +7419,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
-    );
-    final onde = state.partes.indexOf(nova);
-    state = state.copyWith(
-      btTrechosRegravados: [
-        for (final trecho in state.btTrechosRegravados)
-          trecho.parte < onde ? trecho : _naParte(trecho, trecho.parte + 1),
-      ],
     );
     _deixarOInteiroDeLado();
     _weighTheRehearsal();
@@ -11424,7 +11387,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btTrechos: [
           for (final trecho in state.btTrechos)
             if (naParte[trecho.takeId] case final parte?)
-              _naParte(trecho, parte)
+              trecho.naParte(parte)
             else
               trecho,
         ],

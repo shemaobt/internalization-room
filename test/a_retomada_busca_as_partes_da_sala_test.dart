@@ -976,6 +976,49 @@ void main() {
     );
   });
 
+  List<(String?, int?)> asContadasNaTela(_Retomada it) => [
+    for (final trecho in it.estado.btTrechos)
+      (
+        trecho.segmentId,
+        switch (it.estado.partes.elementAtOrNull(trecho.parte)) {
+          final parte? => KeptScope.numberOf(parte.scopeId),
+          null => null,
+        },
+      ),
+  ];
+
+  test('gravar a parte 2 depois das partes 1 e 3 deixa a frase contada da '
+      'parte 3 na parte 3', () async {
+    final harness = SalaHarness();
+    harness.room
+      ..passageScenes = tresCenas
+      ..refuseClipOf.add('gravacao-2');
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.ensaio,
+      naSala: salaComPassadas([1, 2, 1]),
+      contado: _contado([1, 3]),
+    );
+    await waitFor(
+      'as frases contadas acharem as suas partes',
+      () => it.estado.btTrechos.length == 2,
+    );
+    await oEnsaioAbre(it);
+    expect(numerosDasPartes(it), [1, 3]);
+    expect(asContadasNaTela(it), [('trecho-1', 1), ('trecho-3', 3)]);
+
+    await gravarACena(it, 2);
+
+    expect(numerosDasPartes(it), [1, 2, 3]);
+    expect(
+      asContadasNaTela(it),
+      [('trecho-1', 1), ('trecho-3', 3)],
+      reason:
+          'a parte 2 entrava antes da 3 e a frase contada da parte 3 ficava '
+          'no lugar dela, lendo «parte 2» e pousando na faixa da parte 2',
+    );
+  });
+
   test('gravar a parte 2 depois das partes 1 e 3 deixa cada frase regravada '
       'com a gravação da sua tradução', () async {
     final it = await semAParteDoisComRegravadas(
@@ -991,6 +1034,63 @@ void main() {
       reason:
           'a frase regravada que mudava de parte perdia a gravação da '
           'tradução, e o alto-falante dela apagava',
+    );
+  });
+
+  test('uma frase além das partes não cai sobre a parte 4 quando a parte 2 '
+      'sai', () async {
+    final harness = SalaHarness();
+    harness.room
+      ..passageScenes = [
+        ...tresCenas,
+        const Scene(sceneId: 'S4', title: 'Cena quatro'),
+      ]
+      ..refuseClipOf.add('gravacao-2')
+      ..holdNextClip();
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.ensaio,
+      partes: 4,
+      naSala: salaComPassadas([1, 2, 1, 1]),
+    );
+    await waitFor(
+      'as quatro partes chegarem',
+      () => numerosDasPartes(it).length == 4,
+    );
+    expect(numerosDasPartes(it), [1, 2, 3, 4]);
+    it.sala.state = it.estado.copyWith(
+      btTrechosRegravados: const [
+        Trecho(
+          segmentId: 'trecho-alem',
+          takeId: 'gravacao-alem',
+          parte: 4,
+          from: Duration.zero,
+          to: Duration(seconds: 4),
+          lugarFrom: Duration.zero,
+          lugarTo: Duration(seconds: 4),
+        ),
+      ],
+    );
+
+    int? oNumeroNaTela() {
+      final trecho = it.estado.btTrechosRegravados.single;
+      return switch (it.estado.partes.elementAtOrNull(trecho.parte)) {
+        final parte? => KeptScope.numberOf(parte.scopeId),
+        null => trecho.parte + 1,
+      };
+    }
+
+    final antes = oNumeroNaTela();
+    harness.room.finishHeldClip();
+    await oEnsaioAbre(it);
+
+    expect(numerosDasPartes(it), [1, 3, 4]);
+    expect(
+      oNumeroNaTela(),
+      antes,
+      reason:
+          'a frase além das partes descia um lugar com a parte que saiu e '
+          'passava a ler «parte 4», uma parte sobre a qual nunca foi contada',
     );
   });
 

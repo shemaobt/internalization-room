@@ -368,6 +368,7 @@ class RetroView extends ConsumerWidget {
           ? sceneRehearsalLabelFor('awaiting', language)
           : switch (_markOn(trecho.frase, session)) {
               null || BtFindingKind.nuance => null,
+              BtFindingKind.other => retroLabelFor('addition', language),
               final kind => retroLabelFor(kind.name, language),
             },
       achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
