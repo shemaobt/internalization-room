@@ -636,7 +636,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lengths = {};
     _newestCount = 0;
     _fraseNaFila = null;
-    _aFraseDevida = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
   }
@@ -7110,7 +7109,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveTheBackTranslation() => _gesture(() => _leaveTheBackTranslation());
 
   void _leaveTheBackTranslation() {
-    if (state.station is! Retro) return;
+    if (state.station is! Retro || state.aFraseDevidaEmBusca) return;
     _voltarAoEnsaio();
     _descartarATraducaoPendente();
     _asPartesPerdidasSaem();
@@ -8180,6 +8179,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final life = _thisLife;
     if (!await _medirAsPartesDaRetro(generation)) return;
+    if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
     if ((juntada || conferida) && state.sessionId != null) {
       final falha = await _readTheStretchesBack(state.sessionId!, generation);
@@ -10172,13 +10172,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final nova = segments.where((segment) => segment.segmentId == nome);
     bool? trocada;
     if (parte != null && nova.isNotEmpty) {
-      trocada = await _aParteComAFrase(
-        sessionId,
-        parte,
-        nova.first.takeId,
-        generation,
-      );
-      if (_abandoned(generation)) return;
+      for (var vez = 0; vez < 2 && trocada != true; vez++) {
+        trocada = await _aParteComAFrase(
+          sessionId,
+          parte,
+          nova.first.takeId,
+          generation,
+        );
+        if (_abandoned(generation)) return;
+      }
     }
     final trechos = _trechosFrom(segments);
     state = state.copyWith(
@@ -10196,13 +10198,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Retro());
     if (trocada == null) return;
     if (!trocada) {
-      _aFraseDevida = nome;
+      state = state.copyWith(btFraseDevida: nome);
       return _guardarAFrase(frase);
     }
     await _aFraseNovaNoLugar(nome, generation);
   }
-
-  late String? _aFraseDevida;
 
   Future<void> _aFraseNovaNoLugar(String nome, int generation) async {
     await _sayALine(
@@ -10216,7 +10216,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _buscarAParteDeNovo() async {
     final sessionId = state.sessionId;
-    final nome = _aFraseDevida;
+    final nome = state.btFraseDevida;
     final trecho = state.trechoChamado(nome);
     final frase = state.btFraseGuardada;
     if (sessionId == null || nome == null || trecho == null || frase == null) {
@@ -10228,15 +10228,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.enviando),
       clearBtFraseGuardada: true,
     );
+    await _readTheStretchesBack(sessionId, generation);
+    if (_abandoned(generation)) return;
+    final lido = state.trechoChamado(nome) ?? trecho;
     final trocada = await _aParteComAFrase(
       sessionId,
-      trecho.parte,
-      trecho.takeId,
+      lido.parte,
+      lido.takeId,
       generation,
     );
     if (_abandoned(generation)) return;
     if (!trocada) return _guardarAFrase(frase);
-    state = state.copyWith(clearBtRegravacao: true);
+    state = state.copyWith(clearBtRegravacao: true, clearBtFraseDevida: true);
     await _aFraseNovaNoLugar(nome, generation);
   }
 
@@ -10329,6 +10332,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       clearBtRegravacao: true,
       clearBtFraseQueAguarda: true,
       clearBtFraseGuardada: true,
+      clearBtFraseDevida: true,
     );
   }
 

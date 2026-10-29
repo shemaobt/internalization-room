@@ -77,34 +77,12 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
-            if (session.rehearsalsElsewhere && session.partes.isEmpty) ...[
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    recordingHomeLabelFor('elsewhere', language),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.telha, fontSize: 15),
-                  ),
-                ),
-              ),
-            ],
-            if (session.aTakeFromAnEarlierVisitWaits) ...[
-              const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    recordingHomeLabelFor('pending', language),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.telha, fontSize: 15),
-                  ),
-                ),
-              ),
-            ],
+            if (session.rehearsalsElsewhere && session.partes.isEmpty)
+              _Aviso(recordingHomeLabelFor('elsewhere', language)),
+            if (session.aTakeFromAnEarlierVisitWaits)
+              _Aviso(recordingHomeLabelFor('pending', language)),
+            if (session.btFraseDevida != null)
+              _Aviso(sceneRehearsalLabelFor('spliceFail', language)),
             const SizedBox(height: 20),
             IgnorePointer(
               ignoring: frozen,
@@ -346,6 +324,28 @@ class EnsaioView extends ConsumerWidget {
         EnsaioStatus.idle when session.parteARegravar != null => 'recordAgain',
         EnsaioStatus.idle => 'record',
       }, language);
+}
+
+class _Aviso extends StatelessWidget {
+  final String texto;
+
+  const _Aviso(this.texto);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 600),
+      child: Semantics(
+        liveRegion: true,
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: SalaColors.of(context).telha, fontSize: 15),
+        ),
+      ),
+    ),
+  );
 }
 
 class _SceneRowView extends StatelessWidget {

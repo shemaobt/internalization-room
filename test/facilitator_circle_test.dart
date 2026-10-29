@@ -14,6 +14,7 @@ Future<void> _pumpCircle(
   bool noteMode = false,
   bool inPlace = false,
   bool canvas = false,
+  double edgeWidth = 1.5,
   Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
@@ -30,6 +31,7 @@ Future<void> _pumpCircle(
           peerCue: peerCue,
           noteMode: noteMode,
           canvas: canvas,
+          edgeWidth: edgeWidth,
           semanticLabel: 'circulo',
           onTap: () {},
         ),
@@ -570,4 +572,35 @@ void main() {
       );
     },
   );
+
+  for (final canvas in [false, true]) {
+    testWidgets(
+      'a circle given a 2.2 edge draws its ring at 2.2 ${canvas ? 'on her canvas' : 'off her canvas'}, never a silent 1.5',
+      (tester) async {
+        for (final voice in VoiceState.values) {
+          await _pumpCircle(tester, voice, canvas: canvas, edgeWidth: 2.2);
+          await tester.pump(const Duration(milliseconds: 1500));
+          final rings = tester
+              .widgetList<Container>(
+                find.descendant(
+                  of: find.byType(FacilitatorCircle),
+                  matching: find.byType(Container),
+                ),
+              )
+              .map((box) => box.decoration)
+              .whereType<BoxDecoration>()
+              .where((paint) => paint.border != null && paint.gradient != null);
+
+          expect(rings, isNotEmpty, reason: '$voice');
+          expect(
+            rings.map((ring) => ring.border!.top.width),
+            everyElement(2.2),
+            reason:
+                'a borda pedida só chegava ao anel da checagem; o da tela '
+                'dela desenhava 1,5 em silêncio ($voice)',
+          );
+        }
+      },
+    );
+  }
 }
