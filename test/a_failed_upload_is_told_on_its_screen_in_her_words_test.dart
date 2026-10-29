@@ -52,6 +52,11 @@ Finder _naQuarta(Finder alvo) => find.descendant(of: _aQuarta, matching: alvo);
 
 final _grandeDemaisParaASala = Uint8List(largestTakeTheRoomKeeps + 1);
 
+const _presaDemais = Duration(minutes: 2);
+
+Future<T?> _semPrender<T>(WidgetTester tester, Future<T> Function() corpo) =>
+    tester.runAsync(() => corpo().timeout(_presaDemais));
+
 class _Casa {
   final WidgetTester tester;
   final SalaHarness harness;
@@ -109,12 +114,13 @@ class _Casa {
       find.descendant(of: linha(n), matching: alvo);
 
   Future<void> emTempoReal(Future<void> Function() corpo) async {
-    await tester.runAsync(corpo);
+    await _semPrender(tester, corpo);
     await tester.pump(const Duration(milliseconds: 100));
   }
 
   Future<void> batida() async {
-    await tester.runAsync(
+    await _semPrender(
+      tester,
       () => Future<void>.delayed(const Duration(milliseconds: 15)),
     );
     await tester.pump();
@@ -309,7 +315,8 @@ Future<_Casa> _comUmaTomadaNaPassagemDeUmaPerdida(
   await casa.perderAGravacao(2);
   final depois = await _relancada(casa);
   await depois.guardarSemEsperar(2);
-  final aFalhada = (await tester.runAsync(
+  final aFalhada = (await _semPrender(
+    tester,
     depois.harness.takes.entries,
   ))!.firstWhere((row) => row.scope == 'parte-2');
   if (aSalaAlcancavel) depois.room.unreachableTake = null;
@@ -332,7 +339,8 @@ Widget _aCasa(ProviderContainer container) => UncontrolledProviderScope(
 
 Future<_Casa> _relancada(_Casa casa) async {
   await casa.deixarATela();
-  final (harness, container) = (await casa.tester.runAsync(
+  final (harness, container) = (await _semPrender(
+    casa.tester,
     () => relaunch(casa.harness, casa.container),
   ))!;
   return _naCasa(casa.tester, harness: harness, relaunched: container);
@@ -349,7 +357,8 @@ Future<_Casa> _naCasa(
   addTearDown(tester.view.reset);
   final sala = harness ?? SalaHarness();
   sala.room.passageScenes = _cenas;
-  final container = (await tester.runAsync(
+  final container = (await _semPrender(
+    tester,
     () async => (relaunched ?? sala.container())..read(salaSessionProvider),
   ))!;
   if (relaunched == null) addTearDown(container.dispose);
@@ -1038,7 +1047,8 @@ void main() {
       await casa.guardarSemEsperar(2);
       await casa.ate('a sala segurar a gravação', () => casa.room.takeHeld);
       await casa.guardarSemEsperar(2);
-      final aNova = (await tester.runAsync(
+      final aNova = (await _semPrender(
+        tester,
         casa.harness.takes.entries,
       ))!.lastWhere((row) => row.scope == 'parte-2');
       await casa.emTempoReal(() async {
@@ -1885,7 +1895,7 @@ void main() {
     'o ensaio da cena as visible text and falhou as its tap',
     (tester) async {
       late SceneRoom room;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
@@ -1908,10 +1918,10 @@ void main() {
         i < 50 && room.asked('keepSceneRehearsal') == antes;
         i++
       ) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
-      await tester.runAsync(settle);
+      await _semPrender(tester, settle);
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text(_falhou), findsNothing);
@@ -1925,7 +1935,7 @@ void main() {
     'microphone, and a re-send of it is refused',
     (tester) async {
       late SceneRoom room;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
@@ -1943,7 +1953,7 @@ void main() {
       await _pumpTheRoom(tester, room);
       await tester.tap(find.text(_falhou));
       for (var i = 0; i < 100 && room.state.scene.keep is Keeping; i++) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -1968,7 +1978,7 @@ void main() {
     (tester) async {
       late SceneRoom room;
       late _AQueueThatHoldsTheKeep fila;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest(
           SalaHarness(
             takesOverride: (sala, home, recordings) =>
@@ -1991,7 +2001,7 @@ void main() {
       await _pumpTheRoom(tester, room);
       await tester.tap(find.text(_falhou));
       for (var i = 0; i < 100 && room.state.scene.keep is Keeping; i++) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -2012,7 +2022,7 @@ void main() {
       final a = Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 7]);
       final b = Uint8List.fromList([for (var i = 0; i < 1200; i++) i % 11]);
       int keeps() => room.asked('keepSceneRehearsal');
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
@@ -2032,7 +2042,7 @@ void main() {
       await tester.pump(const Duration(seconds: 8));
       expect(find.text(_parar), findsOneWidget);
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         await tester.tap(find.text(_parar));
         await waitFor(
           'a tomada B ficar esperando',
@@ -2046,7 +2056,7 @@ void main() {
       expect(find.text(_naoDeuParaGuardar), findsOneWidget);
       expect(find.text(_falhou), findsOneWidget);
       expect(room.harness.room.sceneTakesSent, [a], reason: 'B nunca subiu');
-      final copias = await tester.runAsync(room.harness.takes.entries);
+      final copias = await _semPrender(tester, room.harness.takes.entries);
       expect(copias!.where((row) => row.kind == sceneTakeKind), hasLength(2));
       for (final row in copias) {
         expect(File(row.path).existsSync(), isTrue);
@@ -2058,7 +2068,7 @@ void main() {
         i < 50 && room.state.scene.step != SceneStep.translate;
         i++
       ) {
-        await tester.runAsync(settle);
+        await _semPrender(tester, settle);
         await tester.pump(const Duration(milliseconds: 100));
       }
 
@@ -2072,7 +2082,7 @@ void main() {
     (tester) async {
       late SceneRoom room;
       int keeps() => room.asked('keepSceneRehearsal');
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         room.harness.room.failSceneWith = const NetworkFailed('sem rede');
@@ -2097,7 +2107,7 @@ void main() {
       await _pumpTheRoom(tester, room);
       await tester.pump(const Duration(seconds: 5));
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         final antes = keeps();
         room.harness.room
           ..finishHeldKeep()
@@ -2111,7 +2121,7 @@ void main() {
 
       expect(find.text(_parar), findsOneWidget);
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room.harness.room.finishHeldKeep();
         await translateOpens(room);
       });
@@ -2123,7 +2133,7 @@ void main() {
     'servidor as visible text',
     (tester) async {
       late SceneRoom room;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         await _recordAScene(room, take: _grandeDemaisParaASala);
@@ -2146,7 +2156,7 @@ void main() {
     (tester) async {
       late SceneRoom room;
       late int antes;
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room = await atRest();
         await theScreenOpens(room);
         antes = room.asked('sceneRehearsalsOf');
@@ -2164,7 +2174,7 @@ void main() {
       expect(find.text(_enviando), findsOneWidget);
       expect(room.state.scene.step, SceneStep.record);
 
-      await tester.runAsync(() async {
+      await _semPrender(tester, () async {
         room.harness.room.finishHeldSceneList();
         await translateOpens(room);
       });
