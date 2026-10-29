@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0136, amended by 0138)
+status: accepted (amended by 0136, amended by 0138, amended by 0150)
 date: 2026-10-20
 amends: 0063 (in part: a session found on no row asks its Opening when not Opened), 0064 (in part: a relaunch with no row lands on the Canvas)
 ---
