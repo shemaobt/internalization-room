@@ -59,6 +59,9 @@ class _Room {
   bool get anyClock =>
       find.textContaining(RegExp(r'^\d+:\d\d$')).evaluate().isNotEmpty;
 
+  bool get circleListens =>
+      tester.widget<FacilitatorCircle>(circle).voice == VoiceState.listening;
+
   Text? clock(String digits) => switch (find.text(digits).evaluate()) {
     final found when found.isEmpty => null,
     final found => found.single.widget as Text,
@@ -278,6 +281,70 @@ void main() {
         closeTheRoom(room.container);
       },
     );
+  }
+
+  for (final (screen, enter) in [
+    ('conversation', _inConversa),
+    ('Panorama', _inThePanorama),
+  ]) {
+    testWidgets(
+      'a recorder that starts late leaves the circle on the $screen at rest '
+      'until it answers, then it listens',
+      (tester) async {
+        final room = await enter(tester);
+        room.harness.recorder.holdNextStart();
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        expect(
+          room.circleListens,
+          isFalse,
+          reason: 'o círculo ouvia antes de o gravador dizer que começou',
+        );
+
+        room.harness.recorder.finishStart();
+        await room.beat();
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'o gravador começou e o círculo não ouvia',
+        );
+      },
+    );
+
+    for (final (how, breaks) in [
+      (
+        'fails to start',
+        (FakeRecorder recorder) => recorder.startThrows = true,
+      ),
+      ('is refused', (FakeRecorder recorder) => recorder.permitted = false),
+    ]) {
+      testWidgets(
+        'a recorder that $how never turns the circle on the $screen to '
+        'listening, not even while the tablet waits for its answer',
+        (tester) async {
+          final room = await enter(tester);
+          room.harness.recorder.holdNextStart();
+          await room.theTeamOpensItsTake();
+          breaks(room.harness.recorder);
+
+          await room.waits(const Duration(seconds: 2));
+          expect(
+            room.circleListens,
+            isFalse,
+            reason: 'o círculo ouvia com o gravador ainda sem responder',
+          );
+
+          room.harness.recorder.finishStart();
+          await room.beat(300);
+          expect(
+            room.circleListens,
+            isFalse,
+            reason: 'o gravador não começou e o círculo ouvia',
+          );
+          closeTheRoom(room.container);
+        },
+      );
+    }
   }
 
   testWidgets(

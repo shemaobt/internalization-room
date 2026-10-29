@@ -1266,6 +1266,12 @@ class SalaSessionState {
     };
   }
 
+  VoiceState get circleVoice => switch (channel) {
+    Microphone(owner: MicOwner.conversation) when recorderStartedAt == null =>
+      _resting,
+    _ => voice,
+  };
+
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||

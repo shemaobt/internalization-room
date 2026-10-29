@@ -23,7 +23,7 @@ class PanoramaView extends ConsumerWidget {
           child: FacilitatorCircle(
             size: circleSize,
             halt: session.halt,
-            voice: session.voice,
+            voice: session.circleVoice,
             noteMode: session.noteMode,
             canvas: true,
             semanticLabel: circleLabelFor('default', language),
