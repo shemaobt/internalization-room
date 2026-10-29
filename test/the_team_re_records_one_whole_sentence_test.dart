@@ -1917,6 +1917,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the new part is fetched again no row offers «regravar», '
+      'not even the row it is fetched for', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(naLinha('enviando…'), findsOneWidget);
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason:
+            'a frase $n oferecia regravar enquanto a parte nova era buscada '
+            'de novo',
+      );
+    }
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
   testWidgets('a new part that fails again says nothing and gives the row its '
       'retry back, instead of leaving it on «enviando…»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

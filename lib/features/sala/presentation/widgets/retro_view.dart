@@ -555,6 +555,7 @@ class RetroView extends ConsumerWidget {
   }
 
   bool _aFraseVai(Trecho trecho, SalaSessionState session) =>
+      session.btFraseDevida == null &&
       session.btRegravacao?.frase == trecho.frase &&
       session.btRegravacao?.passo == PassoDaRegravacao.enviando;
 
