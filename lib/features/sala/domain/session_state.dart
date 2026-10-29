@@ -1266,8 +1266,14 @@ class SalaSessionState {
     };
   }
 
+  DateTime? get takeRecordingSince => switch (channel) {
+    Microphone(owner: MicOwner.conversation) when !micTaken =>
+      recorderStartedAt,
+    _ => null,
+  };
+
   VoiceState get circleVoice => switch (channel) {
-    Microphone(owner: MicOwner.conversation) when recorderStartedAt == null =>
+    Microphone(owner: MicOwner.conversation) when takeRecordingSince == null =>
       _resting,
     _ => voice,
   };

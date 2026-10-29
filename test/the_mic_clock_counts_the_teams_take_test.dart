@@ -345,6 +345,45 @@ void main() {
         },
       );
     }
+
+    testWidgets(
+      'a microphone another app takes leaves the circle on the $screen at '
+      'rest with no clock, and both come back with the microphone',
+      (tester) async {
+        final room = await enter(tester);
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        expect(room.circleListens, isTrue);
+        expect(room.clock('0:02'), isNotNull);
+
+        room.harness.recorder.takeTheMicrophone();
+        await room.beat();
+        expect(
+          room.circleListens,
+          isFalse,
+          reason: 'outro app tomou o microfone e o círculo seguia ouvindo',
+        );
+        expect(
+          room.anyClock,
+          isFalse,
+          reason: 'outro app tomou o microfone e o relógio seguia contando',
+        );
+
+        await room.waits(const Duration(seconds: 3));
+        room.harness.recorder.giveTheMicrophoneBack();
+        await room.beat();
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'o microfone voltou e o círculo não ouvia',
+        );
+        expect(
+          room.clock('0:05'),
+          isNotNull,
+          reason: 'o relógio não contava desde que o gravador começou',
+        );
+      },
+    );
   }
 
   testWidgets(
