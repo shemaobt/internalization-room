@@ -1199,7 +1199,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
-  /// (ADR 0140).
+  /// (ADR 0152).
   ///
   /// [asked] is a replay, which goes straight to speaking for a line already held.
   /// [remember] is false only for a retro verdict the room could not compose. Every
@@ -2802,6 +2802,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           unawaited(_countUnsent());
         } else {
           _keepTheStretchesAlreadyTold(snapshot.backTranslation);
+          unawaited(_relatarASala(sessionId, const []));
         }
         // The snapshot was fetched here and its halt never read, so a team reopening
         // into a room the server had already stopped met every gesture wide open.
@@ -10314,6 +10315,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (sent) {
       case Answered(:final value):
         if (_abandoned(generation)) return;
+        unawaited(_relatarASala(sessionId, const []));
         frase = value.frase;
         nome = value.segmentId;
       case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:

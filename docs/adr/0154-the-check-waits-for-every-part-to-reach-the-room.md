@@ -6,7 +6,7 @@ amends: 0140 (coming back to a telling in progress is quiet; in part: rule 3's l
 
 # The check waits for every part to reach the room
 
-This amends ADR 0140 without editing its decision: it adds "amended by 0146" to its status
+This amends ADR 0140 without editing its decision: it adds "amended by 0154" to its status
 line. ADR 0140 rule 3 let the check open with a part still in the Outbox and listed that part
 as unheard, since the room had no take of it to name. Her app never opens the telling while a
 take is held on the computer: `enterBt` returns unless every chain key is among the server
