@@ -9688,6 +9688,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
   ) async {
     _leaveThinking();
+    final pendente = state.btTraducaoPendente;
     final SessionSnapshot snapshot;
     final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
@@ -9699,7 +9700,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
     }
     if (_abandoned(generation)) return;
-    final seguir = _theRefusalLandsOn(snapshot, alvo, sent);
+    final seguir =
+        state.btPhase == BtPhase.playing &&
+        state.btTraducaoPendente == pendente &&
+        _theRefusalLandsOn(snapshot, alvo, sent);
     _applyTheSessionRead(snapshot, sent);
     if (seguir) await _confirmarTraducao();
   }
