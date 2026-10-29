@@ -254,6 +254,7 @@ class EnsaioView extends ConsumerWidget {
               Semantics(
                 button: true,
                 label: recordingHomeLabelFor('listenAllAria', language),
+                onTap: notifier.ouvirTudo,
                 excludeSemantics: true,
                 child: TextButton(
                   onPressed: notifier.ouvirTudo,

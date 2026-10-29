@@ -1177,6 +1177,27 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('a VoiceOver double-tap on «$_pronto» leaves the saved screen '
+        'for the conversation, as a finger does', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+
+      voiceOverTap(tester, _pronto);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        it.container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'o VoiceOver anunciava o «Pronto» e o toque duplo deixava a '
+            'equipe na tela salva',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
     testWidgets('back by the dot after «$_pronto», the home shows its approved '
         'badge and «Checagem externa»', (tester) async {
       final it = await aCasaConferida(tester);
@@ -1218,15 +1239,46 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('a VoiceOver double-tap on «Checagem externa» on the home '
+        'opens the external check', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await _prontoEDeVoltaPeloPonto(tester);
+
+      voiceOverTap(tester, 'Checagem externa');
+      await tester.pump(const Duration(milliseconds: 300));
+      await _assentar(tester);
+
+      expect(
+        it.harness.room.externalChecksOpened,
+        hasLength(1),
+        reason:
+            'o VoiceOver anunciava o botão da casa e o toque duplo não abria '
+            'a checagem',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
     testWidgets('leaving the external check opened from the home returns to '
         'the home and keeps the home as the resume point', (tester) async {
       final it = await aCasaConferida(tester);
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await _tocar(tester);
       await _prontoEDeVoltaPeloPonto(tester);
+      await tester.ensureVisible(byLabel('Checagem externa'));
       await tester.tap(byLabel('Checagem externa'));
       await tester.pump(const Duration(milliseconds: 300));
       await _assentar(tester);
+      expect(
+        it.harness.room.externalChecksOpened,
+        hasLength(1),
+        reason:
+            'o toque caía abaixo da janela e o teste passava pelas chamadas '
+            'ao notifier depois dele',
+      );
 
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
       it.container.read(salaSessionProvider.notifier).leaveTheExternalCheck();
@@ -1234,8 +1286,9 @@ void main() {
 
       expect(
         it.harness.room.failStateOnceWith,
-        isNotNull,
-        reason: 'the home reads no telling-back on the way out',
+        isNull,
+        reason:
+            'a saída para a casa não relia a sessão, e a dela relê no exitExt',
       );
       expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
       expect(it.harness.emAberto.rows['Ruth/P01/pt']?.stage, SalaStage.ensaio);

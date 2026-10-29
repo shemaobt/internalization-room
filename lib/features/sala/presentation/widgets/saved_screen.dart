@@ -71,6 +71,7 @@ class SavedScreen extends ConsumerWidget {
                   child: Semantics(
                     button: true,
                     label: pronto,
+                    onTap: ref.read(salaSessionProvider.notifier).pronto,
                     child: ExcludeSemantics(
                       child: GestureDetector(
                         onTap: ref.read(salaSessionProvider.notifier).pronto,
