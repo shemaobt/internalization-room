@@ -277,11 +277,24 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   bool filaEmMemoria = false,
 }) async {
   container.dispose();
-  harness.endTheLifeOnTheDisk();
-  final frozen = Completer<void>();
-  final giveUp = Timer(const Duration(seconds: 2), frozen.complete);
-  await Future.any([harness.takes.writingEnds(), frozen.future]);
+  final stillWriting = Completer<bool>();
+  final giveUp = Timer(
+    const Duration(seconds: 30),
+    () => stillWriting.complete(true),
+  );
+  final frozen = await Future.any([
+    harness.takes.writingEnds().then((_) => false),
+    stillWriting.future,
+  ]);
   giveUp.cancel();
+  expect(
+    frozen,
+    isFalse,
+    reason:
+        'a vida antiga ainda escrevia a fila 30 s depois: uma escrita '
+        'começada no relógio falso do teste não anda dentro de runAsync',
+  );
+  harness.endTheLifeOnTheDisk();
   final again = SalaHarness(
     filaEmMemoria: filaEmMemoria,
     room: harness.room,

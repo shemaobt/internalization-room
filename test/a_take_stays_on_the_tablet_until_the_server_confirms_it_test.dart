@@ -403,6 +403,30 @@ class _StagedSlowly implements File {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _CopiedSlowly implements File {
+  _CopiedSlowly(String path, this._began)
+    : _real = Zone.root.run(() => File(path));
+
+  final File _real;
+  final Completer<void> _began;
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<File> copy(String newPath) async {
+    if (!_began.isCompleted) _began.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    return _real.copy(newPath);
+  }
+
+  @override
+  Future<DateTime> lastModified() => _real.lastModified();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   testWidgets(
     'a take recorded then the app closed before any send is offered on the '
@@ -491,6 +515,38 @@ void main() {
       reason:
           'a vida encerrada escrevia a resposta na fila da nova, e as duas '
           'gravavam o mesmo fila.json.novo',
+    );
+  });
+
+  test('a keep still being copied at the relaunch lands in the next life\'s '
+      'Outbox', () async {
+    final harness = SalaHarness();
+    final gravada = harness.recorder.aFile('parte-1');
+    final began = Completer<void>();
+    final keeping = IOOverrides.runZoned(
+      () => harness.takes.enqueue(
+        File(gravada.path),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-1',
+        passNumber: 1,
+        chunkIndex: 1,
+      ),
+      createFile: (path) => path == gravada.path
+          ? _CopiedSlowly(path, began)
+          : Zone.root.run(() => File(path)),
+    );
+    await began.future;
+
+    final (again, _) = await relaunch(harness, harness.container());
+    await keeping;
+
+    expect(
+      await again.takes.pending(),
+      hasLength(1),
+      reason:
+          'a gravação que a vida antiga ainda copiava ia para a pasta da '
+          'vida encerrada e sumia da fila da nova',
     );
   });
 
