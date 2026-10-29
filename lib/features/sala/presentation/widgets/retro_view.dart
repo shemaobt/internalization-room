@@ -721,6 +721,12 @@ class RetroView extends ConsumerWidget {
           PartPlaying(:final part) => part.part == onde,
           _ => false,
         },
+        paused: switch (session.channel) {
+          final Paused parada && Paused(what: PartSound(:final part))
+              when part == onde =>
+            parada,
+          _ => null,
+        },
       ),
   ];
 

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -21,7 +22,7 @@ import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, entrarNaTraducao, passaDoCursor, tocarNoCirculo;
+    show cabeca, entrarNaTraducao, passaDoCursor, tocar, tocarNoCirculo;
 
 const _duasFrasesNaParteUm = [
   SegmentView(
@@ -117,6 +118,24 @@ List<SceneStrip> _faixas(WidgetTester tester) => [
       matching: find.byType(SceneStrip),
     ),
   ),
+];
+
+List<double?> _ondeOTocadorEsta(WidgetTester tester) => [
+  for (final faixa in _faixas(tester))
+    switch ((tester
+                .widget<CustomPaint>(
+                  find.descendant(
+                    of: find.byWidget(faixa),
+                    matching: find.byType(CustomPaint),
+                  ),
+                )
+                .painter!
+            as SceneStripPainter)
+        .drawing
+        .playhead) {
+      final x? => x / faixa.width,
+      null => null,
+    },
 ];
 
 void main() {
@@ -459,6 +478,30 @@ void main() {
       reason:
           'a conta pendente era o único sinal de onde a frase acabava, e '
           'ela não dizia onde',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a take paused partway keeps the player on its strip where it '
+      'stopped, and the other part draws none', (tester) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = const Duration(seconds: 3);
+    await tester.pump(passaDoCursor);
+
+    await tocar(tester, 'Pausar');
+
+    expect(container.read(salaSessionProvider).channel, isA<Paused>());
+    expect(
+      _ondeOTocadorEsta(tester),
+      [closeTo(0.3, 1e-9), null],
+      reason:
+          'a gravação pausada apagava a linha do tocador, e a equipe não via '
+          'onde tinha parado',
     );
     closeTheRoom(container);
   });
