@@ -84,6 +84,9 @@ app; the Orchestrator settled the two open points the same day.
   tap. The Panorama is a passage of its own for this.
 - **A forget deletes no take the Outbox does not hold.** A take whose row could not be
   written stays on the disk when its session goes or the passage is left.
+- **A part take still waiting for its check is kept when its session goes.** It becomes a
+  row with no session under its passage, offered by «enviar agora» in the passage's next
+  session, so nothing is sent without a tap. Leaving the passage by hand still lets it go.
 
 ## Consequences
 
