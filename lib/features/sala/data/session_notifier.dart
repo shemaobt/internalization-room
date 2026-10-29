@@ -508,6 +508,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late List<Completer<MicOutcome>> _closings;
   late VoidCallback? _onPlaybackComplete;
   late VoidCallback? _onPlaybackFailed;
+  late SceneScreen? _theTranslationAsked;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
   SoundPort get _sound => ref.read(soundPortProvider);
@@ -622,6 +623,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _closings = [];
     _onPlaybackComplete = null;
     _onPlaybackFailed = null;
+    _theTranslationAsked = null;
     _launching = null;
     _launched = false;
     _hand = RaisedHand(
@@ -991,6 +993,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _quietTheRoom({bool holdTheClip = false}) {
     _anotarOQueFoiOuvido();
+    _theTranslationAsked = null;
     if (holdTheClip) {
       _holdClip();
     } else {
@@ -6750,6 +6753,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final asked = shown.copyWith();
     _silenceTheRoom();
     state = state.copyWith(scene: asked);
+    _theTranslationAsked = asked;
     _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
   }
 
@@ -6770,7 +6774,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       () => _theSceneMovedOn(waiting, generation),
       generation,
     );
-    if (_theSceneMovedOn(waiting, generation)) return;
+    if (_theSceneMovedOn(waiting, generation) ||
+        !identical(_theTranslationAsked, waiting)) {
+      return;
+    }
     state = state.copyWith(scene: shown);
     if (path != null) _play(PartSound(0, path));
   }

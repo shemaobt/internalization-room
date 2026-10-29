@@ -1953,4 +1953,58 @@ void main() {
       expect(room.harness.playback.playedFrom.last, _s(4.0));
     },
   );
+
+  test('the circle during a frase\'s download plays the take, and the '
+      'translation that lands after it never sounds, as hers', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    await _listening(room);
+    final take = room.state.scene.take;
+    room.harness.room.holdNextClip();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    await _circle(room);
+    expect(room.harness.playback.played.last, take);
+    room.harness.room.finishHeldClip();
+    await settle();
+
+    expect(
+      room.harness.playback.played.map((path) => path.split('/').last),
+      isNot(contains('cena-ensaio-da-cena-1-frase-f1.wav')),
+      reason: 'a tradução que chegava tarde cortava o ensaio do círculo',
+    );
+    expect(room.harness.playback.played.last, take);
+  });
+
+  test(
+    '«ouvir a pausa» during a frase\'s download hushes the translation, even '
+    'when the pausa ends before it lands',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 2000)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = _s(6.0);
+      await _circle(room);
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f1')
+        ..hearThePause();
+      await settle();
+      expect(room.harness.playback.ranges.last, '4500-6000');
+      room.harness.playback.finishPlayback();
+      await settle();
+      room.harness.room.finishHeldClip();
+      await settle();
+
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        isNot(contains('cena-ensaio-da-cena-1-frase-f1.wav')),
+        reason: 'a tradução que chegava depois da pausa tocava sozinha',
+      );
+    },
+  );
 }
