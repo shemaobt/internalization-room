@@ -1345,11 +1345,9 @@ void main() {
     expect(harness.recorder.lastOwner, MicOwner.rehearsal);
     final circulo = tester.widget<FacilitatorCircle>(_circulo());
     expect(
-      (circulo.answersATouch, circulo.voice, circulo.tongue),
-      (true, VoiceState.listening, Tongue.motherTongue),
-      reason:
-          'o círculo gravava a frase parecendo parado, ou na cor da '
-          'tradução em português',
+      circulo.voice,
+      VoiceState.listening,
+      reason: 'o círculo gravava a frase parecendo parado',
     );
     expect(circulo.semanticLabel, 'gravem a frase inteira');
     expect(

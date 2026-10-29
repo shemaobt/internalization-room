@@ -9,8 +9,6 @@ import 'bead_styles.dart';
 import 'circle_glyph.dart';
 import 'motion.dart';
 
-enum Tongue { guide, motherTongue, bridge }
-
 const facilitatorCircleSize = 160.0;
 
 const facilitatorRippleGrowth = 0.46;
@@ -24,10 +22,8 @@ bool isTeamTalk({required bool peerCue, required VoiceState voice}) =>
 class FacilitatorCircle extends StatelessWidget {
   final double size;
   final VoiceState voice;
-  final Tongue? tongue;
   final bool noteMode;
   final bool peerCue;
-  final bool answersATouch;
   final bool enabled;
   final bool canvas;
 
@@ -43,11 +39,9 @@ class FacilitatorCircle extends StatelessWidget {
     super.key,
     required this.size,
     required this.voice,
-    this.tongue,
     required this.semanticLabel,
     this.noteMode = false,
     this.peerCue = false,
-    this.answersATouch = true,
     this.enabled = true,
     this.canvas = false,
     this.notUnderstood,

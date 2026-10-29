@@ -47,7 +47,7 @@ class RetroView extends ConsumerWidget {
     final conferida = _conferida(session);
 
     final avanca = session.btPhase != BtPhase.conferida && !session.btSoOuvir;
-    final (voz, lingua) = _voz(session, conferida);
+    final voz = _voz(session, conferida);
     final colors = SalaColors.of(context);
     final titulo = session.joined
         ? recordingHomeLabelFor('joinedTitle', language)
@@ -129,10 +129,6 @@ class RetroView extends ConsumerWidget {
                 size: circulo,
                 halt: session.halt,
                 voice: voz,
-                tongue: lingua,
-                answersATouch:
-                    session.aBackTranslationGestureActs &&
-                    (!conferida || session.btRegravacao != null),
                 notUnderstood: session.wordlessTelling
                     ? retroLabelFor('notUnderstood', language)
                     : null,
@@ -678,20 +674,18 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
+  VoiceState _voz(SalaSessionState session, bool conferida) {
     if (session.btRegravacao?.passo == PassoDaRegravacao.gravando) {
-      return (VoiceState.listening, Tongue.motherTongue);
+      return VoiceState.listening;
     }
-    if (conferida) return (VoiceState.done, null);
-    if (session.voice == VoiceState.listening) {
-      return (VoiceState.listening, Tongue.bridge);
+    if (conferida) return VoiceState.done;
+    if (session.voice != VoiceState.invite) return session.voice;
+    if (session.btRetroTocando ||
+        session.btClipRodando ||
+        session.btTrechoTocando) {
+      return VoiceState.speaking;
     }
-    if (session.voice != VoiceState.invite) return (session.voice, null);
-    if (session.btRetroTocando) return (VoiceState.speaking, Tongue.bridge);
-    if (session.btClipRodando || session.btTrechoTocando) {
-      return (VoiceState.speaking, Tongue.motherTongue);
-    }
-    return (VoiceState.invite, null);
+    return VoiceState.invite;
   }
 
   List<PartStripRow> _faixas(SalaSessionState session, String language) => [

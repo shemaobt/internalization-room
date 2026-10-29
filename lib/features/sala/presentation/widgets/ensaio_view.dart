@@ -156,7 +156,6 @@ class EnsaioView extends ConsumerWidget {
                     size: herCircleSize(MediaQuery.sizeOf(context), 46, 180),
                     halt: session.halt,
                     voice: _voice(session),
-                    tongue: Tongue.motherTongue,
                     semanticLabel: _circleLabel(session, language),
                     enabled: !frozen,
                     onTap: notifier.ensaioTap,
