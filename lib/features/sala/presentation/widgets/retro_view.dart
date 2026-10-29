@@ -240,10 +240,7 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              height: 78,
-              child: _disc(session, colors, notifier, language, avanca),
-            ),
+            if (avanca) _pilula(session, colors, notifier, language),
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
@@ -587,43 +584,57 @@ class RetroView extends ConsumerWidget {
     return null;
   }
 
-  Widget? _disc(
+  Widget _pilula(
     SalaSessionState session,
     SalaColors colors,
     SalaSessionNotifier notifier,
     String language,
-    bool avanca,
   ) {
-    if (!avanca) return null;
     final terminei = retroLabelFor(
       session.btConferindo ? 'checking' : 'advance',
       language,
     );
+    final acesa = session.canAdvanceToTheVerdict;
     return FadeUp(
-      child: RoundActionButton(
-        size: 78,
-        semanticLabel: terminei,
-        gradient: BeadStyles.wood,
-        shadows: RoundActionButton.dropShadow,
-        mood: session.canAdvanceToTheVerdict
-            ? ButtonMood.beckoning
-            : ButtonMood.dimmed,
-        onTap: () => unawaited(notifier.finishBackTranslation()),
-        label: ExcludeSemantics(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                terminei,
-                style: TextStyle(
-                  color: session.canAdvanceToTheVerdict
-                      ? ShemaBrand.branco
-                      : colors.ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+      child: Semantics(
+        button: true,
+        enabled: acesa,
+        label: terminei,
+        child: GestureDetector(
+          onTap: acesa
+              ? () => unawaited(notifier.finishBackTranslation())
+              : null,
+          child: ExcludeSemantics(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: acesa ? 1 : 0.35,
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colors.telha,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 35.2,
+                    vertical: 12.8,
+                  ),
+                  child: Text(
+                    terminei,
+                    style: TextStyle(
+                      color: acesa ? colors.paper : colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

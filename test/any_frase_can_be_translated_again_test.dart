@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -19,6 +18,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aceso,
         cabeca,
         contarAteOFimDaParte,
         entrarNaTraducao,
@@ -576,17 +576,7 @@ void main() {
           'depois de um veredito com achado o terminei sumia até a equipe '
           'contar alguma frase de novo',
     );
-    expect(
-      tester
-          .widget<RoundActionButton>(
-            find.ancestor(
-              of: byLabel('terminei'),
-              matching: find.byType(RoundActionButton),
-            ),
-          )
-          .mood,
-      ButtonMood.beckoning,
-    );
+    expect(aceso(tester, 'terminei'), isTrue);
     await tocar(tester, 'terminei');
     await waitFor(
       'a nova conferência chegar à sala',

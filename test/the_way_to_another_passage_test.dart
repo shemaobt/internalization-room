@@ -541,8 +541,10 @@ void main() {
     expect(room.harness.room.pericopesAsked, hasLength(created));
   });
 
-  testWidgets('the Saved screen carries no «Back to recording», and «Done» '
-      'brings it back', (tester) async {
+  testWidgets('the Saved screen carries no «Back to recording», «Done» leaves '
+      'for the conversation, and the Back-translation draws it again', (
+    tester,
+  ) async {
     final harness = SalaHarness(lingua: 'en', filaEmMemoria: true);
     harness.room.passages = _theBook;
     final room = _Room(harness, await pumpSala(tester, harness));
@@ -563,6 +565,13 @@ void main() {
 
     await _tap(tester, 'Done');
     await tester.pump(const Duration(milliseconds: 400));
+
+    expect(room.container.read(salaSessionProvider).stage, SalaStage.conversa);
+
+    room.notifier.openTheEnsaioFinal();
+    await _passTime(tester, 1000);
+    room.notifier.startRetro();
+    await _passTime(tester, 1000);
 
     expect(byLabel(_backToRecording), findsOneWidget);
     closeTheRoom(room.container);
