@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers)
+status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers) and ENG-2054 (2026-10-29: «terminei» and the line under it follow the room's count, not the last part's end)
 date: 2026-10-20
 ---
 
@@ -97,3 +97,12 @@ A verdict that names unheard parts with no refusal, or untold parts at all, is r
 verdict it otherwise is: the parts it names start nothing, and nothing goes in the air on
 their account. The untold parts were refused on their own until that same day; that refusal
 is gone from the room, and the tablet no longer reads the field. A `PART_UNHEARD` refusal keeps the amendment above.
+
+Amended by ENG-2054 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4
+wins): the end of the last part no longer lights «terminei» or clears the line under it on its
+own. Both follow the room's answer to that part's report, as hers follows `heardComplete`
+(`Drafting.tsx:2340`, `:2343`): a room still naming a part unheard keeps «terminei» dark and
+the line drawn, and an answer naming none lights it, a replay still playing included. The
+refusal sets that count to not heard until the room answers again. Wherever this record says
+the last part's end clears the line and lights «terminei», read that the room's answer does.
+The status line that a refusal writes is not changed here.
