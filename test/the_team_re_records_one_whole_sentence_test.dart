@@ -1933,6 +1933,48 @@ void main() {
 
   const aprovar = 'Aprovar como rascunho final';
 
+  testWidgets('while the voice says the verdict again no row of the list '
+      'takes a tap, and every row is live again when it ends', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await conferidaComANuanceNaFrase3(tester, harness);
+    final controles = [
+      for (var n = 1; n <= 4; n++) ...[
+        'Ouvir esta frase de novo e traduzir de novo — $n',
+        'ouvir a minha tradução da frase $n',
+      ],
+      'regravar a frase 3',
+    ];
+    for (final controle in controles) {
+      expect(_acesa(tester, controle), isTrue, reason: controle);
+    }
+
+    harness.voice.holdNextLine();
+    await tocar(tester, 'ouvir a resposta de novo');
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).voice, VoiceState.speaking);
+    for (final controle in controles) {
+      expect(
+        _acesa(tester, controle),
+        isFalse,
+        reason: 'a lista seguia aceitando toque com a voz falando: $controle',
+      );
+    }
+
+    harness.voice.finishHeldLine();
+    await _passo(tester);
+    await _passo(tester);
+
+    for (final controle in controles) {
+      expect(
+        _acesa(tester, controle),
+        isTrue,
+        reason: 'a lista ficava apagada depois que a voz terminou: $controle',
+      );
+    }
+    closeTheRoom(container);
+  });
+
   testWidgets('while an approval is in the air, «regravar a frase 3» is not '
       'offered and does nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
