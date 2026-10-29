@@ -1552,7 +1552,7 @@ class SalaSessionState {
     _ => null,
   };
 
-  bool regravadaRecontavel(Trecho regravada) {
+  bool regravadaTraduzivelDeNovo(Trecho regravada) {
     final takeId = switch (regravada.parte) {
       final at when at >= 0 && at < partes.length => partes[at].takeId,
       _ => null,
