@@ -98,6 +98,32 @@ void main() {
     );
   });
 
+  test('a verdict heard again after its sound failed twice leaves nothing '
+      'waiting to call a person on the conversation', () async {
+    final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _toTheVerdict(harness, notifier);
+    expect(read().machine.aHaltWaitsForTheCanvas, isNotNull);
+
+    harness.voice.refuses.remove(_verdictUrl);
+    notifier.ouvirARespostaDeNovo();
+    await waitFor(
+      'o veredito soar de novo',
+      () => read().machine.aHaltWaitsForTheCanvas == null,
+    );
+
+    expect(
+      read().machine.aHaltWaitsForTheCanvas,
+      isNull,
+      reason:
+          'o veredito ouvido de novo deixava de pé a chamada por uma pessoa '
+          'que subiria na conversa',
+    );
+  });
+
   test('a verdict that speaks calls nobody', () async {
     final harness = SalaHarness();
     final container = await _inConversa(harness);

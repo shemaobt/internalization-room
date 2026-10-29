@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -105,6 +106,47 @@ void main() {
       expect(effects, contains(const CallForAPerson()));
     }
   });
+
+  test('a halt waiting from the back-translation is let go once a line the '
+      'room serves is heard there to its end', () {
+    const verdict = Line(LineKind.guide, 1, url: '/voice/veredito');
+    final (waiting, _) = reduce(
+      const Machine(station: Retro(), channel: GuideSpeaking(verdict)),
+      const RoomRaisedAHalt(),
+    );
+
+    final (heard, _) = reduce(waiting, const PlayerEnded(line: verdict));
+    final (onTheCanvas, effects) = reduce(heard, const TheRecordingLeft());
+
+    expect(heard.aHaltWaitsForTheCanvas, isNull);
+    expect(
+      onTheCanvas.halt,
+      isA<NoHalt>(),
+      reason:
+          'o veredito ouvido de novo deixava a conversa chamar uma pessoa '
+          'por uma resposta que a equipe já tinha ouvido',
+    );
+    expect(effects, isNot(contains(const CallForAPerson())));
+  });
+
+  test(
+    'a bundled line heard on the back-translation keeps the halt waiting',
+    () {
+      const bundled = Line(
+        LineKind.guide,
+        2,
+        fixedLine: (name: 'P2', language: 'pt'),
+      );
+      final (waiting, _) = reduce(
+        const Machine(station: Retro(), channel: GuideSpeaking(bundled)),
+        const RoomRaisedAHalt(),
+      );
+
+      final (heard, _) = reduce(waiting, const PlayerEnded(line: bundled));
+
+      expect(heard.aHaltWaitsForTheCanvas, isNotNull);
+    },
+  );
 
   test('a halt waiting from the back-translation is dropped on the way to the '
       'ensaio or the check, not carried to a later conversation', () {

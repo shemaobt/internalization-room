@@ -1257,7 +1257,11 @@ const _watch = ArmTheWatch();
     machine,
     line,
     Said.said,
-    heard: () => _ended(machine),
+    heard: () => _ended(
+      machine.station is Retro && line.url != null
+          ? machine.copyWith(letTheWaitingHaltGo: true)
+          : machine,
+    ),
   ),
   PlayerFailed(:final line?) => _answer(
     machine,
