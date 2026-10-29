@@ -7346,6 +7346,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) {
       if (path != null &&
           part != null &&
+          !_endedSince(life) &&
           _goneSessions.contains(sessionId) &&
           !_anAccidentalTap(path)) {
         _keepForTheNextSession(
