@@ -247,6 +247,47 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a sentence heard before it is recorded again leaves its place '
+      'beside play, the clock alone, not an empty row', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(naTela('gravem a frase inteira'), findsOneWidget);
+    expect(harness.playback.sounding, isFalse);
+
+    expect(
+      naTela('parte 2 · 0:04 / 0:10'),
+      findsOneWidget,
+      reason: 'a regravação sem som apagava a linha inteira, relógio junto',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence being told again with nothing sounding leaves its '
+      'place beside play, the clock alone', (tester) async {
+    final (harness, container) = await reopenedInto(tester, toldUpTo: 5000);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.stopWalking();
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btTrechoTraduzidoDeNovo, isNotNull);
+    expect(state.btTrechoTocando, isFalse);
+    expect(
+      naTela('parte 1 · 0:05 / 0:30'),
+      findsOneWidget,
+      reason: 'a frase traduzida de novo sem som apagava a linha do play',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the english room writes her english lines beside play, '
       'not the portuguese ones', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');

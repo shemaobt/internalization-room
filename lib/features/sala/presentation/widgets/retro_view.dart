@@ -826,7 +826,8 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
-          if (_aEscuta(session) case final linha?) ...[
+          if (_aEscuta(session) case final linha
+              when linha != null || _parteNoAr(session) != null) ...[
             const SizedBox(width: 11.2),
             Flexible(
               child: _ALinhaDaEscuta(
@@ -949,7 +950,7 @@ class _ALinhaDaEscuta extends ConsumerWidget {
             ondeFicou ?? playback.position,
             ondeFicou == null
                 ? playback.playingLength
-                : session.partLoudness[session.partes[parte].path]?.length,
+                : session.btTamanhoDaParte(parte),
             language,
           ),
         };
@@ -992,7 +993,23 @@ String _oLugar(
         parte: part.part,
         ondeFicou: part.from,
       ),
+      _ when !session.btTrechoTocando => switch (_aFraseDeNovo(session)) {
+        final trecho?
+            when trecho.parte >= 0 && trecho.parte < session.partes.length =>
+          (parte: trecho.parte, ondeFicou: trecho.lugarTo),
+        _ => null,
+      },
       _ => null,
+    };
+
+Trecho? _aFraseDeNovo(SalaSessionState session) =>
+    session.btTrechoTraduzidoDeNovo ??
+    switch (session.btRegravacao) {
+      final regravacao? =>
+        session.btTrechos
+            .where((trecho) => trecho.frase == regravacao.frase)
+            .firstOrNull,
+      null => null,
     };
 
 class _ManterADeAntes extends StatelessWidget {
