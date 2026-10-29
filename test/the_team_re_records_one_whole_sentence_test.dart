@@ -1557,6 +1557,49 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the new part is fetched again its row says «enviando…», '
+      'not a line with nothing on it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(
+      naLinha('enviando…'),
+      findsOneWidget,
+      reason: 'a parte voltava a ser buscada sem a linha dizer nada',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
+    expect(naLinha('enviando…'), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new part that fails again says nothing and gives the row its '
+      'retry back, instead of leaving it on «enviando…»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await deitarSemAParte(tester, harness, 2);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(harness.voice.fixedLines, isEmpty);
+    expect(
+      _naLista(falhou),
+      findsOneWidget,
+      reason: 'a segunda falha deixava a linha presa em «enviando…»',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a re-record left for the rehearsal does not stand when the team '
       'comes back to the telling', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

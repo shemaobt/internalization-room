@@ -9977,17 +9977,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final nome = _aFraseDevida;
     final trecho = state.trechoChamado(nome);
-    if (sessionId == null || nome == null || trecho == null) return;
+    final frase = state.btFraseGuardada;
+    if (sessionId == null || nome == null || trecho == null || frase == null) {
+      return;
+    }
     final generation = _waitOnTheGeneration;
     _silenceTheRoom();
-    state = state.copyWith(clearBtFraseGuardada: true);
+    state = state.copyWith(
+      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.enviando),
+      clearBtFraseGuardada: true,
+    );
     final trocada = await _aParteComAFrase(
       sessionId,
       trecho.parte,
       trecho.takeId,
       generation,
     );
-    if (_abandoned(generation) || !trocada) return;
+    if (_abandoned(generation)) return;
+    if (!trocada) return _guardarAFrase(frase);
+    state = state.copyWith(clearBtRegravacao: true);
     await _aFraseNovaNoLugar(nome, generation, tocar: true);
   }
 
