@@ -10,6 +10,8 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
 import 'package:internalization_room/main.dart';
 
@@ -35,6 +37,16 @@ Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
 
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+
+List<List<(int?, int?)>> _bandas(WidgetTester tester) => [
+  for (final faixa in tester.widgetList<SceneStrip>(
+    find.descendant(
+      of: find.byType(PartStrips),
+      matching: find.byType(SceneStrip),
+    ),
+  ))
+    [for (final frase in faixa.frases) (frase.startsMs, frase.endsMs)],
+];
 
 Future<ProviderContainer> _duasFrasesNoVeredito(
   WidgetTester tester,
@@ -307,6 +319,32 @@ void main() {
         ['trecho-2@gravacao-1:3200-6600'],
         reason:
             'a pausa movida se perdia no segundo toque e a sala recebia o fim velho',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the band of the frase being told again ends at the pause the team moves, not at its old end',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+
+      await tocar(tester, depois);
+
+      expect(
+        _bandas(tester),
+        [
+          [(0, 3200), (3200, 6600)],
+        ],
+        reason:
+            'a faixa da frase traduzida de novo seguia no fim de antes, longe da pausa movida',
       );
       closeTheRoom(container);
     },

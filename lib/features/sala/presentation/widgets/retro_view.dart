@@ -707,7 +707,8 @@ class RetroView extends ConsumerWidget {
         envelope: session.partLoudness[parte.path]?.envelope,
         told: [
           for (final trecho in session.btTrechos)
-            if (trecho.contado && trecho.parte == onde) _naFaixa(trecho),
+            if (trecho.contado && trecho.parte == onde)
+              _naFaixa(trecho, ate: _aPausaQueAnda(session, trecho)),
         ],
         stale: [
           for (final trecho in session.btTrechosRegravados)
@@ -723,10 +724,17 @@ class RetroView extends ConsumerWidget {
       ),
   ];
 
-  SceneFrase _naFaixa(Trecho trecho) => SceneFrase(
+  Duration? _aPausaQueAnda(SalaSessionState session, Trecho trecho) =>
+      switch (session.btTrechoTraduzidoDeNovo?.segmentId) {
+        final contadaDeNovo? when contadaDeNovo == trecho.segmentId =>
+          session.btCorte,
+        _ => null,
+      };
+
+  SceneFrase _naFaixa(Trecho trecho, {Duration? ate}) => SceneFrase(
     fraseId: trecho.segmentId ?? trecho.takeId,
     startsMs: trecho.lugarFrom.inMilliseconds,
-    endsMs: trecho.lugarTo.inMilliseconds,
+    endsMs: (ate ?? trecho.lugarTo).inMilliseconds,
   );
 
   IconData _listenGlyph(SalaSessionState session) {
