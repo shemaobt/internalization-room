@@ -2135,7 +2135,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case VoiceState.invite:
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
-          _handOff(_finishPanoramaListening());
+          if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
+              TapDecision.stop) {
+            _handOff(_finishPanoramaListening());
+          }
         case VoiceState.thinking:
         case VoiceState.speaking:
         case VoiceState.done:

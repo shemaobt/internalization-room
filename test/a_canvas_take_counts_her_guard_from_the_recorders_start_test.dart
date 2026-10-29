@@ -62,6 +62,19 @@ Future<_Room> _inConversa(SalaHarness harness) async {
   return _Room(harness, container);
 }
 
+Future<_Room> _onThePanorama(SalaHarness harness) async {
+  harness.room.passages = [_panorama, ...harness.room.passages];
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final room = _Room(harness, container, onThePanorama: true);
+  await enterThePanorama(room.notifier, () => room.state);
+  await waitFor(
+    'o panorama ser dito e a sala voltar ao convite',
+    () => room.state.panoramaSaid && room.state.voice == VoiceState.invite,
+  );
+  return room;
+}
+
 void main() {
   test('a recorder that answers half a second late still holds the take '
       'against a stop tap 0.4 s after it started', () async {
@@ -93,6 +106,62 @@ void main() {
         'a vez chegar à sala',
         () => room.harness.room.turnsSent == turns + 1,
       );
+    });
+  });
+
+  test('a double tap on the Panorama keeps the take going and sends nothing, '
+      'as on the conversation', () async {
+    await _onAClock((later) async {
+      final room = await _onThePanorama(SalaHarness(captureGuard: _herGuard));
+      final turns = room.harness.room.turnsSent;
+
+      await room.tap();
+      later(const Duration(milliseconds: 200));
+      await room.tap();
+
+      expect(
+        room.state.voice,
+        VoiceState.listening,
+        reason: 'no Panorama o segundo toque de um toque duplo encerrava a vez',
+      );
+      await settle();
+      expect(
+        room.harness.room.turnsSent,
+        turns,
+        reason: 'a vez de 0,2 s do Panorama ia para a sala',
+      );
+
+      later(const Duration(milliseconds: 800));
+      await room.tap();
+      await waitFor(
+        'a vez do Panorama chegar à sala',
+        () => room.harness.room.turnsSent == turns + 1,
+      );
+    });
+  });
+
+  test('a tap on the Panorama while its recorder is still starting does '
+      'nothing, and the take records once it answers', () async {
+    await _onAClock((later) async {
+      final room = await _onThePanorama(SalaHarness(captureGuard: _herGuard));
+      final turns = room.harness.room.turnsSent;
+      room.harness.recorder.holdNextStart();
+
+      await room.tap();
+      later(const Duration(seconds: 2));
+      await room.tap();
+      room.harness.recorder.finishStart();
+      await settle();
+
+      expect(
+        room.state.voice,
+        VoiceState.listening,
+        reason:
+            'o toque com o gravador ainda abrindo fechava o microfone antes '
+            'de ele começar',
+      );
+      expect(room.state.takeRecordingSince, isNotNull);
+      expect(room.harness.room.turnsSent, turns);
     });
   });
 }
