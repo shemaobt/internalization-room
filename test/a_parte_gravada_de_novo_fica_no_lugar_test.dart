@@ -9,8 +9,6 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -379,8 +377,8 @@ void main() {
   });
 
   test(
-    'a parte cuja linha pousa depois aprende o nome, e o trecho seguinte sobe '
-    'nomeado',
+    'a parte regravada cuja linha ainda não pousou deixa a conferência '
+    'fechada, e depois de pousar o trecho contado sobre ela sobe nomeado',
     () async {
       final it = await _oAchadoNaParteDois();
       it.harness.room.holdNextTake(KeptScope.parte(2));
@@ -396,19 +394,13 @@ void main() {
 
       it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
       it.sala.startRetro();
-      await waitFor(
-        'a tradução recomeçar na parte gravada de novo',
-        () =>
-            it.estado.stage == SalaStage.retro &&
-            it.estado.btPhase == BtPhase.playing,
-      );
-      await _contarUmTrecho(it, partesDoEnsaio[1]);
+      await settle();
       expect(
-        it.estado.btChunkFailures,
-        hasLength(1),
+        it.estado.stage,
+        SalaStage.ensaio,
         reason:
-            'o cenário é o do trecho contado sobre uma parte que a sala '
-            'ainda não nomeou, que é o caminho sem nome',
+            'a conferência abria com a parte 2 ainda no ar, e contava trechos '
+            'sobre uma parte que a sala não tinha',
       );
 
       it.harness.room.finishHeldTake();
@@ -424,32 +416,31 @@ void main() {
                   take.kind == 'ensaio' && take.scope == KeptScope.parte(2),
             )
             .takeId,
-        reason:
-            'o nome é o que a sala deu a esta gravação da parte 2, e não o da '
-            'retro sem nome que subiu no mesmo flush',
+        reason: 'o nome é o que a sala deu a esta gravação da parte 2',
       );
 
-      it.sala.retroTap();
+      it.sala.startRetro();
       await waitFor(
-        'o microfone abrir de novo no trecho',
-        () => it.estado.btPhase == BtPhase.capturing,
-      );
-      await confirmarATraducao(it.container);
-      await waitFor(
-        'o trecho pendente subir com o nome da parte',
+        'a tradução recomeçar na parte gravada de novo',
         () =>
-            it.harness.room.chunkTakes.isNotEmpty &&
-            it.harness.room.chunkTakes.last == it.partes[1].takeId,
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing,
+      );
+      await _contarUmTrecho(it, partesDoEnsaio[1]);
+      await waitFor(
+        'o trecho subir com o nome da parte',
+        () => it.harness.room.chunkTakes.isNotEmpty,
       );
 
       expect(
         it.harness.room.chunkTakes.last,
         it.partes[1].takeId,
         reason:
-            'sem readotar o nome, todo trecho contado sobre esta parte '
-            'subiria como uma retro da passagem inteira, e a sala nunca a '
-            'guardaria como trecho da parte 2',
+            'sem o nome, todo trecho contado sobre esta parte subiria como '
+            'uma retro da passagem inteira, e a sala nunca a guardaria como '
+            'trecho da parte 2',
       );
+      expect(it.estado.btChunkFailures, isEmpty);
     },
   );
 
@@ -1271,22 +1262,11 @@ void main() {
       reason: 'nenhuma faixa sobre a parte 2: o chão dela está por contar',
     );
     expect(
-      [
-        for (final conta
-            in tester
-                .widget<BeadRow>(
-                  find.descendant(
-                    of: find.byType(RetroView),
-                    matching: find.byType(BeadRow),
-                  ),
-                )
-                .entries)
-          conta.fill,
-      ],
-      isNot(contains(BeadFill.drained)),
+      estado.btFindingTrecho,
+      isNull,
       reason:
-          'e nenhuma faixa vazia: vazia quer dizer à espera de conserto, '
-          'e este chão não espera conserto nenhum, espera ser contado',
+          'o achado seguia apontando um trecho à espera de conserto, e este '
+          'chão não esperava conserto nenhum, esperava ser contado',
     );
     expect(
       harness.playback.played.last,
@@ -1317,10 +1297,9 @@ void main() {
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _ateAConferida(tester);
-      it.harness.voice.refuses.add('P3');
       it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
       await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 400));
@@ -1331,16 +1310,11 @@ void main() {
             'sem a leitura depois da aprovação o selo não vem, e aprovar '
             'segue oferecido',
       );
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
+      it.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(
-        _estado(it.container).needsPerson,
-        isTrue,
-        reason:
-            'a linha da Guia que falha duas vezes seguidas para a sala para '
-            'uma pessoa — se não parar, não há parada que medir',
-      );
+      expect(_estado(it.container).needsPerson, isTrue);
       await tester.pump(const Duration(milliseconds: 500));
       expect(
         find.bySemanticsLabel(_pronto),
@@ -1418,11 +1392,11 @@ void main() {
     );
   });
 
-  testWidgets('a aprovação conta a vez que não tocou', (tester) async {
+  testWidgets('a aprovação que não toca deixa silêncio', (tester) async {
     final it = await _ateAConferida(tester);
     it.harness.voice.refuses.add('P3');
 
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(
@@ -1461,7 +1435,7 @@ void main() {
   ) async {
     final it = await _ateAConferida(tester);
 
-    await tester.tap(byLabel(_aprovar));
+    await pressTheApproval(tester, _aprovar);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(it.harness.room.releasesAsked, hasLength(1));

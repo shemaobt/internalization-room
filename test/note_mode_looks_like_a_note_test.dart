@@ -9,14 +9,15 @@ import 'package:internalization_room/features/sala/domain/hand_reply.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 const _reply = HandReply(id: 'r1', audioUrl: '/resposta/r1');
 const _panorama = Passagem(
@@ -58,7 +59,7 @@ class _Room {
   String? get handLabel => _labelWithin(_hand);
 
   bool get circleHoldsTheHand => find
-      .descendant(of: _circle, matching: find.byIcon(LucideIcons.hand))
+      .descendant(of: _circle, matching: paintedGlyph(CircleGlyph.hand))
       .evaluate()
       .isNotEmpty;
 
@@ -400,15 +401,15 @@ void main() {
     expect(room.handLabel, 'Ouvir a resposta do facilitador');
   });
 
-  testWidgets('In an English session the hand reads "Leave a question for the '
+  testWidgets('In an English session the hand reads "Leave a question for your '
       'facilitator"', (tester) async {
     final room = await _inConversa(tester, language: 'en');
 
-    expect(room.handLabel, 'Leave a question for the facilitator');
+    expect(room.handLabel, 'Leave a question for your facilitator');
   });
 
   testWidgets('In an English session with a reply waiting the hand reads "Hear '
-      'the facilitator\'s answer"', (tester) async {
+      'your facilitator\'s reply"', (tester) async {
     final room = await _inConversa(
       tester,
       given: SalaHarness(lingua: 'en', replies: const [_reply]),
@@ -416,24 +417,30 @@ void main() {
     );
     await room.until('a resposta chegar', () => room.estado.hasUnheardReply);
 
-    expect(room.handLabel, 'Hear the facilitator\'s answer');
+    expect(room.handLabel, 'Hear your facilitator\'s reply');
   });
 
   for (final (language, words) in [
-    ('pt', 'Tocar ao terminar'),
-    ('en', 'Tap when you are done'),
+    ('pt', 'Toque para falar'),
+    ('en', 'Tap to speak'),
   ]) {
-    testWidgets('While the question records the circle reads «$words» '
-        '($language)', (tester) async {
+    testWidgets('While the question records the circle still reads «$words» '
+        '($language), never a recording line', (tester) async {
       final room = await _inConversa(tester, language: language);
       await room.theKnotRecords();
 
-      expect(byLabel(words), findsOneWidget);
+      expect(
+        onTheCircle(words),
+        findsOneWidget,
+        reason:
+            'o círculo trocava para um rótulo de gravação que o dela não '
+            'tem; o dela diz sempre o mesmo',
+      );
     });
   }
 
   for (final (language, words) in [
-    ('pt', 'Tocar para falar'),
+    ('pt', 'Toque para falar'),
     ('en', 'Tap to speak'),
   ]) {
     testWidgets('The Panorama\'s resting circle reads «$words» ($language), '

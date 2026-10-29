@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
@@ -11,6 +10,7 @@ import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
 import 'grain_choice_view.dart';
+import 'listen_glyph.dart';
 import 'rehearsal_sheet.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
@@ -138,6 +138,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                         language: language,
                         outcome: session.joinRows[row.number],
                         idle: idle,
+                        playing:
+                            session.planListening?.rehearsalId ==
+                            row.chosen?.rehearsalId,
                         onPlay: () =>
                             notifier.playThePlanRow(row.scene.sceneId),
                         onSwap: () =>
@@ -153,6 +156,9 @@ class EnsaioFinalPlanView extends ConsumerWidget {
                   scenes: read.scenes,
                   language: language,
                   busy: session.planBusy,
+                  playing:
+                      session.planListening?.rehearsalId ==
+                      unlabelled.rehearsalId,
                   failed: session.labelLine,
                 ),
               if (planHoldsARehearsal(read, sessionId)) ...[
@@ -201,6 +207,7 @@ class _PlanRowView extends StatelessWidget {
   final String language;
   final JoinRow? outcome;
   final bool idle;
+  final bool playing;
   final VoidCallback onPlay;
   final VoidCallback onSwap;
   final VoidCallback onRetry;
@@ -210,6 +217,7 @@ class _PlanRowView extends StatelessWidget {
     required this.language,
     required this.outcome,
     required this.idle,
+    required this.playing,
     required this.onPlay,
     required this.onSwap,
     required this.onRetry,
@@ -295,17 +303,22 @@ class _PlanRowView extends StatelessWidget {
                   ),
                 ),
                 if (facts != null)
-                  RoundActionButton(
-                    size: 44,
-                    gradient: BeadStyles.wood,
-                    semanticLabel:
-                        '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
-                    mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
-                    onTap: onPlay,
-                    child: const Icon(
-                      LucideIcons.play,
-                      size: 18,
-                      color: ShemaBrand.branco,
+                  Semantics(
+                    selected: playing,
+                    child: RoundActionButton(
+                      size: 44,
+                      gradient: BeadStyles.wood,
+                      semanticLabel:
+                          '${ensaioFinalPlanLabelFor('listen', language)} — $facts',
+                      mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
+                      onTap: onPlay,
+                      child: CustomPaint(
+                        size: const Size.square(18),
+                        painter: ListenGlyphPainter(
+                          glyph: playing ? ListenGlyph.pause : ListenGlyph.play,
+                          ink: ShemaBrand.branco,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -358,6 +371,7 @@ class _UnlabelledCard extends ConsumerWidget {
   final List<Scene> scenes;
   final String language;
   final bool busy;
+  final bool playing;
   final bool failed;
 
   const _UnlabelledCard({
@@ -365,6 +379,7 @@ class _UnlabelledCard extends ConsumerWidget {
     required this.scenes,
     required this.language,
     required this.busy,
+    required this.playing,
     required this.failed,
   });
 
@@ -388,7 +403,10 @@ class _UnlabelledCard extends ConsumerWidget {
         ),
         child: Column(
           children: [
-            ExcludeSemantics(
+            Semantics(
+              container: true,
+              header: true,
+              headingLevel: 2,
               child: Text(
                 said('whichScene'),
                 style: TextStyle(
@@ -402,16 +420,21 @@ class _UnlabelledCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                RoundActionButton(
-                  size: 44,
-                  gradient: BeadStyles.wood,
-                  mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
-                  semanticLabel: '${said('listen')} — $facts',
-                  onTap: () => notifier.playARehearsal(rehearsal.rehearsalId),
-                  child: const Icon(
-                    LucideIcons.play,
-                    size: 18,
-                    color: ShemaBrand.branco,
+                Semantics(
+                  selected: playing,
+                  child: RoundActionButton(
+                    size: 44,
+                    gradient: BeadStyles.wood,
+                    mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
+                    semanticLabel: '${said('listen')} — $facts',
+                    onTap: () => notifier.playARehearsal(rehearsal.rehearsalId),
+                    child: CustomPaint(
+                      size: const Size.square(18),
+                      painter: ListenGlyphPainter(
+                        glyph: playing ? ListenGlyph.pause : ListenGlyph.play,
+                        ink: ShemaBrand.branco,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),

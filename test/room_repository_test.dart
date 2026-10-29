@@ -537,6 +537,14 @@ void main() {
         (read as Answered<SessionSnapshot>).value.approved?.version;
     expect(version(await repository.fetchState('aprovada')), 2);
     expect(version(await repository.fetchState('so-a-versao')), 3);
+    bool? forced(RoomAnswer<SessionSnapshot> read) =>
+        (read as Answered<SessionSnapshot>).value.approved?.forced;
+    expect(
+      forced(await repository.fetchState('aprovada')),
+      isTrue,
+      reason: 'a sala dizia que a versão foi forçada e o tablet não lia',
+    );
+    expect(forced(await repository.fetchState('so-a-versao')), isFalse);
     for (final none in ['nula', 'ausente']) {
       expect(
         await repository.fetchState(none),

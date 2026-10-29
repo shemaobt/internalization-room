@@ -50,16 +50,7 @@ int acknowledgementAfter(int last, Random random) =>
     instantAckLines.length;
 
 const circleLabels = {
-  'needsPerson': {
-    'pt': 'Um momento para uma pessoa',
-    'en': 'A moment for someone',
-  },
-  'teamTalk': {
-    'pt': 'Conversem entre vocês — tocar quando quiserem me contar',
-    'en': 'Talk among yourselves — tap when you want to tell me',
-  },
-  'listening': {'pt': 'Tocar ao terminar', 'en': 'Tap when you are done'},
-  'default': {'pt': 'Tocar para falar', 'en': 'Tap to speak'},
+  'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 
 String circleLabelFor(String state, String language) =>
@@ -68,11 +59,11 @@ String circleLabelFor(String state, String language) =>
 const handLabels = {
   'hearTheAnswer': {
     'pt': 'Ouvir a resposta do facilitador',
-    'en': 'Hear the facilitator\'s answer',
+    'en': 'Hear your facilitator\'s reply',
   },
   'leaveAQuestion': {
     'pt': 'Deixar uma pergunta para o facilitador',
-    'en': 'Leave a question for the facilitator',
+    'en': 'Leave a question for your facilitator',
   },
 };
 
@@ -239,7 +230,7 @@ String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
     ensaioFinalPlanLabelFor('partial', language),
 ].join(' · ');
 
-/// Her scene-rehearsal words (strings.ts), read only by VoiceOver.
+/// Her scene-rehearsal words (strings.ts).
 const sceneRehearsalLabels = {
   'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
   'record': {
@@ -303,6 +294,17 @@ const sceneRehearsalLabels = {
   'retry': {
     'pt': 'falhou — toque para tentar de novo',
     'en': 'failed — tap to try again',
+  },
+  'lost': {'pt': 'falhou', 'en': 'failed'},
+  'refused': {
+    'pt': 'não foi aceita — grave de novo',
+    'en': 'not accepted — record it again',
+  },
+  'takeRecording': {'pt': 'gravando', 'en': 'recording'},
+  'stopSending': {'pt': 'parar', 'en': 'stop'},
+  'stopSendingAria': {
+    'pt': 'Parar o envio (a gravação fica neste computador)',
+    'en': 'Stop sending (the recording stays on this computer)',
   },
   'playPause': {
     'pt': 'Tocar ou pausar a gravação',
@@ -382,6 +384,11 @@ const sceneRehearsalLabels = {
   'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
   'listSent': {'pt': 'enviado', 'en': 'sent'},
   'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
+  'subRecord': {
+    'pt':
+        'Toquem no círculo para gravar o ensaio da cena; toquem de novo para parar.',
+    'en': 'Tap the circle to record the scene rehearsal; tap again to stop.',
+  },
   'subTranslate': {
     'pt':
         'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',
@@ -688,6 +695,15 @@ String savedScreenLabelFor(String key, String language) =>
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
+  'listenAll': {'pt': 'Ouvir tudo', 'en': 'Hear it all'},
+  'listenAllAria': {
+    'pt': 'Ouvir a gravação inteira',
+    'en': 'Hear the whole recording',
+  },
+  'listenAllTitle': {
+    'pt': 'A gravação de vocês inteira, parte por parte.',
+    'en': 'Your whole recording, part by part.',
+  },
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
   'how': {
     'pt': 'Como vocês querem gravar?',
@@ -743,6 +759,23 @@ const recordingHomeLabels = {
     'en': 'failed — tap to try again',
   },
   'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
+  'lost': {'pt': 'falhou — grave de novo', 'en': 'failed — record it again'},
+  'recording': {'pt': 'gravando', 'en': 'recording'},
+  'sending': {'pt': 'enviando…', 'en': 'sending…'},
+  'saved': {'pt': 'salvo', 'en': 'saved'},
+  'stopSending': {'pt': 'parar', 'en': 'stop'},
+  'stopSendingAria': {
+    'pt': 'Parar o envio (a gravação fica neste computador)',
+    'en': 'Stop sending (the recording stays on this computer)',
+  },
+  'tooLarge': {
+    'pt': 'grande demais para o servidor — grave em partes menores',
+    'en': 'too large for the server — record in shorter parts',
+  },
+  'refused': {
+    'pt': 'não foi aceita — grave de novo',
+    'en': 'not accepted — record it again',
+  },
   'bringBack': {
     'pt': 'trazer de volta as traduções do ensaio desta cena',
     'en': 'bring back this scene rehearsal\'s translations',

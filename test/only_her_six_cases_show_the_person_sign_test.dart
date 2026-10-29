@@ -227,6 +227,9 @@ Future<_Room> _aPassageToResume(SalaHarness harness) async {
   await _theRoomRests(room);
   room.sala.leaveThePassage();
   await waitFor('a Escolha abrir', () => room.state.entriesOpen);
+  container.invalidate(salaSessionProvider);
+  await room.sala.openTheRoom();
+  await waitFor('a sala refeita abrir a Escolha', () => room.state.entriesOpen);
   return room;
 }
 
@@ -332,16 +335,17 @@ void main() {
     expect(harness.voice.assets.skip(assetsBefore), isEmpty);
   });
 
-  test('a reply sound that fails twice brings the sign; once brings '
+  test('a reply sound that fails to load twice brings the sign; once brings '
       'nothing', () async {
     final harness = SalaHarness();
     final room = await _onTheCanvas(harness);
-    harness.voice.refuses.add(turnoUrl);
+    harness.voice.failsToLoad[turnoUrl] = 1;
 
     await _theTeamSpeaks(room);
     await _theRoomRests(room);
     expect(room.state.needsPerson, isFalse);
 
+    harness.voice.refuses.add(turnoUrl);
     await _theTeamSpeaks(room);
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
   });
@@ -872,8 +876,6 @@ void main() {
     harness.voice.refuses.add(turnoUrl);
 
     await _theTeamSpeaks(room);
-    await _theRoomRests(room);
-    await _theTeamSpeaks(room);
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
 
     expect(logged, contains(allOf(contains('2'), contains('RoomRaisedAHalt'))));
@@ -887,16 +889,18 @@ void main() {
     addTearDown(() => debugPrint = print);
     final harness = SalaHarness();
     final room = await _onTheCanvas(harness);
-    harness.voice.refuses.add(turnoUrl);
-    await _theTeamSpeaks(room);
-    await _theRoomRests(room);
-    harness.voice
-      ..refuses.clear()
-      ..holdNextLine();
+    final playedBefore = harness.voice.played.length;
+    harness.voice.aoFalar = () {
+      if (harness.voice.played.length > playedBefore) {
+        harness.voice
+          ..aoFalar = null
+          ..holdNextLine();
+      }
+    };
     await _theTeamSpeaks(room);
     await waitFor(
       'a resposta tocar',
-      () => harness.voice.played.where((url) => url == turnoUrl).length == 2,
+      () => harness.voice.played.length > playedBefore,
     );
     room.sala.haltForABrokenBuild();
     await waitFor('o sinal', () => room.state.needsPerson);
@@ -907,7 +911,7 @@ void main() {
     await settle();
 
     expect(room.state.needsPerson, isTrue);
-    expect(logged, isNot(contains(contains('(2 seguidas)'))));
+    expect(logged, isNot(contains(contains('o som da fala não carregou'))));
   });
 
   test('a wheel whose read never answers rests at the invite at the busy '

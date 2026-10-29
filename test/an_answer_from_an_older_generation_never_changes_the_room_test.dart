@@ -37,11 +37,7 @@ AnsweringEvent _stampedAnswer(
   LineNotSaid(:final line) => LineNotSaid(line, generation: generation),
   PlayerOpened() => PlayerOpened(generation: generation),
   PlayerEnded() => PlayerEnded(generation: generation),
-  PlayerFailed(:final source, :final sounding) => PlayerFailed(
-    source,
-    sounding: sounding,
-    generation: generation,
-  ),
+  PlayerFailed(:final source) => PlayerFailed(source, generation: generation),
   MicOpened(:final owner, :final take) => MicOpened(
     owner,
     take: take,
@@ -121,6 +117,11 @@ AnsweringEvent _stampedAnswer(
   TheOpeningMissed() => TheOpeningMissed(generation: generation),
   TheSessionOpened(:final session) => TheSessionOpened(
     session,
+    generation: generation,
+  ),
+  ThePanoramaFound(:final session, :final opened) => ThePanoramaFound(
+    session,
+    opened: opened,
     generation: generation,
   ),
 };

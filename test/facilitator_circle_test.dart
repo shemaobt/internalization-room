@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -40,42 +38,29 @@ Future<void> _pumpCircle(
   ),
 );
 
-Gradient? _disc(WidgetTester tester) {
-  final painted = tester
-      .widgetList<Container>(
-        find.descendant(
-          of: find.byType(FacilitatorCircle),
-          matching: find.byType(Container),
-        ),
-      )
-      .map((box) => box.decoration)
-      .whereType<BoxDecoration>()
-      .map((paint) => paint.gradient)
-      .whereType<Gradient>()
-      .toList();
-  return painted.isEmpty ? null : painted.first;
-}
-
-List<IconData> _glyphs(WidgetTester tester) => tester
-    .widgetList<Icon>(
+List<CircleGlyph> _glyphs(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(
       find.descendant(
         of: find.byType(FacilitatorCircle),
-        matching: find.byType(Icon),
+        matching: find.byType(CustomPaint),
       ),
     )
-    .map((mark) => mark.icon!)
+    .map((paint) => paint.painter)
+    .whereType<CircleGlyphPainter>()
+    .map((mark) => mark.glyph)
     .toList();
 
 Future<void> _pumpStillCircle(
   WidgetTester tester,
   VoiceState voice, {
   bool inPlace = false,
+  bool canvas = false,
   Halt halt = const NoHalt(),
 }) => tester.pumpWidget(
   MaterialApp(
     key: inPlace
         ? const ValueKey('o mesmo círculo parado')
-        : ValueKey('parado-$voice-$halt'),
+        : ValueKey('parado-$voice-$halt-$canvas'),
     theme: AppTheme.light,
     home: MediaQuery(
       data: const MediaQueryData(disableAnimations: true),
@@ -85,6 +70,7 @@ Future<void> _pumpStillCircle(
             halt: halt,
             size: 158,
             voice: voice,
+            canvas: canvas,
             semanticLabel: 'circulo',
             onTap: () {},
           ),
@@ -128,7 +114,7 @@ List<Duration> _periods(WidgetTester tester) => [
       matching: find.byType(Loop),
     ),
   ))
-    breath.period,
+    if (breath.animate) breath.period,
   for (final ring in tester.widgetList<Ripple>(
     find.descendant(
       of: find.byType(FacilitatorCircle),
@@ -166,9 +152,10 @@ void main() {
   );
 
   testWidgets(
-    'the long wait keeps one slow breath of light, and still does not move',
+    'the long wait on her canvas keeps one slow breath of light, and still '
+    'does not move',
     (tester) async {
-      await _pumpStillCircle(tester, VoiceState.thinking);
+      await _pumpStillCircle(tester, VoiceState.thinking, canvas: true);
       final drawn = await _overAMinuteOfFrames(tester);
 
       expect(
@@ -234,8 +221,8 @@ void main() {
     tester,
   ) async {
     const tempos = {
-      VoiceState.listening: Duration(milliseconds: 3200),
-      VoiceState.thinking: Duration(milliseconds: 2400),
+      VoiceState.listening: Duration(milliseconds: 3000),
+      VoiceState.thinking: Duration(milliseconds: 4500),
       VoiceState.speaking: Duration(milliseconds: 3400),
     };
 
@@ -265,11 +252,11 @@ void main() {
     'a breath lands back where it started after her period, at its peak halfway there',
     (tester) async {
       const halves = {
-        VoiceState.thinking: Duration(milliseconds: 1200),
+        VoiceState.thinking: Duration(milliseconds: 2250),
         VoiceState.speaking: Duration(milliseconds: 1700),
       };
-      const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.02};
-      const rests = {VoiceState.thinking: 0.97, VoiceState.speaking: 1.0};
+      const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.03};
+      const rests = {VoiceState.thinking: 0.97, VoiceState.speaking: 0.97};
 
       double scale() => tester
           .widgetList<Transform>(
@@ -318,7 +305,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'listening',
@@ -326,7 +313,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'speaking',
@@ -334,7 +321,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'done',
@@ -342,7 +329,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          [LucideIcons.volume2],
+          [CircleGlyph.sound],
         ),
         (
           'thinking',
@@ -350,7 +337,7 @@ void main() {
           false,
           false,
           const NoHalt(),
-          <IconData>[],
+          <CircleGlyph>[],
         ),
         (
           'team talk',
@@ -358,7 +345,7 @@ void main() {
           true,
           false,
           const NoHalt(),
-          [LucideIcons.users],
+          [CircleGlyph.team],
         ),
         (
           'note',
@@ -366,7 +353,7 @@ void main() {
           false,
           true,
           const NoHalt(),
-          [LucideIcons.hand],
+          [CircleGlyph.hand],
         ),
         (
           'halted',
@@ -374,7 +361,7 @@ void main() {
           false,
           false,
           const Blocking(),
-          <IconData>[],
+          <CircleGlyph>[],
         ),
       ]) {
         await _pumpCircle(
@@ -422,11 +409,16 @@ void main() {
   testWidgets(
     'a question being left to a person shows the hand, never the sound of a voice',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.listening, noteMode: true);
+      await _pumpCircle(
+        tester,
+        VoiceState.listening,
+        noteMode: true,
+        canvas: true,
+      );
 
       expect(
         _glyphs(tester),
-        [LucideIcons.hand],
+        [CircleGlyph.hand],
         reason:
             'o modo nota era só um disco azul, e azul é também a cor do '
             'microfone aberto: nada na tela dizia que aquela fala vai para o '
@@ -445,9 +437,10 @@ void main() {
         VoiceState.listening,
         noteMode: true,
         inPlace: true,
+        canvas: true,
       );
       expect(_glyphs(tester), [
-        LucideIcons.hand,
+        CircleGlyph.hand,
       ], reason: 'o caso precisa começar na marca que vai sair');
 
       await _pumpCircle(
@@ -455,12 +448,13 @@ void main() {
         VoiceState.invite,
         peerCue: true,
         inPlace: true,
+        canvas: true,
       );
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(
         _glyphs(tester),
-        containsAll(const [LucideIcons.hand, LucideIcons.users]),
+        containsAll(const [CircleGlyph.hand, CircleGlyph.team]),
         reason:
             'meio segundo depois da deixa as duas marcas ainda dividem o '
             'disco: um corte seco no meio de uma tela sem palavra nenhuma é '
@@ -470,7 +464,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
       expect(
         _glyphs(tester),
-        [LucideIcons.users],
+        [CircleGlyph.team],
         reason:
             'e um segundo depois só a nova ficou — a travessia acaba, não '
             'deixa a marca velha pendurada',
@@ -484,17 +478,30 @@ void main() {
       await _pumpCircle(tester, VoiceState.invite, peerCue: true);
 
       expect(
-        _disc(tester),
-        BeadStyles.telha(SalaColors.light),
+        tester
+            .widgetList<Container>(
+              find.descendant(
+                of: find.byType(FacilitatorCircle),
+                matching: find.byType(Container),
+              ),
+            )
+            .map((box) => box.decoration)
+            .whereType<BoxDecoration>()
+            .single
+            .border!
+            .top
+            .color,
+        const Color(0xFFBE4A01),
         reason:
             'a sala mandava a equipe conversar entre si e apagava, nesse '
             'mesmo instante, o único alvo que ela aprendeu a tocar — o disco '
             'inteiro virava azul e a telha sumia justo quando ela precisa '
             'achar o círculo de volta',
       );
+      await _pumpCircle(tester, VoiceState.invite, peerCue: true, canvas: true);
       expect(
-        find.byIcon(LucideIcons.users),
-        findsOneWidget,
+        _glyphs(tester),
+        [CircleGlyph.team],
         reason:
             'e quem diz que a vez é deles é o glifo, que é a única coisa '
             'que tem de mudar',
@@ -505,11 +512,11 @@ void main() {
   testWidgets(
     'a peer cue at done shows the team glyph as it does at the invite',
     (tester) async {
-      await _pumpCircle(tester, VoiceState.done, peerCue: true);
+      await _pumpCircle(tester, VoiceState.done, peerCue: true, canvas: true);
 
       expect(
         _glyphs(tester),
-        [LucideIcons.users],
+        [CircleGlyph.team],
         reason:
             'a Marcia desenha o glifo da equipe em todo turno ocioso, e o '
             'pronto é um deles; a deixa chegava junto com o pronto e o '
@@ -521,9 +528,19 @@ void main() {
   testWidgets(
     'a circle that changes voice under less motion is as still as one that opened there',
     (tester) async {
-      await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);
+      await _pumpStillCircle(
+        tester,
+        VoiceState.thinking,
+        inPlace: true,
+        canvas: true,
+      );
       await tester.pump(const Duration(milliseconds: 400));
-      await _pumpStillCircle(tester, VoiceState.invite, inPlace: true);
+      await _pumpStillCircle(
+        tester,
+        VoiceState.invite,
+        inPlace: true,
+        canvas: true,
+      );
       final depois = await _overAMinuteOfFrames(tester);
 
       expect(
@@ -536,7 +553,12 @@ void main() {
             'primeiro quadro da sessão e em nenhum outro',
       );
 
-      await _pumpStillCircle(tester, VoiceState.thinking, inPlace: true);
+      await _pumpStillCircle(
+        tester,
+        VoiceState.thinking,
+        inPlace: true,
+        canvas: true,
+      );
       final voltando = await _overAMinuteOfFrames(tester);
 
       expect(

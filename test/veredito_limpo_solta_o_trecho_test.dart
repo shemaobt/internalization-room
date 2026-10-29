@@ -1,14 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -19,24 +15,26 @@ SalaHarness? _harnessDaVez;
 SalaSessionNotifier _notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
 
-/// Which stretches are drawn drained, by their order.
-///
-/// A stretch is drained exactly when it is the one waiting to be mended. The whole
-/// list rather than one place at a time, so the answer can be wrong: asking only about the
-/// place the finding named can never catch a pointer somewhere else.
-List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
-  for (final (lugar, conta)
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries
-          .indexed)
-    if (conta.fill == BeadFill.drained) lugar,
-];
+List<int> _apontados(ProviderContainer container) {
+  final sessao = container.read(salaSessionProvider);
+  return [
+    for (final (lugar, trecho) in sessao.btTrechos.indexed)
+      if (trecho.segmentId != null &&
+          trecho.segmentId == sessao.btFindingSegmentId)
+        lugar,
+  ];
+}
+
+void _oTrechoEsperaOConserto(ProviderContainer container, {String? reason}) {
+  final sessao = container.read(salaSessionProvider);
+  expect(sessao.btPhase, isNot(BtPhase.capturing), reason: reason);
+  expect(
+    sessao.btTraducaoPendente,
+    anyOf(isNull, sessao.btTraducaoEmprestada),
+    reason: reason,
+  );
+  expect(_apontados(container), [0], reason: reason);
+}
 
 /// A team standing at the question, with a finding on the first of two stretches.
 ///
@@ -154,22 +152,20 @@ void main() {
     },
   );
 
-  testWidgets('uma passagem conferida não deixa faixa vazia no colar', (
+  testWidgets('uma passagem conferida não deixa trecho à espera do conserto', (
     tester,
   ) async {
     final container = await _pumpToPergunta(tester);
-    expect(
-      _faixasVazias(tester, container),
-      [0],
+    _oTrechoEsperaOConserto(
+      container,
       reason:
           'o achado apontou o primeiro trecho — se não apontar, este '
           'cenário não chega ao que mede',
     );
 
     await _consertoQueNaoPegou(tester, container);
-    expect(
-      _faixasVazias(tester, container),
-      [0],
+    _oTrechoEsperaOConserto(
+      container,
       reason:
           'o conserto não pegou e nada fica pendente sobre o trecho: ele '
           'volta a esperar o conserto, e o ponteiro segue nomeando um '
@@ -184,55 +180,55 @@ void main() {
       reason: 'a sala deu a passagem por conferida',
     );
     expect(
-      _faixasVazias(tester, container),
+      _apontados(container),
       isEmpty,
       reason:
-          'e o colar tem de concordar com ela. Uma faixa vazia sob uma '
-          'passagem conferida é a única coisa que a equipe tem para ler '
-          'dizendo que ainda há trabalho, e não há',
+          'a passagem conferida ainda deixava um trecho apontado, dizendo '
+          'que havia trabalho onde não havia',
     );
 
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('a conferida não oferece o círculo a um toque que não responde', (
-    tester,
-  ) async {
+  testWidgets('a conferida desenha o anel telha dela, que não responde ao '
+      'toque, nunca um círculo de barro', (tester) async {
     final container = await _pumpToPergunta(tester);
     await _consertoQueNaoPegou(tester, container);
     await _oVeredictoVoltaLimpo(tester, container);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    await tester.pump(const Duration(milliseconds: 1000));
 
-    final colors = SalaColors.of(
-      tester.element(find.byType(FacilitatorCircle)),
+    final circulo = tester.widget<FacilitatorCircle>(
+      find.byType(FacilitatorCircle),
     );
-    final pintados = [
-      for (final elemento
-          in find
-              .descendant(
-                of: find.byType(FacilitatorCircle),
-                matching: find.byType(Container),
-              )
-              .evaluate())
-        if ((elemento.widget as Container).decoration case BoxDecoration(
-          :final gradient?,
-        ))
-          gradient,
-    ];
+    expect(circulo.answersATouch, isFalse);
+    final pintados = tester
+        .widgetList<Container>(
+          find.descendant(
+            of: find.byType(FacilitatorCircle),
+            matching: find.byType(Container),
+          ),
+        )
+        .map((caixa) => caixa.decoration)
+        .whereType<BoxDecoration>()
+        .toList();
 
     expect(
-      pintados,
-      isNot(contains(BeadStyles.telha(colors))),
+      [
+        for (final pintado in pintados)
+          if (pintado.border case final Border borda) borda.top,
+      ],
+      [const BorderSide(color: Color(0xFFBE4A01), width: 1.5)],
       reason:
-          'a conferida desenhava o círculo de telha do convite, e o toque '
-          'nele não responde nada: a tela da Marcia deixa o círculo vivo '
-          'ali, a nossa mandou a escuta para o botão de ouvir, então um '
-          'convite sem resposta é um toque morto',
+          'com a checagem limpa o .check-circle dela segue na tela em '
+          'data-state idle, só desabilitado (Drafting.tsx:2404-2406, '
+          'globals.css:379, :385); o nosso trocava por um círculo de barro '
+          'com borda cord',
     );
     expect(
-      pintados,
-      contains(BeadStyles.clay(colors)),
-      reason: 'o círculo que não responde respira devagar, como o parado',
+      pintados.expand((pintado) => pintado.gradient?.colors ?? <Color>[]),
+      everyElement(predicate<Color>((cor) => cor.a < 1)),
+      reason: 'o anel dela é vazado: por dentro só o areia translúcido',
     );
 
     await _deixarOColarFechar(tester);
@@ -264,36 +260,35 @@ void main() {
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('um veredito que ainda aponta um trecho deixa a faixa vazia', (
-    tester,
-  ) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
-    await _consertoQueNaoPegou(tester, container);
+  testWidgets(
+    'um veredito que ainda aponta um trecho o deixa à espera do conserto',
+    (tester) async {
+      final container = await _pumpToPergunta(tester);
+      final harness = _harnessDaVez!;
+      await _consertoQueNaoPegou(tester, container);
 
-    // O analista continua insatisfeito com o mesmo trecho.
-    harness.room.verdictChecked = false;
-    harness.room.verdictHasFinding = true;
-    harness.room.verdictFindingSegmentId = 'trecho-1';
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 200));
-    await _notifier(container).finishBackTranslation();
-    await tester.pump(const Duration(milliseconds: 500));
+      // O analista continua insatisfeito com o mesmo trecho.
+      harness.room.verdictChecked = false;
+      harness.room.verdictHasFinding = true;
+      harness.room.verdictFindingSegmentId = 'trecho-1';
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      await _notifier(container).finishBackTranslation();
+      await tester.pump(const Duration(milliseconds: 500));
 
-    expect(
-      container.read(salaSessionProvider).btPhase,
-      BtPhase.playing,
-      reason: 'um veredito com achado não confere a passagem',
-    );
-    expect(
-      _faixasVazias(tester, container),
-      [0],
-      reason:
-          'e a faixa daquele trecho continua vazia: soltar o trecho é '
-          'coisa do veredito limpo, e alargar isso para o ramo com achado '
-          'apagaria a única indicação de onde está o problema',
-    );
-  });
+      expect(
+        container.read(salaSessionProvider).btPhase,
+        BtPhase.playing,
+        reason: 'um veredito com achado não confere a passagem',
+      );
+      _oTrechoEsperaOConserto(
+        container,
+        reason:
+            'o ramo com achado soltava o trecho, que é coisa do veredito '
+            'limpo, e apagava a indicação de onde estava o problema',
+      );
+    },
+  );
 
   testWidgets('o ramo limpo não mexe em mais nada do estado', (tester) async {
     final container = await _pumpToPergunta(tester);

@@ -81,6 +81,55 @@ final class TheRoomAnswered extends AnsweringEvent {
   const TheRoomAnswered({super.generation});
 }
 
+typedef TheKeep = ({String session, String kind, String scope, DateTime since});
+
+final class TakeInTheAir {
+  final String row;
+  final TheKeep keep;
+
+  const TakeInTheAir({required this.row, required this.keep});
+
+  @override
+  bool operator ==(Object other) =>
+      other is TakeInTheAir && other.row == row && other.keep == keep;
+
+  @override
+  int get hashCode => Object.hash(row, keep);
+}
+
+final class ATakeLeft extends MachineEvent {
+  final TakeInTheAir take;
+
+  const ATakeLeft(this.take);
+}
+
+final class ATakeSettled extends MachineEvent {
+  final String row;
+
+  const ATakeSettled(this.row);
+}
+
+typedef PartOfASession = ({String session, String scope});
+
+final class AKeepBegan extends MachineEvent {
+  final PartOfASession part;
+
+  const AKeepBegan(this.part);
+}
+
+final class AKeepEnded extends MachineEvent {
+  final PartOfASession part;
+  final String? row;
+
+  const AKeepEnded(this.part, {this.row});
+}
+
+final class StopTapped extends MachineEvent {
+  final TheKeep keep;
+
+  const StopTapped(this.keep);
+}
+
 final class OutboxChanged extends MachineEvent {
   final Map<String, PartFact> parts;
   final Duration due;
@@ -109,17 +158,10 @@ final class PlayerEnded extends AnsweringEvent {
 
 final class PlayerFailed extends AnsweringEvent {
   final Source source;
-  final Kept sounding;
   final Line? line;
   final Sound? sound;
 
-  const PlayerFailed(
-    this.source, {
-    this.sounding = const NothingKept(),
-    this.line,
-    this.sound,
-    super.generation,
-  });
+  const PlayerFailed(this.source, {this.line, this.sound, super.generation});
 }
 
 final class MicOpened extends AnsweringEvent {
@@ -212,7 +254,9 @@ final class LineNotSaid extends AnsweringEvent {
 }
 
 final class StepLeft extends MachineEvent {
-  const StepLeft();
+  final bool ended;
+
+  const StepLeft({this.ended = false});
 }
 
 final class LeftThePassage extends MachineEvent {
@@ -311,6 +355,17 @@ final class TheSessionOpened extends AnsweringEvent {
   const TheSessionOpened(this.session, {super.generation});
 }
 
+final class ThePanoramaFound extends AnsweringEvent {
+  final String session;
+  final bool opened;
+
+  const ThePanoramaFound(
+    this.session, {
+    required this.opened,
+    super.generation,
+  });
+}
+
 final class TheSessionLetGo extends MachineEvent {
   final String session;
 
@@ -339,10 +394,12 @@ final class TheLanguageChosen extends MachineEvent {
 final class TheRehearsalWeighed extends MachineEvent {
   final bool everySceneHasItsPart;
   final bool everyPartIsHere;
+  final bool everyPartIsSent;
 
   const TheRehearsalWeighed({
     required this.everySceneHasItsPart,
     required this.everyPartIsHere,
+    required this.everyPartIsSent,
   });
 }
 
@@ -421,6 +478,27 @@ final class LookEmpty extends AnsweringEvent {
     this.theWaitRanOut = false,
     super.generation,
   });
+}
+
+/// The [load]th load of one reply failed; [answered] hears whether the reply is loaded
+/// again.
+///
+/// It carries no generation: it is never stale only because the notifier dispatches it
+/// synchronously, right after checking that the generation was not abandoned (ADR 0152).
+final class TheReplyFailedToLoad extends MachineEvent {
+  final int load;
+  final RoomResult? because;
+  final Kept sounding;
+  final void Function(bool loadAgain) answered;
+
+  const TheReplyFailedToLoad(
+    this.load, {
+    required this.answered,
+    this.because,
+    this.sounding = const NothingKept(),
+  });
+
+  TheSoundFailed get failure => TheSoundFailed(load, because: because);
 }
 
 final class LookFailed extends AnsweringEvent {
@@ -689,6 +767,18 @@ final class DrainTheOutbox extends Effect {
   const DrainTheOutbox();
 }
 
+final class StopTheSend extends Effect {
+  final String row;
+
+  const StopTheSend(this.row);
+
+  @override
+  bool operator ==(Object other) => other is StopTheSend && other.row == row;
+
+  @override
+  int get hashCode => row.hashCode;
+}
+
 final class DiscardTheSession extends LifecycleHandOff {
   const DiscardTheSession();
 }
@@ -718,6 +808,10 @@ final class OpenThePanorama extends LifecycleHandOff {
 /// The Panorama comes back in silence: its line was said on the session it still holds.
 final class ReturnToThePanorama extends LifecycleHandOff {
   const ReturnToThePanorama();
+}
+
+final class RestOnThePanorama extends LifecycleHandOff {
+  const RestOnThePanorama();
 }
 
 final class EnterThePassageLeft extends LifecycleHandOff {
@@ -782,6 +876,35 @@ final class LetTheLineGo extends Effect {
   const LetTheLineGo();
 }
 
+final class LoadTheReplyAgain extends Effect {
+  final void Function(bool loadAgain) answered;
+
+  const LoadTheReplyAgain(this.answered);
+
+  @override
+  bool operator ==(Object other) =>
+      other is LoadTheReplyAgain && other.answered == answered;
+
+  @override
+  int get hashCode => answered.hashCode;
+}
+
+final class LetTheReplyGo extends Effect {
+  final void Function(bool loadAgain) answered;
+  final MachineEvent decided;
+
+  const LetTheReplyGo(this.answered, {required this.decided});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LetTheReplyGo &&
+      other.answered == answered &&
+      other.decided == decided;
+
+  @override
+  int get hashCode => Object.hash(answered, decided);
+}
+
 final class StopLooking extends Effect {
   const StopLooking();
 }
@@ -833,6 +956,14 @@ final class AskTheFraseAgain extends Effect {
 
 final class TellTheDiskFailed extends Effect {
   const TellTheDiskFailed();
+}
+
+final class TellThePlayFailed extends Effect {
+  const TellThePlayFailed();
+}
+
+final class TellThePlayOpened extends Effect {
+  const TellThePlayOpened();
 }
 
 final class TellTheSendFailed extends Effect {
@@ -960,12 +1091,13 @@ final class Machine {
   final Halt halt;
   final Channel channel;
   final List<Line> queue;
-  final Source? failing;
-  final int failures;
   final Set<int> onTheirWay;
   final Map<Line, Set<int>> owners;
   final Map<String, PartFact> parts;
   final bool draining;
+  final TakeInTheAir? inTheAir;
+  final Map<PartOfASession, int> keeping;
+  final Map<String, PartOfASession> keptThisVisit;
   final int generation;
 
   /// The turn whose POST is in the air: sent, and neither answered nor given up.
@@ -990,6 +1122,8 @@ final class Machine {
   /// back on the Canvas.
   final bool aHaltWaitsForTheCanvas;
 
+  final bool theCanvasEnded;
+
   /// The passage's session.
   final String? session;
 
@@ -999,12 +1133,13 @@ final class Machine {
     this.halt = const NoHalt(),
     this.channel = const Silence(),
     this.queue = const [],
-    this.failing,
-    this.failures = 0,
     this.onTheirWay = const {},
     this.owners = const {},
     this.parts = const {},
     this.draining = false,
+    this.inTheAir,
+    this.keeping = const {},
+    this.keptThisVisit = const {},
     this.generation = 0,
     this.inFlight,
     this.keptInFlight = const NothingKept(),
@@ -1014,6 +1149,7 @@ final class Machine {
     this.station = const Menu(),
     this.wordlessTelling = false,
     this.aHaltWaitsForTheCanvas = false,
+    this.theCanvasEnded = false,
     this.session,
     this.panorama,
   });
@@ -1023,26 +1159,55 @@ final class Machine {
 
   bool get somethingPending => parts.values.contains(PartFact.pending);
 
+  Machine withTheOutboxOf(Machine before) => copyWith(
+    parts: before.parts,
+    draining: before.draining,
+    inTheAir: before.inTheAir,
+    keeping: before.keeping,
+    keptThisVisit: before.keptThisVisit,
+  );
+
+  bool beingKept(String? session, String scope) =>
+      session != null && (keeping[(session: session, scope: scope)] ?? 0) > 0;
+
+  PartFact? newestKeptFact(String? session, String scope) {
+    String? newest;
+    for (final MapEntry(key: row, value: kept) in keptThisVisit.entries) {
+      if (kept.session == session && kept.scope == scope) newest = row;
+    }
+    return newest == null ? null : parts[newest];
+  }
+
+  Set<String> savedParts(String? session) {
+    final newest = <String, String>{};
+    for (final MapEntry(key: row, value: kept) in keptThisVisit.entries) {
+      if (kept.session == session) newest[kept.scope] = row;
+    }
+    return {
+      for (final MapEntry(key: scope, value: row) in newest.entries)
+        if (!beingKept(session, scope) && parts[row] == PartFact.sent) scope,
+    };
+  }
+
   Machine withNoPassage(Set<int> onTheirWay) => Machine(
     onTheirWay: onTheirWay,
-    parts: parts,
-    draining: draining,
     generation: generation,
     station: station,
     panorama: panorama,
-  );
+  ).withTheOutboxOf(this);
 
   Machine copyWith({
     Halt? halt,
     Channel? channel,
     List<Line>? queue,
-    Source? failing,
-    int? failures,
-    bool forgetTheFailures = false,
     Set<int>? onTheirWay,
     Map<Line, Set<int>>? owners,
     Map<String, PartFact>? parts,
     bool? draining,
+    TakeInTheAir? inTheAir,
+    bool landTheTake = false,
+    Map<PartOfASession, int>? keeping,
+    Map<String, PartOfASession>? keptThisVisit,
     int? generation,
     Turn? inFlight,
     bool landTheTurn = false,
@@ -1054,6 +1219,7 @@ final class Machine {
     Station? station,
     bool? wordlessTelling,
     bool? aHaltWaitsForTheCanvas,
+    bool? theCanvasEnded,
     String? session,
     bool clearSession = false,
     HeldPanorama? panorama,
@@ -1062,12 +1228,13 @@ final class Machine {
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
     queue: queue ?? this.queue,
-    failing: forgetTheFailures ? null : (failing ?? this.failing),
-    failures: forgetTheFailures ? 0 : (failures ?? this.failures),
     onTheirWay: onTheirWay ?? this.onTheirWay,
     owners: owners ?? this.owners,
     parts: parts ?? this.parts,
     draining: draining ?? this.draining,
+    inTheAir: landTheTake ? null : (inTheAir ?? this.inTheAir),
+    keeping: keeping ?? this.keeping,
+    keptThisVisit: keptThisVisit ?? this.keptThisVisit,
     generation: generation ?? this.generation,
     inFlight: landTheTurn ? null : (inFlight ?? this.inFlight),
     keptInFlight: landTheTurn
@@ -1080,6 +1247,7 @@ final class Machine {
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
     aHaltWaitsForTheCanvas:
         aHaltWaitsForTheCanvas ?? this.aHaltWaitsForTheCanvas,
+    theCanvasEnded: theCanvasEnded ?? this.theCanvasEnded,
     session: clearSession ? null : (session ?? this.session),
     panorama: clearPanorama ? null : (panorama ?? this.panorama),
   );
@@ -1105,7 +1273,13 @@ const _watch = ArmTheWatch();
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
   PlayerOpened() => (
     _opened(machine),
-    [if (machine.channel is Playing) const ArmTheCeiling()],
+    [
+      if (machine.channel is Playing) const ArmTheCeiling(),
+      if (machine.channel case Playing(
+        sound: PartSound() || StretchSound(telling: false),
+      ) when machine.station is Retro)
+        const TellThePlayOpened(),
+    ],
   ),
   PlayerEnded(:final line?) => _answer(
     machine,
@@ -1113,11 +1287,11 @@ const _watch = ArmTheWatch();
     Said.said,
     heard: () => _ended(machine),
   ),
-  PlayerFailed(:final line?, :final source, :final sounding) => _answer(
+  PlayerFailed(:final line?) => _answer(
     machine,
     line,
     Said.failed,
-    heard: () => _failed(machine, source, sounding),
+    heard: () => _failed(machine),
   ),
   PlayerEnded(:final sound?) when !_sounds(machine, sound, orHeld: true) => (
     machine,
@@ -1128,11 +1302,10 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
-  PlayerFailed(:final source, :final sounding) => _failed(
-    machine,
-    source,
-    sounding,
-  ),
+  PlayerFailed(sound: PartSound() || StretchSound(telling: false))
+      when machine.station is Retro =>
+    _tellThePlayFailed(machine),
+  PlayerFailed() => _failed(machine),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
   MicAnswered(:final answer, :final take, :final because, :final owner) =>
@@ -1173,12 +1346,16 @@ const _watch = ArmTheWatch();
     heard: () => _notSaid(machine, line),
     unheard: () => _notSaid(machine, line),
   ),
-  StepLeft() => _leaveTheQueue(machine, (_) => true),
+  StepLeft(:final ended) => _leaveTheQueue(
+    machine.station is Canvas
+        ? machine.copyWith(theCanvasEnded: ended)
+        : machine,
+    (_) => true,
+  ),
   LeftThePassage() => (
     machine.copyWith(
       channel: const Silence(),
       queue: const [],
-      forgetTheFailures: true,
       owners: const {},
     ),
     [const StopTheSound(), for (final line in machine.queue) DropTheLine(line)],
@@ -1284,6 +1461,7 @@ const _watch = ArmTheWatch();
     ),
   ),
   TheOpeningMissed() => (machine, const [LetTheOpeningGo()]),
+  TheReplyFailedToLoad() => _theReplyFailed(machine, event),
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
     switch (reduce(
       machine.copyWith(forgetTheLook: true),
@@ -1334,6 +1512,35 @@ const _watch = ArmTheWatch();
   RetryFired() => _retry(machine),
   TheRoomAnswered() => (machine, const []),
   OutboxChanged(:final parts, :final due) => _tally(machine, parts, due),
+  ATakeLeft(:final take) => (machine.copyWith(inTheAir: take), const []),
+  AKeepBegan(:final part) => (
+    machine.copyWith(
+      keeping: {...machine.keeping, part: (machine.keeping[part] ?? 0) + 1},
+    ),
+    const [],
+  ),
+  AKeepEnded(:final part, :final row) => (
+    machine.copyWith(
+      keeping: {
+        for (final MapEntry(key: kept, value: keeps) in machine.keeping.entries)
+          if (kept != part || keeps > 1) kept: kept == part ? keeps - 1 : keeps,
+      },
+      keptThisVisit: {...machine.keptThisVisit, ?row: part},
+    ),
+    const [],
+  ),
+  ATakeSettled(:final row) => (
+    machine.copyWith(landTheTake: machine.inTheAir?.row == row),
+    const [],
+  ),
+  StopTapped(:final keep) => (
+    machine,
+    [
+      if (machine.inTheAir case final take?
+          when take.keep == keep && keep.session == machine.session)
+        StopTheSend(take.row),
+    ],
+  ),
   SessionRead() => switch (_theHalt(machine, event)) {
     (final read, final effects) => switch (_resumeTheLook(read)) {
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
@@ -1364,6 +1571,19 @@ const _watch = ArmTheWatch();
     },
     const [_watch],
   ),
+  ThePanoramaFound(:final session, :final opened) => switch (machine.panorama) {
+    final HeldPanorama held when machine.station is Panorama => (
+      machine.copyWith(
+        panorama: HeldPanorama(held.id, held.language, session: session),
+      ),
+      [
+        _watch,
+        if (opened) const RestOnThePanorama(),
+        if (!opened) OpenThePanorama(held.id, held.language),
+      ],
+    ),
+    _ => (machine, const []),
+  },
   TheSessionLetGo(:final session) => switch (machine.panorama) {
     final HeldPanorama held when held.session == session => (
       machine.copyWith(panorama: HeldPanorama(held.id, held.language)),
@@ -1371,13 +1591,18 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
-  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+  TheRehearsalWeighed(
+    :final everySceneHasItsPart,
+    :final everyPartIsHere,
+    :final everyPartIsSent,
+  ) =>
     switch (machine.station) {
       Ensaio(:final step) => (
         machine.copyWith(
           station: Ensaio(
             everySceneHasItsPart: everySceneHasItsPart,
             everyPartIsHere: everyPartIsHere,
+            everyPartIsSent: everyPartIsSent,
             step: step,
           ),
         ),
@@ -1592,25 +1817,35 @@ Paused? _openedUnder(Paused? paused) => switch (paused) {
   _ => paused,
 };
 
-Machine _succeeded(Machine machine, Source source) => machine.failing == source
-    ? machine.copyWith(forgetTheFailures: true)
-    : machine;
+(Machine, List<Effect>) _theReplyFailed(
+  Machine machine,
+  TheReplyFailedToLoad failed,
+) => switch (FailurePolicy.decideOnTheTablet(
+  failed.failure,
+  FailureContext(
+    station: machine.station,
+    generation: machine.generation,
+    sounding: failed.sounding,
+  ),
+)) {
+  TheRefusalPassed() => (machine, [LoadTheReplyAgain(failed.answered)]),
+  final decided => switch (reduce(machine, decided)) {
+    (final next, final effects) => (
+      next,
+      [...effects, LetTheReplyGo(failed.answered, decided: decided)],
+    ),
+  },
+};
 
 (Machine, List<Effect>) _ended(Machine machine) {
   switch (machine.channel) {
-    case GuideSpeaking(:final line, :final held):
-      return _drain(
-        _succeeded(
-          machine,
-          line.source,
-        ).copyWith(channel: held ?? const Silence()),
-      );
+    case GuideSpeaking(:final held):
+      return _drain(machine.copyWith(channel: held ?? const Silence()));
     case final Playing playing:
-      final heard = _succeeded(machine, playing.sound.source);
       if (playing.next.isNotEmpty) {
-        return _start(heard, playing.next, playing.held);
+        return _start(machine, playing.next, playing.held);
       }
-      return _drain(heard.copyWith(channel: playing.held ?? const Silence()));
+      return _drain(machine.copyWith(channel: playing.held ?? const Silence()));
     case Paused(:final next, :final held) when next.isNotEmpty:
       return (
         machine.copyWith(
@@ -1640,29 +1875,22 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
       _ => machine.copyWith(channel: const Silence()),
     };
 
-(Machine, List<Effect>) _failed(Machine machine, Source source, Kept sounding) {
+(Machine, List<Effect>) _failed(Machine machine) {
   final channel = machine.channel;
-  final silent = machine.copyWith(
-    channel: switch (channel) {
-      GuideSpeaking(:final held) => held ?? const Silence(),
-      Playing(:final held) => held ?? const Silence(),
-      _ => channel,
-    },
-  );
-  if (source != Source.guide) return _drain(silent);
-  final failures = machine.failing == source ? machine.failures + 1 : 1;
-  final counted = silent.copyWith(failing: source, failures: failures);
-  return switch (FailurePolicy.decideOnTheTablet(
-    TheSoundFailed(failures),
-    FailureContext(
-      station: machine.station,
-      generation: machine.generation,
-      sounding: sounding,
+  return _drain(
+    machine.copyWith(
+      channel: switch (channel) {
+        GuideSpeaking(:final held) => held ?? const Silence(),
+        Playing(:final held) => held ?? const Silence(),
+        _ => channel,
+      },
     ),
-  )) {
-    final RoomRaisedAHalt halt => _theHalt(counted, halt),
-    _ => _drain(counted),
-  };
+  );
+}
+
+(Machine, List<Effect>) _tellThePlayFailed(Machine machine) {
+  final (failed, effects) = _failed(machine);
+  return (failed, [...effects, const TellThePlayFailed()]);
 }
 
 (Machine, List<Effect>) _openTheMic(
@@ -1876,9 +2104,7 @@ List<Effect> _stopTheLineIn(Channel channel) => switch (channel) {
     );
   }
   if (halt is! Blocking && machine.halt is Blocking) {
-    final (rested, resumed) = _resumeTheLook(
-      next.copyWith(forgetTheFailures: true),
-    );
+    final (rested, resumed) = _resumeTheLook(next);
     return _drain(rested, [...effects, ...resumed]);
   }
   return (next, effects);
@@ -1948,7 +2174,6 @@ Machine _leftThePassage(Machine machine, Halt halt) => machine.copyWith(
   channel: const Silence(),
   queue: const [],
   owners: const {},
-  forgetTheFailures: true,
   aHaltWaitsForTheCanvas: false,
 );
 
@@ -2014,6 +2239,11 @@ List<Effect> _leavingThePassage(Machine machine) => [
   RetryFired() ||
   TheRoomAnswered() ||
   OutboxChanged() ||
+  ATakeLeft() ||
+  ATakeSettled() ||
+  AKeepBegan() ||
+  AKeepEnded() ||
+  StopTapped() ||
   LineArrived() ||
   PlayerOpened() ||
   PlayerEnded() ||
@@ -2041,6 +2271,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   LookFailed() ||
   LookPending() ||
   TheOpeningMissed() ||
+  TheReplyFailedToLoad() ||
   ThePassageCannotOpen() ||
   TheTellingCameBackEmpty() ||
   TheStepFailed() ||
@@ -2066,6 +2297,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   TheRehearsalWeighed() ||
   ThePanoramaAsked() ||
   TheSessionOpened() ||
+  ThePanoramaFound() ||
   TheSessionLetGo() ||
   TheWayBackTaken() ||
   TheLeftPassageReturns() => (halt, const []),

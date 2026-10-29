@@ -719,6 +719,30 @@ void main() {
   }
 
   testWidgets(
+    'on a tall iPad the claquete stands at her whole 2.6% above the home bar, '
+    'no longer capped at the old row of the replay',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(820, 1180)
+        ..devicePixelRatio = 1
+        ..padding = const FakeViewPadding(bottom: 20)
+        ..viewPadding = const FakeViewPadding(bottom: 20);
+      addTearDown(tester.view.reset);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester);
+
+        expect(
+          tester.getRect(_claquete).bottom,
+          closeTo(1180 - 20 - 30.68, 0.5),
+          reason:
+              'a claquete parava a 18 da barra, à espera do ouvir de novo '
+              'subir para os 16% dela',
+        );
+      });
+    },
+  );
+
+  testWidgets(
     'a tap on the Shema mark on the Panorama shows the claquete for twenty seconds again',
     (tester) => withClock(Clock.fixed(_noon), () async {
       await _openThePanorama(tester);

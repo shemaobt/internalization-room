@@ -148,12 +148,11 @@ void main() {
 
     await notifier.hearAgain();
     await waitFor(
-      'the line to be lost on the network',
-      () => harness.voice.played.length > played,
+      'the line to be lost on the network twice',
+      () => harness.voice.played.length > played + 1 && read().needsPerson,
     );
     await settle();
 
-    expect(read().needsPerson, isFalse);
     expect(harness.room.sessionsSpokenTo, hasLength(1));
     expect(read().station, isA<Panorama>());
   });
@@ -225,7 +224,8 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en')
-      ..room.passages = _theBook;
+      ..room.passages = _theBook
+      ..room.resumesTheLatest = true;
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);

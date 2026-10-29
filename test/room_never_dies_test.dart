@@ -457,52 +457,6 @@ void main() {
     },
   );
 
-  test('a stretch the room did not capture is still kept as audio', () async {
-    final harness = SalaHarness();
-    harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
-    await settle();
-    notifier.takeKeep();
-    notifier.startRetro();
-    await settle();
-    harness.playback.at = const Duration(seconds: 12);
-    notifier.retroTap();
-    notifier.retroTap();
-    await settle();
-    await confirmarATraducao(container);
-    await waitFor(
-      'a retro começar a tocar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
-    );
-    await settle();
-
-    Future<int> guardadas() async =>
-        (await harness.takes.entries())
-            .where((entry) => entry.kind == 'retro')
-            .length +
-        harness.room.takesKept
-            .where((take) => take.startsWith('retro/'))
-            .length;
-    var queued = await guardadas();
-    final deadline = DateTime.now().add(const Duration(seconds: 5));
-    while (queued == 0 && DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      queued = await guardadas();
-    }
-    expect(
-      queued,
-      isPositive,
-      reason:
-          'o servidor devolve 200 sem guardar nada; se o app também soltar, o trecho deixa de existir',
-    );
-  });
-
   test('leaving a passage does not strand the take on disk', () async {
     final harness = SalaHarness();
     final container = await inConversaHarness(harness);
@@ -533,6 +487,10 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
+    await waitFor('a sala nomear a parte', () {
+      final partes = container.read(salaSessionProvider).partes;
+      return partes.isNotEmpty && partes.last.takeId != null;
+    });
     notifier.startRetro();
     await settle();
 
@@ -1101,38 +1059,6 @@ void main() {
               'já deixou',
         );
       }),
-    );
-  });
-
-  test('a fresh passage does not inherit the last one\'s strikes', () async {
-    final harness = SalaHarness();
-    final container = await inConversaHarness(harness);
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    harness.voice.succeeds = false;
-    notifier.conversaTap();
-    await settle();
-    notifier.conversaTap();
-    await settle();
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason: 'uma falha ainda não chama ninguém',
-    );
-
-    // Entered with the room still failing, because a turn that lands resets the counters
-    // itself — the inheritance only shows when the new passage stumbles too.
-    notifier.leaveThePassage();
-    await settle();
-    notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-    await settle();
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason:
-          'a passagem nova começava com as faltas da anterior e parava na primeira',
     );
   });
 

@@ -170,6 +170,7 @@ void main() {
           unawaited(it.sala.hearAgain());
           clock.elapse(const Duration(seconds: 1));
 
+          expect(it.harness.voice.played, contains(turnoUrl));
           expect(
             it.room.turnIdsAsked,
             asked,

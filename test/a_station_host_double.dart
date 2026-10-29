@@ -4,7 +4,6 @@ import 'package:internalization_room/features/sala/data/port_adapters.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
-import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -18,9 +17,6 @@ class AStationHost implements StationHost {
 
   @override
   bool watchIsWanted = true;
-
-  @override
-  Kept sounding = const NothingKept();
 
   @override
   String? session;
@@ -147,6 +143,9 @@ class AStationHost implements StationHost {
   void hearTheWaitResumed() => asked.add('hearTheWaitResumed');
 
   @override
+  void hearTheReplyWaitingToLoad() => asked.add('hearTheReplyWaitingToLoad');
+
+  @override
   Future<void> hearTheOutboxFlushed() async =>
       asked.add('hearTheOutboxFlushed');
 
@@ -176,6 +175,12 @@ class AStationHost implements StationHost {
 
   @override
   void hearTheDiskFailed() => asked.add('hearTheDiskFailed');
+
+  @override
+  void hearThePlayFailed() => asked.add('hearThePlayFailed');
+
+  @override
+  void hearThePlayOpened() => asked.add('hearThePlayOpened');
 
   @override
   void hearTheSendFailed() => asked.add('hearTheSendFailed');
@@ -216,5 +221,6 @@ EffectRunner runnerOver(
   partCeiling: () => null,
   clipGrace: () => clipGrace,
   lookAgainAfter: () => Duration.zero,
+  reloadAfter: () => Duration.zero,
   generation: generation,
 );

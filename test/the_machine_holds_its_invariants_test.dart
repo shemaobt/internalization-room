@@ -176,6 +176,21 @@ final theMicrophoneOpensOverASoundOnlyAfterAStop = Invariant<Machine>(
   },
 );
 
+final aStopNamesThisSessionsTakeInTheAir = Invariant<Machine>(
+  "a stop names this session's take in the air",
+  (before, event, after, effects, world) {
+    for (final StopTheSend(:row) in effects.whereType<StopTheSend>()) {
+      final inTheAir = before.inTheAir;
+      if (inTheAir == null ||
+          inTheAir.row != row ||
+          inTheAir.keep.session != before.session) {
+        return 'stopped $row with ${inTheAir?.row} in the air';
+      }
+    }
+    return null;
+  },
+);
+
 final aLineOfTheVoiceStopsAPlayingReply = Invariant<Machine>(
   'a line of the voice that arrives over a playing reply stops it',
   (before, event, after, effects, world) {
@@ -343,8 +358,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
       TheSceneTurnFoundNothing() ||
       LookEmpty() ||
       LookFailed() => true,
-      PlayerFailed(source: Source.guide) =>
-        before.failing == Source.guide && before.failures >= 1,
+      TheReplyFailedToLoad(:final load) => load >= 2,
       StationEvent() =>
         before.aHaltWaitsForTheCanvas && after.station is Canvas,
       _ => false,
@@ -352,6 +366,37 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
     if (herCase) return null;
     return '${describeEvent(event)} entered the person sign over '
         '${describeHalt(before.halt)}';
+  },
+);
+
+final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
+  'ADR 0152, every failed load of a reply ends in exactly one answer, a reload '
+  'or a let-go',
+  (before, event, after, effects, world) {
+    if (event is! TheReplyFailedToLoad) return null;
+    final answers = [
+      for (final effect in effects)
+        if (effect
+            case LoadTheReplyAgain(:final answered) ||
+                LetTheReplyGo(:final answered) when answered == event.answered)
+          effect,
+    ];
+    if (answers.length == 1) return null;
+    return '${describeEvent(event)} over ${describeMachine(before)} ended in '
+        '${answers.length} answers: ${effects.map(describeEffect).join(', ')}';
+  },
+);
+
+final onlyAStepLeftFromTheCanvasMovesItsEnd = Invariant<Machine>(
+  'ENG-1946, only a step left from the Canvas moves the end it keeps',
+  (before, event, after, effects, world) {
+    final kept = switch (event) {
+      StepLeft(:final ended) when before.station is Canvas => ended,
+      _ => before.theCanvasEnded,
+    };
+    if (after.theCanvasEnded == kept) return null;
+    return '${describeEvent(event)} on ${before.station.runtimeType} moved the '
+        'Canvas\'s end to ${after.theCanvasEnded}';
   },
 );
 
@@ -366,6 +411,39 @@ final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
     }
     if (effects.contains(const ArmTheWatch())) return null;
     return '${describeEvent(event)} opened $opened without arming the Watch';
+  },
+);
+
+var _opensOverAPartUnsent = 0;
+
+final _atTheRehearsal = MachineUnderTest<Machine>(
+  start: const Machine(station: Ensaio()),
+  step: reduce,
+  draw: (_, world, random) => switch (random.nextInt(4)) {
+    0 => const TheRehearsalOpened(),
+    1 => TheRehearsalWeighed(
+      everySceneHasItsPart: random.nextBool(),
+      everyPartIsHere: random.nextBool(),
+      everyPartIsSent: random.nextBool(),
+    ),
+    2 => const TheBackTranslationOpened(),
+    _ => drawAnEvent(world, random),
+  },
+  show: describeMachine,
+);
+
+final theBackTranslationNeverOpensOverAPartUnsent = Invariant<Machine>(
+  'ADR 0154, the Back-translation never opens from a Rehearsal weighed with a '
+  'part still in the Outbox',
+  (before, event, after, effects, world) {
+    if (event is! TheBackTranslationOpened) return null;
+    if (before.station case Ensaio(everyPartIsSent: false)) {
+      _opensOverAPartUnsent++;
+      if (after.station is Retro) {
+        return 'the Back-translation opened with a part still in the Outbox';
+      }
+    }
+    return null;
   },
 );
 
@@ -432,6 +510,11 @@ void main() {
     test('ADR invariant 15: the warning the tablet holds is the one the '
         'server told, after every event', () {
       _holds(theWarningIsTheOneTheServerTold(_haltOf));
+    });
+
+    test('ADR 0152: every failed load of a reply ends in exactly one answer, '
+        'a reload or a let-go', () {
+      _holds(everyFailedLoadOfAReplyEndsInOneAnswer);
     });
 
     test('ADR invariant 1: the microphone opens over a sound only after a stop '
@@ -519,6 +602,7 @@ void main() {
           theMicrophoneOpensOverASoundOnlyAfterAStop,
           aMicrophoneAnswerWithNoMicrophoneOpenLeavesTheChannelAsItWas,
           aLineOfTheVoiceStopsAPlayingReply,
+          aStopNamesThisSessionsTakeInTheAir,
           theHeadNeverReadsAnotherSound,
           theOutboxNeverIdlesWithAPartPending,
           theScreenNeverShowsASoundTheChannelDoesNotHold,
@@ -545,8 +629,25 @@ void main() {
     _holds(nothingButHerSixCasesEntersThePersonSign);
   });
 
+  test('generator invariant: only a step left from the Canvas moves the end '
+      'it keeps', () {
+    _holds(onlyAStepLeftFromTheCanvasMovesItsEnd);
+  });
+
   test('ADR 0092: a Station\'s session never opens without the Watch', () {
     _holds(aStationsSessionNeverOpensWithoutTheWatch);
+  });
+
+  test('ADR 0154: the Back-translation never opens from a Rehearsal weighed '
+      'with a part still in the Outbox', () {
+    expectEverySeedHolds(_atTheRehearsal, [
+      theBackTranslationNeverOpensOverAPartUnsent,
+    ], seeds: _seeds);
+    expect(
+      _opensOverAPartUnsent,
+      greaterThan(0),
+      reason: 'nenhuma sequência pedia a tradução com uma parte na fila',
+    );
   });
 
   test('ADR 0077: a language chosen reads the Wheel again on the Choice and '

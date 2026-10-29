@@ -35,9 +35,6 @@ abstract interface class StationHost {
   /// Whether a start that answers now still has a microphone to record into.
   bool keepsTheStart(MicOwner owner);
 
-  /// What the room keeps to sound again if a line it fails to say calls a person.
-  Kept get sounding;
-
   /// The Station hears a part's end and its failure before the machine is answered.
   void hearThePartEnd();
 
@@ -100,6 +97,9 @@ abstract interface class StationHost {
   /// The Station waits again on a look the team's tap resumed.
   void hearTheWaitResumed();
 
+  /// The Station waits on a reply that is loaded again.
+  void hearTheReplyWaitingToLoad();
+
   /// The Station takes the hand-offs the sign held back, once the team's tap cleared it.
   void hearTheSignCleared();
 
@@ -131,6 +131,10 @@ abstract interface class StationHost {
   /// over.
   void hearTheDiskFailed();
 
+  void hearThePlayFailed();
+
+  void hearThePlayOpened();
+
   /// The scene's «terminei» could not be sent.
   void hearTheSendFailed();
 
@@ -149,6 +153,7 @@ class EffectRunner {
   final Duration? Function() partCeiling;
   final Duration Function() clipGrace;
   final Duration Function() lookAgainAfter;
+  final Duration Function() reloadAfter;
   final int Function()? generation;
 
   EffectRunner({
@@ -162,6 +167,7 @@ class EffectRunner {
     required this.partCeiling,
     required this.clipGrace,
     required this.lookAgainAfter,
+    required this.reloadAfter,
     this.generation,
   });
 
@@ -171,6 +177,8 @@ class EffectRunner {
   int _ladderStep = 0;
   Timer? _ceiling;
   Timer? _lookAgain;
+  Timer? _reload;
+  void Function(bool loadAgain)? _reloadAnswered;
   Sound? _part;
   int? _partStamp;
   List<StreamSubscription<void>>? _partSignals;
@@ -237,6 +245,8 @@ class EffectRunner {
           _cancelTheRetry();
         case DrainTheOutbox():
           _drainTheOutbox();
+        case StopTheSend(:final row):
+          store.stopTheSend(row);
         case DiscardTheSession():
           host.handOver(effect);
         case OpenTheChoice():
@@ -246,6 +256,8 @@ class EffectRunner {
         case OpenThePanorama():
           host.handOver(effect);
         case ReturnToThePanorama():
+          host.handOver(effect);
+        case RestOnThePanorama():
           host.handOver(effect);
         case EnterThePassageLeft():
           host.handOver(effect);
@@ -259,6 +271,11 @@ class EffectRunner {
           _armTheLookAgain(turn, sounding);
         case LetTheLineGo():
           host.hearTheLineLetGo();
+        case LoadTheReplyAgain(:final answered):
+          host.hearTheReplyWaitingToLoad();
+          _armTheReload(answered);
+        case LetTheReplyGo(:final answered):
+          answered(false);
         case StopLooking():
           _lookAgain?.cancel();
         case ResumeTheWait():
@@ -283,6 +300,10 @@ class EffectRunner {
           host.hearTheFraseNotUnderstood();
         case TellTheDiskFailed():
           host.hearTheDiskFailed();
+        case TellThePlayFailed():
+          host.hearThePlayFailed();
+        case TellThePlayOpened():
+          host.hearThePlayOpened();
         case TellTheSendFailed():
           host.hearTheSendFailed();
         case TellItWentAlready():
@@ -301,6 +322,7 @@ class EffectRunner {
     _ladder?.cancel();
     _ceiling?.cancel();
     _lookAgain?.cancel();
+    _letTheReloadGo();
     for (final signal in _partSignals ?? const <StreamSubscription<void>>[]) {
       unawaited(signal.cancel());
     }
@@ -346,12 +368,7 @@ class EffectRunner {
     host.answer(
       whole
           ? PlayerEnded(line: line, generation: stamp)
-          : PlayerFailed(
-              line.source,
-              sounding: host.sounding,
-              line: line,
-              generation: stamp,
-            ),
+          : PlayerFailed(line.source, line: line, generation: stamp),
     );
   }
 
@@ -472,6 +489,25 @@ class EffectRunner {
       _lookAgain = null;
       if (generation?.call() == stamp) _lookAt(turn, sounding);
     });
+  }
+
+  void _armTheReload(void Function(bool loadAgain) answered) {
+    _letTheReloadGo();
+    final stamp = generation?.call();
+    _reloadAnswered = answered;
+    _reload = Timer(reloadAfter(), () {
+      _reload = null;
+      _reloadAnswered = null;
+      answered(generation?.call() == stamp);
+    });
+  }
+
+  void _letTheReloadGo() {
+    _reload?.cancel();
+    _reload = null;
+    final answered = _reloadAnswered;
+    _reloadAnswered = null;
+    answered?.call(false);
   }
 
   void _armTheRetry(Duration delay) {

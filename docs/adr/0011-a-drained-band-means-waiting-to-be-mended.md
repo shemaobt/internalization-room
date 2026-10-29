@@ -25,3 +25,8 @@ stretch drains it too — filling is never final.
 
 The band is gone with the cord (ADR 0040); the meaning stays on the Bead row: a drained bead is
 waiting to be mended, not wrong.
+
+## Note of 2026-10-27
+
+The Bead row leaves the check too (ADR 0153): a finding is marked on its frase row, as hers is,
+and nothing on the check is drained.

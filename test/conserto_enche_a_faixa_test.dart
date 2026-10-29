@@ -2,8 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
+import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -14,29 +13,34 @@ SalaHarness? _harnessDaVez;
 SalaSessionNotifier _notifier(ProviderContainer c) =>
     c.read(salaSessionProvider.notifier);
 
-/// Which stretches are drawn drained, by their order.
-///
-/// A stretch is drained exactly when it is the one waiting to be mended. Stretches are
-/// named by their place and not by their name, because mending mints a new name and the
-/// bead the team watches is the same bead either way.
-///
-/// The whole list rather than one place at a time. Asking "is the neighbour's band full?"
-/// reads like coverage and is not: the room points at one name, the neighbour
-/// never carries that name, and the answer is false however broken the room is. Answering
-/// with every drained place says the same thing and can be wrong.
-List<int> _faixasVazias(WidgetTester tester, ProviderContainer container) => [
-  for (final (lugar, conta)
-      in tester
-          .widget<BeadRow>(
-            find.descendant(
-              of: find.byType(RetroView),
-              matching: find.byType(BeadRow),
-            ),
-          )
-          .entries
-          .indexed)
-    if (conta.fill == BeadFill.drained) lugar,
-];
+List<int> _apontados(ProviderContainer container) {
+  final sessao = container.read(salaSessionProvider);
+  return [
+    for (final (lugar, trecho) in sessao.btTrechos.indexed)
+      if (trecho.segmentId != null &&
+          trecho.segmentId == sessao.btFindingSegmentId)
+        lugar,
+  ];
+}
+
+void _oConsertoEstaGravando(ProviderContainer container, {String? reason}) {
+  expect(
+    container.read(salaSessionProvider).btPhase,
+    BtPhase.capturing,
+    reason: reason,
+  );
+}
+
+void _oTrechoEsperaOConserto(ProviderContainer container, {String? reason}) {
+  final sessao = container.read(salaSessionProvider);
+  expect(sessao.btPhase, isNot(BtPhase.capturing), reason: reason);
+  expect(
+    sessao.btTraducaoPendente,
+    anyOf(isNull, sessao.btTraducaoEmprestada),
+    reason: reason,
+  );
+  expect(_apontados(container), [0], reason: reason);
+}
 
 /// A session standing at the question, with a finding on the first of two stretches.
 Future<ProviderContainer> _pumpToPergunta(
@@ -132,58 +136,53 @@ void main() {
     },
   );
 
-  testWidgets('o veredito esvazia a faixa apontada, e só a dela', (
-    tester,
-  ) async {
+  testWidgets('o veredito aponta o trecho do achado, e só ele', (tester) async {
     final container = await _pumpToPergunta(tester);
 
     expect(
-      _faixasVazias(tester, container),
+      _apontados(container),
       [0],
       reason:
-          'a faixa vazia é a única coisa nesta sala que diz *onde* está o '
-          'problema, para uma equipe que não lê — e o trecho que ninguém '
-          'apontou continua em ordem',
+          'o achado não apontava o trecho que o analista nomeou, ou '
+          'apontava também o trecho que ninguém nomeou',
     );
   });
 
   testWidgets(
-    'a conta enche quando o círculo abre o conserto na língua-ponte',
+    'o conserto começa quando o círculo abre o microfone na língua-ponte',
     (tester) async {
       final container = await _pumpToPergunta(tester);
       final harness = _harnessDaVez!;
       final pedidos = harness.room.calls.length;
 
       await _escolherTraduzirDeNovo(tester, container);
-      expect(
-        _faixasVazias(tester, container),
-        [0],
+      _oTrechoEsperaOConserto(
+        container,
         reason:
-            'escolher a voz leva à tradução; nada foi gravado ainda, e a '
-            'conta segue drenada à espera do conserto (quadro X2)',
+            'escolher a voz já dava o conserto por começado, sem nada '
+            'gravado ainda (quadro X2)',
       );
 
       await _abrirOMicrofone(tester, container);
 
-      expect(
-        _faixasVazias(tester, container),
-        isEmpty,
+      _oConsertoEstaGravando(
+        container,
         reason:
-            'a promessa é feita ao abrir o microfone, antes de qualquer coisa '
-            'ir para a sala: a conta está de pé porque o conserto começou',
+            'abrir o microfone não começava o conserto antes de qualquer '
+            'coisa ir para a sala',
       );
       expect(harness.room.calls.length, pedidos);
     },
   );
 
-  testWidgets('uma gravação que não devolveu arquivo esvazia a faixa de novo, '
-      'sem chamar ninguém', (tester) async {
+  testWidgets('uma gravação que não devolveu arquivo devolve o trecho à espera '
+      'do conserto, sem chamar ninguém', (tester) async {
     final container = await _pumpToPergunta(tester);
     final harness = _harnessDaVez!;
 
     await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
+    _oConsertoEstaGravando(container);
     harness.recorder.returnsEmpty = true;
     await _entregarATraducao(tester, container);
 
@@ -194,17 +193,16 @@ void main() {
           'uma gravação de tradução vazia não é um dos seis casos do sinal '
           'da pessoa',
     );
-    expect(
-      _faixasVazias(tester, container),
-      [0],
+    _oTrechoEsperaOConserto(
+      container,
       reason:
-          'o enchimento é uma promessa, e uma promessa quebrada tem de '
-          'ser retirada: nada foi consertado',
+          'a gravação vazia seguia dada como conserto, e nada tinha sido '
+          'consertado',
     );
     closeTheRoom(container);
   });
 
-  testWidgets('um upload que a sala recusou esvazia a faixa de novo', (
+  testWidgets('um conserto que a sala recusou é um pedaço não entendido', (
     tester,
   ) async {
     final container = await _pumpToPergunta(tester);
@@ -212,76 +210,71 @@ void main() {
 
     await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
+    _oConsertoEstaGravando(container);
     harness.room.failReplaceWith = const Refused('UNAUTHORIZED');
     await _entregarATraducao(tester, container);
 
-    expect(
-      _faixasVazias(tester, container),
-      isEmpty,
-      reason:
-          'a sala recusou o conserto, e a tradução nova segue pendente: a '
-          'conta fica translúcida, como toda regravação pendente (ADR 0040), '
-          'até o check aterrar',
-    );
+    expect(container.read(salaSessionProvider).wordlessTelling, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(_apontados(container), [0]);
     closeTheRoom(container);
   });
 
-  testWidgets('uma captura que a sala não aproveitou esvazia a faixa de novo', (
-    tester,
-  ) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
+  testWidgets(
+    'uma captura que a sala não aproveitou devolve o trecho à espera do conserto',
+    (tester) async {
+      final container = await _pumpToPergunta(tester);
+      final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester, container);
-    await _abrirOMicrofone(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
-    harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
-    await _entregarATraducao(tester, container);
+      await _escolherTraduzirDeNovo(tester, container);
+      await _abrirOMicrofone(tester, container);
+      _oConsertoEstaGravando(container);
+      harness.room.failReplaceWith = const Refused(RefusalCode.wordlessTelling);
+      await _entregarATraducao(tester, container);
 
-    expect(
-      _faixasVazias(tester, container),
-      [0],
-      reason:
-          'a sala não fez nada com o que subiu: não há tradução nova '
-          'pendente, e o trecho volta a esperar o conserto',
-    );
-    expect(
-      container.read(salaSessionProvider).canConfirmTranslation,
-      isFalse,
-      reason: 'só o círculo é oferecido, para contar o trecho de novo',
-    );
-  });
+      _oTrechoEsperaOConserto(
+        container,
+        reason:
+            'a sala não fez nada com o que subiu, e ficava uma tradução nova '
+            'pendente sobre o trecho em vez de ele voltar a esperar o conserto',
+      );
+      expect(
+        container.read(salaSessionProvider).canConfirmTranslation,
+        isFalse,
+        reason: 'só o círculo é oferecido, para contar o trecho de novo',
+      );
+    },
+  );
 
-  testWidgets('uma parada que não devolveu arquivo esvazia a faixa de novo', (
-    tester,
-  ) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
+  testWidgets(
+    'uma parada que não devolveu arquivo devolve o trecho à espera do conserto',
+    (tester) async {
+      final container = await _pumpToPergunta(tester);
+      final harness = _harnessDaVez!;
 
-    await _escolherTraduzirDeNovo(tester, container);
-    await _abrirOMicrofone(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
-    harness.recorder.returnsNothing = true;
-    await _entregarATraducao(tester, container);
+      await _escolherTraduzirDeNovo(tester, container);
+      await _abrirOMicrofone(tester, container);
+      _oConsertoEstaGravando(container);
+      harness.recorder.returnsNothing = true;
+      await _entregarATraducao(tester, container);
 
-    expect(
-      harness.room.replacesAsked,
-      isEmpty,
-      reason:
-          'sem arquivo não há o que subir — se subir, este cenário deixou '
-          'de medir uma falha',
-    );
-    expect(
-      _faixasVazias(tester, container),
-      [0],
-      reason:
-          'este ramo volta calado, sem parar para uma pessoa e sem contar '
-          'a falha, e é justamente o que deixaria a promessa de pé sozinha',
-    );
-  });
+      expect(
+        harness.room.replacesAsked,
+        isEmpty,
+        reason:
+            'sem arquivo não há o que subir — se subir, este cenário deixou '
+            'de medir uma falha',
+      );
+      _oTrechoEsperaOConserto(
+        container,
+        reason:
+            'este ramo voltava calado, sem parar para uma pessoa e sem contar '
+            'a falha, e o conserto ficava dado como começado sozinho',
+      );
+    },
+  );
 
-  testWidgets('um microfone que não abriu não deixa a faixa cheia', (
+  testWidgets('um microfone que não abriu não dá o conserto por começado', (
     tester,
   ) async {
     final container = await _pumpToPergunta(tester);
@@ -299,53 +292,51 @@ void main() {
           'na retro o microfone que não abre é calado: nem sinal, nem fala, '
           'nem contagem (ADR 0108)',
     );
-    expect(
-      _faixasVazias(tester, container),
-      [0],
+    _oTrechoEsperaOConserto(
+      container,
       reason:
           'a equipe se ofereceu para consertar e a sala não conseguiu '
-          'ouvir: a faixa cheia prometeria um trabalho que o microfone nunca '
-          'deixou começar',
+          'ouvir: o conserto ficava dado como começado por um microfone que '
+          'nunca abriu',
     );
     closeTheRoom(container);
   });
 
-  testWidgets('voltar a gravar depois do microfone recusado enche a faixa', (
-    tester,
-  ) async {
-    final container = await _pumpToPergunta(tester);
-    final harness = _harnessDaVez!;
+  testWidgets(
+    'voltar a gravar depois do microfone recusado começa o conserto',
+    (tester) async {
+      final container = await _pumpToPergunta(tester);
+      final harness = _harnessDaVez!;
 
-    harness.recorder.startThrows = true;
-    await _escolherTraduzirDeNovo(tester, container);
-    await _abrirOMicrofone(tester, container);
-    expect(_faixasVazias(tester, container), [0]);
+      harness.recorder.startThrows = true;
+      await _escolherTraduzirDeNovo(tester, container);
+      await _abrirOMicrofone(tester, container);
+      _oTrechoEsperaOConserto(container);
 
-    harness.recorder.startThrows = false;
-    _notifier(container).teamTapped();
-    await tester.pump(const Duration(milliseconds: 300));
-    final capturasAntes = harness.recorder.captures;
-    await _abrirOMicrofone(tester, container);
+      harness.recorder.startThrows = false;
+      _notifier(container).teamTapped();
+      await tester.pump(const Duration(milliseconds: 300));
+      final capturasAntes = harness.recorder.captures;
+      await _abrirOMicrofone(tester, container);
 
-    expect(
-      harness.recorder.captures,
-      capturasAntes + 1,
-      reason:
-          'a pessoa veio e o toque volta a gravar — se não gravar, este '
-          'cenário não chega ao que ele mede',
-    );
-    expect(
-      _faixasVazias(tester, container),
-      isEmpty,
-      reason:
-          'a promessa foi retirada quando o microfone recusou, e tem de '
-          'ser feita outra vez agora que ele abriu: a equipe está gravando o '
-          'conserto e a faixa não pode ficar vazia por cima disso',
-    );
-  });
+      expect(
+        harness.recorder.captures,
+        capturasAntes + 1,
+        reason:
+            'a pessoa veio e o toque volta a gravar — se não gravar, este '
+            'cenário não chega ao que ele mede',
+      );
+      _oConsertoEstaGravando(
+        container,
+        reason:
+            'o conserto retirado quando o microfone recusou não voltava a '
+            'começar quando ele abriu, com a equipe gravando por cima',
+      );
+    },
+  );
 
-  testWidgets('a sala que desistiu de esperar esvazia a faixa de novo, sem '
-      'chamar ninguém', (tester) async {
+  testWidgets('a sala que desistiu de esperar devolve o trecho à espera do '
+      'conserto, sem chamar ninguém', (tester) async {
     final container = await _pumpToPergunta(
       tester,
       teto: const Duration(seconds: 2),
@@ -354,7 +345,7 @@ void main() {
 
     await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
-    expect(_faixasVazias(tester, container), isEmpty);
+    _oConsertoEstaGravando(container);
     // The one hang the ladder never sees: the room's own watchdog gives up on a busy
     // state, and it is not a room failure — it is this tablet deciding the wait is over.
     // Everything the mend awaits inside that window is local and has no timeout of its
@@ -376,14 +367,12 @@ void main() {
       isEmpty,
       reason: 'e a gravação nunca chegou a subir',
     );
-    expect(
-      _faixasVazias(tester, container),
-      [0],
+    _oTrechoEsperaOConserto(
+      container,
       reason:
-          'é a falha sem nenhum outro sinal na tela: nada foi recusado, o '
-          'círculo não está offline, ninguém foi chamado. Se a faixa ficar '
-          'cheia aqui, o colar diz que o conserto foi feito e é a única coisa '
-          'que a equipe tem para ler',
+          'era a falha sem nenhum outro sinal na tela: nada foi recusado, o '
+          'círculo não estava offline, ninguém foi chamado, e o conserto '
+          'seguia dado como em curso',
     );
 
     harness.recorder.finishStop();
@@ -391,7 +380,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('um veredito que reprova o mesmo trecho esvazia a faixa de novo', (
+  testWidgets('um veredito que reprova o mesmo trecho volta a apontá-lo', (
     tester,
   ) async {
     final container = await _pumpToPergunta(tester);
@@ -411,12 +400,11 @@ void main() {
     await _notifier(container).finishBackTranslation();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      _faixasVazias(tester, container),
-      [0],
+    _oTrechoEsperaOConserto(
+      container,
       reason:
-          'encher não é definitivo: o analista pode apontar o mesmo '
-          'trecho outra vez, e a faixa volta a esperar conserto',
+          'o conserto ficava dado como definitivo, e o analista que apontou '
+          'o mesmo trecho outra vez não o punha de volta à espera',
     );
     expect(
       container.read(salaSessionProvider).btFindingSegmentId,

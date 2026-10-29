@@ -24,6 +24,21 @@ MachineEvent decidedOnTheTablet(TabletFailure failure, FailureContext context) {
   return event;
 }
 
+void logTheReplysSound(TheReplyFailedToLoad failed, List<Effect> effects) {
+  final decided = [
+    for (final effect in effects)
+      if (effect is LoadTheReplyAgain)
+        'LoadTheReplyAgain'
+      else if (effect case LetTheReplyGo(:final decided))
+        '${decided.runtimeType}',
+  ].join();
+  debugPrint(
+    'Falha do tablet decidida: '
+    '${_whatFailed(failed.failure)} → '
+    '$decided',
+  );
+}
+
 String _why(RoomResult result) => switch (result) {
   RoomRefused(:final code) => 'recusada ($code)',
   RoomNetworkFailed() => 'a rede caiu',
@@ -35,10 +50,15 @@ String _why(RoomResult result) => switch (result) {
 };
 
 String _whatFailed(TabletFailure failure) => switch (failure) {
-  TheSoundFailed(:final inARow) => 'o som falhou ($inARow seguidas)',
+  TheSoundFailed(:final loads, :final because) =>
+    'o som da fala não carregou ($loads vezes'
+        '${because == null ? '' : ', ${_why(because)}'})',
   TheMicFailedToStart(:final inARow) =>
     'o microfone não abriu ($inARow seguidas)',
   TheTabletCannotRecord() => 'o tablet não grava',
   TheDiskFailed() => 'o disco falhou',
   TheBuildCannotReachTheRoom() => 'o build não alcança a sala',
+  TheStretchHasNoPartYet() =>
+    'o trecho é de uma parte que a sala ainda não nomeou',
+  TheStretchCannotBeRead() => 'a gravação do trecho não pôde ser lida',
 };

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102, amended by ENG-1441 (2026-10-21: the Conversation's green check of ADR 0037 is gone; the confirming check on the recording rows stays), amended by ENG-1843 (2026-10-27: the circle takes her size per screen and the canvas circle is her hollow ring)
+status: accepted, amended by the glossary (2026-10-06: the necklace's beads are her twelve, not Meaning Map elements), amended by 0062, amended by 0076, amended by 0102, amended by ENG-1441 (2026-10-21: the Conversation's green check of ADR 0037 is gone; the confirming check on the recording rows stays), amended by ENG-1843 (2026-10-27: the circle takes her size per screen and the canvas circle is her hollow ring), amended by 0153
 date: 2026-09-25
 ---
 

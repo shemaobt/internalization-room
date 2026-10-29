@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -12,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -60,19 +58,12 @@ bool aceso(WidgetTester tester, String label) {
   return enabled;
 }
 
-Iterable<BoxDecoration> _pinturas(Finder dentro) => find
-    .descendant(of: dentro, matching: find.byType(Container))
-    .evaluate()
-    .map((element) => (element.widget as Container).decoration)
-    .whereType<BoxDecoration>();
-
-String _cor(Gradient? tinta) {
-  if (tinta == BeadStyles.wood) return 'wood';
-  if (tinta == BeadStyles.azul) return 'azul';
-  if (tinta == BeadStyles.telha(SalaColors.light)) return 'telha';
-  if (tinta == BeadStyles.clay(SalaColors.light)) return 'clay';
-  return '$tinta';
-}
+String _cor(Color borda) => switch (borda.toARGB32()) {
+  0xFFBE4A01 => 'telha',
+  0xFF89AAA3 => 'azul',
+  0xFFC5C29F => 'areia',
+  _ => '$borda',
+};
 
 Finder _circulo() => find.descendant(
   of: find.byType(RetroView),
@@ -88,7 +79,7 @@ double? _escalaDaOnda(WidgetTester tester) {
       )
       .first
       .transform
-      .getMaxScaleOnAxis();
+      .storage[0];
 }
 
 bool _circuloApagado(WidgetTester tester) =>
@@ -106,42 +97,48 @@ bool _circuloApagado(WidgetTester tester) =>
 
 Future<String> olhar(WidgetTester tester) async {
   final circulo = _circulo();
-  final tinta = _pinturas(
-    circulo,
-  ).map((pintura) => pintura.gradient).whereType<Gradient>().first;
-  final anel = _pinturas(
-    circulo,
-  ).any((pintura) => pintura.boxShadow != null && pintura.border != null);
+  final borda =
+      (tester
+                  .widget<AnimatedContainer>(
+                    find.descendant(
+                      of: circulo,
+                      matching: find.byType(AnimatedContainer),
+                    ),
+                  )
+                  .decoration!
+              as BoxDecoration)
+          .border!
+          .top
+          .color;
+  final folego = [
+    for (final laco in tester.widgetList<Loop>(
+      find.descendant(of: circulo, matching: find.byType(Loop)),
+    ))
+      if (laco.animate) laco.period,
+  ];
   final antes = _escalaDaOnda(tester);
   await tester.pump(const Duration(milliseconds: 120));
   final depois = _escalaDaOnda(tester);
   final String movimento;
-  if (antes == null || depois == null) {
-    movimento = 'parado';
-  } else if (anel && depois < antes) {
+  if (antes != null && depois != null && depois > antes) {
     movimento = 'ouvindo';
-  } else if (!anel && depois > antes) {
+  } else if (antes == null &&
+      folego.contains(const Duration(milliseconds: 3400))) {
     movimento = 'soando';
+  } else if (antes == null) {
+    movimento = 'parado';
   } else {
-    movimento = 'anel $anel, ondas de $antes para $depois';
+    movimento = 'ondas de $antes para $depois';
   }
-  return '${_cor(tinta)} $movimento';
+  return '${_cor(borda)} $movimento';
 }
 
-Future<void> tocarAConta(WidgetTester tester, int lugar) async {
-  final conta = find
-      .descendant(
-        of: find.descendant(
-          of: find.byType(RetroView),
-          matching: find.byType(BeadRow),
-        ),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is Semantics && widget.properties.button == true,
-        ),
-      )
-      .at(lugar);
-  await tester.ensureVisible(conta);
-  await tester.tap(conta);
+Future<void> ouvirNaGravacao(
+  WidgetTester tester,
+  ProviderContainer container,
+  int lugar,
+) async {
+  container.read(salaSessionProvider.notifier).ouvirAConta(lugar);
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -206,12 +203,17 @@ Future<ProviderContainer> doisContadosEOTerceiroPendente(
   await gravarATraducao(tester, harness);
   harness.playback.at = const Duration(seconds: 9);
   await tocarNoCirculo(tester);
-  expect(contas(tester), [
-    'solid',
-    'solid',
-    'translucent com anel',
-    'translucent',
-  ]);
+  final session = container.read(salaSessionProvider);
+  expect(
+    [
+      for (final trecho in session.btTrechos)
+        if (trecho.contado)
+          '${trecho.lugarFrom.inSeconds}-${trecho.lugarTo.inSeconds}',
+    ],
+    ['0-4', '4-8'],
+  );
+  expect(session.btCorte, const Duration(seconds: 9));
+  expect(session.btCortado, isTrue);
   return container;
 }
 
@@ -220,7 +222,13 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
-    expect(await olhar(tester), 'wood soando', reason: 'a língua materna toca');
+    expect(
+      await olhar(tester),
+      'telha soando',
+      reason:
+          'a língua materna toca, e o .cdot dela soando é telha em qualquer '
+          'língua (globals.css:383)',
+    );
 
     harness.playback.at = cabeca;
     await tocar(tester, pausar);
@@ -231,63 +239,7 @@ void main() {
     expect(await olhar(tester), 'azul ouvindo');
 
     await tocar(tester, terminar);
-    expect(await olhar(tester), 'wood soando');
-    closeTheRoom(container);
-  });
-
-  testWidgets('R3 — a conta tocada toca o seu trecho e devolve o anel ao '
-      'pendente', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.chunksAnswerWithNoName = true;
-    final container = await doisContadosEOTerceiroPendente(tester, harness);
-
-    await tocarAConta(tester, 0);
-
-    expect(
-      harness.playback.played.last,
-      container.read(salaSessionProvider).partes.first.path,
-    );
-    expect(harness.playback.sounding, isTrue);
-    expect(contas(tester), [
-      'solid com anel',
-      'solid',
-      'translucent',
-      'translucent',
-    ]);
-    expect(aceso(tester, pausar), isTrue);
-    expect(await olhar(tester), 'wood soando');
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(contas(tester), [
-      'solid',
-      'solid',
-      'translucent com anel',
-      'translucent',
-    ]);
-
-    await tocarAConta(tester, 0);
-    expect(harness.playback.sounding, isTrue);
-    expect(contas(tester).first, 'solid com anel');
-    await tocarAConta(tester, 2);
-
-    expect(harness.playback.sounding, isFalse);
-    expect(contas(tester), [
-      'solid',
-      'solid',
-      'translucent com anel',
-      'translucent',
-    ]);
-
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
-
-    expect(
-      harness.room.chunkSpans.last,
-      '8000-9000',
-      reason: 'o cursor e o corte não andaram',
-    );
+    expect(await olhar(tester), 'telha soando');
     closeTheRoom(container);
   });
 
@@ -320,8 +272,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — com o clipe pausado no meio, a conta tocada não move a '
-      'cabeça', (tester) async {
+  testWidgets('R3 — com o clipe pausado no meio, um trecho contado ouvido na '
+      'gravação não move a cabeça', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
@@ -332,7 +284,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    await tocarAConta(tester, 0);
+    await ouvirNaGravacao(tester, container, 0);
     expect(aceso(tester, pausar), isTrue);
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
@@ -343,7 +295,7 @@ void main() {
     expect(harness.playback.playedFrom.last, const Duration(seconds: 7));
     await tocar(tester, pausar);
 
-    await tocarAConta(tester, 0);
+    await ouvirNaGravacao(tester, container, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, pausado);
@@ -354,8 +306,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — uma conta sem tradução no tablet, antes do veredito, abre '
-      'a frase e toca a sua língua materna', (tester) async {
+  testWidgets('R3 — uma frase sem tradução no tablet, traduzida de novo antes '
+      'do veredito, abre e toca a sua língua materna', (tester) async {
     final gravada = File(
       '${Directory.systemTemp.createTempSync('sala-1117').path}/p1.m4a',
     )..writeAsBytesSync([1, 2, 3]);
@@ -402,14 +354,21 @@ void main() {
       );
     });
     await tester.pump(const Duration(milliseconds: 600));
-    expect(contas(tester), ['solid', 'translucent com anel']);
+    expect(
+      [
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          if (trecho.contado) trecho.segmentId,
+      ],
+      ['trecho-1'],
+    );
+    expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
 
-    await tocarAConta(tester, 0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(harness.playback.played.lastOrNull, gravada.path);
     expect(harness.playback.ranges.lastOrNull, '0-4000');
-    expect(contas(tester), ['solid com anel']);
-    expect(await olhar(tester), 'wood soando');
+    expect(await olhar(tester), 'telha soando');
     expect(
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
       'trecho-1',
@@ -420,31 +379,16 @@ void main() {
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(contas(tester), ['solid com anel']);
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+    );
     expect(await olhar(tester), 'telha parado');
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — a conta pendente, sem conta escolhida, toca o trecho '
-      'pendente como o play', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.takeLandsAfter = const Duration(seconds: 1);
-    final container = await entrarNaTraducao(tester, harness);
-
-    harness.playback.at = cabeca;
-    await tocarNoCirculo(tester);
-    expect(harness.playback.sounding, isFalse);
-    await tocarAConta(tester, 0);
-
-    expect(harness.playback.ranges.last, '0-4000');
-    expect(harness.playback.sounding, isTrue);
-    expect(contas(tester), ['translucent com anel', 'translucent']);
-    closeTheRoom(container);
-  });
-
-  testWidgets('R3b — ouvir uma conta não conta como ouvir a parte', (
-    tester,
-  ) async {
+  testWidgets('R3b — ouvir um trecho contado na gravação não conta como ouvir '
+      'a parte', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
@@ -453,7 +397,7 @@ void main() {
     await gravarATraducao(tester, harness);
     harness.playback.at = const Duration(seconds: 7);
 
-    await tocarAConta(tester, 0);
+    await ouvirNaGravacao(tester, container, 0);
     harness.playback.at = const Duration(seconds: 3);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -484,8 +428,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — uma conta tocada com a parte ainda abrindo não deixa a '
-      'cabeça atrás do cursor', (tester) async {
+  testWidgets('R3 — um trecho contado ouvido na gravação com a parte ainda '
+      'abrindo não deixa a cabeça atrás do cursor', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
@@ -499,7 +443,7 @@ void main() {
     harness.playback.finishHeldOpening();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tocarAConta(tester, 0);
+    await ouvirNaGravacao(tester, container, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, ouvir);
@@ -508,9 +452,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — com o clipe pausado no meio, a conta de uma frase com '
-      'nome a abre de novo, e manter a tradução de antes devolve a cabeça '
-      'onde estava', (tester) async {
+  testWidgets('R3 — com o clipe pausado no meio, tocar uma frase com nome a '
+      'abre de novo, e manter a tradução de antes devolve a cabeça onde '
+      'estava', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
@@ -520,19 +464,25 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    await tocarAConta(tester, 0);
+    await tocar(tester, sceneRehearsalLabelFor('retellFrase', 'pt', n: 1));
     expect(
       container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
       'trecho-1',
     );
     expect(harness.playback.ranges.last, '0-4000');
-    expect(contas(tester), ['solid com anel']);
     harness.playback.at = cabeca;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
     await tocar(tester, 'manter a tradução de antes');
-    expect(contas(tester), ['solid', 'translucent com anel']);
+    expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
+    expect(
+      [
+        for (final trecho in container.read(salaSessionProvider).btTrechos)
+          if (trecho.contado) trecho.segmentId,
+      ],
+      ['trecho-1'],
+    );
     await tocar(tester, ouvir);
     expect(harness.playback.played.last, harness.playback.played.first);
     expect(
@@ -549,8 +499,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — a tesoura depois de uma conta tocada corta na cabeça de '
-      'antes', (tester) async {
+  testWidgets('R3 — a tesoura depois de um trecho contado ouvido na gravação '
+      'corta na cabeça de antes', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
@@ -560,7 +510,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    await tocarAConta(tester, 0);
+    await ouvirNaGravacao(tester, container, 0);
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -571,9 +521,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto uma conta toca', (
-    tester,
-  ) async {
+  testWidgets('R3 — o disco de avanço se apaga enquanto a tradução de uma '
+      'frase toca', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
@@ -590,7 +539,8 @@ void main() {
     }
     expect(aceso(tester, conferir), isTrue);
 
-    await tocarAConta(tester, 0);
+    await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
+    expect(harness.playback.sounding, isTrue);
     expect(aceso(tester, conferir), isFalse);
 
     harness.playback.finishPlayback();
@@ -599,8 +549,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto a conta de uma frase '
-      'com nome a abre de novo, e acende com manter a tradução de antes', (
+  testWidgets('R3 — o disco de avanço se apaga enquanto uma frase com nome '
+      'tocada se abre de novo, e acende com manter a tradução de antes', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -618,7 +568,7 @@ void main() {
     }
     expect(aceso(tester, conferir), isTrue);
 
-    await tocarAConta(tester, 0);
+    await tocar(tester, sceneRehearsalLabelFor('retellFrase', 'pt', n: 1));
     expect(aceso(tester, conferir), isFalse);
 
     harness.playback.finishPlayback();
@@ -687,7 +637,7 @@ void main() {
   Future<void> esperarAParada(WidgetTester tester) async {
     await waitFor(
       'a tela da parada aparecer',
-      () => byLabel('Um momento para uma pessoa').evaluate().isNotEmpty,
+      () => thePersonSign.evaluate().isNotEmpty,
       limit: const Duration(seconds: 3),
       step: () async {
         await tester.pump(const Duration(seconds: 1));
@@ -737,7 +687,7 @@ void main() {
 
     await pararPorUmaPessoa(tester, container);
 
-    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -752,12 +702,12 @@ void main() {
     await tocarNoCirculo(tester);
     await gravarATraducao(tester, harness);
     await tocar(tester, pausar);
-    await tocarAConta(tester, 1);
+    await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
     expect(harness.playback.sounding, isTrue);
 
     await pararPorUmaPessoa(tester, container);
 
-    expect(byLabel('Um momento para uma pessoa'), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
     expect(_circuloApagado(tester), isTrue);
     closeTheRoom(container);
   });
@@ -804,10 +754,12 @@ void main() {
       tester,
       'the pause is at your tap — tap the circle to translate',
     );
-    harness.room.failChunkWith = const Refused('BAD_REQUEST');
+    harness.room.chunkAnswersFirst.addAll(
+      List.filled(3, const Refused(RefusalCode.idempotencyKeyInFlight)),
+    );
     await tocar(tester, 'Tap when you finish');
     await waitFor(
-      'a sala recusar a frase',
+      'a chave da frase seguir em voo',
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
       step: () => tester.pump(const Duration(milliseconds: 100)),
     );
@@ -817,9 +769,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R6 — a halt in the back-translation speaks the rooms language', (
-    tester,
-  ) async {
+  testWidgets('R6 — a halt in an english back-translation raises the sign, '
+      'which says no word', (tester) async {
+    final handle = tester.ensureSemantics();
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await entrarNaTraducao(tester, harness);
 
@@ -829,8 +781,11 @@ void main() {
     await tocar(tester, retroLabelFor('recording', 'en'));
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
 
-    expect(byLabel(circleLabelFor('needsPerson', 'en')), findsOneWidget);
+    expect(thePersonSign, findsOneWidget);
+    expect(find.bySemanticsLabel('A moment for someone'), findsNothing);
+    handle.dispose();
     closeTheRoom(container);
   });
 

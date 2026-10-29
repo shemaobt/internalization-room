@@ -17,6 +17,8 @@ import 'motion.dart';
 import 'pause_adjust_row.dart';
 import 'scene_strip.dart';
 
+const _rem = 16.0;
+
 /// The translate step, in her order: the instruction, the play control and the hint, the
 /// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
 /// team listens, the circle, her message under it and «manter a tradução de antes» while
@@ -60,11 +62,14 @@ class SceneTranslateStep extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
+    final take = switch (channel) {
+      final PartPlaying playing when playing.part.path == scene.take => playing,
+      _ => null,
+    };
+    final playing = take != null;
     final telling = channel is Microphone;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     final idle = !sending && !scene.waiting && !telling;
-    final words = TextStyle(color: colors.ink, fontSize: 16);
     final longest = frases.fold(
       1,
       (longest, frase) => max(longest, frase.spanIn(scene.length)),
@@ -75,11 +80,11 @@ class SceneTranslateStep extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Written(said('subTranslate'), style: words),
+          SceneSub(said('subTranslate')),
           const SizedBox(height: 12),
           _PlayRow(
             mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
-            playing: playing,
+            take: take,
             label: said('playPause'),
             hint: (at) => _hintOf(playing: playing, at: at),
           ),
@@ -99,7 +104,7 @@ class SceneTranslateStep extends ConsumerWidget {
                   frase,
             ],
             pausa: scene.pausa,
-            playing: playing,
+            playing: channel is PartPlaying,
           ),
           if (adjusts) ...[
             const SizedBox(height: 12),
@@ -171,7 +176,7 @@ class SceneTranslateStep extends ConsumerWidget {
                 name: said('retellFrase', i + 1),
                 hearMine: said('hearMine', i + 1),
                 live: idle,
-                style: words,
+                again: frase.fraseId == scene.translatingAgain?.fraseId,
                 onTap: () => notifier.translateTheFraseAgain(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
@@ -415,10 +420,13 @@ class SceneListenMode extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
+    final take = switch (channel) {
+      final PartPlaying playing when playing.part.path == scene.take => playing,
+      _ => null,
+    };
+    final playing = take != null;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     int span(SceneFrase frase) => switch ((frase.startsMs, frase.endsMs)) {
       (final int starts, final int ends) => max(0, ends - starts),
@@ -431,18 +439,17 @@ class SceneListenMode extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _Written(
+            child: SceneSub(
               said('listen'),
               heard: line == SceneLine.diskFailed
                   ? '${said('listen')} — ${said('diskFailed')}'
                   : null,
-              style: TextStyle(color: colors.ink, fontSize: 16),
             ),
           ),
           const SizedBox(height: 12),
           _PlayRow(
             mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-            playing: playing,
+            take: take,
             label: said('playPause'),
             hint: (at) => switch ((playing, scene.heard)) {
               (true, _) => sceneListeningLineFor(at, scene.length, language),
@@ -461,7 +468,7 @@ class SceneListenMode extends ConsumerWidget {
             length: scene.length,
             frases: frases,
             pausa: null,
-            playing: playing,
+            playing: channel is PartPlaying,
           ),
           const SizedBox(height: 16),
           if (frases.isNotEmpty) ...[
@@ -475,7 +482,7 @@ class SceneListenMode extends ConsumerWidget {
                 name: said('frase', i + 1),
                 hearMine: said('hearMine', i + 1),
                 live: !scene.waiting,
-                style: TextStyle(color: colors.ink, fontSize: 16),
+                again: false,
                 onTap: () => notifier.playTheFrase(frase.fraseId),
                 onHear: () => notifier.hearTheFraseTranslation(frase.fraseId),
               ),
@@ -495,13 +502,13 @@ class SceneListenMode extends ConsumerWidget {
 
 class _PlayRow extends ConsumerWidget {
   final ButtonMood mood;
-  final bool playing;
+  final PartPlaying? take;
   final String label;
   final String? Function(Duration at) hint;
 
   const _PlayRow({
     required this.mood,
-    required this.playing,
+    required this.take,
     required this.label,
     required this.hint,
   });
@@ -510,6 +517,7 @@ class _PlayRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
+    final playing = take != null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 60),
       child: Row(
@@ -533,7 +541,9 @@ class _PlayRow extends ConsumerWidget {
               period: const Duration(seconds: 1),
               animate: playing,
               reducible: false,
-              builder: (context, _) => switch (hint(playback.position)) {
+              builder: (context, _) => switch (hint(
+                take?.inTheFile(playback.position) ?? playback.position,
+              )) {
                 final words? => _Written(
                   words,
                   style: TextStyle(color: colors.mut, fontSize: 16),
@@ -624,8 +634,8 @@ class _ListedRow extends StatelessWidget {
     final scene = row.sceneNumber;
     final at = row.recordedAt;
     final words = TextStyle(
-      color: onScreen ? colors.ink : colors.mut,
-      fontSize: 14,
+      color: onScreen ? colors.momentoInk : colors.claquete,
+      fontSize: 0.8 * _rem,
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -648,7 +658,14 @@ class _ListedRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Text('${row.n}', style: words),
+                  _Disc(
+                    n: row.n,
+                    fill: !row.unsent
+                        ? colors.claquete
+                        : onScreen
+                        ? colors.azul
+                        : colors.areia,
+                  ),
                   if (scene != null) ...[
                     const SizedBox(width: 10),
                     Text(said('sceneN', scene), style: words),
@@ -670,8 +687,8 @@ class _ListedRow extends StatelessWidget {
                   Text(
                     said(row.unsent ? 'listUnsent' : 'listSent'),
                     style: TextStyle(
-                      color: row.unsent ? colors.telha : colors.mut,
-                      fontSize: 14,
+                      color: row.unsent ? colors.telha : colors.claquete,
+                      fontSize: 0.8 * _rem,
                     ),
                   ),
                 ],
@@ -704,6 +721,41 @@ class _Written extends StatelessWidget {
   );
 }
 
+double chOf(BuildContext context, TextStyle style) {
+  final zero = TextPainter(
+    text: TextSpan(
+      text: '0',
+      style: DefaultTextStyle.of(
+        context,
+      ).style.merge(style).copyWith(letterSpacing: 0),
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final ch = zero.width;
+  zero.dispose();
+  return ch;
+}
+
+class SceneSub extends StatelessWidget {
+  final String words;
+  final String? heard;
+
+  const SceneSub(this.words, {super.key, this.heard});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      color: SalaColors.of(context).claquete,
+      fontSize: 0.92 * _rem,
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
+      child: _Written(words, heard: heard, style: style),
+    );
+  }
+}
+
 class _Heading extends StatelessWidget {
   final String words;
 
@@ -727,10 +779,10 @@ class _Upper extends StatelessWidget {
     words.toUpperCase(),
     textAlign: TextAlign.center,
     style: TextStyle(
-      color: SalaColors.of(context).mut,
-      fontSize: 14,
+      color: SalaColors.of(context).claquete,
+      fontSize: 0.7 * _rem,
       fontWeight: FontWeight.w600,
-      letterSpacing: 2.4,
+      letterSpacing: 0.18 * 0.7 * _rem,
     ),
   );
 }
@@ -802,7 +854,7 @@ class _FraseBar extends StatelessWidget {
   final String name;
   final String hearMine;
   final bool live;
-  final TextStyle style;
+  final bool again;
   final VoidCallback onTap;
   final VoidCallback onHear;
 
@@ -813,7 +865,7 @@ class _FraseBar extends StatelessWidget {
     required this.name,
     required this.hearMine,
     required this.live,
-    required this.style,
+    required this.again,
     required this.onTap,
     required this.onHear,
   });
@@ -822,65 +874,156 @@ class _FraseBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: true,
-            enabled: live,
-            label: name,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: live ? onTap : null,
-              child: ExcludeSemantics(
-                child: Opacity(
-                  opacity: live ? 1 : 0.35,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(width: 24, child: Text('$n', style: style)),
-                      SizedBox(
-                        width: 200,
-                        height: 10,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: share > 0 ? max(0.08, share) : 1,
-                            heightFactor: 1,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: colors.vermelhoMic.withValues(
-                                  alpha: 0.6,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 470),
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                button: true,
+                enabled: live,
+                label: name,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: live ? onTap : null,
+                  child: ExcludeSemantics(
+                    child: Opacity(
+                      opacity: live ? 1 : 0.35,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 0.6 * _rem,
+                          vertical: 0.45 * _rem,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color.fromRGBO(236, 234, 220, .05)
+                              : const Color.fromRGBO(255, 255, 255, .4),
+                          border: Border.all(
+                            color: again ? colors.telha : colors.areia,
+                            width: 1.2,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 0.05 * _rem),
+                              child: SizedBox(
+                                width: 26,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _Disc(n: n, fill: colors.areia),
                                 ),
-                                borderRadius: BorderRadius.circular(5),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 0.55 * _rem),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 0.3 * _rem),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 10,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromRGBO(
+                                          199,
+                                          194,
+                                          159,
+                                          .28,
+                                        ),
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: FractionallySizedBox(
+                                          widthFactor: share > 0
+                                              ? max(0.08, share)
+                                              : 1,
+                                          heightFactor: 1,
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  (again
+                                                          ? colors.telha
+                                                          : colors.claquete)
+                                                      .withValues(alpha: .85),
+                                              borderRadius:
+                                                  BorderRadius.circular(5),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 0.15 * _rem),
+                                  Text(
+                                    words,
+                                    style: TextStyle(
+                                      color: colors.claquete,
+                                      fontSize: 0.7 * _rem,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Text(words, style: style),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          RoundActionButton(
-            size: 40,
-            mood: live ? ButtonMood.lit : ButtonMood.dimmed,
-            semanticLabel: hearMine,
-            onTap: onHear,
-            child: Icon(
-              LucideIcons.volume2,
-              size: 18,
-              color: colors.vermelhoMic,
+            const SizedBox(width: 0.4 * _rem),
+            RoundActionButton(
+              size: 40,
+              mood: live ? ButtonMood.lit : ButtonMood.dimmed,
+              semanticLabel: hearMine,
+              onTap: onHear,
+              child: Icon(
+                LucideIcons.volume2,
+                size: 18,
+                color: colors.vermelhoMic,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _Disc extends StatelessWidget {
+  final int n;
+  final Color fill;
+
+  const _Disc({required this.n, required this.fill});
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 22,
+    child: DecoratedBox(
+      decoration: BoxDecoration(shape: BoxShape.circle, color: fill),
+      child: Center(
+        child: Text(
+          '$n',
+          style: TextStyle(
+            color: fill == SalaColors.of(context).areia
+                ? SalaColors.of(context).ink
+                : Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1B15)
+                : ShemaBrand.branco,
+            fontSize: 0.74 * _rem,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ),
+  );
 }
