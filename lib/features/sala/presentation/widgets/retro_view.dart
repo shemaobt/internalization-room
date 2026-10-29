@@ -963,7 +963,8 @@ class RetroView extends ConsumerWidget {
 }
 
 /// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while
-/// a part sounds or is held; either alone when the other is missing.
+/// a part sounds or is held, or the end of a sentence told or recorded again while nothing
+/// sounds; either alone when the other is missing.
 class _ALinhaDaEscuta extends ConsumerWidget {
   final SalaSessionState session;
   final String language;
