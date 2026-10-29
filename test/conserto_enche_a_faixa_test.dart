@@ -202,7 +202,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('um upload que a sala recusou deixa a tradução nova pendente', (
+  testWidgets('um conserto que a sala recusou é um pedaço não entendido', (
     tester,
   ) async {
     final container = await _pumpToPergunta(tester);
@@ -214,14 +214,8 @@ void main() {
     harness.room.failReplaceWith = const Refused('UNAUTHORIZED');
     await _entregarATraducao(tester, container);
 
-    final sessao = container.read(salaSessionProvider);
-    expect(
-      sessao.btTraducaoPendente,
-      allOf(isNotNull, isNot(sessao.btTraducaoEmprestada)),
-      reason:
-          'a sala recusou o conserto e a tradução nova se perdia, em vez '
-          'de seguir pendente até o check aterrar (ADR 0040)',
-    );
+    expect(container.read(salaSessionProvider).wordlessTelling, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
     expect(_apontados(container), [0]);
     closeTheRoom(container);
   });

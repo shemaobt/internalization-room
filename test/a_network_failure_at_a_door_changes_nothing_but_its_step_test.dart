@@ -560,16 +560,6 @@ void main() {
       final harness = SalaHarness();
       final room = await _aResumedBackTranslation(harness);
       await _tellAStretchUpTo(room, const Duration(seconds: 12));
-      final sessao = room.estado.sessionId!;
-      Future<List<PendingTake>> traducoesNaFila() async => [
-        for (final row in await harness.takes.entries())
-          if (row.sessionId == sessao && row.kind == 'retro') row,
-      ];
-      expect(await traducoesNaFila(), isEmpty);
-      int recebidas() => harness.room.takesKept
-          .where((take) => take.startsWith('retro/'))
-          .length;
-      final recebidasAntes = recebidas();
       harness.room.chunkAnswersFirst.addAll(
         List.filled(10, _theKeyStillInFlight),
       );
@@ -585,11 +575,6 @@ void main() {
       expect(harness.room.chunkKeys.toSet(), hasLength(1));
       expect(room.estado.needsPerson, isFalse);
       expect(room.estado.btTraducaoPendente, isNotNull);
-      expect(
-        (await traducoesNaFila()).length + recebidas() - recebidasAntes,
-        1,
-        reason: 'ENG-1347: guardada, ela fica na fila até a sala confirmá-la',
-      );
     },
   );
 

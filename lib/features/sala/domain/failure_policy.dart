@@ -72,6 +72,16 @@ final class TheBuildCannotReachTheRoom extends TabletFailure {
   const TheBuildCannotReachTheRoom();
 }
 
+/// A Back-translation stretch told over a part the room has not named yet.
+final class TheStretchHasNoPartYet extends TabletFailure {
+  const TheStretchHasNoPartYet();
+}
+
+/// A Back-translation stretch whose recording the tablet could not read to send.
+final class TheStretchCannotBeRead extends TabletFailure {
+  const TheStretchCannotBeRead();
+}
+
 /// What a door does with a refusal.
 enum RefusalRule {
   /// A turn the team spoke, on the Canvas or the Panorama: a person is called on the spot.
@@ -131,6 +141,9 @@ abstract final class FailurePolicy {
 
   static const _theSceneDoors = {Door.sceneRehearsal, Door.sceneFrase};
 
+  /// The doors a translated piece goes up through.
+  static const _theTranslationDoors = {Door.sceneFrase, Door.telling};
+
   /// The refusals at the frase door that say nothing of the frase itself.
   static const _theFraseIsNotRefused = {
     RefusalCode.sceneRehearsalSending,
@@ -167,11 +180,24 @@ abstract final class FailurePolicy {
       _ when context.door == Door.sceneList => TheScenesMissed(
         generation: generation,
       ),
-      RoomNetworkFailed() || RoomRefused(code: RefusalCode.unreadable)
+      RoomNetworkFailed() ||
+      RoomTimedOut() ||
+      RoomFoundNothing() ||
+      RoomAnsweredWithoutAReply() ||
+      RoomRefused(code: RefusalCode.unreadable)
           when context.door == Door.sceneFrase &&
               rule == RefusalRule.readsTheListAgain =>
         TheTellingCameBackEmpty(readAgain: true, generation: generation),
-      RoomNetworkFailed() when context.door == Door.sceneFrase =>
+      RoomNetworkFailed() ||
+      RoomTimedOut() ||
+      RoomFoundNothing() ||
+      RoomAnsweredWithoutAReply()
+          when _theTranslationDoors.contains(context.door) =>
+        TheTellingCameBackEmpty(generation: generation),
+      RoomRefused(code: RefusalCode.sceneRehearsalSent)
+          when context.door == Door.sceneFrase =>
+        TheSceneWentAlready(generation: generation),
+      RoomRefused() when context.door == Door.telling =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when turn != null && theAnswerWasLost(result, rule) =>
         TurnGivenUp(turn, sounding: sounding, generation: generation),
@@ -224,8 +250,6 @@ abstract final class FailurePolicy {
           when context.station is SceneRehearsal =>
         TheSceneTurnFoundNothing(generation: generation),
       RoomFoundNothing() || RoomAnsweredWithoutAReply() => halt,
-      RoomNetworkFailed() when context.door == Door.telling =>
-        TheTellingCameBackEmpty(generation: generation),
       RoomNetworkFailed() when rule == RefusalRule.asksAgain =>
         TheCallWasRefused(generation: generation),
       RoomNetworkFailed() => NetworkFailedAt(
@@ -287,6 +311,8 @@ abstract final class FailurePolicy {
         callsForAPerson: false,
         generation: generation,
       ),
+      TheStretchHasNoPartYet() || TheStretchCannotBeRead() =>
+        TheTellingCameBackEmpty(generation: generation),
     };
   }
 }
