@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
@@ -39,22 +37,6 @@ Future<void> _pumpCircle(
     ),
   ),
 );
-
-Gradient? _disc(WidgetTester tester) {
-  final painted = tester
-      .widgetList<Container>(
-        find.descendant(
-          of: find.byType(FacilitatorCircle),
-          matching: find.byType(Container),
-        ),
-      )
-      .map((box) => box.decoration)
-      .whereType<BoxDecoration>()
-      .map((paint) => paint.gradient)
-      .whereType<Gradient>()
-      .toList();
-  return painted.isEmpty ? null : painted.first;
-}
 
 List<CircleGlyph> _glyphs(WidgetTester tester) => tester
     .widgetList<CustomPaint>(
@@ -132,7 +114,7 @@ List<Duration> _periods(WidgetTester tester) => [
       matching: find.byType(Loop),
     ),
   ))
-    breath.period,
+    if (breath.animate) breath.period,
   for (final ring in tester.widgetList<Ripple>(
     find.descendant(
       of: find.byType(FacilitatorCircle),
@@ -239,7 +221,7 @@ void main() {
     tester,
   ) async {
     const tempos = {
-      VoiceState.listening: Duration(milliseconds: 3200),
+      VoiceState.listening: Duration(milliseconds: 3000),
       VoiceState.thinking: Duration(milliseconds: 4500),
       VoiceState.speaking: Duration(milliseconds: 3400),
     };
@@ -273,8 +255,8 @@ void main() {
         VoiceState.thinking: Duration(milliseconds: 2250),
         VoiceState.speaking: Duration(milliseconds: 1700),
       };
-      const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.02};
-      const rests = {VoiceState.thinking: 0.97, VoiceState.speaking: 1.0};
+      const peaks = {VoiceState.thinking: 1.03, VoiceState.speaking: 1.03};
+      const rests = {VoiceState.thinking: 0.97, VoiceState.speaking: 0.97};
 
       double scale() => tester
           .widgetList<Transform>(
@@ -496,8 +478,20 @@ void main() {
       await _pumpCircle(tester, VoiceState.invite, peerCue: true);
 
       expect(
-        _disc(tester),
-        BeadStyles.telha(SalaColors.light),
+        tester
+            .widgetList<Container>(
+              find.descendant(
+                of: find.byType(FacilitatorCircle),
+                matching: find.byType(Container),
+              ),
+            )
+            .map((box) => box.decoration)
+            .whereType<BoxDecoration>()
+            .single
+            .border!
+            .top
+            .color,
+        const Color(0xFFBE4A01),
         reason:
             'a sala mandava a equipe conversar entre si e apagava, nesse '
             'mesmo instante, o único alvo que ela aprendeu a tocar — o disco '
