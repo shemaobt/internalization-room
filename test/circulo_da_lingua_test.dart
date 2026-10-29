@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -58,7 +57,7 @@ Gradient? _disco(WidgetTester tester) {
   return pintados.isEmpty ? null : pintados.first;
 }
 
-Color _sombraDoDisco(WidgetTester tester) => find
+Color _borda(WidgetTester tester) => find
     .descendant(
       of: find.byType(FacilitatorCircle),
       matching: find.byType(Container),
@@ -67,9 +66,11 @@ Color _sombraDoDisco(WidgetTester tester) => find
     .where((elemento) => !_sobUmaMarca(elemento))
     .map((elemento) => (elemento.widget as Container).decoration)
     .whereType<BoxDecoration>()
-    .firstWhere((decoracao) => decoracao.gradient != null)
-    .boxShadow!
-    .first
+    .singleWhere(
+      (decoracao) => decoracao.gradient != null && decoracao.border != null,
+    )
+    .border!
+    .top
     .color;
 
 Future<void> _pumpCirculo(
@@ -112,33 +113,39 @@ void main() {
     expect(estado.btPhase, BtPhase.capturing);
     expect(estado.voice, VoiceState.listening);
 
+    await tester.pump(const Duration(milliseconds: 1000));
     expect(
-      _disco(tester),
-      BeadStyles.azul,
+      _borda(tester),
+      const Color(0xFF89AAA3),
       reason:
-          'esta é a metade que já estava certa: azul é a cor do contar '
-          'em português, e distinguir a materna não pode custá-la',
+          'gravando, o .cdot dela tem a borda var(--azul) '
+          '(globals.css:380); o nosso era a conta azul cheia',
     );
   });
 
-  testWidgets('os outros estados do círculo ficam com as cores de antes', (
+  testWidgets('cada estado do círculo veste a borda dela, nos dois temas', (
     tester,
   ) async {
-    for (final tema in [
-      (AppTheme.light, SalaColors.light),
-      (AppTheme.dark, SalaColors.dark),
+    for (final (theme, telha, azul, areia) in [
+      (
+        AppTheme.light,
+        const Color(0xFFBE4A01),
+        const Color(0xFF89AAA3),
+        const Color(0xFFC5C29F),
+      ),
+      (
+        AppTheme.dark,
+        const Color(0xFFD6612A),
+        const Color(0xFF8FB1A9),
+        const Color(0xFF6E6A57),
+      ),
     ]) {
-      final (theme, colors) = tema;
       final deAntes = {
-        ('invite', VoiceState.invite, const NoHalt()): BeadStyles.telha(colors),
-        ('speaking', VoiceState.speaking, const NoHalt()): BeadStyles.telha(
-          colors,
-        ),
-        ('listening', VoiceState.listening, const NoHalt()): BeadStyles.azul,
-        ('thinking', VoiceState.thinking, const NoHalt()): BeadStyles.clay(
-          colors,
-        ),
-        ('done', VoiceState.done, const NoHalt()): BeadStyles.telha(colors),
+        ('invite', VoiceState.invite, const NoHalt()): telha,
+        ('speaking', VoiceState.speaking, const NoHalt()): telha,
+        ('listening', VoiceState.listening, const NoHalt()): azul,
+        ('thinking', VoiceState.thinking, const NoHalt()): areia,
+        ('done', VoiceState.done, const NoHalt()): telha,
       };
 
       for (final entrada in deAntes.entries) {
@@ -149,22 +156,23 @@ void main() {
         // respiram —, então o quadro que `pumpWidget` desenha já é qualquer outro.
         await _pumpCirculo(tester, voz, theme, halt: parada);
         expect(
-          _disco(tester),
+          _borda(tester),
           entrada.value,
           reason:
-              'um switch mexido vaza pelos ramos vizinhos, e '
-              '$nome não tem nada a ver com a língua materna',
+              'o .cdot dela troca só a borda por estado, com var(--telha), '
+              'var(--azul) e o areia de base, que no escuro são D6612A, '
+              '8FB1A9 e 6E6A57 (globals.css:6, :20, :376-384); em $nome o '
+              'nosso pintava uma conta, azul claro até no escuro',
         );
       }
 
       await _pumpCirculo(tester, VoiceState.invite, theme, peerCue: true);
       expect(
-        _disco(tester),
-        BeadStyles.telha(colors),
+        _borda(tester),
+        telha,
         reason:
-            'a deixa da equipe troca o glifo e nada mais: o disco '
-            'continua sendo o mesmo alvo de telha do convite, nos dois '
-            'temas',
+            'a deixa da equipe troca o glifo e nada mais: o anel continua '
+            'sendo o telha do convite, nos dois temas',
       );
     }
   });
@@ -179,24 +187,19 @@ void main() {
       noteMode: true,
     );
     expect(
-      _disco(tester),
-      BeadStyles.azul,
+      _borda(tester),
+      const Color(0xFF89AAA3),
       reason: 'o azul da mão continua sendo o do convite',
     );
 
     await _pumpCirculo(tester, VoiceState.done, AppTheme.light, noteMode: true);
     expect(
-      _disco(tester),
-      BeadStyles.telha(SalaColors.light),
+      _borda(tester),
+      const Color(0xFFBE4A01),
       reason:
           'no pronto a mão levantada ficava azul como no convite; o azul da '
           'Marcia está escrito só para o convite, e o pronto mantém o '
           'círculo de telha do turno ao vivo',
-    );
-    expect(
-      _sombraDoDisco(tester).withValues(alpha: 1),
-      SalaColors.light.telha,
-      reason: 'o azul da mão também vazava pela sombra do disco no pronto',
     );
   });
 
