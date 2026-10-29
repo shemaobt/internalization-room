@@ -7893,6 +7893,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void theAppWentAway() {
     _cortarAEscutaNoAr();
     _relatarAEscuta();
+    if (state.planListening != null) _silenceThePlan();
   }
 
   void startRetro() => _gesture(() => _startRetro());
