@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it), and in place on 2026-10-28 (ENG-1777: only a tap sends, and the resting place is the row)
+status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it), and in place on 2026-10-28 (ENG-1777: only a tap sends, and the resting place is the row), and in place on 2026-10-29 (ENG-2012: no copy without its row, no row without its copy)
 date: 2026-10-16
 amends: 0083, 0025
 ---
@@ -88,6 +88,14 @@ app; the Orchestrator settled the two open points the same day.
 - **A part take still waiting for its check is kept when its session goes.** It becomes a
   row with no session under its passage, offered by «enviar agora» in the passage's next
   session, so nothing is sent without a tap. Leaving the passage by hand still lets it go.
+- **No copy without its row, no row without its copy (29 October, ENG-2012).** A copy in the
+  queue folder that no row names, left by a kill between a manifest write and its copy's
+  deletion, is swept at the Outbox's next open; the copy of the take in the air and one still
+  being made are spared, and so is a copy older than a quarantined manifest, which may still
+  name it. The forget waits for every keep in flight, then deletes a take's recording only
+  when the Outbox holds its row or the room named it. A part kept when its session goes,
+  waiting for its check or for the microphone to close, takes its scene's join rows off the
+  Outbox, as the team's own keep does.
 
 ## Consequences
 

@@ -7,11 +7,12 @@ Amended by ENG-1853 (2026-10-29, João's rule of 26 October: Marcia's frozen app
 wins): a refused approval no longer takes the team to the hole it names. Hers writes the
 reason and waits; nothing plays, nothing is said and nothing is read again (`Drafting.tsx`
 `finalize` :709-718, `approve` :1598-1612). The room's order now only chooses which of her
-three texts is written (ADR 0112), and every refusal ends where the check's own door
-ended: the Back-translation as it stood before *terminei*, with *terminei* back. The untold
+three texts is written (ADR 0112), and every refusal ended where the check's own door
+ended: the Back-translation as it stood before *terminei*, with *terminei* back — until
+ENG-2028, below, which leaves the check where it stood. The untold
 stretch is not read back by name, and no part or stretch goes in the air on its own.
 Wherever this record says the team is taken to a part or a stretch, read that the team is
-shown the reason and left before *terminei*; the person's remainder, the version race and
+shown the reason and the check stays where it stood (ENG-2028); the person's remainder, the version race and
 "by the field that is there" stand.
 
 Amended by ENG-1878 (2026-10-29, the same rule): *terminei* is not a button the room can
@@ -27,6 +28,17 @@ line on the channel and an untold part of a joined recording are terms of the ga
 the check's door opens on a complete telling; a refusal that still comes back is a race,
 and where it leaves the team is ENG-1852's. Wherever this record says *terminei* comes
 back, read that it comes back under that gate.
+
+Amended by ENG-2028 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4 wins): a refused
+approval no longer leaves the check before *terminei*. Hers writes the reason and returns to
+idle on the same tell step (`Drafting.tsx` `approve` :1607): the phase, *terminei*, the
+approve button, lit, and the approved badge stay as they were, and the next press asks the
+room again. Wherever this record or its amendments say a refusal leaves the team before
+*terminei*, read that the check stays where it was. Only a last listening the press itself
+silenced at conferida counts as heard to its end, as the old landing counted it, so *terminei*
+stands for the check again as hers does; nothing else is given back, and a recording nobody
+heard to its end stays unheard, at conferida as at any other phase. The recording home's
+refusal is not changed here.
 
 ## Context
 

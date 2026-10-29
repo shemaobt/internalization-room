@@ -466,10 +466,13 @@ class FakeRecorder implements RecordingRepository {
     _holdingStop = null;
   }
 
+  Future<void>? _stopping;
+
   @override
   Future<String?> stop() async {
     final held = _holdingStop;
-    if (held != null) await held.future;
+    if (held != null) await (_stopping = held.future);
+    _stopping = null;
     _recording = false;
     if (stopThrows) {
       throw const FileSystemException('o gravador perdeu o arquivo');
@@ -510,6 +513,8 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> discard() async {
     sounds.add('recorder:discard');
+    final stopping = _stopping;
+    if (stopping != null) await stopping;
     if (!_recording) return;
     final path = await stop();
     if (path != null) deleted.add(path);
@@ -3953,6 +3958,22 @@ class FakeTakeQueue implements TakeUploadQueue {
   void beginALife() => _lifeEnded = false;
 
   @override
+  Future<void> sweepTheCopiesLeftBehind() async {}
+
+  @override
+  Future<Set<String>> recordingsItHolds(Iterable<String> recordings) async {
+    return {
+      for (final recording in recordings)
+        if (rows.any(
+          (row) =>
+              p.basenameWithoutExtension(row.path) ==
+              '${row.kind}-${p.basenameWithoutExtension(recording)}-${row.id}',
+        ))
+          recording,
+    };
+  }
+
+  @override
   Future<PendingTake> enqueue(
     File audio, {
     required String? sessionId,
@@ -4039,13 +4060,19 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  Future<void> withdrawTheJoinsOf(String sessionId, String scope) async =>
-      rows.removeWhere(
-        (entry) =>
-            entry.origin != null &&
-            entry.sessionId == sessionId &&
-            entry.scope == scope,
-      );
+  Future<void> withdrawTheJoinsOf(
+    String sessionId,
+    String scope, {
+    String? passage,
+  }) async => rows.removeWhere(
+    (entry) =>
+        entry.origin != null &&
+        (entry.sessionId == sessionId ||
+            entry.sessionId == null &&
+                passage != null &&
+                entry.passage == passage) &&
+        entry.scope == scope,
+  );
 
   @override
   Stream<void> get fallsOnTheNetwork => const Stream.empty();
