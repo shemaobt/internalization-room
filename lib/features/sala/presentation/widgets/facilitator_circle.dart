@@ -340,7 +340,7 @@ class FacilitatorCircle extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: _herEdge(colors), width: 1.5),
+        border: Border.all(color: _herEdge(colors), width: edgeWidth),
         gradient: RadialGradient(
           center: const Alignment(0, -0.08),
           radius: 0.7359,
