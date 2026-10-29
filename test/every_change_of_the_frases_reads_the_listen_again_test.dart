@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 Future<Sala> _umTrechoApontado() async {
@@ -70,4 +72,52 @@ void main() {
       const Duration(milliseconds: 3000),
     );
   });
+
+  test(
+    'a translation started over asks the room again, and makes good the ask '
+    'a told stretch lost, so a return out of reach follows the room now',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução começar a tocar a primeira parte',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing,
+      );
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await traduzirUmTrecho(it, const Duration(seconds: 3));
+      it.harness.room.failListeningWith = const NetworkFailed('sem rede');
+      await traduzirUmTrecho(it, const Duration(seconds: 6));
+      it.harness.room.failListeningWith = null;
+      _aSalaContaOTrechoDaSegunda(it);
+
+      it.sala.recomecarATraducao();
+      await settle(const Duration(milliseconds: 700));
+      it.sala.recomecarATraducao();
+      await waitFor('a tradução recomeçar', () => it.estado.btRecomecada);
+      it.harness.room.reachable = false;
+      await waitFor(
+        'a voz pedir que contem de novo',
+        () =>
+            it.harness.voice.fixedLines.contains(('P1', testLanguage)) &&
+            it.estado.btPhase == BtPhase.playing,
+      );
+
+      final antes = await _voltarAConferirSemASala(it);
+
+      expect(
+        it.harness.voice.fixedLines.skip(antes.linhas),
+        [('N2', testLanguage)],
+        reason:
+            'o recomeço não perguntava nada à sala, e a volta sem rede seguia a '
+            'resposta de antes do trecho cuja pergunta caiu',
+      );
+      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+    },
+  );
 }
