@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers)
+status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle)
 date: 2026-10-23
 ---
 
@@ -83,3 +83,18 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
   during that replay is no longer possible.
 - The mark that a part was recorded again is gone: every entry asks the room, on every recording.
 - A complete join no longer rests on the recording home: the Back-translation opens.
+
+## Amendment · 2026-10-28 (ENG-1886)
+
+Her frozen app is the rule (João, 2026-10-26), and hers draws no circle on the First listen:
+the check circle stands only on the telling (`Drafting.tsx:2404`, at 18fa7c4). Rule 3 changes:
+**the First listen draws no circle**. From the line to the room's answer after the last listed
+part the screen shows the title, the sub line, the parts, the wood play and the line
+«ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10». With no circle that line keeps its
+place in our column, under the parts and above the wood play; hers draws the play control with
+its line beside it above the parts, a difference this amendment leaves open. Nothing on the
+screen draws her voice while she speaks there, as on hers. The circle comes back
+when the listen ends, on whichever exit of rule 7 leaves it, and the rest of rule 3 stands.
+
+This retires «The circle hidden» under *Considered and rejected*: the Definer's answer (Q45)
+gives way to her app.

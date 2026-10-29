@@ -118,22 +118,24 @@ class RetroView extends ConsumerWidget {
                     )
                   : null,
             ),
-            SizedBox(height: 24 + anel),
-            FacilitatorCircle(
-              size: circulo,
-              halt: session.halt,
-              voice: voz,
-              tongue: lingua,
-              answersATouch:
-                  session.aBackTranslationGestureActs &&
-                  (!conferida || session.btRegravacao != null),
-              notUnderstood: session.wordlessTelling
-                  ? retroLabelFor('notUnderstood', language)
-                  : null,
-              semanticLabel: _circleLabel(session, language),
-              onTap: notifier.retroTap,
-            ),
-            SizedBox(height: anel),
+            if (!session.btSoOuvir) ...[
+              SizedBox(height: 24 + anel),
+              FacilitatorCircle(
+                size: circulo,
+                halt: session.halt,
+                voice: voz,
+                tongue: lingua,
+                answersATouch:
+                    session.aBackTranslationGestureActs &&
+                    (!conferida || session.btRegravacao != null),
+                notUnderstood: session.wordlessTelling
+                    ? retroLabelFor('notUnderstood', language)
+                    : null,
+                semanticLabel: _circleLabel(session, language),
+                onTap: notifier.retroTap,
+              ),
+              SizedBox(height: anel),
+            ],
             if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
               _ManterADeAntes(
@@ -750,12 +752,6 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.btSoOuvir) {
-      return retroLabelFor(
-        session.btClipRodando ? 'listening' : 'listenOnly',
-        language,
-      );
-    }
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }
