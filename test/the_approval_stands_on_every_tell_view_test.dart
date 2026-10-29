@@ -5,6 +5,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -22,14 +23,17 @@ import 'the_back_translation_is_told_by_beads_test.dart'
 
 Future<ProviderContainer> _conferidaPelaSala(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  ApprovedDraft? aprovada,
+}) async {
   final container = await entrarNaTraducao(tester, harness, partes: 1);
   harness.playback.at = cabeca;
   await tocarNoCirculo(tester);
   await gravarATraducao(tester);
   await contarAteOFimDaParte(tester, harness);
-  harness.room.readsChecked = true;
+  harness.room
+    ..readsChecked = true
+    ..approvedDraft = aprovada;
   await tocar(tester, conferir);
   await tester.pump(const Duration(milliseconds: 600));
   expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
@@ -272,6 +276,83 @@ void main() {
           'a recusa dava o fim do clipe por ouvido e o terminei acendia por '
           'cima da parte que a sala ainda não ouviu',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('while a checked telling is checked again the approve button '
+      'stays drawn but dimmed, and a check lost on the network leaves it lit', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+    harness.room
+      ..failFinishWith = const NetworkFailed('sem rede')
+      ..holdNextVerdict();
+
+    await tocar(tester, conferir);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.thinking);
+    expect(
+      byLabel(aprovar),
+      findsOneWidget,
+      reason:
+          'durante a conferência de novo o botão sumia; o dela fica, apagado',
+    );
+    expect(_aprovarAceso(tester), isFalse);
+    await _sala(container).aprovarRascunhoFinal();
+    expect(harness.room.releasesAsked, isEmpty);
+
+    harness.room.finishHeldVerdict();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(_aprovarAceso(tester), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a check asked again that finds a part still unheard keeps the '
+      'approve button, as hers keeps the passage conferida', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(tester, harness);
+
+    await _conferidaDeNovoComUmaParteNaoOuvida(tester, harness, container);
+
+    expect(
+      byLabel(aprovar),
+      findsOneWidget,
+      reason:
+          'a conferência que achava uma parte não ouvida tirava o botão; a '
+          'dela não mexe na conferida da passagem',
+    );
+    expect(_aprovarAceso(tester), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the approved badge stays on the check while its telling is '
+      'checked again, not only at the verdict', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _conferidaPelaSala(
+      tester,
+      harness,
+      aprovada: const ApprovedDraft(version: 1),
+    );
+    const selo = '✓ aprovado como rascunho final (v1)';
+    expect(find.text(selo), findsOneWidget);
+    expect(byLabel(aprovar), findsNothing);
+    harness.room.holdNextVerdict();
+
+    await tocar(tester, conferir);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.thinking);
+    expect(
+      find.text(selo),
+      findsOneWidget,
+      reason:
+          'o selo só existia na fase conferida; o dela fica sempre que '
+          'há uma versão aprovada',
+    );
+    harness.room.finishHeldVerdict();
+    await tester.pump(const Duration(milliseconds: 600));
     closeTheRoom(container);
   });
 }

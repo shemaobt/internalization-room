@@ -204,8 +204,9 @@ class RetroView extends ConsumerWidget {
                 ),
               ),
             ],
-            if (session.approvedDraftDrawn case final aprovado?
-                when session.approvalStillOpen) ...[
+            if (session.approvedOnTheTell case final aprovado?
+                when session.approvalStillOpen ||
+                    session.btPhase != BtPhase.conferida) ...[
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
