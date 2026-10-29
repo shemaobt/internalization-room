@@ -5,8 +5,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart'
-    show settle, ouvirOApontado, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
 
 /// Record one part and wait for the room to have named it.
 ///
@@ -105,7 +104,7 @@ Future<ProviderContainer> _levadaAoTrechoApontado(SalaHarness harness) async {
         container.read(salaSessionProvider).btPhase == BtPhase.playing &&
         container.read(salaSessionProvider).btVeredito,
   );
-  ouvirOApontado(container);
+  traduzirOApontadoDeNovo(container);
   await waitFor(
     'o trecho apontado estar tocando',
     () => container.read(salaSessionProvider).btTrechoTocando,
