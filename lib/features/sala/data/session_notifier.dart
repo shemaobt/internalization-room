@@ -6765,6 +6765,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     SceneScreen waiting,
   ) async {
     final generation = _waitOnTheGeneration;
+    bool movedOn() =>
+        _theSceneMovedOn(waiting, generation) ||
+        !identical(_theTranslationAsked, waiting);
     final path = await _fetchASceneClip(
       'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
       RoomRepository.sceneFraseAudioUrl(
@@ -6772,14 +6775,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal.rehearsalId,
         frase.fraseId,
       ),
-      () => _theSceneMovedOn(waiting, generation),
+      movedOn,
       generation,
       failed: (_) {},
     );
-    if (_theSceneMovedOn(waiting, generation) ||
-        !identical(_theTranslationAsked, waiting)) {
-      return;
-    }
+    if (movedOn()) return;
     state = state.copyWith(scene: shown);
     if (path != null) _play(PartSound(0, path));
   }

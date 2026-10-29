@@ -2066,4 +2066,29 @@ void main() {
       );
     },
   );
+
+  test('the circle during a frase\'s download plays on, and a translation the '
+      'disk then fails to keep writes nothing over it', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    await _listening(room);
+    final take = room.state.scene.take;
+    room.harness.room.holdNextClip();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    await _circle(room);
+    room.harness.recorder.keepBytesFails = true;
+    room.harness.room.finishHeldClip();
+    await settle();
+
+    expect(
+      room.state.sceneLine,
+      isNull,
+      reason: 'o disco da tradução calada escrevia por cima do círculo',
+    );
+    expect(room.state.channel, isA<PartPlaying>());
+    expect(room.harness.playback.played.last, take);
+  });
 }
