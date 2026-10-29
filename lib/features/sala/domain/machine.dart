@@ -355,6 +355,17 @@ final class TheSessionOpened extends AnsweringEvent {
   const TheSessionOpened(this.session, {super.generation});
 }
 
+final class ThePanoramaFound extends AnsweringEvent {
+  final String session;
+  final bool opened;
+
+  const ThePanoramaFound(
+    this.session, {
+    required this.opened,
+    super.generation,
+  });
+}
+
 final class TheSessionLetGo extends MachineEvent {
   final String session;
 
@@ -795,6 +806,10 @@ final class OpenThePanorama extends LifecycleHandOff {
 /// The Panorama comes back in silence: its line was said on the session it still holds.
 final class ReturnToThePanorama extends LifecycleHandOff {
   const ReturnToThePanorama();
+}
+
+final class RestOnThePanorama extends LifecycleHandOff {
+  const RestOnThePanorama();
 }
 
 final class EnterThePassageLeft extends LifecycleHandOff {
@@ -1537,6 +1552,19 @@ const _watch = ArmTheWatch();
     },
     const [_watch],
   ),
+  ThePanoramaFound(:final session, :final opened) => switch (machine.panorama) {
+    final HeldPanorama held when machine.station is Panorama => (
+      machine.copyWith(
+        panorama: HeldPanorama(held.id, held.language, session: session),
+      ),
+      [
+        _watch,
+        if (opened) const RestOnThePanorama(),
+        if (!opened) OpenThePanorama(held.id, held.language),
+      ],
+    ),
+    _ => (machine, const []),
+  },
   TheSessionLetGo(:final session) => switch (machine.panorama) {
     final HeldPanorama held when held.session == session => (
       machine.copyWith(panorama: HeldPanorama(held.id, held.language)),
@@ -2240,6 +2268,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   TheRehearsalWeighed() ||
   ThePanoramaAsked() ||
   TheSessionOpened() ||
+  ThePanoramaFound() ||
   TheSessionLetGo() ||
   TheWayBackTaken() ||
   TheLeftPassageReturns() => (halt, const []),
