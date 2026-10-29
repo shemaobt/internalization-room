@@ -84,8 +84,10 @@ Her frozen app is the rule (João, 2026-10-26), and hers draws no circle on the 
 the check circle stands only on the telling (`Drafting.tsx:2404`, at 18fa7c4). Rule 3 changes:
 **the First listen draws no circle**. From the line to the room's answer after the last listed
 part the screen shows the title, the sub line, the parts, the wood play and the line
-«ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10», which now stands under the parts.
-Nothing on the screen draws her voice while she speaks there, as on hers. The circle comes back
+«ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10». With no circle that line keeps its
+place in our column, under the parts and above the wood play; hers draws the play control with
+its line beside it above the parts, a difference this amendment leaves open. Nothing on the
+screen draws her voice while she speaks there, as on hers. The circle comes back
 when the listen ends, on whichever exit of rule 7 leaves it, and the rest of rule 3 stands.
 
 This retires «The circle hidden» under *Considered and rejected*: the Definer's answer (Q45)
