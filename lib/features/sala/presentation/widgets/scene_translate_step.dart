@@ -371,6 +371,8 @@ class ScenePlacesUnknown extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        SceneSub(said('subTranslate')),
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _Written(

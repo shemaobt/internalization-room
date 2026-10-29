@@ -498,6 +498,49 @@ void main() {
     );
   }
 
+  for (final (language, instruction, line) in [
+    (
+      'pt',
+      'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+          'acaba, e de novo para traduzir só aquela frase.',
+      'as frases já traduzidas não estão neste computador — toquem em terminei '
+          'para enviar, ou recomecem a tradução',
+    ),
+    (
+      'en',
+      'Listen to the scene rehearsal; tap the circle to pause where the phrase '
+          'ends, and again to translate only that phrase.',
+      'the phrases already translated are not on this computer — tap done to '
+          'send them, or start the translation over',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a scene rehearsal whose frase places cannot be read writes the translate step\'s instruction above her line, not her line alone',
+      (tester) async {
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 12000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.placesUnknown,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(instruction),
+          findsOneWidget,
+          reason: 'a tela de lugares desconhecidos não dizia o que fazer',
+        );
+        expect(byLabel(instruction), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text(instruction)).dy,
+          lessThan(tester.getTopLeft(find.text(line)).dy),
+        );
+      },
+    );
+  }
+
   testWidgets(
     'on a phone her places-unknown line keeps 16 points on each side',
     (tester) async {
