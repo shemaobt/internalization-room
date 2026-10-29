@@ -1410,6 +1410,83 @@ void main() {
     },
   );
 
+  testWidgets(
+    'an armed «usar este» fills with her telha, waking it shows at .55, and '
+    'while a swap runs the others rest at .35',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+      BoxDecoration pillOf(int n) =>
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: it.use(n),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      double seen(int n) {
+        var opacity = 1.0;
+        find
+            .descendant(of: it.use(n), matching: find.text(_useThis))
+            .evaluate()
+            .first
+            .visitAncestorElements((ancestor) {
+              if (ancestor.widget case final Opacity dim) {
+                opacity *= dim.opacity;
+              }
+              return true;
+            });
+        return opacity;
+      }
+
+      const telha = Color(0xFFBE4A01);
+      await it.tapThe(it.use(s2b));
+      expect(
+        pillOf(s2b).color,
+        telha,
+        reason: 'armada, «usar este» só esmaecia, sem o telha dela',
+      );
+      expect(pillOf(s2b).border, Border.all(color: telha, width: 1.4));
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(of: it.use(s2b), matching: find.text(_useThis)),
+            )
+            .style!
+            .color,
+        const Color(0xFFF6F5EB),
+      );
+      expect(
+        seen(s2b),
+        closeTo(0.55, 0.001),
+        reason: 'acordando, ela mostra a .55, não a .5',
+      );
+      expect(pillOf(s2c).color, isNull);
+
+      await it.wait(const Duration(milliseconds: 700));
+      expect(pillOf(s2b).color, telha);
+      expect(seen(s2b), closeTo(1, 0.001));
+
+      it.holdTheTake('parte-2');
+      await it.tapThe(it.use(s2b));
+      await it.theHeldTakeArrives();
+      expect(
+        seen(s2c),
+        closeTo(0.35, 0.001),
+        reason: 'com a troca no ar, «usar este» seguia aceso',
+      );
+      it.room.finishHeldTake();
+      await it.swapLands();
+      semantics.dispose();
+    },
+  );
+
   testWidgets('while a swap runs nothing else starts', (tester) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);

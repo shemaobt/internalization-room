@@ -24,6 +24,7 @@ class RehearsalSheet extends ConsumerWidget {
   final bool Function(SceneRehearsalRecord) offersToUse;
   final String? Function(SceneRehearsalRecord)? noteOf;
   final String Function(SceneRehearsalRecord)? useLabelOf;
+  final bool Function(SceneRehearsalRecord)? armedOf;
   final bool Function(SceneRehearsalRecord)? wakingOf;
   final VoidCallback? onRecordAgain;
 
@@ -39,6 +40,7 @@ class RehearsalSheet extends ConsumerWidget {
     required this.offersToUse,
     this.noteOf,
     this.useLabelOf,
+    this.armedOf,
     this.wakingOf,
     this.onRecordAgain,
   });
@@ -103,6 +105,7 @@ class RehearsalSheet extends ConsumerWidget {
                             noteOf?.call(candidate) ?? _cannotEnter(candidate),
                         useLabel:
                             useLabelOf?.call(candidate) ?? said('useThis'),
+                        armed: armedOf?.call(candidate) ?? false,
                         waking: wakingOf?.call(candidate) ?? false,
                         playing:
                             listening?.rehearsalId == candidate.rehearsalId,
@@ -178,6 +181,7 @@ class _SheetLine extends StatelessWidget {
   final bool offersToUse;
   final String? note;
   final String useLabel;
+  final bool armed;
   final bool waking;
   final bool playing;
   final String language;
@@ -191,6 +195,7 @@ class _SheetLine extends StatelessWidget {
     required this.offersToUse,
     required this.note,
     required this.useLabel,
+    required this.armed,
     required this.waking,
     required this.playing,
     required this.language,
@@ -302,7 +307,11 @@ class _SheetLine extends StatelessWidget {
                     onTap: usable ? onUse : null,
                     excludeSemantics: true,
                     child: Opacity(
-                      opacity: waking ? 0.5 : 1,
+                      opacity: busy
+                          ? 0.35
+                          : waking
+                          ? 0.55
+                          : 1,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: usable ? onUse : null,
@@ -312,13 +321,17 @@ class _SheetLine extends StatelessWidget {
                             horizontal: 1.1 * _rem,
                           ),
                           decoration: BoxDecoration(
-                            border: Border.all(color: colors.areia, width: 1.4),
+                            color: armed ? colors.telha : null,
+                            border: Border.all(
+                              color: armed ? colors.telha : colors.areia,
+                              width: 1.4,
+                            ),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             useLabel,
                             style: TextStyle(
-                              color: colors.verdeClaro,
+                              color: armed ? colors.paper : colors.verdeClaro,
                               fontSize: 0.84 * _rem,
                             ),
                           ),

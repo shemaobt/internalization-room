@@ -335,6 +335,7 @@ class EnsaioView extends ConsumerWidget {
       useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
           ? retroLabelFor('reopenArmed', language)
           : said('useThis'),
+      armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
       onRecordAgain: notifier.rehearseThisSceneAgain,
