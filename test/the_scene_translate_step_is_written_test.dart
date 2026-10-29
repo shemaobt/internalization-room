@@ -1192,6 +1192,88 @@ void main() {
     },
   );
 
+  for (final (language, translate, play, hearThePause, marked, heard) in [
+    (
+      'pt',
+      'traduzir o ensaio da cena',
+      'Tocar ou pausar a gravação',
+      'ouvir a pausa',
+      'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir — 0:07 / 0:10',
+      'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir — 0:06 / 0:10',
+    ),
+    (
+      'en',
+      'translate the scene rehearsal',
+      'Play or pause your recording',
+      'hear the pause',
+      'the pause is here — listen, move it if you need to, then tap the circle to translate — 0:07 / 0:10',
+      'the pause is here — listen, move it if you need to, then tap the circle to translate — 0:06 / 0:10',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a pausa marked carries her clock where the take stopped, and the live clock while «ouvir a pausa» plays',
+      (tester) async {
+        final (harness, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) =>
+              state.scene.step == SceneStep.translate &&
+              state.sceneEnvelope != null,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        await tester.tap(find.text(translate));
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        harness.playback.at = const Duration(seconds: 7);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(byLabel(play));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).scene.pausa != null,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          container.read(salaSessionProvider).scene.pausa,
+          const Duration(seconds: 7),
+        );
+
+        expect(
+          find.text(marked),
+          findsOneWidget,
+          reason: 'a pausa marcada apagava o relógio do take',
+        );
+        expect(byLabel(marked), findsOneWidget);
+
+        await tester.tap(byLabel(hearThePause));
+        await pumpUntil(
+          tester,
+          () => switch (container.read(salaSessionProvider).channel) {
+            PartPlaying(:final opened) => opened,
+            _ => false,
+          },
+        );
+        expect(harness.playback.ranges.last, '5500-7000');
+        harness.playback.at = const Duration(seconds: 1);
+        await tester.pump(const Duration(milliseconds: 1100));
+
+        expect(
+          find.text(heard),
+          findsOneWidget,
+          reason: '«ouvir a pausa» tocava sem dizer onde o take estava',
+        );
+      },
+    );
+  }
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 

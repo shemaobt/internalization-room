@@ -437,12 +437,14 @@ String _sceneClockLineFor(
   Duration at,
   Duration? length,
   String language,
-) {
+) =>
+    '${sceneRehearsalLabelFor(control, language)} — ${sceneClockOf(at, length)}';
+
+String sceneClockOf(Duration at, Duration? length) {
   final ofTheTake = length != null && length > Duration.zero
       ? ' / ${minutesAndSecondsOf(length)}'
       : '';
-  return '${sceneRehearsalLabelFor(control, language)} — '
-      '${minutesAndSecondsOf(at)}$ofTheTake';
+  return '${minutesAndSecondsOf(at)}$ofTheTake';
 }
 
 /// A scene button's name: «cena N» and the scene's title.

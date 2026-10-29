@@ -128,7 +128,7 @@ void main() {
         await screen.tellsTheFrase();
 
         expect(screen.shows(_notUnderstood), isTrue);
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:06 / 0:10'), findsOneWidget);
         expect(_rowsIn(screen.harness), rows);
       },
     );

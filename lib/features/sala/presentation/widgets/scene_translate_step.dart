@@ -260,10 +260,14 @@ class SceneTranslateStep extends ConsumerWidget {
       if (end != null && pausa >= end) {
         return sceneRehearsalLabelFor('ended', language);
       }
-      return retroLabelFor(
+      final words = retroLabelFor(
         envelope == null ? 'pauseAtTheTap' : 'pauseHint',
         language,
       );
+      final clock = playing ? at : stoppedAt;
+      return clock == null
+          ? words
+          : '$words — ${sceneClockOf(clock, scene.length)}';
     }
     if (playing) return sceneListeningLineFor(at, scene.length, language);
     if (!scene.moreToTell) return sceneRehearsalLabelFor('ended', language);

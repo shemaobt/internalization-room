@@ -314,7 +314,7 @@ void main() {
     testWidgets('a take kept as m4a shows no adjust row', (tester) async {
       final screen = await _aPausaAt(tester, 5.0, take: _anM4aTake);
 
-      expect(screen.shows(_pausaAtTheTap), isTrue);
+      expect(screen.shows('$_pausaAtTheTap — 0:05 / 0:10'), isTrue);
       expect(screen.shows(_earlier), isFalse);
     });
   });
