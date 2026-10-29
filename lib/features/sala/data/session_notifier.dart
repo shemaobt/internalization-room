@@ -9771,6 +9771,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final seguir =
         state.btPhase == BtPhase.playing &&
         state.btTraducaoPendente == pendente &&
+        state.btRegravacao == null &&
         _theRefusalLandsOn(snapshot, alvo, sent);
     _applyTheSessionRead(snapshot, sent);
     if (seguir) await _confirmarTraducao();
