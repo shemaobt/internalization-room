@@ -61,6 +61,8 @@ class RetroView extends ConsumerWidget {
         ? _linha(session, language)
         : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
+    final circulo = herCircleSize(MediaQuery.sizeOf(context), 38, 150);
+    final anel = circulo * facilitatorRippleGrowth / 2;
     final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
@@ -116,9 +118,9 @@ class RetroView extends ConsumerWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24 + anel),
             FacilitatorCircle(
-              size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
+              size: circulo,
               halt: session.halt,
               voice: voz,
               tongue: lingua,
@@ -131,6 +133,7 @@ class RetroView extends ConsumerWidget {
               semanticLabel: _circleLabel(session, language),
               onTap: notifier.retroTap,
             ),
+            SizedBox(height: anel),
             if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
               _ManterADeAntes(

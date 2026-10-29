@@ -121,6 +121,7 @@ ButtonMood _humor(WidgetTester tester, String rotulo) => tester
     .mood;
 
 Future<void> _tocar(WidgetTester tester, [String rotulo = _aprovar]) async {
+  await tester.ensureVisible(byLabel(rotulo));
   await tester.tap(byLabel(rotulo));
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(milliseconds: 300));
