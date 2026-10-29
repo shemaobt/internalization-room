@@ -67,8 +67,10 @@ class _Room {
     final found => found.single.widget as Text,
   };
 
+  void tap() => view == PanoramaView ? sala.panoramaTap() : sala.conversaTap();
+
   Future<void> theTeamOpensItsTake() async {
-    view == PanoramaView ? sala.panoramaTap() : sala.conversaTap();
+    tap();
     await until(
       'o microfone abrir',
       () => estado.voice == VoiceState.listening,
@@ -395,9 +397,7 @@ void main() {
         expect(room.circleListens, isTrue);
 
         room.harness.recorder.stopThrows = true;
-        room.view == PanoramaView
-            ? room.sala.panoramaTap()
-            : room.sala.conversaTap();
+        room.tap();
         await room.beat(300);
         expect(room.estado.channel, isA<Microphone>());
         expect(
