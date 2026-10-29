@@ -234,7 +234,11 @@ void main() {
     await _pumpCircle(tester, VoiceState.thinking, canvas: true);
     final breath = find.descendant(
       of: find.byType(FacilitatorCircle),
-      matching: find.byType(Loop),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Loop &&
+            widget.period == const Duration(milliseconds: 2400),
+      ),
     );
     List<double> drawn() => [
       tester
