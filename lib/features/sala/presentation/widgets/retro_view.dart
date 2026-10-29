@@ -671,12 +671,14 @@ class RetroView extends ConsumerWidget {
             ),
             const SizedBox(width: 24),
             if (session.approvedDraftDrawn case final aprovado?)
-              Text(
-                retroLabelFor('approvedDraft', language, n: aprovado.version),
-                style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  retroLabelFor('approvedDraft', language, n: aprovado.version),
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               )
             else
