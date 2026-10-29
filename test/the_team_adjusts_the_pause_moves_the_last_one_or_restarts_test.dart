@@ -471,6 +471,34 @@ void main() {
     );
 
     testWidgets(
+      'play with the last frase\'s pause on the move at the take\'s end plays «ouvir a pausa»',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([
+            _frase('f1', 0, 4000),
+            _frase('f2', 4000, 10000),
+          ]),
+        );
+        await screen.listens();
+        await screen.tap(_bar(2));
+        screen.playback.finishPlayback();
+        await screen.beat();
+        final plays = screen.playback.playedFrom.length;
+
+        await screen.tap(_playPause);
+
+        expect(
+          screen.playback.ranges.last,
+          '8500-10000',
+          reason: 'o play tocava do fim da gravação e não se ouvia nada',
+        );
+        expect(screen.playback.playedFrom, hasLength(plays));
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+      },
+    );
+
+    testWidgets(
       'a moved pause waiting to be sent again cannot be moved or heard, and the circle sends it at its end',
       (tester) async {
         final screen = await _theLastBarTapped(tester);
