@@ -32,6 +32,7 @@ class EnsaioFinalPlanView extends ConsumerStatefulWidget {
 
 class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
   int _cardAt = 0;
+  String? _lastLabelled;
 
   @override
   Widget build(BuildContext context) {
@@ -179,11 +180,17 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                   playing:
                       session.planListening?.rehearsalId ==
                       unlabelled.rehearsalId,
-                  failed: session.labelLine,
+                  failed:
+                      session.labelLine &&
+                      _lastLabelled == unlabelled.rehearsalId,
                   previous: at > 0 ? unlabelledOnes[at - 1] : null,
                   next: at + 1 < unlabelledOnes.length
                       ? unlabelledOnes[at + 1]
                       : null,
+                  onLabel: (sceneId) {
+                    _lastLabelled = unlabelled.rehearsalId;
+                    notifier.labelTheRehearsal(unlabelled.rehearsalId, sceneId);
+                  },
                   onPrevious: () => setState(() => _cardAt = at - 1),
                   onNext: () => setState(() => _cardAt = at + 1),
                 ),
@@ -401,6 +408,7 @@ class _UnlabelledCard extends ConsumerWidget {
   final bool failed;
   final SceneRehearsalRecord? previous;
   final SceneRehearsalRecord? next;
+  final void Function(String sceneId) onLabel;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
 
@@ -413,6 +421,7 @@ class _UnlabelledCard extends ConsumerWidget {
     required this.failed,
     required this.previous,
     required this.next,
+    required this.onLabel,
     required this.onPrevious,
     required this.onNext,
   });
@@ -512,10 +521,7 @@ class _UnlabelledCard extends ConsumerWidget {
                       label: sceneButtonLabelFor(i + 1, scene.title, language),
                       number: i + 1,
                       highlighted: false,
-                      onTap: () => notifier.labelTheRehearsal(
-                        rehearsal.rehearsalId,
-                        scene.sceneId,
-                      ),
+                      onTap: () => onLabel(scene.sceneId),
                     ),
                   ),
                 ),
@@ -560,6 +566,7 @@ class _StepControl extends StatelessWidget {
       button: true,
       enabled: !busy,
       label: planRowFactsFor(toward, language),
+      onTap: busy ? null : onTap,
       excludeSemantics: true,
       child: Opacity(
         opacity: busy ? 0.5 : 1,

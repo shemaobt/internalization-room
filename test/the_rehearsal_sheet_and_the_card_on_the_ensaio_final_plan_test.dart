@@ -1344,7 +1344,7 @@ void main() {
   );
 
   testWidgets(
-    '1. the card steps through every unlabelled rehearsal of the session, '
+    'the card steps through every unlabelled rehearsal of the session, '
     'oldest first, with next and previous',
     (tester) async {
       final semantics = tester.ensureSemantics();
@@ -1364,7 +1364,7 @@ void main() {
   );
 
   testWidgets(
-    '2. previous stands before the play and next after the facts, as hers',
+    'previous stands before the play and next after the facts, as hers',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await _seeded(tester, _threeUnlabelled);
@@ -1379,28 +1379,25 @@ void main() {
     },
   );
 
-  testWidgets(
-    '3. at the oldest rehearsal the card offers no previous, and at the '
-    'newest no next',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      await _seeded(tester, _threeUnlabelled);
-      await _openThePlan(tester);
+  testWidgets('at the oldest rehearsal the card offers no previous, and at the '
+      'newest no next', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _seeded(tester, _threeUnlabelled);
+    await _openThePlan(tester);
 
-      expect(_step(5), findsOneWidget);
-      expect(_step(4), findsNothing);
-      expect(_step(6), findsNothing);
-      await _stepTo(tester, 5);
-      await _stepTo(tester, 6);
-      expect(_step(5), findsOneWidget);
-      expect(_step(4), findsNothing);
-      expect(_step(6), findsNothing);
-      semantics.dispose();
-    },
-  );
+    expect(_step(5), findsOneWidget);
+    expect(_step(4), findsNothing);
+    expect(_step(6), findsNothing);
+    await _stepTo(tester, 5);
+    await _stepTo(tester, 6);
+    expect(_step(5), findsOneWidget);
+    expect(_step(4), findsNothing);
+    expect(_step(6), findsNothing);
+    semantics.dispose();
+  });
 
   testWidgets(
-    '4. a card with one unlabelled rehearsal offers neither previous nor next',
+    'a card with one unlabelled rehearsal offers neither previous nor next',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await _seeded(
@@ -1421,7 +1418,7 @@ void main() {
   );
 
   testWidgets(
-    '5. each step is named by the rehearsal it goes to, in her English in an '
+    'each step is named by the rehearsal it goes to, in her English in an '
     'English room',
     (tester) async {
       final semantics = tester.ensureSemantics();
@@ -1446,7 +1443,7 @@ void main() {
   );
 
   testWidgets(
-    '6. placing a stepped-to rehearsal labels that rehearsal and moves the '
+    'placing a stepped-to rehearsal labels that rehearsal and moves the '
     'card to the next remaining',
     (tester) async {
       final semantics = tester.ensureSemantics();
@@ -1468,7 +1465,7 @@ void main() {
   );
 
   testWidgets(
-    '7. placing the newest rehearsal moves the card back to the one before it',
+    'placing the newest rehearsal moves the card back to the one before it',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final (harness, _) = await _seeded(tester, _threeUnlabelled);
@@ -1490,7 +1487,7 @@ void main() {
   );
 
   testWidgets(
-    '8. the card keeps the rehearsal it stepped to across a scene\'s sheet',
+    'the card keeps the rehearsal it stepped to across a scene\'s sheet',
     (tester) async {
       final semantics = tester.ensureSemantics();
       await _seeded(tester, _threeUnlabelled);
@@ -1505,7 +1502,7 @@ void main() {
     },
   );
 
-  testWidgets('9. the steps rest while a label is in the air', (tester) async {
+  testWidgets('the steps rest while a label is in the air', (tester) async {
     final semantics = tester.ensureSemantics();
     final (harness, _) = await _seeded(tester, _threeUnlabelled);
     await _openThePlan(tester);
@@ -1528,9 +1525,7 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('10. a relaunch opens the card on the oldest again', (
-    tester,
-  ) async {
+  testWidgets('a relaunch opens the card on the oldest again', (tester) async {
     final semantics = tester.ensureSemantics();
     final (harness, container) = await _seeded(tester, _threeUnlabelled);
     await _openThePlan(tester);
@@ -1542,6 +1537,37 @@ void main() {
     await _openThePlan(tester);
 
     expect(_shows(4), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('a step is pressed through its semantics action', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _seeded(tester, _threeUnlabelled);
+    await _openThePlan(tester);
+
+    tester.semantics.tap(find.semantics.byLabel(_facts(5)));
+    await _theAnswerSettles(tester);
+
+    expect(_shows(5), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('a refused label shows its line only on the rehearsal refused', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final (harness, _) = await _seeded(tester, _threeUnlabelled);
+    await _openThePlan(tester);
+    harness.room.labelAnswersFirst.add(const NetworkFailed('sem rede'));
+
+    await _tapLabel(tester, _sceneButton(2));
+    expect(_onCard(find.text(_labelFailed)), findsOneWidget);
+
+    await _stepTo(tester, 5);
+    expect(_onCard(find.text(_labelFailed)), findsNothing);
+
+    await _stepTo(tester, 4);
+    expect(_onCard(find.text(_labelFailed)), findsOneWidget);
     semantics.dispose();
   });
 
