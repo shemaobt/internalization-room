@@ -4,6 +4,7 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
 const _side = 217.5;
 
@@ -11,6 +12,7 @@ Widget _circle(
   VoiceState voice, {
   required bool canvas,
   bool peerCue = false,
+  bool noteMode = false,
   bool still = false,
   Halt halt = const NoHalt(),
   Key? key,
@@ -25,6 +27,7 @@ Widget _circle(
           size: _side,
           voice: voice,
           peerCue: peerCue,
+          noteMode: noteMode,
           canvas: canvas,
           halt: halt,
           semanticLabel: 'circulo',
@@ -73,7 +76,72 @@ double _scaleAbove(WidgetTester tester, Finder what) => tester
     )
     .fold(1.0, (scale, move) => scale * move.transform.storage[0]);
 
+final _rippleRings = find.descendant(
+  of: find.byType(Ripple),
+  matching: find.byType(Container),
+);
+
+int _paintedRipples(WidgetTester tester) => _rippleRings
+    .evaluate()
+    .where(
+      (ring) =>
+          ((ring.widget as Container).decoration! as BoxDecoration)
+                  .border!
+                  .top
+                  .color
+                  .a *
+              _seen(tester, find.byWidget(ring.widget)) >
+          0,
+    )
+    .length;
+
+List<double> _rippleScales(WidgetTester tester) => [
+  for (final ring in _rippleRings.evaluate())
+    _scaleAbove(tester, find.byWidget(ring.widget)),
+];
+
 void main() {
+  testWidgets('her canvas rings start one at a time, 1.07 s apart, and then '
+      'keep the rhythm they had, also while a note is left', (tester) async {
+    for (final noteMode in [false, true]) {
+      final same = ValueKey('o mesmo canvas ouvindo $noteMode');
+      await tester.pumpWidget(
+        _circle(VoiceState.invite, canvas: true, noteMode: noteMode, key: same),
+      );
+      await tester.pumpWidget(
+        _circle(
+          VoiceState.listening,
+          canvas: true,
+          noteMode: noteMode,
+          key: same,
+        ),
+      );
+
+      for (final (step, rings) in [(500, 1), (1000, 2), (1000, 3)]) {
+        await tester.pump(Duration(milliseconds: step));
+        expect(
+          _paintedRipples(tester),
+          rings,
+          reason:
+              'os .ripple r2 e r3 dela esperam 1,07 s e 2,14 s em opacidade 0 '
+              '(globals.css:119,200-201,172-173); os nossos três já nasciam '
+              'juntos, dois deles no meio do caminho',
+        );
+      }
+
+      for (final step in [700, 1070, 1070]) {
+        await tester.pump(Duration(milliseconds: step));
+        expect(
+          _rippleScales(tester),
+          contains(closeTo(.62, 1e-6)),
+          reason:
+              'depois da espera cada anel renasce em .62 (globals.css:202) a '
+              'cada 3,2 s: r1 aos 3,2 s, r2 aos 4,27 s, r3 aos 5,34 s',
+        );
+      }
+    }
+  });
+
   testWidgets('her canvas circle rests on a 6.5 s breath that reaches 1.035, '
       'at invite, at done and while the team talks', (tester) async {
     for (final (name, voice, peerCue) in [

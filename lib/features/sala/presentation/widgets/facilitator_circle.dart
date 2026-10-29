@@ -79,8 +79,8 @@ class FacilitatorCircle extends StatelessWidget {
       children: [
         if (!_halted && !still && voice == VoiceState.listening)
           ...canvas
-              ? _herRipples(colors, 3200, const [0, 0.665625, 0.33125])
-              : _herRipples(colors, 3000, const [0, 0.5]),
+              ? _herRipples(colors, 3200, const [0, 1070, 2140])
+              : _herRipples(colors, 3000, const [0, 1500]),
         if (canvas && voice == VoiceState.thinking)
           KeyedSubtree(
             key: const ValueKey(VoiceState.thinking),
@@ -358,10 +358,10 @@ class FacilitatorCircle extends StatelessWidget {
     );
   }
 
-  List<Widget> _herRipples(SalaColors colors, int period, List<double> phases) {
-    Widget ring(double phase) => Ripple(
+  List<Widget> _herRipples(SalaColors colors, int period, List<int> waits) {
+    Widget ring(int wait) => Ripple(
       period: Duration(milliseconds: period),
-      phase: phase,
+      delay: Duration(milliseconds: wait),
       curve: Curves.linear,
       builder: (context, t) => Transform.scale(
         scale: 0.62 + 0.88 * Curves.easeOut.transform(t),
@@ -378,7 +378,7 @@ class FacilitatorCircle extends StatelessWidget {
         ),
       ),
     );
-    return [for (final phase in phases) ring(phase)];
+    return [for (final wait in waits) ring(wait)];
   }
 
   Widget _herLight(double alpha, double reach) => OverflowBox(

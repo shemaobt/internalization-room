@@ -176,7 +176,7 @@ void main() {
   });
 
   testWidgets('while the team speaks her two blue-green ripples grow out of '
-      'the check ring every 3 s, half a turn apart, in every tongue', (
+      'the check ring every 3 s, the second one 1.5 s later, in every tongue', (
     tester,
   ) async {
     List<(double, BorderSide)> ripples() => [
@@ -186,7 +186,16 @@ void main() {
                 of: find.byType(FacilitatorCircle),
                 matching: find.byType(Ripple),
               )
-              .evaluate())
+              .evaluate()
+              .where(
+                (ripple) => find
+                    .descendant(
+                      of: find.byWidget(ripple.widget),
+                      matching: find.byType(Transform),
+                    )
+                    .evaluate()
+                    .isNotEmpty,
+              ))
         (
           tester
               .widget<Transform>(
@@ -223,8 +232,10 @@ void main() {
       );
       expect(
         ripples(),
-        hasLength(2),
-        reason: 'ela tem dois .ring, r1 e r2 (globals.css:381-382)',
+        hasLength(1),
+        reason:
+            'o r2 dela espera 1,5 s em opacidade 0 (globals.css:376,382); o '
+            'nosso já nascia junto com o r1, no meio do caminho',
       );
       final (born, side) = ripples().first;
       expect(born, closeTo(.62, 1e-3), reason: 'o ripple dela nasce em .62');
@@ -240,6 +251,19 @@ void main() {
         reason:
             'os anéis dela crescem para fora (.62 → 1.5, :202); em $tongue '
             'os nossos se fechavam para dentro',
+      );
+
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(
+        ripples(),
+        hasLength(1),
+        reason: 'ao fim de 1 s o r2 dela ainda espera',
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(
+        ripples(),
+        hasLength(2),
+        reason: 'ela tem dois .ring, r1 e r2 (globals.css:381-382)',
       );
 
       final now = scales();

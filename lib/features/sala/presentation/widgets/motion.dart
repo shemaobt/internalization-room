@@ -141,6 +141,7 @@ class _LoopState extends State<Loop> {
 class Ripple extends StatefulWidget {
   final Duration period;
   final double phase;
+  final Duration delay;
   final Curve curve;
   final Widget Function(BuildContext context, double t) builder;
 
@@ -149,6 +150,7 @@ class Ripple extends StatefulWidget {
     required this.period,
     required this.builder,
     this.phase = 0,
+    this.delay = Duration.zero,
     this.curve = Curves.easeOut,
   });
 
@@ -208,8 +210,9 @@ class _RippleState extends State<Ripple> {
     }
     final now = SchedulerBinding.instance.currentFrameTimeStamp;
     final start = _start ??= now;
-    final sweep =
-        (_phase + (now - start).inMicroseconds / _period.inMicroseconds) % 1;
+    final waited = now - start - widget.delay;
+    if (waited.isNegative) return const SizedBox.shrink();
+    final sweep = (_phase + waited.inMicroseconds / _period.inMicroseconds) % 1;
     return widget.builder(context, widget.curve.transform(sweep));
   }
 }
