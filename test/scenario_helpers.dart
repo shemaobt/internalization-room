@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -21,6 +21,29 @@ import 'fakes.dart';
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
+
+Future<void> withRealLetters() async {
+  final fonts =
+      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
+  final roboto = FontLoader('Roboto');
+  for (final weight in ['Regular', 'Medium', 'Bold']) {
+    roboto.addFont(
+      File(
+        '$fonts/Roboto-$weight.ttf',
+      ).readAsBytes().then(ByteData.sublistView),
+    );
+  }
+  await roboto.load();
+}
+
+void onAScreen(WidgetTester tester, Size screen, {required double bar}) {
+  tester.view
+    ..physicalSize = screen
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(top: bar)
+    ..viewPadding = FakeViewPadding(top: bar);
+  addTearDown(tester.view.reset);
+}
 
 Finder onTheCircle(String label) => find.descendant(
   of: find.byType(FacilitatorCircle),

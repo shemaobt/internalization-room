@@ -86,7 +86,7 @@ work is built on the machine. The one written exception: the Retro screen keeps 
 `btFindings`, `btConferindo`, `btRecusa`, `btVeredito`, `armedTap`, `btAviso`, `btRecomecada`,
 `btPausaSoNaUltima`, `btRegravacao`, `btFraseQueAguarda`, `btFraseGuardada`, `btRascunhoAprovado`, `btChecked`, `btSoOuvir`, `btAprovando`, `btAprovadoAgora` and `ensaioSalvo` included, its report
 that the verdict was heard, and the Listening ledger's reports with `_oQueFaltaOuvir`,
-`_partesDaEscuta`, `_umaParteFoiRegravada`, `_aTraducaoJaFoiDeixada` and the armed tap's `_armHandedOver`, until after the 2 November tablet freeze
+`_aEscutaRecomecaEm`, `_umaParteFoiRegravada`, `_aTraducaoJaFoiDeixada` and the armed tap's `_armHandedOver`, until after the 2 November tablet freeze
 (ADR 0046).
 
 ## The weakest device
