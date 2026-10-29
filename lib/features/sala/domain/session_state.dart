@@ -897,9 +897,11 @@ class SalaSessionState {
   bool get recordsTheWhole => grain == Grain.whole;
 
   /// The row a recording of [scopeId] stands on: the whole is the one row while the
-  /// passage is recorded whole, and no row otherwise.
+  /// passage is recorded whole, row 0 while the room names no grain, and no row otherwise.
   int? rowOf(String scopeId) => recordsTheWhole
       ? (scopeId == KeptScope.whole ? 1 : null)
+      : scopeId == KeptScope.whole && grainInForce == null
+      ? 0
       : KeptScope.numberOf(scopeId);
 
   /// Whether the grain in force is known and gives a recording of [scopeId] no row.
@@ -907,8 +909,9 @@ class SalaSessionState {
       grainInForce != null && rowOf(scopeId) == null;
 
   /// The scope a recording on row [number] is kept under, at the grain in force.
-  String scopeOfRow(int number) =>
-      recordsTheWhole ? KeptScope.whole : KeptScope.parte(number);
+  String scopeOfRow(int number) => recordsTheWhole || number == 0
+      ? KeptScope.whole
+      : KeptScope.parte(number);
 
   /// «gravar a passagem inteira de uma vez» takes the Armed tap only when it would leave
   /// something behind: an approved draft, or a part that came from a join.

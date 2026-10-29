@@ -598,6 +598,42 @@ void main() {
   );
 
   testWidgets(
+    'a whole-passage take an earlier visit kept on the tablet is offered on the '
+    'choice by the passage\'s name, never as a scene',
+    (tester) async {
+      final audio = _anAudioFile(KeptScope.whole);
+      final (harness, container) = await _reopened(
+        tester,
+        stage: SalaStage.ensaio,
+        scenes: const [],
+        roomTakes: const [],
+        keptTakes: [KeptTake(scopeId: KeptScope.whole, path: audio.path)],
+        before: (harness) {
+          _waitsInTheOutbox(harness, KeptScope.whole, audio);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).partes, hasLength(1));
+      expect(find.text(_how), findsOneWidget);
+      expect(
+        find.text('A passagem inteira · 0:48 — enviar agora'),
+        findsOneWidget,
+        reason:
+            'a gravação da passagem inteira guardada no tablet era oferecida '
+            'como «Cena 1»',
+      );
+      expect(find.text('Cena 1 · 0:48 — enviar agora'), findsNothing);
+      expect(harness.room.takesReceivedWhole, isEmpty);
+    },
+  );
+
+  testWidgets(
     '5. with a grain in force, the 6 s cut opens that grain\'s home, never the '
     'choice',
     (tester) async {
