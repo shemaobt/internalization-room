@@ -165,9 +165,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final room = await _onTheCanvas(harness);
-      harness.room
-        ..turnsAreCanned = true
-        ..fixedLine = 'A2';
+      harness.room.fixedLine = 'A2';
       await _theTeamSpeaks(room);
       await _theRoomRests(room);
       expect(room.timesSaid('A2'), 1);
@@ -248,9 +246,7 @@ void main() {
       'for its reload', () async {
     final harness = SalaHarness();
     final room = await _onTheCanvas(harness);
-    harness.room
-      ..turnsAreCanned = true
-      ..fixedLine = 'A2';
+    harness.room.fixedLine = 'A2';
     harness.voice.failsToLoad['A2'] = 1;
 
     await _theTeamSpeaks(room);

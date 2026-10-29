@@ -1097,7 +1097,6 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
 
-    harness.room.turnsAreCanned = true;
     harness.room.fixedLine = 'D0';
 
     for (var turno = 0; turno < 3; turno++) {
