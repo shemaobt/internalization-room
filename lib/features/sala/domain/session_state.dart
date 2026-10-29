@@ -383,6 +383,19 @@ class Trecho {
     required this.lugarTo,
     this.frase,
   });
+
+  Trecho naParte(int parte) => Trecho(
+    segmentId: segmentId,
+    takeId: takeId,
+    retroPath: retroPath,
+    parte: parte,
+    from: from,
+    to: to,
+    contado: contado,
+    lugarFrom: lugarFrom,
+    lugarTo: lugarTo,
+    frase: frase,
+  );
 }
 
 class PassageLeft {
@@ -1546,7 +1559,12 @@ class SalaSessionState {
   /// rehearsal an app before 19 August sent is the rehearsal only while no scene has its
   /// part; from the first one on it is set aside, kept but no longer played or told. While
   /// the room records the passage whole, only the whole is (ADR 0134).
-  List<KeptTake> get partes {
+  List<KeptTake> get partes => _partesDe(keptTakes, grainInForce);
+
+  static List<KeptTake> _partesDe(
+    List<KeptTake> keptTakes,
+    Grain? grainInForce,
+  ) {
     final wholes = [
       for (final take in keptTakes)
         if (take.scopeId == KeptScope.whole) take,
@@ -1558,6 +1576,31 @@ class SalaSessionState {
     ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
     if (numbered.isNotEmpty || grainInForce == Grain.scene) return numbered;
     return wholes;
+  }
+
+  List<Trecho> _nasSuasPartes(
+    List<Trecho> trechos,
+    List<KeptTake>? keptTakes,
+    Grain? grainInForce,
+  ) {
+    if (keptTakes == null) return trechos;
+    final agora = _partesDe(keptTakes, grainInForce ?? this.grainInForce);
+    final onde = [
+      for (final era in partes)
+        agora.indexWhere((parte) => parte.scopeId == era.scopeId),
+    ];
+    final ficam = [
+      for (final trecho in trechos)
+        if (trecho.parte < 0 || trecho.parte >= onde.length)
+          trecho
+        else if (onde[trecho.parte] >= 0)
+          trecho.naParte(onde[trecho.parte]),
+    ];
+    if (ficam.length != trechos.length) return ficam;
+    for (final (i, trecho) in ficam.indexed) {
+      if (trecho.parte != trechos[i].parte) return ficam;
+    }
+    return trechos;
   }
 
   /// The recordings of a whole rehearsal set aside behind the scenes' own parts; none
@@ -1935,8 +1978,11 @@ class SalaSessionState {
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
-      btTrechos: btTrechos ?? this.btTrechos,
-      btTrechosRegravados: btTrechosRegravados ?? this.btTrechosRegravados,
+      btTrechos:
+          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, grainInForce),
+      btTrechosRegravados:
+          btTrechosRegravados ??
+          _nasSuasPartes(this.btTrechosRegravados, keptTakes, grainInForce),
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
       btVeredito: btVeredito ?? this.btVeredito,

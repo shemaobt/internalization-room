@@ -3559,37 +3559,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         trecho.parte < fora ? trecho : _naParte(trecho, trecho.parte - 1),
   ];
 
-  void _osTrechosFicamNasSuasPartes(List<KeptTake> eram) {
-    final agora = [
-      for (final era in eram)
-        state.partes.indexWhere((parte) => parte.scopeId == era.scopeId),
-    ];
-    List<Trecho> nasSuasPartes(List<Trecho> trechos) => [
-      for (final trecho in trechos)
-        if (trecho.parte < 0)
-          trecho
-        else if (agora.elementAtOrNull(trecho.parte) case final onde?
-            when onde >= 0)
-          _naParte(trecho, onde),
-    ];
-    state = state.copyWith(
-      btTrechos: nasSuasPartes(state.btTrechos),
-      btTrechosRegravados: nasSuasPartes(state.btTrechosRegravados),
-    );
-  }
-
-  Trecho _naParte(Trecho trecho, int parte) => Trecho(
-    segmentId: trecho.segmentId,
-    takeId: trecho.takeId,
-    retroPath: trecho.retroPath,
-    parte: parte,
-    from: trecho.from,
-    to: trecho.to,
-    contado: trecho.contado,
-    lugarFrom: trecho.lugarFrom,
-    lugarTo: trecho.lugarTo,
-    frase: trecho.frase,
-  );
+  Trecho _naParte(Trecho trecho, int parte) => trecho.naParte(parte);
 
   /// How long each part turned out to be, so the room knows where each part ends.
   ///
@@ -7429,12 +7399,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final passadas = _passadasDaSala;
     if (passadas != null) _passadasDaSala = _aindaPorGravar(passadas, {numero});
-    final eram = state.partes;
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
       keptTakes: [...state.keptTakes, nova],
     );
-    _osTrechosFicamNasSuasPartes(eram);
     _deixarOInteiroDeLado();
     _weighTheRehearsal();
     unawaited(
