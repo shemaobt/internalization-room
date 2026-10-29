@@ -12,8 +12,10 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/back_to_passage_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_translate_step.dart';
 
 import 'a_scene_room.dart' show articulation, pumpUntil;
 import 'a_wav_take.dart';
@@ -674,6 +676,115 @@ void main() {
       expect(
         container.read(salaSessionProvider).channel,
         isNot(isA<PartPlaying>()),
+      );
+    },
+  );
+
+  testWidgets(
+    'a scene rehearsal whose frase places cannot be read shows the circle dimmed between the strip and her line, and a tap on it opens no microphone',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final circle = byLabel(
+        'Toque para traduzir esta frase do ensaio da cena',
+      );
+      final captures = harness.recorder.captures;
+
+      expect(
+        circle,
+        findsOneWidget,
+        reason: 'a tela de lugares desconhecidos não tinha o círculo apagado',
+      );
+      expect(tester.widget<Semantics>(circle).properties.enabled, isFalse);
+      expect(
+        tester.getTopLeft(circle).dy,
+        greaterThan(tester.getBottomLeft(find.byType(SceneStrip)).dy),
+      );
+      expect(
+        tester.getBottomLeft(circle).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.textContaining('as frases já traduzidas não estão'),
+              )
+              .dy,
+        ),
+      );
+
+      await tester.tap(circle);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        container.read(salaSessionProvider).channel,
+        isNot(isA<Microphone>()),
+        reason: 'no dela o círculo fica desabilitado sem os lugares',
+      );
+      expect(harness.recorder.captures, captures);
+    },
+  );
+
+  testWidgets(
+    'on an iPhone SE the places-unknown screen keeps every control whole, apart and on the screen, down to «gravar de novo» above the list',
+    (tester) async {
+      tester.view.padding = const FakeViewPadding(top: 20);
+      addTearDown(tester.view.resetPadding);
+      await _onTheSceneScreen(
+        tester,
+        view: const Size(375, 667),
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      const again = 'gravar o ensaio da cena de novo';
+      final controls = {
+        'instrução': find.textContaining('Ouçam o ensaio da cena'),
+        'tocar': byLabel('Tocar ou pausar a gravação'),
+        'faixa': find.byType(SceneStrip),
+        'círculo': byLabel('Toque para traduzir esta frase do ensaio da cena'),
+        'linha': find.textContaining('as frases já traduzidas não estão'),
+        'recomeçar': byLabel('recomeçar a tradução'),
+        'terminei': byLabel('terminei'),
+        'gravar de novo': byLabel(again),
+        'volta': find.byType(BackToPassageButton),
+      };
+
+      expect(tester.takeException(), isNull);
+      final rects = {
+        for (final MapEntry(:key, :value) in controls.entries)
+          key: tester.getRect(value),
+      };
+      for (final MapEntry(:key, value: rect) in rects.entries) {
+        expect(rect.left, greaterThanOrEqualTo(0), reason: key);
+        expect(rect.right, lessThanOrEqualTo(375), reason: key);
+        for (final MapEntry(key: other, value: beside) in rects.entries) {
+          if (other == key) continue;
+          expect(
+            rect.overlaps(beside),
+            isFalse,
+            reason: '$key cobria $other no iPhone SE',
+          );
+        }
+      }
+
+      await tester.dragUntilVisible(
+        find.text(again),
+        find.byType(ScenePlacesUnknown),
+        const Offset(0, -80),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        tester.getRect(byLabel(again)).bottom,
+        lessThanOrEqualTo(
+          tester.getRect(find.text('ENSAIOS DA CENA DESTA SESSÃO')).top,
+        ),
+        reason: 'o gravar de novo ficava cortado sob a lista',
       );
     },
   );
