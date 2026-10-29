@@ -1075,6 +1075,47 @@ void main() {
   );
 
   testWidgets(
+    'the answer to the last try is said after «usar este», on the actions '
+    'line, not under the facts',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+
+      final said = it.onLine(s2b, find.text(_retry));
+      expect(said, findsOneWidget);
+      final answer = tester.getRect(said);
+      final pill = tester.getRect(it.use(s2b));
+      expect(
+        answer.top,
+        greaterThanOrEqualTo(tester.getRect(it.listen(s2b)).bottom),
+        reason: 'a resposta da troca vinha sob os fatos, longe do botão',
+      );
+      expect(
+        answer.top >= pill.bottom || answer.left >= pill.right,
+        isTrue,
+        reason: 'a resposta vinha antes de «usar este»',
+      );
+      expect(
+        tester
+            .getSemantics(said)
+            .getSemanticsData()
+            .flagsCollection
+            .isLiveRegion,
+        isTrue,
+      );
+      it.room.finishHeldTake();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'a swap with no answer for 70 s says to try again, changes nothing, and '
     'leaves nothing to land later',
     (tester) async {
@@ -1425,6 +1466,130 @@ void main() {
       expect(it.door(1, _swap), findsNothing);
       expect(it.door(1, _useScene), findsNothing);
       expect(it.partPath(1), contains('junta'));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'in the dark look an armed «usar este» writes the room\'s dark paper on '
+    'her dark telha, never white on it',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+
+      await it.tapThe(it.use(s2b));
+
+      const telha = Color(0xFFD6612A);
+      final pill =
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: it.use(s2b),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      expect(pill.color, telha);
+      final word = tester
+          .widget<Text>(
+            find.descendant(of: it.use(s2b), matching: find.text(_useThis)),
+          )
+          .style!
+          .color!;
+      expect(
+        word,
+        const Color(0xFF1A150E),
+        reason: 'no escuro a palavra armada não seguia o papel escuro da sala',
+      );
+      expect(
+        (telha.computeLuminance() + 0.05) / (word.computeLuminance() + 0.05),
+        greaterThanOrEqualTo(4.5),
+      );
+      await it.wait(const Duration(seconds: 7));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'an armed «usar este» fills with her telha, waking it shows at .55, and '
+    'while a swap runs the others rest at .35',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+      BoxDecoration pillOf(int n) =>
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: it.use(n),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      double seen(int n) {
+        var opacity = 1.0;
+        find
+            .descendant(of: it.use(n), matching: find.text(_useThis))
+            .evaluate()
+            .first
+            .visitAncestorElements((ancestor) {
+              if (ancestor.widget case final Opacity dim) {
+                opacity *= dim.opacity;
+              }
+              return true;
+            });
+        return opacity;
+      }
+
+      const telha = Color(0xFFBE4A01);
+      await it.tapThe(it.use(s2b));
+      expect(
+        pillOf(s2b).color,
+        telha,
+        reason: 'armada, «usar este» só esmaecia, sem o telha dela',
+      );
+      expect(pillOf(s2b).border, Border.all(color: telha, width: 1.4));
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(of: it.use(s2b), matching: find.text(_useThis)),
+            )
+            .style!
+            .color,
+        const Color(0xFFF6F5EB),
+      );
+      expect(
+        seen(s2b),
+        closeTo(0.55, 0.001),
+        reason: 'acordando, ela mostra a .55, não a .5',
+      );
+      expect(pillOf(s2c).color, isNull);
+
+      await it.wait(const Duration(milliseconds: 700));
+      expect(pillOf(s2b).color, telha);
+      expect(seen(s2b), closeTo(1, 0.001));
+
+      it.holdTheTake('parte-2');
+      await it.tapThe(it.use(s2b));
+      await it.theHeldTakeArrives();
+      expect(
+        seen(s2c),
+        closeTo(0.35, 0.001),
+        reason: 'com a troca no ar, «usar este» seguia aceso',
+      );
+      it.room.finishHeldTake();
+      await it.swapLands();
       semantics.dispose();
     },
   );
