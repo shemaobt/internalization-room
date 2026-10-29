@@ -487,6 +487,10 @@ void main() {
     notifier.ensaioTap();
     await settle();
     notifier.takeKeep();
+    await waitFor('a sala nomear a parte', () {
+      final partes = container.read(salaSessionProvider).partes;
+      return partes.isNotEmpty && partes.last.takeId != null;
+    });
     notifier.startRetro();
     await settle();
 
