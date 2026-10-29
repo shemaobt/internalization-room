@@ -215,7 +215,23 @@ void main() {
       _heardAtTheSign = sala.harness.voice.played.length;
       await _pass(sala, 20);
 
-      expect(byLabel(_theSign), findsOneWidget);
+      expect(thePersonSign, findsOneWidget);
+      expect(_labelsHeard(tester), isNot(contains(_theSign)));
+      expect(
+        tester
+            .getSemantics(
+              find
+                  .descendant(
+                    of: find.byType(PersonSign),
+                    matching: find.byType(GestureDetector),
+                  )
+                  .first,
+            )
+            .getSemanticsData()
+            .flagsCollection
+            .isButton,
+        isFalse,
+      );
       expect(_opacityOf(find.byType(MomentLabel)), 0);
       expect(_opacityOf(byLabel(_orangeDot)), 0);
       expect(
@@ -252,7 +268,7 @@ void main() {
 
       await _tapACorner(sala);
 
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(_read(sala).needsPerson, isFalse);
       expect(_hitTestable(_hearAgain), isTrue);
       closeTheRoom(sala.container);
@@ -328,34 +344,65 @@ void main() {
       notifier.haltForABrokenBuild();
       await _pass(sala, 20);
 
-      expect(byLabel(_theSign), findsOneWidget);
+      expect(thePersonSign, findsOneWidget);
       expect(harness.room.calls, isNot(contains('askForAPerson')));
 
       final asked = harness.room.calls.length;
       await _tapACorner(sala);
       await _pass(sala, 20);
 
-      expect(byLabel(_theSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(harness.room.calls.skip(asked), isNot(contains('servedBooks')));
       expect(_read(sala).entriesOpen, isFalse);
       closeTheRoom(container);
     },
   );
 
-  testWidgets('a tap while the sign is still rising leaves it standing', (
+  testWidgets('a tap while the sign is still rising clears it, as hers', (
     tester,
   ) async {
     final sala = await _theSignRises(tester);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      tester
+          .widget<FadeTransition>(
+            find.descendant(
+              of: find.byType(PersonSign),
+              matching: find.byType(FadeTransition),
+            ),
+          )
+          .opacity
+          .value,
+      lessThan(1),
+    );
 
     await tester.tapAt(const Offset(4, 4));
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(_read(sala).needsPerson, isTrue);
-
-    await _pass(sala, 20);
-    await _tapACorner(sala);
-
     expect(_read(sala).needsPerson, isFalse);
+    closeTheRoom(sala.container);
+  });
+
+  testWidgets('the sign rises over her 1.6 s with her ease', (tester) async {
+    final sala = await _atRestInTheConversation(tester);
+    double risen() => tester
+        .widget<FadeTransition>(
+          find.descendant(
+            of: find.byType(PersonSign),
+            matching: find.byType(FadeTransition),
+          ),
+        )
+        .opacity
+        .value;
+
+    sala.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(risen(), closeTo(0.8024, 0.001));
+    await tester.pump(const Duration(milliseconds: 799));
+    expect(risen(), lessThan(1));
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(risen(), 1);
     closeTheRoom(sala.container);
   });
 
@@ -438,7 +485,7 @@ void main() {
         await _until(sala, 'the person sign', () => _read(sala).needsPerson);
         await _pass(sala, 20);
 
-        expect(byLabel(_theSign), findsOneWidget);
+        expect(thePersonSign, findsOneWidget);
         expect(
           find.descendant(
             of: find.byType(PersonSign),

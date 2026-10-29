@@ -42,7 +42,8 @@ class ConversaView extends ConsumerWidget {
           ),
         ),
         if (session.channel case Microphone(owner: MicOwner.conversation))
-          MicClock(circleSize: circleSize),
+          if (session.recorderStartedAt case final since?)
+            MicClock(circleSize: circleSize, since: since),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,

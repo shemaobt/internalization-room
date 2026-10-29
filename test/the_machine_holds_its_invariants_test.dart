@@ -414,6 +414,39 @@ final aStationsSessionNeverOpensWithoutTheWatch = Invariant<Machine>(
   },
 );
 
+var _opensOverAPartUnsent = 0;
+
+final _atTheRehearsal = MachineUnderTest<Machine>(
+  start: const Machine(station: Ensaio()),
+  step: reduce,
+  draw: (_, world, random) => switch (random.nextInt(4)) {
+    0 => const TheRehearsalOpened(),
+    1 => TheRehearsalWeighed(
+      everySceneHasItsPart: random.nextBool(),
+      everyPartIsHere: random.nextBool(),
+      everyPartIsSent: random.nextBool(),
+    ),
+    2 => const TheBackTranslationOpened(),
+    _ => drawAnEvent(world, random),
+  },
+  show: describeMachine,
+);
+
+final theBackTranslationNeverOpensOverAPartUnsent = Invariant<Machine>(
+  'ADR 0146, the Back-translation never opens from a Rehearsal weighed with a '
+  'part still in the Outbox',
+  (before, event, after, effects, world) {
+    if (event is! TheBackTranslationOpened) return null;
+    if (before.station case Ensaio(everyPartIsSent: false)) {
+      _opensOverAPartUnsent++;
+      if (after.station is Retro) {
+        return 'the Back-translation opened with a part still in the Outbox';
+      }
+    }
+    return null;
+  },
+);
+
 final noEventMakesTheMachineSpeakAFailure = Invariant<Machine>(
   'ENG-1356, no event ever makes the machine emit a spoken failure line',
   (before, event, after, effects, world) {
@@ -603,6 +636,18 @@ void main() {
 
   test('ADR 0092: a Station\'s session never opens without the Watch', () {
     _holds(aStationsSessionNeverOpensWithoutTheWatch);
+  });
+
+  test('ADR 0146: the Back-translation never opens from a Rehearsal weighed '
+      'with a part still in the Outbox', () {
+    expectEverySeedHolds(_atTheRehearsal, [
+      theBackTranslationNeverOpensOverAPartUnsent,
+    ], seeds: _seeds);
+    expect(
+      _opensOverAPartUnsent,
+      greaterThan(0),
+      reason: 'nenhuma sequência pedia a tradução com uma parte na fila',
+    );
   });
 
   test('ADR 0077: a language chosen reads the Wheel again on the Choice and '
