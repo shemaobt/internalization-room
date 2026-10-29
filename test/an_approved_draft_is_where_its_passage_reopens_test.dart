@@ -265,11 +265,12 @@ void main() {
     'a forced approval over a telling-back never checked, re-entered, lands '
     'on its conversation as any approval does',
     (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1))
-        ..room.createdOpened = true
-        ..room.retroSoFar = BackTranslationProgress(
-          segments: _checked.segments,
-        );
+      final harness =
+          _aRoomHolding(approved: const ApprovedDraft(version: 1, forced: true))
+            ..room.createdOpened = true
+            ..room.retroSoFar = BackTranslationProgress(
+              segments: _checked.segments,
+            );
 
       final room = await _enter(tester, harness);
 
