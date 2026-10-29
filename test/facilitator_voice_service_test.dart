@@ -1934,7 +1934,7 @@ void main() {
     );
 
     test(
-      'a reply\'s cache file is named by the sha256 of its whole address, so a short and a long address name files of one length',
+      'is named by the sha256 of its whole address, so a short and a long address name files of one length',
       () async {
         final voice = service();
 
@@ -1959,7 +1959,7 @@ void main() {
           expect(await speaking, isTrue);
         }
 
-        expect(fetched, hasLength(1));
+        expect(fetched, [Uri.parse(longAddress).path]);
         expect(names().where((n) => n.endsWith('.mp3')), hasLength(1));
       },
     );
@@ -1986,7 +1986,7 @@ void main() {
         await voice.fetch(two);
 
         expect(names().toSet(), {_cached(one), _cached(two)});
-        expect(fetched, hasLength(2));
+        expect(fetched, [Uri.parse(one).path, Uri.parse(two).path]);
       },
     );
 
