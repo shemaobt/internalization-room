@@ -95,6 +95,12 @@ Future<void> aDicaEOsTresControles(
   expect(rotuloDoCirculo(tester), aDica);
   for (final controle in controles) {
     expect(aceso(tester, controle), isTrue, reason: controle);
+    expect(
+      find.descendant(of: byLabel(controle), matching: find.text(controle)),
+      findsOneWidget,
+      reason:
+          'o controle era um ícone, e a palavra dela só o leitor de tela dizia',
+    );
   }
   final ondeEstao = [
     for (final controle in controles) tester.getCenter(byLabel(controle)).dx,
@@ -222,7 +228,11 @@ void main() {
     expect(pausa(container), s(4));
     expect(rotuloDoCirculo(tester), dicaNoToque);
     for (final controle in [antes, ouvirAPausa, depois]) {
-      expect(aceso(tester, controle), isFalse, reason: controle);
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'sem envelope a pausa não se move, e a linha ficava apagada',
+      );
     }
     closeTheRoom(container);
   });
@@ -237,7 +247,11 @@ void main() {
     expect(pausa(container), s(4));
     expect(rotuloDoCirculo(tester), hintAtTheTap);
     for (final controle in [earlier, hearThePause, later]) {
-      expect(aceso(tester, controle), isFalse, reason: controle);
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'sem envelope a pausa não se move, e a linha ficava apagada',
+      );
     }
     closeTheRoom(container);
   });
@@ -378,15 +392,19 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the three controls stay in the row, dimmed, while no pausa '
-      'stands', (tester) async {
+  testWidgets('no control of the pause is on the screen while no pausa '
+      'stands, not even dimmed', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, umaLacunaAos3);
     harness.playback.at = s(4.2);
     await tester.pump(passaDoCursor);
 
     for (final controle in [antes, ouvirAPausa, depois]) {
-      expect(aceso(tester, controle), isFalse, reason: 'antes da pausa');
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'antes da pausa a linha ficava desenhada, apagada',
+      );
     }
 
     await tocarOCirculo(tester);
@@ -394,7 +412,31 @@ void main() {
     await tocarOCirculo(tester);
 
     for (final controle in [antes, ouvirAPausa, depois]) {
-      expect(aceso(tester, controle), isFalse, reason: 'a tradução já gravada');
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'com a tradução já gravada a linha ficava desenhada, apagada',
+      );
+    }
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the frase after a pausa is recorded her three controls '
+      'stay on the screen, dimmed, not gone', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    await tocarOCirculo(tester);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    for (final controle in [antes, ouvirAPausa, depois]) {
+      expect(
+        aceso(tester, controle),
+        isFalse,
+        reason:
+            'a linha sumia enquanto a frase era gravada; a dela fica, desativada',
+      );
     }
     closeTheRoom(container);
   });

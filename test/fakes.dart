@@ -4472,6 +4472,7 @@ class SalaHarness {
   /// How long a reply whose sound did not load waits to be loaded again; null leaves the
   /// room's own.
   final Duration? soundReload;
+  final Duration unheardReadAgain;
   final CaptureGuard captureGuard;
   final Duration fimLinger;
   final Duration restartWake;
@@ -4507,6 +4508,7 @@ class SalaHarness {
     this.playbackCeiling,
     this.clipGrace = const Duration(seconds: 10),
     this.soundReload = const Duration(milliseconds: 20),
+    this.unheardReadAgain = const Duration(milliseconds: 300),
     this.captureGuard = const CaptureGuard(
       minDuration: Duration.zero,
       minBytes: 1,
@@ -4596,6 +4598,7 @@ class SalaHarness {
     clipGraceProvider.overrideWithValue(clipGrace),
     if (soundReload case final reload?)
       soundReloadDelayProvider.overrideWithValue(reload),
+    unheardReadAgainDelayProvider.overrideWithValue(unheardReadAgain),
     captureGuardProvider.overrideWithValue(captureGuard),
     fimLingerProvider.overrideWithValue(fimLinger),
     restartWakeProvider.overrideWithValue(restartWake),

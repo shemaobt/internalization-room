@@ -223,6 +223,29 @@ void main() {
       },
     );
 
+    for (final (language, words) in [
+      ('pt', [_earlier, _hearThePause, _later]),
+      ('en', ['a little earlier', 'hear the pause', 'a little later']),
+    ]) {
+      testWidgets(
+        '$language: a marked pausa writes her three buttons in her words, and each is called by what it says',
+        (tester) async {
+          final screen = await _aPausaAt(tester, 5.0);
+          screen.container.read(roomLanguageProvider.notifier).choose(language);
+          await screen.beat();
+
+          for (final word in words) {
+            expect(
+              find.descendant(of: byLabel(word), matching: find.text(word)),
+              findsOneWidget,
+              reason:
+                  'o botão era um ícone, e a palavra dela só o leitor de tela dizia',
+            );
+          }
+        },
+      );
+    }
+
     testWidgets('«ouvir a pausa» never starts before the previous pause', (
       tester,
     ) async {

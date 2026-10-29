@@ -32,6 +32,7 @@ const _herWordsTheTeamReads = {
   'lib/features/sala/presentation/widgets/status_lines.dart',
   'lib/features/sala/presentation/widgets/scene_translate_step.dart',
   'lib/features/sala/presentation/widgets/unsent_notice.dart',
+  'lib/features/sala/presentation/widgets/pause_adjust_row.dart',
 };
 
 const _herWordsOnASendingTake = {

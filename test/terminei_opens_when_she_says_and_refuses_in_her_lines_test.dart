@@ -200,7 +200,7 @@ void main() {
   });
 
   testWidgets('a part not heard through is refused with her line on the '
-      'screen, her P2 by its name, and that part played from its start', (
+      'screen and her P2 by its name, and nothing plays after it', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -211,8 +211,10 @@ void main() {
       ..verdictFixedLine = 'P2'
       ..verdictUnheardTakeIds = [aParte.takeId!];
     final linhas = harness.voice.fixedLines.length;
+    final tocadas = harness.playback.played.length;
 
     await _recusado(tester, container);
+    await _passo(tester);
 
     expect(
       find.descendant(
@@ -227,8 +229,20 @@ void main() {
       ['P2'],
       reason: 'a fala da parte não ouvida é a P2 dela, pedida pelo nome',
     );
-    expect(harness.playback.played.last, aParte.path);
-    expect(harness.playback.playedFrom.last, Duration.zero);
+    expect(
+      harness.playback.played.skip(tocadas),
+      isEmpty,
+      reason:
+          'depois da P2 a sala tocava sozinha a parte não ouvida; a dela '
+          'para na linha escrita até a equipe tocar no play',
+    );
+    expect(
+      aceso(tester, conferir),
+      isFalse,
+      reason:
+          'o terminei acendia debaixo da linha que diz que falta ouvir; o '
+          'dela só volta quando a sala conta tudo ouvido',
+    );
     closeTheRoom(container);
   });
 

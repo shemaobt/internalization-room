@@ -258,6 +258,10 @@ final soundReloadDelayProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 1500),
 );
 
+final unheardReadAgainDelayProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 1500),
+);
+
 final sentenceGraceProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 4),
 );
@@ -4188,7 +4192,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// «A passagem inteira» or «Cena por cena» on the grain choice.
-  /// Over an approved draft it takes the Armed tap, whose second tap re-opens it.
   void chooseTheGrain(Grain grain) => _gesture(() {
     final sessionId = state.sessionId;
     if (sessionId == null ||
@@ -4196,16 +4199,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.grainSwitching) {
       return;
     }
-    _armedTap(
-      'choose:${grain.wire}',
-      needs: state.overAnApprovedDraft,
-      then: () => _handOff(
-        _switchTheGrain(
-          grain,
-          reopens: state.overAnApprovedDraft,
-          then: () => _toTheGrainsHome(grain, sessionId),
-          fromTheChoice: true,
-        ),
+    _handOff(
+      _switchTheGrain(
+        grain,
+        reopens: true,
+        then: () => _toTheGrainsHome(grain, sessionId),
+        fromTheChoice: true,
       ),
     );
   });
@@ -8835,6 +8834,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
+    if (_oQueFaltaOuvir case _OQueFaltaOuvir(:final aFrente)
+        when aFrente.isNotEmpty &&
+            state.btRecusa == CheckRefusal.partUnheard &&
+            !state.btClipPausada) {
+      _ouvirAsPartes(aFrente, paraNaUltima: true);
+      return;
+    }
     if (state.btClipEnded) return;
     _seguirOClipe();
   }
@@ -10821,6 +10827,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
       final naoOuvidas = verdict.unheardTakeIds;
       if (naoOuvidas.isNotEmpty) {
+        if (verdict.refusal == CheckRefusal.partUnheard) {
+          _esperarQueFalteOuvir(sessionId, generation);
+          return;
+        }
         await _levarAsPartesApontadasPelaRecusa(
           naoOuvidas,
           generation,
@@ -11003,6 +11013,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     btClipEnded: true,
     awaitingTheGuide: false,
   );
+
+  void _esperarQueFalteOuvir(String sessionId, int generation) {
+    final armadas = _OQueFaltaOuvir([
+      for (var onde = 0; onde < state.partes.length; onde++) onde,
+    ], paraNaUltima: true);
+    _oQueFaltaOuvir = armadas;
+    state = state.copyWith(
+      btPhase: BtPhase.playing,
+      btClipEnded: false,
+      awaitingTheGuide: false,
+    );
+    unawaited(
+      _lerDeNovoOQueFaltaOuvir(sessionId, generation, armadas, outraVez: true),
+    );
+  }
+
+  Future<void> _lerDeNovoOQueFaltaOuvir(
+    String sessionId,
+    int generation,
+    _OQueFaltaOuvir armadas, {
+    required bool outraVez,
+  }) async {
+    final resposta = await _relatarASala(sessionId, const []);
+    if (_abandoned(generation) || !identical(_oQueFaltaOuvir, armadas)) return;
+    if (resposta case Answered(value: ListenedWhole(unheardTakeIds: []))) {
+      _oQueFaltaOuvir = null;
+      state = state.copyWith(clearBtRecusa: true, btClipEnded: true);
+      return;
+    }
+    if (!outraVez) return;
+    _after(
+      'unheardReadAgain',
+      ref.read(unheardReadAgainDelayProvider),
+      () => unawaited(
+        _lerDeNovoOQueFaltaOuvir(
+          sessionId,
+          generation,
+          armadas,
+          outraVez: false,
+        ),
+      ),
+    );
+  }
 
   /// Straight to the part the verdict names, with the telling-back left standing.
   ///
