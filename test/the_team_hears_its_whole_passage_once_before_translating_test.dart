@@ -1492,6 +1492,31 @@ void main() {
   );
 
   test(
+    'a room that closes the listen with an empty list counts it heard, not a part left',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a P1 dela depois da escuta',
+        () => it.harness.voice.fixedLines.last.$1 == 'P1',
+      );
+      await settle();
+
+      expect(
+        it.estado.btRecusa,
+        isNull,
+        reason:
+            'a lista vazia é a sala contando tudo ouvido, não um trecho que falta',
+      );
+      expect(it.estado.btSoOuvir, isFalse);
+    },
+  );
+
+  test(
     'after the room names one part unheard, an answer that never comes plays only that part again',
     () async {
       final it = await _juntadaNaCasa();
