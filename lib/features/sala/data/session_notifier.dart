@@ -2114,6 +2114,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _hand.noteTap();
       return;
     }
+    if (state.voice == VoiceState.speaking) return _cutTheVoice();
     if (state.panoramaSaid) {
       switch (state.voice) {
         case VoiceState.invite:
@@ -2135,7 +2136,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishPanoramaListening() async {
     final generation = _waitOnTheGeneration;
-    final path = (await _closeTheMicrophone()).take;
+    final closed = await _closeTheMicrophone();
+    final path = closed.take;
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId!;
     if (path == null || !_hasAudio(path)) {
@@ -2143,14 +2145,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (path != null) unawaited(_recorder.delete(path));
       return;
     }
-    await _sendThePanoramaTurn(panorama, path, _stamp());
+    await _sendThePanoramaTurn(panorama, path, _stamp(), cut: closed.cut);
   }
 
   Future<void> _sendThePanoramaTurn(
     String panorama,
     String path,
-    String turnId,
-  ) async {
+    String turnId, {
+    CutPoint? cut,
+  }) async {
     final generation = _waitOnTheGeneration;
     _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
@@ -2163,7 +2166,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _sendATurn(
       Turn(panorama, turnId),
       generation,
-      () => _room.sendTurn(panorama, File(path), turnId: turnId),
+      () => _room.sendTurn(panorama, File(path), turnId: turnId, cut: cut),
       play: (turn) => _voicePanorama(turn),
       failed: failed,
     );
@@ -5598,6 +5601,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         asked.rehearsal?.rehearsalId == rehearsal.rehearsalId;
     final pausa = stillTranslating ? asked.pausa : null;
     final armed = stillTranslating ? asked.translatingAgain : null;
+    final listened = stillTranslating && asked.listened;
     final stillArmed = rehearsal.currentFrases
         .where((frase) => frase.fraseId == armed?.fraseId)
         .firstOrNull;
@@ -5610,12 +5614,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal: rehearsal,
         take: here,
         length: length,
-        listened: stillTranslating && asked.listened,
+        listened: listened,
         pausa: pausa != null && pausa > floor ? pausa : null,
         translatingAgain: stillArmed,
         notUnderstood: herLineStands,
       ),
       sceneRehearsals: _listedWith(rehearsal),
+      clearSceneStoppedAt: !listened,
     );
     if (step == SceneStep.translate || step == SceneStep.sent) {
       _handOff(_readTheLoudness(here));
@@ -6377,7 +6382,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (to == Nudge.later ? nudged <= pausa : nudged >= pausa) return;
     _silenceTheRoom();
     _theRefusalLineGoes();
-    state = state.copyWith(scene: state.scene.copyWith(pausa: nudged));
+    state = state.copyWith(
+      scene: state.scene.copyWith(pausa: nudged),
+      sceneStoppedAt: nudged,
+    );
   }
 
   /// «ouvir a pausa»: up to 1.5 s before the pausa, never from before the previous

@@ -104,7 +104,9 @@ class SceneTranslateStep extends ConsumerWidget {
                   frase,
             ],
             pausa: scene.pausa,
-            playing: channel is PartPlaying,
+            playing: playing,
+            take: take,
+            stoppedAt: stoppedAt,
           ),
           if (adjusts) ...[
             const SizedBox(height: 12),
@@ -248,20 +250,29 @@ class SceneTranslateStep extends ConsumerWidget {
     _ => null,
   };
 
-  /// Her hint: the pausa waiting, the take playing with her clock, the end of the take,
-  /// or the take paused; nothing before the team listens.
+  /// Her hint: a frase translated again, listening or her clock alone; else the pausa
+  /// waiting, the take playing with her clock, the end of the take, or the take paused;
+  /// nothing before the team listens.
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;
+    final clock = playing ? at : stoppedAt;
     if (!scene.listened) return null;
+    if (scene.translatingAgain != null) {
+      if (playing) return sceneListeningLineFor(at, scene.length, language);
+      return clock == null ? null : sceneClockOf(clock, scene.length);
+    }
     if (pausa != null) {
       if (end != null && pausa >= end) {
         return sceneRehearsalLabelFor('ended', language);
       }
-      return retroLabelFor(
+      final words = retroLabelFor(
         envelope == null ? 'pauseAtTheTap' : 'pauseHint',
         language,
       );
+      return clock == null
+          ? words
+          : '$words — ${sceneClockOf(clock, scene.length)}';
     }
     if (playing) return sceneListeningLineFor(at, scene.length, language);
     if (!scene.moreToTell) return sceneRehearsalLabelFor('ended', language);
@@ -468,7 +479,9 @@ class SceneListenMode extends ConsumerWidget {
             length: scene.length,
             frases: frases,
             pausa: null,
-            playing: channel is PartPlaying,
+            playing: playing,
+            take: take,
+            stoppedAt: stoppedAt,
           ),
           const SizedBox(height: 16),
           if (frases.isNotEmpty) ...[
@@ -651,7 +664,7 @@ class _ListedRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: onScreen ? ShemaBrand.azul : colors.line,
+                  color: onScreen ? colors.azul : colors.line,
                   width: 1.2,
                 ),
                 borderRadius: BorderRadius.circular(12),
