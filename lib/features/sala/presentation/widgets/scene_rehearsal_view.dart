@@ -17,8 +17,8 @@ import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her title and this session's list are written on every
 /// step, the translate, places-unknown and sent steps write her words (ADR 0014), the
-/// record step writes the take's state (ADR 0131), and its other words reach the team
-/// only through VoiceOver.
+/// record step writes her instruction and hint (ADR 0155) and the take's state (ADR
+/// 0131), and its circle is named only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -181,13 +181,18 @@ class _TheRecordStep extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SingleChildScrollView(child: _theStep());
+
+  Widget _theStep() {
     final chip = this.chip;
     final circle =
         question ??
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SceneSub(label('subRecord')),
+            const SizedBox(height: 12),
             if (chip != null) ...[chip, const SizedBox(height: 24)],
             FocusOnArrival(
               wanted: focused,
@@ -197,6 +202,12 @@ class _TheRecordStep extends StatelessWidget {
                 label: label,
                 onTap: onTap,
               ),
+            ),
+            const SizedBox(height: 12),
+            SceneRecordHint(
+              recording: recording,
+              keeping: keep is Keeping,
+              label: label,
             ),
           ],
         );
@@ -212,7 +223,6 @@ class _TheRecordStep extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         circle,
-        const SizedBox(height: 24),
         SceneTakeState(
           recording: recording,
           keep: keep,

@@ -1,13 +1,11 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, onAScreen, withRealLetters;
 
 const _recordingHome = {
   'pt': 'Gravem o ensaio de vocês',
@@ -29,28 +27,8 @@ const _backToRecording = {
   'en': 'Back to recording',
 };
 
-Future<void> _withRealLetters() async {
-  final fonts =
-      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
-  final roboto = FontLoader('Roboto');
-  for (final weight in ['Regular', 'Medium', 'Bold']) {
-    roboto.addFont(
-      File(
-        '$fonts/Roboto-$weight.ttf',
-      ).readAsBytes().then(ByteData.sublistView),
-    );
-  }
-  await roboto.load();
-}
-
-void _onAScreen(WidgetTester tester, double width, {double bar = 59}) {
-  tester.view
-    ..physicalSize = Size(width, 844)
-    ..devicePixelRatio = 1
-    ..padding = FakeViewPadding(top: bar)
-    ..viewPadding = FakeViewPadding(top: bar);
-  addTearDown(tester.view.reset);
-}
+void _onAScreen(WidgetTester tester, double width, {double bar = 59}) =>
+    onAScreen(tester, Size(width, 844), bar: bar);
 
 Future<ProviderContainer> _atTheRecordingHome(
   WidgetTester tester,
@@ -82,7 +60,7 @@ Future<ProviderContainer> _atTheCheckScreen(
 }
 
 void main() {
-  setUpAll(_withRealLetters);
+  setUpAll(withRealLetters);
 
   for (final language in ['pt', 'en']) {
     testWidgets(

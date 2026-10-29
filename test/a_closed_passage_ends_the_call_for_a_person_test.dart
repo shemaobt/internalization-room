@@ -165,6 +165,10 @@ void main() {
       chunkIndex: 1,
     );
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNotNull);
+    await waitFor(
+      'a Watch ler o estado da sessão',
+      () => harness.room.calls.contains('fetchState'),
+    );
     expect(harness.room.calls, contains('fetchState'));
 
     final antes = harness.room.calls.length;

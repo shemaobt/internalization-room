@@ -7,7 +7,7 @@ amends: 0049, 0063, 0093, 0097
 # A reply whose sound will not load is loaded once more, then the sign keeps it to hear again
 
 This amends ADRs 0049, 0063, 0093 and 0097 without editing their decisions; it adds
-"amended by 0140" to their status lines. The Definer settled the rule on the ticket
+"amended by 0152" to their status lines. The Definer settled the rule on the ticket
 (ENG-1370, Definition of 22 October); the Orchestrator and Jonatas ruled the open points on 23 October.
 
 ## Context
