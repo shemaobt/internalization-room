@@ -3997,8 +3997,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void openTheEnsaioFinal() => _gesture(() => _openTheEnsaioFinal());
 
-  /// The orange dot: the recording home over a passage with a take that came from no
-  /// join, otherwise the Ensaio Final plan while the room is read.
+  /// The orange dot: the recording home over a passage with a take the room received
+  /// that came from no join, otherwise the Ensaio Final plan while the room is read.
   void _openTheEnsaioFinal() {
     final sessionId = state.sessionId;
     if (sessionId == null ||
@@ -4011,7 +4011,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             !state.noteMode)) {
       return;
     }
-    if (state.partes.any((part) => part.origin == null)) {
+    if (state.partes.any(
+      (part) => part.takeId != null && part.origin == null,
+    )) {
       return _openTheRecordingHome(sessionId);
     }
     _openThePlan(sessionId);
@@ -4036,17 +4038,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       rehearsalsElsewhere: false,
       peerCue: false,
     );
+    unawaited(_countUnsent());
     _handOff(_readThePlan(sessionId));
   }
 
-  /// The plan stands only over a passage the room says has scenes and whose every take,
-  /// on the tablet, in the Outbox or in the room, came from a join, while a scene is left
-  /// to join; an empty whole-passage recording with no scene rehearsal of this session
-  /// opens the whole-passage home instead. A read that fails or has not answered within
-  /// [planReadWait], a passage with no scenes and rehearsals only in the other language's
-  /// session ask the grain while none is in force, and open that grain's recording home
-  /// otherwise; a read that fails or runs out with the room's listing unread asks the
-  /// grain whatever is in force (ADR 0134).
+  /// The plan stands only over a passage the room says has scenes and whose every take
+  /// in the room's listing came from a join, while a scene is left to join; a hand take
+  /// the room has not received never decides, and an empty whole-passage recording with
+  /// no scene rehearsal of this session opens the whole-passage home instead. A read that
+  /// fails or has not answered within [planReadWait], a passage with no scenes and
+  /// rehearsals only in the other language's session ask the grain while none is in
+  /// force, and open that grain's recording home otherwise; a read that fails or runs out
+  /// with the room's listing unread asks the grain whatever is in force (ADR 0134).
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
@@ -4092,16 +4095,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final entry in outbox)
         if (entry.sessionId == sessionId &&
             entry.kind == partTakeKind &&
+            entry.origin != null &&
             (state.grain == null || state.rowOf(entry.scope) != null))
           entry,
     ];
     switch ((takes, rehearsals, scenes)) {
       case (Answered(value: TakesListing(takes: final guardadas)), _, _)
-          when rows.any((row) => row.origin == null) ||
-              _correntes(guardadas).entries.any(
-                (corrente) =>
-                    corrente.key == null || corrente.value.origin == null,
-              ):
+          when _correntes(guardadas).entries.any(
+            (corrente) => corrente.key == null || corrente.value.origin == null,
+          ):
         state = state.copyWith(theRoomJoinedParts: _partesJuntadas(guardadas));
         _openTheRecordingHome(sessionId, listed: guardadas);
       case (
@@ -6082,8 +6084,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// The circle of the translate step: it marks the pausa while the take plays, opens
-  /// the frase's microphone once a pausa waits, and keeps the frase at the stop tap.
+  /// The circle of the translate step: it plays the take from where the translation
+  /// stopped before the team listens, marks the pausa while the take plays, opens the
+  /// frase's microphone once a pausa waits, and keeps the frase at the stop tap.
   void tapTheTranslateCircle() => _gesture(_tapTheTranslateCircle);
 
   void _tapTheTranslateCircle() {
@@ -6104,7 +6107,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Microphone():
         return;
       case _ when !shown.listened:
-        return;
+        _playTheSceneRehearsal();
       case _ when shown.translatingAgain != null || shown.pausa != null:
         final held = _frases.of(shown.rehearsal!.rehearsalId);
         if (held != null) {
@@ -6157,6 +6160,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (_theListFirst(_playTheSceneRehearsal)) return;
+    if (translatingAgain != null && pausa != null) {
+      final end = state.scene.takeEnd;
+      if (playing) {
+        _silenceTheRoom();
+      } else if (end != null && pausa >= end) {
+        _silenceTheRoom();
+        _play(
+          PartSound(
+            0,
+            take,
+            from: theMomentBefore(pausa, state.scenePausaFloor),
+            to: pausa,
+          ),
+        );
+      } else {
+        _silenceTheRoom();
+        _play(PartSound(0, take, from: pausa));
+      }
+      return;
+    }
     _theRefusalLineGoes();
     final shown = state.scene.nothingAskedAgain;
     state = state.copyWith(scene: shown);
@@ -7657,7 +7680,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await queue.flush();
     await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
-    if (joined && !_endedSince(life)) _readTheRehearsalsAtHome();
+    if (_endedSince(life)) return;
+    if (joined) _readTheRehearsalsAtHome();
+    if (!state.unsentParts.containsKey(cena)) _toItsHome();
   }
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.

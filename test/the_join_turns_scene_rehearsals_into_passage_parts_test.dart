@@ -1441,8 +1441,8 @@ void main() {
   );
 
   testWidgets(
-    'a scene with an unsent hand-recorded take keeps the dot on the recording '
-    'home and the take is not sent by it',
+    'a scene with an unsent hand-recorded take leaves the dot on the plan, '
+    'not the recording home, and the take is not sent by it',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -1478,8 +1478,14 @@ void main() {
 
       await it.openThePlan();
 
-      expect(it.showsTheHome(), isTrue);
-      expect(find.text(_planLine), findsNothing);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason:
+            'a gravação à mão que não chegou à sala abria a casa de gravação, '
+            'e a dela abre o plano',
+      );
+      expect(it.showsTheHome(), isFalse);
       expect(it.partsReceived, hasLength(sent));
       semantics.dispose();
     },

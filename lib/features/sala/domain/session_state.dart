@@ -1445,7 +1445,25 @@ class SalaSessionState {
       btContaEscolhida == null &&
       btFraseQueAguarda == null &&
       btRegravacao == null &&
+      channel is! GuideSpeaking &&
+      (!joined ||
+          partes.indexed.every(
+            (parte) => btTrechos.any(
+              (trecho) => trecho.contado && trecho.parte == parte.$1,
+            ),
+          )) &&
       btTrechos.any((trecho) => trecho.contado);
+
+  bool get _btDebaixoDoTerminei =>
+      voice == VoiceState.invite && btTrechos.any((trecho) => trecho.contado);
+
+  bool get btAindaFaltaOuvir =>
+      _btDebaixoDoTerminei &&
+      btRecusa != CheckRefusal.stretchUntranslated &&
+      !(btClipEnded && _btParteContada);
+
+  bool get btFaltaTraduzirUmTrecho =>
+      _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;
 
   bool get btRestoDepoisDoCorte {
     if (!btCortado) return false;

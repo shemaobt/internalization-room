@@ -272,7 +272,7 @@ void main() {
 
       expect(depois.envios, 0);
       expect(find.text(_aindaNoComputador), findsOneWidget);
-      final aOferta = depois.naLinha(2, find.textContaining(_enviarAgora));
+      final aOferta = find.textContaining('Cena 2 · 0:30 — $_enviarAgora');
       expect(aOferta, findsOneWidget);
 
       await depois.tocar(aOferta);
