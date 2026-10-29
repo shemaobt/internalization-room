@@ -162,10 +162,6 @@ class ProviderStorePort implements StorePort {
   ProviderStorePort(this._ref);
 
   @override
-  Future<int> flushTheOutbox() =>
-      _ref.read(takeUploadQueueProvider).flush(withTheCodeless: true);
-
-  @override
   void stopTheSend(String row) => _ref.read(takeUploadQueueProvider).stop(row);
 
   @override

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -24,17 +23,6 @@ const _saveFailed = 'não deu para guardar o ensaio da cena — gravem de novo';
 const _tooLarge = 'grande demais para o servidor — grave em partes menores';
 const _retry = 'falhou — toque para tentar de novo';
 const _offline = NetworkFailed('sem rede');
-const _turnedAway = Refused(RefusalCode.unauthorized);
-const _aLadder = [Duration(seconds: 1)];
-
-SalaHarness _onALadder() => SalaHarness(
-  takesOverride: (room, home, recordings) => TakeUploadQueue(
-    room: room,
-    home: () async => home,
-    recordings: recordings,
-    backoff: _aLadder,
-  ),
-);
 
 Uint8List _aTake(int seed) =>
     Uint8List.fromList([for (var i = 0; i < 1200; i++) (i * seed) % 251]);
@@ -66,6 +54,24 @@ Future<void> _theOutboxLetsGo(SceneRoom room) {
 Future<void> _theRetry(SceneRoom room) async {
   room.sala.sendTheSceneTakeAgain();
   await settle();
+}
+
+/// The team comes back to the passage, which opens in a session other than [gone], and
+/// opens the scene screen over the take still waiting.
+Future<void> _theNextSessionOfThePassage(SceneRoom room, String gone) async {
+  await settle();
+  await room.sala.goConversa(book: 'Ruth');
+  await waitFor(
+    'a passagem abrir numa sessão nova',
+    () =>
+        room.state.sessionId != null &&
+        room.state.sessionId != gone &&
+        room.state.stage == SalaStage.conversa &&
+        !room.state.awaitingTheGuide,
+  );
+  await settle();
+  await theScreenOpens(room);
+  await _notKept(room);
 }
 
 Future<void> _pumpTheRoom(WidgetTester tester, SceneRoom room) async {
@@ -431,90 +437,6 @@ void main() {
       expect(File(take).existsSync(), isTrue);
     },
   );
-
-  test(
-    'a take the house retry lands while it shows not kept opens on translate',
-    () async {
-      final room = await atRest(_onALadder());
-      await theScreenOpens(room);
-      room.harness.room.failSceneWith = _turnedAway;
-      await _recordAScene(room);
-      await _notKept(room);
-
-      room.harness.room.failSceneWith = null;
-      await translateOpens(room);
-
-      expect(room.harness.room.scenesKept, hasLength(1));
-    },
-  );
-
-  test(
-    'a take the house retry lands as the room closes touches nothing',
-    () async {
-      late _CountsHeldAfterTheKeep queue;
-      final room = await atRest(
-        SalaHarness(
-          takesOverride: (room, home, recordings) =>
-              queue = _CountsHeldAfterTheKeep(
-                room: room,
-                home: () async => home,
-                recordings: recordings,
-                backoff: _aLadder,
-              ),
-        ),
-      );
-      await theScreenOpens(room);
-      room.harness.room.failSceneWith = _turnedAway;
-      await _recordAScene(room);
-      await _notKept(room);
-
-      room.harness.room.failSceneWith = null;
-      await waitFor('a contagem depois do take aceito', () => queue.holding);
-      room.container.dispose();
-      queue.letTheCountGo();
-      await settle();
-    },
-  );
-
-  test(
-    'a scene take the Outbox confirms as the room closes reads nothing of the '
-    'room',
-    () async {
-      late _ConfirmsHeldBeforeTheRoomHears queue;
-      final room = await atRest(
-        SalaHarness(
-          takesOverride: (room, home, recordings) =>
-              queue = _ConfirmsHeldBeforeTheRoomHears(
-                room: room,
-                home: () async => home,
-                recordings: recordings,
-                backoff: _aLadder,
-              ),
-        ),
-      );
-      await theScreenOpens(room);
-      room.harness.room.failSceneWith = _turnedAway;
-      await _recordAScene(room);
-      await _notKept(room);
-
-      room.harness.room.failSceneWith = null;
-      queue.holdTheNextConfirmation();
-      await waitFor('a Fila confirmar o take', () => queue.holding);
-      room.container.dispose();
-      final askedAtTheClose = queue.keptAsked;
-      queue.letTheConfirmationGo();
-      await settle();
-
-      expect(
-        queue.keptAsked,
-        askedAtTheClose,
-        reason:
-            'a sala fechou antes de ouvir a confirmação; ler o ensaio que '
-            'esperava é ler uma sala que já não existe',
-      );
-    },
-  );
-
   test(
     'a take refused for good never covers a newer rehearsal the room kept',
     () async {
@@ -567,35 +489,6 @@ void main() {
       expect(room.state.scene.step, SceneStep.record);
     },
   );
-
-  test('a take confirmed after the team left is renamed, and reopens without a '
-      'download', () async {
-    final room = await atRest(_onALadder());
-    await theScreenOpens(room);
-    room.harness.room.failSceneWith = _turnedAway;
-    await _recordAScene(room);
-    await _notKept(room);
-    room.sala.leaveTheSceneRehearsal();
-    await settle();
-
-    room.harness.room.failSceneWith = null;
-    await waitFor(
-      'a sala confirmar o take',
-      () => room.harness.room.scenesKept.isNotEmpty,
-    );
-    await settle();
-    room.sala.openTheSceneRehearsal();
-    await translateOpens(room);
-
-    expect(
-      room.harness.room.clipsFetched.where(
-        (url) => url.contains('/scene-rehearsals/'),
-      ),
-      isEmpty,
-      reason: 'o take da própria equipe está no tablet com outro nome',
-    );
-  });
-
   test(
     'a take waiting with its label goes up with it, and a take recorded over '
     'it carries the same label',
@@ -704,6 +597,72 @@ void main() {
     },
   );
 
+  test(
+    'a scene take kept after the room forgot the session stays on the tablet, '
+    "and the passage's next session offers it and sends it there at its tap",
+    () async {
+      final room = await atRest();
+      final perdida = room.state.sessionId!;
+      await theScreenOpens(room);
+      await room.harness.takes.enqueue(
+        room.harness.recorder.aFile('parte-esquecida'),
+        sessionId: perdida,
+        kind: 'ensaio',
+        scope: 'parte-1',
+      );
+      room.harness.room.forgetTheSession(perdida);
+      await theSceneMicrophoneOpens(room);
+      room.harness.recorder.holdNextStop();
+      room.sala.sceneTap();
+      await settle();
+      await room.harness.takes.flush();
+      await waitFor(
+        'a sala voltar à Escolha',
+        () => room.state.stage == SalaStage.escolha,
+      );
+      room.harness.recorder.finishStop();
+      await settle();
+
+      await _theNextSessionOfThePassage(room, perdida);
+
+      expect(room.harness.room.scenesKept, isEmpty);
+      await _theRetry(room);
+      await waitFor(
+        'o take chegar à sala',
+        () => room.harness.room.scenesKept.isNotEmpty,
+      );
+      expect(room.harness.room.scenesKept, [room.state.sessionId]);
+    },
+  );
+
+  test("a scene take waiting when its session goes is offered by the passage's "
+      'next session and sent there at its tap', () async {
+    final room = await atRest();
+    final perdida = room.state.sessionId!;
+    await theScreenOpens(room);
+    room.harness.room.failSceneWith = _offline;
+    await _recordAScene(room);
+    await _notKept(room);
+    room.harness.room
+      ..failSceneWith = null
+      ..forgetTheSession(perdida);
+    await _theRetry(room);
+    await waitFor(
+      'a sala voltar à Escolha',
+      () => room.state.stage == SalaStage.escolha,
+    );
+
+    await _theNextSessionOfThePassage(room, perdida);
+
+    expect(room.harness.room.scenesKept, isEmpty);
+    await _theRetry(room);
+    await waitFor(
+      'o take chegar à sala',
+      () => room.harness.room.scenesKept.isNotEmpty,
+    );
+    expect(room.harness.room.scenesKept, [room.state.sessionId]);
+  });
+
   test('a confirmed scene take counts the Outbox again', () async {
     final room = await atRest(SalaHarness(filaEmMemoria: true));
     await theScreenOpens(room);
@@ -810,7 +769,8 @@ class _AnOutboxSlowToTakeIt extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -821,6 +781,7 @@ class _AnOutboxSlowToTakeIt extends TakeUploadQueue {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
@@ -842,7 +803,8 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
   @override
   Future<PendingTake> enqueue(
     File audio, {
-    required String sessionId,
+    required String? sessionId,
+    String? passage,
     required String kind,
     required String scope,
     int? passNumber,
@@ -855,73 +817,12 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
     return super.enqueue(
       audio,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
     );
-  }
-}
-
-/// An Outbox whose first count after the room kept a scene take waits to be let go.
-class _CountsHeldAfterTheKeep extends TakeUploadQueue {
-  final FakeRoom _room;
-
-  _CountsHeldAfterTheKeep({
-    required FakeRoom room,
-    super.home,
-    required super.recordings,
-    super.backoff,
-  }) : _room = room,
-       super(room: room);
-
-  bool holding = false;
-  final _count = Completer<void>();
-
-  void letTheCountGo() => _count.complete();
-
-  @override
-  Future<OutboxTally> tally({required String? sessionId}) async {
-    if (_room.scenesKept.isNotEmpty && !_count.isCompleted) {
-      holding = true;
-      await _count.future;
-    }
-    return super.tally(sessionId: sessionId);
-  }
-}
-
-class _ConfirmsHeldBeforeTheRoomHears extends TakeUploadQueue {
-  _ConfirmsHeldBeforeTheRoomHears({
-    required super.room,
-    super.home,
-    required super.recordings,
-    super.backoff,
-  });
-
-  bool _armed = false;
-  bool holding = false;
-  int keptAsked = 0;
-  final _confirmation = Completer<void>();
-
-  void holdTheNextConfirmation() => _armed = true;
-
-  void letTheConfirmationGo() => _confirmation.complete();
-
-  @override
-  Future<int> flush({bool withTheCodeless = false}) async {
-    final sent = await super.flush(withTheCodeless: withTheCodeless);
-    if (_armed) {
-      _armed = false;
-      holding = true;
-      await _confirmation.future;
-    }
-    return sent;
-  }
-
-  @override
-  SceneRehearsalRecord? keptSceneOf(String row) {
-    keptAsked++;
-    return super.keptSceneOf(row);
   }
 }
