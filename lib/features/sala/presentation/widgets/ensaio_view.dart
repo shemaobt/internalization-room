@@ -20,6 +20,7 @@ import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
+import 'ouvir_tudo_view.dart';
 import 'rehearsal_sheet.dart';
 import 'saved_screen.dart';
 import 'stage_heading.dart';
@@ -37,6 +38,7 @@ class EnsaioView extends ConsumerWidget {
     if (session.ensaioSalvo case final versao?) {
       return SavedScreen(version: versao);
     }
+    if (session.ouvirTudo != OuvirTudo.fora) return const OuvirTudoView();
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
@@ -270,6 +272,19 @@ class EnsaioView extends ConsumerWidget {
                 style: TextStyle(color: colors.telha, fontSize: 15),
               ),
             ],
+            if (session.canOuvirTudo)
+              Semantics(
+                button: true,
+                label: recordingHomeLabelFor('listenAllAria', language),
+                excludeSemantics: true,
+                child: TextButton(
+                  onPressed: notifier.ouvirTudo,
+                  child: Text(
+                    recordingHomeLabelFor('listenAll', language),
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
             const GrainControls(),
             const SizedBox(height: 32),
