@@ -608,7 +608,7 @@ class RetroView extends ConsumerWidget {
                   child: Text(
                     terminei,
                     style: TextStyle(
-                      color: acesa ? ShemaBrand.branco : colors.ink,
+                      color: acesa ? colors.paper : colors.ink,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),

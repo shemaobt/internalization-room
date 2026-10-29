@@ -2417,7 +2417,7 @@ void main() {
   ]) {
     testWidgets(
       'in the ${look.name} look a dimmed «terminei» is written in ink at full '
-      'strength, not in white fading with its disc',
+      'strength, not in white fading with its pill',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
         addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
@@ -2456,51 +2456,7 @@ void main() {
       },
     );
     testWidgets(
-      'in the ${look.name} look a lit «terminei» keeps its white label on a '
-      'disc at full strength, not the ink of the dimmed one',
-      (tester) async {
-        tester.platformDispatcher.platformBrightnessTestValue = look;
-        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-        _telaAlta(tester);
-        final harness = SalaHarness(filaEmMemoria: true);
-        final container = await entrarNaTraducao(tester, harness, partes: 1);
-        harness.playback.at = cabeca;
-        await tocarNoCirculo(tester);
-        await tocarNoCirculo(tester);
-        await tocarNoCirculo(tester);
-        await contarAteOFimDaParte(tester, harness);
-        await waitFor(
-          'o terminei acender',
-          () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
-          step: () => _passo(tester),
-        );
-        await tester.pump(const Duration(seconds: 1));
-
-        expect(aceso(tester, 'terminei'), isTrue);
-        final rotulo = find.descendant(
-          of: byLabel('terminei'),
-          matching: find.text('terminei'),
-        );
-        expect(
-          tester.widget<Text>(rotulo).style!.color,
-          const Color(0xFFF6F5EB),
-          reason: 'o terminei aceso perdia o branco que tinha',
-        );
-        expect(
-          find.ancestor(
-            of: rotulo,
-            matching: find.descendant(
-              of: find.byType(RetroView),
-              matching: _apagando,
-            ),
-          ),
-          findsNothing,
-        );
-        closeTheRoom(container);
-      },
-    );
-    testWidgets(
-      'in the ${look.name} look «conferindo…» on the dimmed disc is written in '
+      'in the ${look.name} look «conferindo…» on the dimmed pill is written in '
       'ink at full strength, as the dimmed «terminei», not in white',
       (tester) async {
         tester.platformDispatcher.platformBrightnessTestValue = look;
@@ -2554,10 +2510,45 @@ void main() {
     );
   }
 
-  for (final (look, telha) in [
-    (Brightness.light, const Color(0xFFBE4A01)),
-    (Brightness.dark, const Color(0xFFD6612A)),
+  for (final (look, telha, papel) in [
+    (Brightness.light, const Color(0xFFBE4A01), const Color(0xFFF6F5EB)),
+    (Brightness.dark, const Color(0xFFD6612A), const Color(0xFF1A150E)),
   ]) {
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» writes the paper on her telha '
+      'at 4.6:1 or better, not white on a light disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _comOTermineiAceso(tester, harness);
+
+        expect(aceso(tester, 'terminei'), isTrue);
+        expect(
+          _piorContraste(tester, 'terminei'),
+          greaterThanOrEqualTo(4.6),
+          reason:
+              'o terminei aceso escrevia branco no disco de madeira, a 1,58:1',
+        );
+        final rotulo = find.descendant(
+          of: byLabel('terminei'),
+          matching: find.text('terminei'),
+        );
+        expect(tester.widget<Text>(rotulo).style!.color, papel);
+        expect(
+          find.ancestor(
+            of: rotulo,
+            matching: find.descendant(
+              of: find.byType(RetroView),
+              matching: _apagando,
+            ),
+          ),
+          findsNothing,
+        );
+        closeTheRoom(container);
+      },
+    );
     testWidgets(
       'in the ${look.name} look a dimmed «terminei» is her telha pill faded to '
       'a third, not a wood disc',
