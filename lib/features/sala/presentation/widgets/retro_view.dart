@@ -497,6 +497,7 @@ class RetroView extends ConsumerWidget {
       button: true,
       enabled: !dormindo,
       label: rotulo,
+      onTap: dormindo ? null : notifier.recomecarATraducao,
       child: Opacity(
         opacity: dormindo ? 0.4 : 1,
         child: ExcludeSemantics(
