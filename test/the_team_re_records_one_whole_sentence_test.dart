@@ -1933,6 +1933,97 @@ void main() {
 
   const aprovar = 'Aprovar como rascunho final';
 
+  testWidgets('while the microphone takes the next frase, «regravar» on a '
+      'told one takes no tap, and is live again once that frase is told', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..recorder.rehearsalSpeaks = aSpokenWav(length: parte);
+    final container = await entrarNaTraducao(tester, harness);
+    int contadas() => container
+        .read(salaSessionProvider)
+        .btTrechos
+        .where((trecho) => trecho.contado)
+        .length;
+    harness.playback.at = cabeca;
+    await _traduzir(tester);
+    await waitFor(
+      'a frase 1 ficar contada',
+      () => contadas() == 1,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(_acesa(tester, 'regravar a frase 1'), isTrue);
+
+    harness.playback.at = parte;
+    await _tocarOCirculo(tester);
+    await _tocarOCirculo(tester);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    expect(
+      _acesa(tester, 'regravar a frase 1'),
+      isFalse,
+      reason: 'regravar seguia aceitando toque com o microfone aberto',
+    );
+
+    await _tocarOCirculo(tester);
+    await waitFor(
+      'a frase seguinte ficar contada',
+      () => contadas() == 2,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(_acesa(tester, 'regravar a frase 1'), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the room checks the telling, no «regravar» on the list '
+      'takes a tap, and each is live again when the check comes back', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.verdictChecked = false;
+    for (var n = 1; n <= 4; n++) {
+      expect(_acesa(tester, 'regravar a frase $n'), isTrue);
+    }
+
+    harness.room.holdNextVerdict();
+    await tocar(tester, 'terminei');
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.thinking);
+    expect(
+      container.read(salaSessionProvider).channel,
+      isNot(isA<GuideSpeaking>()),
+    );
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _acesa(tester, 'regravar a frase $n'),
+        isFalse,
+        reason: 'regravar seguia aceitando toque com a conferência no ar',
+      );
+    }
+
+    harness.room.finishHeldVerdict();
+    await waitFor(
+      'a conferência voltar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    for (var n = 1; n <= 4; n++) {
+      expect(_acesa(tester, 'regravar a frase $n'), isTrue);
+    }
+    closeTheRoom(container);
+  });
+
   testWidgets('while the voice says the verdict again no row of the list '
       'takes a tap, and every row is live again when it ends', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
