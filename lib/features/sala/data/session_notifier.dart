@@ -7089,6 +7089,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _leaveTheBackTranslation() {
     if (state.station is! Retro) return;
     _voltarAoEnsaio();
+    _descartarATraducaoPendente();
+    _asPartesPerdidasSaem();
   }
 
   void ouvirTudo() => _gesture(() => _ouvirTudo());
@@ -10233,7 +10235,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final de = from > emVoltaDaFraseNova
         ? from - emVoltaDaFraseNova
         : Duration.zero;
-    final ate = to + emVoltaDaFraseNova;
+    final ate = switch (_tamanhoDaParteMs[path]) {
+      final medido?
+          when to + emVoltaDaFraseNova > Duration(milliseconds: medido) =>
+        Duration(milliseconds: medido),
+      _ => to + emVoltaDaFraseNova,
+    };
     void quiet() => unawaited(_playback.stop());
     _play(
       StretchSound(path, named: trecho.segmentId, from: de, to: ate),

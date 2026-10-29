@@ -109,7 +109,9 @@ void main() {
     );
   });
 
-  testWidgets('falta sem endereço não leva mais ao ensaio', (tester) async {
+  testWidgets('falta sem endereço não oferece gravar depois da última frase', (
+    tester,
+  ) async {
     final container = await pumpToPergunta(tester, trecho: null);
 
     expect(
@@ -121,8 +123,8 @@ void main() {
     );
     expect(
       tester.widget<Semantics>(byLabel(micParteLabel)).properties.enabled,
-      isFalse,
-      reason: 'sem trecho, os microfones ficam apagados, nunca escondidos',
+      isTrue,
+      reason: 'sem trecho, a volta à casa ficava apagada; a dela não',
     );
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
     expect(container.read(salaSessionProvider).btVeredito, isTrue);
