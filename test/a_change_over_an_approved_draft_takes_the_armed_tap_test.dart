@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, thePersonSign;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
@@ -389,7 +389,7 @@ void main() {
 
     expect(_naLista(_tentarDeNovo), findsOneWidget);
     expect(find.text(_sinal), findsNothing);
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
 
     final frase = _guardada(harness);
     await tocarNaLista(tester, _tentarDeNovo);

@@ -1573,6 +1573,20 @@ class SalaSessionState {
     _ => null,
   };
 
+  bool regravadaTraduzivelDeNovo(Trecho regravada) {
+    final takeId = switch (regravada.parte) {
+      final at when at >= 0 && at < partes.length => partes[at].takeId,
+      _ => null,
+    };
+    return takeId != null &&
+        !btTrechos.any(
+          (trecho) =>
+              trecho.takeId == takeId &&
+              trecho.from < regravada.lugarTo &&
+              regravada.lugarFrom < trecho.to,
+        );
+  }
+
   bool fraseRegravavel(Trecho trecho) =>
       !btSoOuvir &&
       aBackTranslationGestureActs &&

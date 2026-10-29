@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/stage_heading.dart';
 import 'package:internalization_room/main.dart';
@@ -196,6 +197,11 @@ Future<Sala> _naTela(
   await tester.pump();
   return it;
 }
+
+Finder _oCirculo() => find.descendant(
+  of: find.byType(RetroView),
+  matching: find.byType(FacilitatorCircle),
+);
 
 Finder _oTitulo(String texto) => find.byWidgetPredicate(
   (widget) =>
@@ -497,7 +503,7 @@ void main() {
   );
 
   testWidgets(
-    'during the first listen there is no terminei and the circle and the part strips do nothing',
+    'during the first listen there is no terminei, no circle, and the part strips do nothing',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _naTela(tester, _juntadaNaCasa);
@@ -511,10 +517,12 @@ void main() {
       final microfones = _microfones(it);
 
       expect(find.text(_terminei), findsNothing);
-      await tester.tap(find.byType(FacilitatorCircle).last);
-      await _ate(tester, () => settle());
-      expect(it.harness.playback.sounding, isTrue);
-      expect(_microfones(it), microfones);
+      expect(
+        _oCirculo(),
+        findsNothing,
+        reason:
+            'o primeiro ouvir desenhava um círculo grande que não fazia nada',
+      );
 
       final faixasDasPartes = find.descendant(
         of: find.byType(PartStrips),
@@ -529,6 +537,38 @@ void main() {
       expect(it.harness.playback.sounding, isTrue);
       expect(_microfones(it), microfones);
       semantics.dispose();
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'the circle comes back on the telling, once the listen gives way to P1',
+    (tester) async {
+      final it = await _naTela(tester, _juntadaNaCasa);
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await _ouvirAte(it, ate: 1);
+      });
+      expect(_oCirculo(), findsNothing);
+
+      await _ate(tester, () async {
+        _tudoOuvido(it);
+        final tocadas = it.harness.playback.played.length;
+        await _ouvirAte(it, desde: 2);
+        await waitFor(
+          'a primeira voltar ao ar',
+          () => it.harness.playback.played.length > tocadas,
+        );
+      });
+
+      expect(it.harness.voice.fixedLines.last, ('P1', testLanguage));
+      expect(it.container.read(salaSessionProvider).btSoOuvir, isFalse);
+      expect(
+        _oCirculo(),
+        findsOneWidget,
+        reason: 'o círculo sumia junto com a escuta e não voltava para contar',
+      );
       closeTheRoom(it.container);
     },
   );
@@ -647,14 +687,9 @@ void main() {
       expect(it.harness.playback.played.last, it.partes[0].path);
       expect(it.harness.playback.sounding, isTrue);
       expect(
-        [
-          for (final circulo in tester.widgetList<FacilitatorCircle>(
-            find.byType(FacilitatorCircle),
-          ))
-            circulo.halt,
-        ],
-        everyElement(isA<NoHalt>()),
-        reason: 'nenhum sinal de pessoa no círculo',
+        it.container.read(salaSessionProvider).halt,
+        isA<NoHalt>(),
+        reason: 'nenhum sinal de pessoa na tela',
       );
       closeTheRoom(it.container);
     },
@@ -1428,7 +1463,7 @@ void main() {
   );
 
   testWidgets(
-    'an answer that never comes keeps the listen and the play control plays it again',
+    'an answer that never comes writes that a part is still unheard, says nothing, and the play control plays it again',
     (tester) async {
       final it = await _naTela(tester, _juntadaNaCasa);
       late int linhas;
@@ -1447,6 +1482,12 @@ void main() {
         await settle();
       });
 
+      expect(
+        find.text(_faltaOuvir),
+        findsOneWidget,
+        reason:
+            'o relato sem resposta deixava a escuta muda, só com o tocar para seguir',
+      );
       expect(it.harness.voice.fixedLines.skip(linhas), isEmpty);
       expect(find.text(_soOuvir), findsOneWidget);
       expect(find.text(_terminei), findsNothing);
@@ -1462,6 +1503,87 @@ void main() {
       expect(it.harness.playback.played.last, it.partes[0].path);
       expect(it.harness.playback.playedFrom.last, Duration.zero);
       closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'an English session whose answer never comes reads her English gap line',
+    (tester) async {
+      final it = await _naTela(
+        tester,
+        () => _juntadaNaCasa(numaSala: SalaHarness(lingua: 'en')),
+      );
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await _ouvirAte(it, ate: 1);
+        it.harness.room.failListeningWith = const NetworkFailed('sem rede');
+        final relatos = it.harness.room.listeningReports.length;
+        await _ouvirAte(it, desde: 2);
+        await waitFor(
+          'o relato da última',
+          () => it.harness.room.listeningReports.length > relatos,
+        );
+        await settle();
+      });
+
+      expect(
+        find.text('there is still a part of the recording to listen to'),
+        findsOneWidget,
+        reason: 'a sessão em inglês também ficava sem linha nenhuma',
+      );
+      closeTheRoom(it.container);
+    },
+  );
+
+  test(
+    'a room that closes the listen without naming what is unheard still says a part is left',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      it.harness.room.listeningUnheardTakeIds = null;
+      final relatos = it.harness.room.listeningReports.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'o relato da última',
+        () => it.harness.room.listeningReports.length > relatos,
+      );
+      await settle();
+
+      expect(
+        it.estado.btRecusa,
+        CheckRefusal.partUnheard,
+        reason:
+            'uma sala que respondia sem nomear nada deixava a escuta sem linha',
+      );
+      expect(it.estado.btSoOuvir, isTrue);
+    },
+  );
+
+  test(
+    'a room that closes the listen with an empty list counts it heard, not a part left',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a P1 dela depois da escuta',
+        () => it.harness.voice.fixedLines.last.$1 == 'P1',
+      );
+      await settle();
+
+      expect(
+        it.estado.btRecusa,
+        isNull,
+        reason:
+            'a lista vazia é a sala contando tudo ouvido, não um trecho que falta',
+      );
+      expect(it.estado.btSoOuvir, isFalse);
     },
   );
 
@@ -1869,8 +1991,8 @@ void main() {
   );
 
   testWidgets(
-    'during the listen of a recording no join touched there is no terminei, the '
-    'circle opens no microphone, and her line names the recording, not the passage',
+    'during the listen of a recording no join touched there is no terminei and '
+    'no circle, and her line names the recording, not the passage',
     (tester) async {
       final it = await _naTela(tester, umEnsaioDeTresPartesGravado);
       await _ate(tester, () async {
@@ -1879,14 +2001,11 @@ void main() {
         await theClipOpens(it.harness);
         it.harness.playback.at = const Duration(seconds: 3);
       });
-      final microfones = _microfones(it);
 
-      await tester.tap(find.byType(FacilitatorCircle).last);
-      await _ate(tester, () => settle());
       expect(
-        _microfones(it),
-        microfones,
-        reason: 'o círculo abria o microfone no meio da escuta',
+        _oCirculo(),
+        findsNothing,
+        reason: 'a escuta da gravação sem junção ainda desenhava o círculo',
       );
       expect(it.harness.playback.sounding, isTrue);
       expect(find.text(_terminei), findsNothing);
