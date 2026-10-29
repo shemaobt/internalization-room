@@ -16,7 +16,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/grain_ch
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, settle;
+import 'um_ensaio_de_tres_partes.dart';
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -508,5 +509,64 @@ void main() {
     await _settles(tester);
     await tester.pump(_theArmLapses);
     closeTheRoom(container);
+  });
+
+  test('a switch to the whole from the check reports what was heard before '
+      'the room\'s grain door, never after it', () async {
+    final it = await umEnsaioDeTresPartesGravado();
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução começar a tocar a primeira parte',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing &&
+          it.harness.playback.sounding,
+    );
+    await ouvirAteOFim(it, partesDoEnsaio[0]);
+    await waitFor(
+      'a segunda parte entrar no ar',
+      () => it.estado.btClipRodando,
+    );
+    await theClipOpens(it.harness);
+    it.harness.playback.at = const Duration(seconds: 4);
+    it.sala.ouvirGravacao();
+    await waitFor('a segunda parte parar', () => !it.estado.btClipRodando);
+    final primeira = it.partes[0].takeId!;
+    final segunda = it.partes[1].takeId!;
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room.holdTheGrainSwitch();
+
+    it.sala.recordTheWholePassage();
+    await waitFor(
+      'a porta da sala ser chamada',
+      () => it.harness.room.grainSwitches.isNotEmpty,
+    );
+
+    expect(
+      it.harness.room.listeningReports.skip(relatos),
+      [
+        [
+          {
+            'take_id': primeira,
+            'played_ranges': [
+              [0, 10000],
+            ],
+            'clip_duration_ms': 10000,
+          },
+          {
+            'take_id': segunda,
+            'played_ranges': [
+              [0, 4000],
+            ],
+            'clip_duration_ms': 0,
+          },
+        ],
+      ],
+      reason:
+          'a troca tirava as partes antes do relato, e o que soou da '
+          'segunda parte nunca chegava à sala',
+    );
+    it.harness.room.finishTheGrainSwitch();
+    await settle();
   });
 }

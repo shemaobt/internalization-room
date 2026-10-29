@@ -4148,13 +4148,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _armedTap(
       'whole',
       needs: state.wholeSwitchArms,
-      then: () => _handOff(
-        _switchTheGrain(
-          Grain.whole,
-          reopens: state.overAnApprovedDraft,
-          then: _toItsHome,
-        ),
-      ),
+      then: () {
+        if (state.station is Retro) _relatarAEscuta();
+        _handOff(
+          _switchTheGrain(
+            Grain.whole,
+            reopens: state.overAnApprovedDraft,
+            then: _toItsHome,
+          ),
+        );
+      },
     );
   });
 
