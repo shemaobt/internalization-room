@@ -77,6 +77,13 @@ app; the Orchestrator settled the two open points the same day.
   for their passage; «enviar agora» on the next visit sends them into the passage's session
   then. A row an older app wrote with no passage that the tablet cannot name keeps its gone
   session and stays on the tablet, never offered.
+- **Every take follows the same rule: a part, a scene take, a frase.** A scene take kept
+  with no session, or with a gone one, gets its row under the passage it was recorded in,
+  and its keep or retry on the passage's next session sends it there; a frase held for a
+  gone session is offered by the frase screen of that next session and sent there at its
+  tap. The Panorama is a passage of its own for this.
+- **A forget deletes no take the Outbox does not hold.** A take whose row could not be
+  written stays on the disk when its session goes or the passage is left.
 
 ## Consequences
 

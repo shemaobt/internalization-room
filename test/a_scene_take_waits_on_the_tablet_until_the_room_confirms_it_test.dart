@@ -47,6 +47,24 @@ Future<void> _theRetry(SceneRoom room) async {
   await settle();
 }
 
+/// The team comes back to the passage, which opens in a session other than [gone], and
+/// opens the scene screen over the take still waiting.
+Future<void> _theNextSessionOfThePassage(SceneRoom room, String gone) async {
+  await settle();
+  await room.sala.goConversa(book: 'Ruth');
+  await waitFor(
+    'a passagem abrir numa sessão nova',
+    () =>
+        room.state.sessionId != null &&
+        room.state.sessionId != gone &&
+        room.state.stage == SalaStage.conversa &&
+        !room.state.awaitingTheGuide,
+  );
+  await settle();
+  await theScreenOpens(room);
+  await _notKept(room);
+}
+
 Future<void> _pumpTheRoom(WidgetTester tester, SceneRoom room) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -562,6 +580,72 @@ void main() {
       );
     },
   );
+
+  test(
+    'a scene take kept after the room forgot the session stays on the tablet, '
+    "and the passage's next session offers it and sends it there at its tap",
+    () async {
+      final room = await atRest();
+      final perdida = room.state.sessionId!;
+      await theScreenOpens(room);
+      await room.harness.takes.enqueue(
+        room.harness.recorder.aFile('parte-esquecida'),
+        sessionId: perdida,
+        kind: 'ensaio',
+        scope: 'parte-1',
+      );
+      room.harness.room.forgetTheSession(perdida);
+      await theSceneMicrophoneOpens(room);
+      room.harness.recorder.holdNextStop();
+      room.sala.sceneTap();
+      await settle();
+      await room.harness.takes.flush();
+      await waitFor(
+        'a sala voltar à Escolha',
+        () => room.state.stage == SalaStage.escolha,
+      );
+      room.harness.recorder.finishStop();
+      await settle();
+
+      await _theNextSessionOfThePassage(room, perdida);
+
+      expect(room.harness.room.scenesKept, isEmpty);
+      await _theRetry(room);
+      await waitFor(
+        'o take chegar à sala',
+        () => room.harness.room.scenesKept.isNotEmpty,
+      );
+      expect(room.harness.room.scenesKept, [room.state.sessionId]);
+    },
+  );
+
+  test("a scene take waiting when its session goes is offered by the passage's "
+      'next session and sent there at its tap', () async {
+    final room = await atRest();
+    final perdida = room.state.sessionId!;
+    await theScreenOpens(room);
+    room.harness.room.failSceneWith = _offline;
+    await _recordAScene(room);
+    await _notKept(room);
+    room.harness.room
+      ..failSceneWith = null
+      ..forgetTheSession(perdida);
+    await _theRetry(room);
+    await waitFor(
+      'a sala voltar à Escolha',
+      () => room.state.stage == SalaStage.escolha,
+    );
+
+    await _theNextSessionOfThePassage(room, perdida);
+
+    expect(room.harness.room.scenesKept, isEmpty);
+    await _theRetry(room);
+    await waitFor(
+      'o take chegar à sala',
+      () => room.harness.room.scenesKept.isNotEmpty,
+    );
+    expect(room.harness.room.scenesKept, [room.state.sessionId]);
+  });
 
   test('a confirmed scene take counts the Outbox again', () async {
     final room = await atRest(SalaHarness(filaEmMemoria: true));

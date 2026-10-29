@@ -1327,7 +1327,10 @@ class TakeUploadQueue {
     }
   }
 
-  Future<SceneRehearsalRecord?> keepTheScene(String row) async {
+  Future<SceneRehearsalRecord?> keepTheScene(
+    String row, {
+    String? intoTheSession,
+  }) async {
     await _mutate((written) {
       final at = written.indexWhere((entry) => entry.id == row);
       final kept = [
@@ -1336,8 +1339,15 @@ class TakeUploadQueue {
                   i < at &&
                       written[i].kind == sceneTakeKind &&
                       written[i].sessionId == written[at].sessionId &&
+                      (written[i].sessionId != null ||
+                          written[i].passage == written[at].passage) &&
                       written[i].refusal == null
-              ? written[i].dueNow()
+              ? switch (written[i].dueNow()) {
+                  final due when due.sessionId == null => due.inTheSession(
+                    intoTheSession,
+                  ),
+                  final due => due,
+                }
               : written[i],
       ];
       for (var i = 0; i < kept.length; i++) {
@@ -1371,11 +1381,14 @@ class TakeUploadQueue {
   /// [row] goes up on the next flush, as its own tap asked.
   void tapped(String row) => _dueOnATap[row] = ++_taps;
 
-  Future<PendingTake?> sceneWaitingIn(String sessionId) async {
+  Future<PendingTake?> sceneWaitingIn(
+    String sessionId, {
+    String? passage,
+  }) async {
     PendingTake? newest;
     for (final entry in await pending()) {
       if (entry.kind == sceneTakeKind &&
-          entry.sessionId == sessionId &&
+          _ofTheVisit(entry, sessionId, passage) &&
           entry.refusal == null &&
           !await _reallyGone(entry)) {
         newest = entry;
@@ -1384,10 +1397,14 @@ class TakeUploadQueue {
     return newest;
   }
 
-  Future<PendingTake?> sentenceHeldIn(String sessionId) async {
+  Future<PendingTake?> sentenceHeldIn(
+    String sessionId, {
+    String? passage,
+  }) async {
     PendingTake? newest;
     for (final entry in await pending()) {
-      if (entry.kind == sentenceKind && entry.sessionId == sessionId) {
+      if (entry.kind == sentenceKind &&
+          _ofTheVisit(entry, sessionId, passage)) {
         newest = entry;
       }
     }

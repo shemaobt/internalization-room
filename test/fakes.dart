@@ -4025,14 +4025,21 @@ class FakeTakeQueue implements TakeUploadQueue {
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
 
   @override
-  Future<SceneRehearsalRecord?> keepTheScene(String row) async {
+  Future<SceneRehearsalRecord?> keepTheScene(
+    String row, {
+    String? intoTheSession,
+  }) async {
     final at = rows.indexWhere((entry) => entry.id == row);
-    for (var i = 0; i < at; i++) {
+    for (var i = 0; i <= at; i++) {
       final entry = rows[i];
-      if (entry.kind == sceneTakeKind &&
-          entry.sessionId == rows[at].sessionId &&
-          !entry.exhausted) {
-        rows[i] = entry.dueNow();
+      if (i == at ||
+          entry.kind == sceneTakeKind &&
+              entry.sessionId == rows[at].sessionId &&
+              (entry.sessionId != null || entry.passage == rows[at].passage) &&
+              !entry.exhausted) {
+        rows[i] = entry.sessionId == null
+            ? entry.dueNow().inTheSession(intoTheSession)
+            : entry.dueNow();
       }
     }
     await flush();
@@ -4052,15 +4059,26 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  Future<PendingTake?> sceneWaitingIn(String sessionId) async => rows
+  Future<PendingTake?> sceneWaitingIn(
+    String sessionId, {
+    String? passage,
+  }) async => rows
       .where(
         (entry) =>
             entry.kind == sceneTakeKind &&
             !entry.stored &&
             entry.refusal == null &&
-            entry.sessionId == sessionId,
+            _ofTheVisit(entry, sessionId, passage),
       )
       .lastOrNull;
+
+  static bool _ofTheVisit(
+    PendingTake entry,
+    String sessionId,
+    String? passage,
+  ) => entry.sessionId == null
+      ? passage != null && entry.passage == passage
+      : entry.sessionId == sessionId;
 
   @override
   Future<int> flush() async {
@@ -4228,8 +4246,14 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  Future<PendingTake?> sentenceHeldIn(String sessionId) async => rows
-      .where((row) => row.kind == sentenceKind && row.sessionId == sessionId)
+  Future<PendingTake?> sentenceHeldIn(
+    String sessionId, {
+    String? passage,
+  }) async => rows
+      .where(
+        (row) =>
+            row.kind == sentenceKind && _ofTheVisit(row, sessionId, passage),
+      )
       .lastOrNull;
 
   @override

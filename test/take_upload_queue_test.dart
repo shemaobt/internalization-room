@@ -2707,6 +2707,63 @@ void main() {
       expect(await queue.entries(), isEmpty);
       expect(File(row.path).existsSync(), isFalse);
     });
+
+    test('an enqueue sends nothing by itself', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+
+      final row = await keepAPart(queue, 2);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(sends(room), 0);
+      expect(File(row.path).existsSync(), isTrue);
+    });
+
+    test('a scene take whose session is gone is offered to the passage\'s next '
+        'session, and its keep sends it into that session', () async {
+      final room = FakeRoom()..forgetTheSession('sessao-1');
+      final queue = queueOn(room);
+      final row = await queue.enqueue(
+        aTake('cena'),
+        sessionId: 'sessao-1',
+        passage: 'Ruth/P01/pt',
+        kind: 'cena',
+        scope: 'cena',
+      );
+      await queue.flush();
+
+      final offered = await queue.sceneWaitingIn(
+        'sessao-2',
+        passage: 'Ruth/P01/pt',
+      );
+      final kept = await queue.keepTheScene(row.id, intoTheSession: 'sessao-2');
+
+      expect(offered?.id, row.id);
+      expect(kept, isNotNull);
+      expect(room.scenesKept, ['sessao-2']);
+      expect(await queue.entries(), isEmpty);
+    });
+
+    test('a frase whose session is gone is held for the passage\'s next '
+        'session', () async {
+      final queue = queueOn(FakeRoom());
+      final row = await queue.enqueue(
+        aTake('frase'),
+        sessionId: 'sessao-1',
+        passage: 'Ruth/P01/pt',
+        kind: 'frase',
+        scope: '3',
+      );
+
+      await queue.letGoOfTheSession('sessao-1');
+
+      final held = await queue.sentenceHeldIn(
+        'sessao-2',
+        passage: 'Ruth/P01/pt',
+      );
+      expect(held?.id, row.id);
+      expect(File(row.path).existsSync(), isTrue);
+    });
   });
 
   group('a flush over an Outbox folder that is gone', () {
