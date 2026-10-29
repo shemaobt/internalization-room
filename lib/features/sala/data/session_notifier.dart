@@ -3574,6 +3574,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     lugarFrom: trecho.lugarFrom,
     lugarTo: trecho.lugarTo,
     frase: trecho.frase,
+    bridgeTakeId: trecho.bridgeTakeId,
   );
 
   /// How long each part turned out to be, so the room knows where each part ends.
@@ -4145,7 +4146,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           )
           when _correntes(guardadas).isEmpty &&
               rows.isEmpty &&
-              state.partes.isEmpty &&
               rehearsalsElsewhere(listed, sessionId):
         state = state.copyWith(rehearsalsElsewhere: true);
         _theGrainOrItsHome(sessionId, listed: guardadas, elsewhere: true);
@@ -4193,7 +4193,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool elsewhere = false,
     bool unread = false,
   }) {
-    if (state.grain != null && !unread) {
+    if (state.grainInForce != null && !unread) {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));
@@ -8850,6 +8850,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     final traducao = trecho.retroPath;
+    if (traducao == null) {
+      if (trecho.bridgeTakeId case final contada?) {
+        return _handOff(_ouvirATraducaoDaSala(indice, trecho, contada));
+      }
+    }
     final materna = _ondeTocar(trecho);
     if (traducao == null && materna == null) return;
     final segurada = _tirarAParteDoPlayer();
@@ -8869,14 +8874,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void ouvirAFraseRegravada(int indice) =>
-      _gesture(() => _ouvirAFraseRegravada(indice));
+  Future<void> _ouvirATraducaoDaSala(
+    int indice,
+    Trecho trecho,
+    String contada,
+  ) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null) return;
+    final life = _thisLife;
+    final gesto = _gestures;
+    final nome = 'contada-$contada';
+    final traducao =
+        await _heldOnTheTablet(nome) ??
+        switch (await _room.fetchClip(
+          RoomRepository.takeAudioUrl(sessionId, contada),
+        )) {
+          Answered(:final value) when value.isNotEmpty =>
+            await _recorder.keepBytes(value, nome),
+          _ => null,
+        };
+    if (traducao == null ||
+        _endedSince(life) ||
+        _gestures != gesto ||
+        !state.canHearAFrase) {
+      return;
+    }
+    _tocarATraducao(indice, trecho, traducao);
+  }
 
-  void _ouvirAFraseRegravada(int indice) {
-    if (!state.canHearAFrase) return;
-    final trecho = state.btTrechosRegravados.elementAtOrNull(indice);
-    final traducao = trecho?.retroPath;
-    if (trecho == null || traducao == null) return;
+  void _tocarATraducao(int indice, Trecho trecho, String traducao) {
     final segurada = _tirarAParteDoPlayer();
     state = state.copyWith(btContaEscolhida: indice);
     _play(
@@ -8885,6 +8911,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       onFailed: _calarOQueSeOuvia,
       beneath: segurada,
     );
+  }
+
+  void ouvirAFraseRegravada(int indice) =>
+      _gesture(() => _ouvirAFraseRegravada(indice));
+
+  void _ouvirAFraseRegravada(int indice) {
+    if (!state.canHearAFrase) return;
+    final trecho = state.btTrechosRegravados.elementAtOrNull(indice);
+    if (trecho == null) return;
+    final traducao = trecho.retroPath;
+    if (traducao == null) {
+      if (trecho.bridgeTakeId case final contada?) {
+        _handOff(_ouvirATraducaoDaSala(indice, trecho, contada));
+      }
+      return;
+    }
+    _tocarATraducao(indice, trecho, traducao);
   }
 
   void abrirAChecagemExterna() => _gesture(() {
@@ -11146,6 +11189,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                   lugarTo: trecho.lugarTo,
                   contado: trecho.contado,
                   frase: numeros[trecho.segmentId],
+                  bridgeTakeId: trecho.bridgeTakeId,
                 ),
             ],
           );
@@ -11246,6 +11290,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             lugarTo: aParte >= 0 ? to : (antes?.lugarTo ?? to),
             contado: segment.told,
             frase: segment.frase,
+            bridgeTakeId: segment.bridgeTakeId,
           );
         }(),
     ].where((trecho) => !deLado.contains(trecho.takeId)).toList();
