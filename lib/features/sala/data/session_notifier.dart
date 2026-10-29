@@ -8306,12 +8306,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
-    state = state.copyWith(clearBtRecusa: true);
+    state = state.copyWith(
+      clearBtRecusa: true,
+      btSoOuvir: false,
+      btPhase: BtPhase.thinking,
+    );
     bool deixou() => _abandoned(generation) || _endedSince(life);
     if (state.btFraseQueAguarda case final aguardando?) {
-      await _voltarAFraseQueAguarda(aguardando, generation);
-      if (!deixou()) _deixarDeSoOuvir();
-      return;
+      return _voltarAFraseQueAguarda(aguardando, generation);
     }
     if (ouvida.stretchUntranslated) {
       return _levarAoTrechoSemTraducao(
@@ -8323,13 +8325,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (ouvida.automaticCheck) {
       await _dizer(ouvida.fixedLine);
       if (deixou()) return;
-      _deixarDeSoOuvir();
+      state = state.copyWith(btPhase: BtPhase.playing);
       return _finishBackTranslation();
     }
     if (!state.joined || !state.btTrechos.any((trecho) => trecho.contado)) {
       return _dizerComoTraduzir(deixou);
     }
-    _deixarDeSoOuvir();
+    state = state.copyWith(btPhase: BtPhase.playing);
   }
 
   Future<void> _dizerComoTraduzir(bool Function() deixou) async {
