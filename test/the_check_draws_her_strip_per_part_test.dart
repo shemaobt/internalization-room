@@ -1129,8 +1129,8 @@ void main() {
     sala.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
     for (var gravada = 0; gravada < 2; gravada++) {
-      sala.ensaioTap();
-      sala.ensaioTap();
+      sala.gravarACena(gravada + 1);
+      sala.gravarACena(gravada + 1);
       await tester.pump(const Duration(milliseconds: 100));
       sala.takeKeep();
       if (gravada == 0) {
