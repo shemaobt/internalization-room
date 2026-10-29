@@ -24,7 +24,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, pressTheApproval;
+import 'scenario_helpers.dart' show byLabel, onTheCircle, pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
@@ -215,6 +215,40 @@ void main() {
             'a frase $n não oferecia regravar, e um detalhe custava a parte',
       );
     }
+    closeTheRoom(container);
+  });
+
+  testWidgets('«regravar a frase N» is pressed while its sentence is being '
+      'recorded again, and not pressed when it is only offered', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    bool apertada(String label) => isSemantics(
+      hasToggledState: true,
+      isToggled: true,
+    ).matches(tester.getSemantics(_naLista(label)), {});
+    bool solta(String label) => isSemantics(
+      hasToggledState: true,
+      isToggled: false,
+    ).matches(tester.getSemantics(_naLista(label)), {});
+
+    expect(
+      solta('regravar a frase 3'),
+      isTrue,
+      reason: 'o VoiceOver não dizia que regravar estava solto',
+    );
+
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      apertada('regravar a frase 3'),
+      isTrue,
+      reason: 'o VoiceOver não sabia que a frase 3 estava sendo regravada',
+    );
     closeTheRoom(container);
   });
 
@@ -607,6 +641,45 @@ void main() {
     closeTheRoom(container);
   });
 
+  bool aoVivo(WidgetTester tester, Finder finder) => tester
+      .getSemantics(finder)
+      .getSemanticsData()
+      .flagsCollection
+      .isLiveRegion;
+
+  testWidgets('«enviando…» and then «frase longa demais» are announced as '
+      'they come, on the row', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room
+      ..holdTheSentence = Completer<void>()
+      ..sentenceAnswersFirst.add(const Refused('SENTENCE_TOO_LONG'));
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      aoVivo(tester, naLinha('enviando…')),
+      isTrue,
+      reason: 'o VoiceOver não dizia que a frase estava indo',
+    );
+
+    harness.room.holdTheSentence!.complete();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      aoVivo(tester, naLinha('frase longa demais — regravem a cena')),
+      isTrue,
+      reason: 'o VoiceOver não dizia que a frase era longa demais',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   testWidgets('a sentence held on the tablet comes back with its session, and '
       'one tap sends that recording under the id it was kept by', (
     tester,
@@ -715,6 +788,26 @@ void main() {
     await _passo(tester);
 
     expect(harness.playback.ranges.last, '0-4700');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a new last sentence plays to the end of its take, never past '
+      'it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.sentenceLaysInAs = const Duration(seconds: 6);
+    await gravarAFrase(tester, harness, 4);
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.playback.ranges.last,
+      '2500-10000',
+      reason: 'a última frase nova tocava até 11500 numa gravação de 10 s',
+    );
     closeTheRoom(container);
   });
 
@@ -1097,6 +1190,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a new last sentence heard in its place is reported up to the '
+      'end of its take, never past it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.sentenceLaysInAs = const Duration(seconds: 6);
+    await deitarAFrase(tester, harness, 4);
+    final nova = harness.room.takes.last.takeId;
+
+    await _traduzirDeNovo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    await tocar(tester, 'terminei');
+    await _passo(tester);
+
+    final relato = harness.room.playedByTakeSent.last;
+    expect(
+      [
+        for (final parte in relato)
+          if (parte['take_id'] == nova)
+            '${parte['played_ranges']} em ${parte['clip_duration_ms']}',
+      ],
+      ['[[2500, 10000]] em 10000'],
+      reason: 'a sala recebia 2500-11500 ouvidos numa gravação de 10 s',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence the room refuses because another frase awaits stays '
       'on the tablet, and the voice opens the frase that awaits', (
     tester,
@@ -1384,6 +1504,90 @@ void main() {
     expect(harness.playback.played.last, gravada);
     expect(harness.playback.playedFrom.last, Duration.zero);
     expect(oGlifo(ListenGlyph.stop), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the sentence just recorded plays on its own button, never '
+      'lighting or pausing the main listen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    await tocar(tester, 'Ouvir — 3');
+    final paradas = harness.playback.stops;
+    final sons = harness.playback.sounds.length;
+
+    expect(
+      byLabel('Pausar'),
+      findsNothing,
+      reason: 'o ouvir principal virava pausar com a frase da revisão tocando',
+    );
+    expect(
+      aceso(tester, 'Ouvir'),
+      isFalse,
+      reason: 'o ouvir principal acendia para a frase da revisão',
+    );
+
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
+    await _passo(tester);
+
+    expect(
+      harness.playback.sounds.skip(sons),
+      isNot(contains('playback:pause')),
+      reason: 'o ouvir principal pausava a frase da revisão',
+    );
+    expect(harness.playback.stops, paradas);
+    expect(apertado(tester), isTrue);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(apertado(tester), isFalse);
+    expect(harness.playback.stops, greaterThan(paradas));
+    closeTheRoom(container);
+  });
+
+  testWidgets('under review, before and while it plays, the circle is named '
+      '«gravem a frase inteira», as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    expect(onTheCircle('gravem a frase inteira'), findsOneWidget);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(apertado(tester), isTrue);
+    expect(
+      onTheCircle('gravem a frase inteira'),
+      findsOneWidget,
+      reason:
+          'o VoiceOver lia no círculo um estado da gravação com a frase da '
+          'revisão tocando',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the sentence just recorded plays, the circle does not '
+      'speak and no «ouvindo» stands by the main listen', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(apertado(tester), isTrue);
+    expect(
+      tester.widget<FacilitatorCircle>(_circulo()).voice,
+      isNot(VoiceState.speaking),
+      reason: 'o círculo falava na língua materna com a frase da revisão',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('ouvindo a gravação de vocês…'),
+      ),
+      findsNothing,
+      reason: 'o ouvindo da gravação aparecia para a frase da revisão',
+    );
     closeTheRoom(container);
   });
 

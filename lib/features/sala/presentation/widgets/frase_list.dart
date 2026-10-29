@@ -181,9 +181,12 @@ class FraseList extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: row.onEstado == null
-                  ? Text(
-                      estado,
-                      style: TextStyle(color: colors.mut, fontSize: 14),
+                  ? Semantics(
+                      liveRegion: row.regravando,
+                      child: Text(
+                        estado,
+                        style: TextStyle(color: colors.mut, fontSize: 14),
+                      ),
                     )
                   : _Pill(
                       label: estado,
@@ -201,11 +204,13 @@ class _Pill extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final bool dormindo;
+  final bool? toggled;
 
   const _Pill({
     required this.label,
     required this.onTap,
     this.dormindo = false,
+    this.toggled,
   });
 
   @override
@@ -214,6 +219,7 @@ class _Pill extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null && !dormindo,
+      toggled: toggled,
       label: label,
       child: Opacity(
         opacity: onTap == null
@@ -352,6 +358,7 @@ class _FraseTile extends StatelessWidget {
                           label: regravar,
                           onTap: row.onRegravar,
                           dormindo: row.regravarDormindo,
+                          toggled: row.regravando,
                         ),
                     ],
                   ),
