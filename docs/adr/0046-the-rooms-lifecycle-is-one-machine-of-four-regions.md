@@ -203,3 +203,9 @@ resume into it already reports on its way back to the check), and one when
 the room keeps a told stretch. With them goes the answer they keep, `_oQueASalaDisse`, and
 its order, `_relatosASala`, two private fields of `SalaSessionNotifier`. No Station opens or
 resumes differently.
+
+Extended by name (ENG-2057, 2026-10-29), same end date: four more of those reports, one for
+each other change of the passage's frases: a stretch told again, a scene's translations
+brought back, the translation started over and a re-recorded sentence laid in (ADR 0140
+rule 4). They keep the same answer in the same two fields; no field is added, and no Station
+opens or resumes differently.
