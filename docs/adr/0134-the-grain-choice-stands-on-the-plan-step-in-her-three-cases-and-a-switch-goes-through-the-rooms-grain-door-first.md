@@ -44,9 +44,11 @@ aside from a current one.
   a recording no join touched. It is dimmed and takes no tap while a part or a line sounds,
   while the telling is recorded, sent or checked, while a sentence re-record is open, while an
   approval or an open of the Checagem externa is in the air, while a switch is, and while the
-  room is stopped for a person. Its second
-  tap first reports what was heard on the check, then goes through the grain door, and opens
-  the whole-passage home once the door answered.
+  room is stopped for a person. Its second tap leaves the check for the recording home at
+  once, as hers does (`exitBt` before the grain door, Drafting.tsx:2094-2101): leaving reports
+  what was heard while the scene parts still stand, and nothing on the check can be started
+  while the door is in the air. The switch then runs as the home's own does; a door that fails
+  leaves the team on the recording home at the joined grain.
 - **«Gravar cena por cena»** is always offered, on the plan and on the whole-passage home, one
   tap. The plain one-tap switches send `reopens_the_approved_draft`, since changing the
   recording form takes one tap even over an approved draft (ENG-1260).

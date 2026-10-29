@@ -1691,7 +1691,6 @@ class SalaSessionState {
       channel is! GuideSpeaking &&
       btRegravacao == null &&
       aBackTranslationGestureActs &&
-      !grainSwitching &&
       !needsPerson;
 
   bool get canHearAFrase =>

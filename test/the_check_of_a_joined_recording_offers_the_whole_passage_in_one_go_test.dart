@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -12,7 +13,6 @@ import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/grain_choice_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -496,7 +496,7 @@ void main() {
     expect(container.read(salaSessionProvider).grainSwitching, isTrue);
 
     for (var vez = 0; vez < 2; vez++) {
-      await tester.tap(find.byType(GrainChange));
+      container.read(salaSessionProvider.notifier).recordTheWholePassage();
       await tester.pump(const Duration(seconds: 2));
     }
 
@@ -549,6 +549,57 @@ void main() {
       reason: 'o toque que chegava antes de a tela apagar o botão ainda armava',
     );
     await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the second tap leaves the check at once, as hers: while the '
+      'door is in the air the circle opens no microphone', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    harness.room.holdTheGrainSwitch();
+
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    await _tap(tester, _wholeArmed);
+    expect(container.read(salaSessionProvider).grainSwitching, isTrue);
+
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason: 'a conferência seguia aberta enquanto a troca ia para a sala',
+    );
+    final capturas = harness.recorder.captures;
+    container.read(salaSessionProvider.notifier).retroTap();
+    await _passo(tester);
+    expect(
+      harness.recorder.captures,
+      capturas,
+      reason: 'uma frase contada durante a troca era jogada fora na chegada',
+    );
+    harness.room.finishTheGrainSwitch();
+    await _settles(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a door that refuses leaves the team on the recording home with '
+      'its joined parts, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    harness.room.grainAnswersFirst.add(const Refused(RefusalCode.notFound));
+
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    await _tap(tester, _wholeArmed);
+    await _settles(tester);
+
+    expect(harness.room.grainSwitches, hasLength(1));
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason: 'o dela sai da conferência no toque, antes da resposta da sala',
+    );
+    expect(container.read(salaSessionProvider).recordsTheWhole, isFalse);
+    expect(container.read(salaSessionProvider).partes, hasLength(2));
     closeTheRoom(container);
   });
 

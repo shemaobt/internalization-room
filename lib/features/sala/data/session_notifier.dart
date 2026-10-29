@@ -4121,13 +4121,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The recording home at the grain just switched to: opened from the plan, redrawn on
   /// the home.
   void _toItsHome() {
-    if (_onThePlan || state.station is Retro) {
-      _openTheRecordingHome(state.sessionId!);
-    }
+    if (_onThePlan) _openTheRecordingHome(state.sessionId!);
   }
 
-  /// «gravar a passagem inteira de uma vez», on the plan and on a scene home over a
-  /// joined recording.
+  /// «gravar a passagem inteira de uma vez», on the plan, on a scene home over a joined
+  /// recording, and on the check of one.
   void recordTheWholePassage() => _gesture(() {
     if (!(state.station is Retro
             ? state.wholeSwitchActsOnTheCheck
@@ -4139,13 +4137,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       'whole',
       needs: state.wholeSwitchArms,
       then: () {
-        if (state.station is Retro) _relatarAEscuta();
+        final reopens = state.overAnApprovedDraft;
+        if (state.station is Retro) _goEnsaio();
         _handOff(
-          _switchTheGrain(
-            Grain.whole,
-            reopens: state.overAnApprovedDraft,
-            then: _toItsHome,
-          ),
+          _switchTheGrain(Grain.whole, reopens: reopens, then: _toItsHome),
         );
       },
     );
