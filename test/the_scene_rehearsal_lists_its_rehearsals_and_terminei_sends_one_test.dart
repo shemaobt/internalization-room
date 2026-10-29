@@ -16,7 +16,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, settle, thePersonSign;
 
 const _session = 'sessao-1';
 const _articulation = Moment(at: MomentAt.articulation, part: 1, parts: 3);
@@ -1410,34 +1410,41 @@ void main() {
     },
   );
 
-  group('no scene send while a person is called', () {
-    test('a tap under the halt sends nothing', () async {
+  group('a halt on the scene screen waits for the conversation, as hers', () {
+    test('terminei still sends under it', () async {
       final room = await _atRest([_unsentWithFrases()]);
       await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
       room.sala.haltForABrokenBuild();
-      expect(room.state.needsPerson, isTrue);
+      expect(room.state.needsPerson, isFalse);
 
       room.sala.sendTheSceneRehearsal();
-      await settle();
+      await waitFor(
+        'o ensaio ir',
+        () => room.harness.room.scenesSent.isNotEmpty,
+      );
 
-      expect(room.harness.room.scenesSent, isEmpty);
+      expect(
+        room.harness.room.scenesSent,
+        hasLength(1),
+        reason: 'a parada travava o terminei da cena, e o dela segue mandando',
+      );
     });
 
-    testWidgets('terminei is drawn dimmed under the halt', (tester) async {
+    testWidgets('no sign is drawn over it and terminei stays lit', (
+      tester,
+    ) async {
       final (harness, container) = await _theScreenShows(tester, [
         _unsentWithFrases(),
       ], when: (state) => state.scene.step == SceneStep.translate);
-      final sala = container.read(salaSessionProvider.notifier);
-      sala.haltForABrokenBuild();
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(_enabled(tester, _terminei), isFalse);
-      sala.teamTapped();
-      await _pumpUntil(
-        tester,
-        () => !container.read(salaSessionProvider).needsPerson,
-        beat: const Duration(seconds: 1),
+      expect(
+        thePersonSign,
+        findsNothing,
+        reason: 'o sinal cobria a cena, e o dela só fica sobre a conversa',
       );
+      expect(_enabled(tester, _terminei), isTrue);
     });
   });
 

@@ -1118,7 +1118,7 @@ final class Machine {
 
   final bool wordlessTelling;
 
-  /// A scene rehearsal's look found nothing: the person sign shows once the team is
+  /// A halt met on the scene rehearsal: the person sign shows once the team is
   /// back on the Canvas.
   final bool aHaltWaitsForTheCanvas;
 
@@ -1546,6 +1546,10 @@ const _watch = ArmTheWatch();
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
     },
   },
+  RoomRaisedAHalt() when machine.station is SceneRehearsal => (
+    machine.copyWith(aHaltWaitsForTheCanvas: true),
+    const <Effect>[],
+  ),
   RoomRaisedAHalt() ||
   TheAnswerWarned() ||
   TeamTapped() ||
