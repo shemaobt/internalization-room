@@ -429,6 +429,7 @@ class RetroView extends ConsumerWidget {
         _ => null,
       },
       estadoDormindo: _dormindo('resend:${trecho.frase}', session),
+      estadoArmado: session.armedTap?.control == 'resend:${trecho.frase}',
       onEstado:
           atua &&
               session.channel is! GuideSpeaking &&

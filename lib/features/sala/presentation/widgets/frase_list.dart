@@ -27,6 +27,7 @@ class FraseRow {
   final FraseRevisao? revisao;
   final String? estado;
   final bool estadoDormindo;
+  final bool estadoArmado;
   final VoidCallback? onEstado;
 
   const FraseRow({
@@ -48,6 +49,7 @@ class FraseRow {
     this.revisao,
     this.estado,
     this.estadoDormindo = false,
+    this.estadoArmado = false,
     this.onEstado,
   });
 }
@@ -199,6 +201,7 @@ class FraseList extends StatelessWidget {
                       label: estado,
                       onTap: row.onEstado,
                       dormindo: row.estadoDormindo,
+                      toggled: row.estadoArmado ? true : null,
                     ),
             ),
         ],

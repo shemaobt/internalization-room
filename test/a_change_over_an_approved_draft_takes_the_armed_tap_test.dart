@@ -445,6 +445,35 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the held sentence\'s «tentar de novo», armed over an approved '
+      'draft, reads pressed to VoiceOver', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocarNaLista(tester, _regravar(2));
+    await gravarAFraseAberta(tester, harness);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(_textoNaLista('usar esta'));
+    await _passo(tester);
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..sentenceAnswersFirst.add(const Refused('DRAFT_APPROVED'));
+    segura.complete();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tocarNaLista(tester, _tentarDeNovo);
+
+    expect(
+      tester.getSemantics(_naLista(_armado)),
+      isSemantics(hasToggledState: true, isToggled: true),
+      reason: 'o tentar de novo armado soava solto para o VoiceOver',
+    );
+    await tester.pump(const Duration(seconds: 8));
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   testWidgets('«recomeçar a tradução» keeps its own armed text over an '
       'approved draft', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
