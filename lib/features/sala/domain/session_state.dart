@@ -470,6 +470,8 @@ class SalaSessionState {
   final String? btFindingSegmentId;
 
   final bool btClipEnded;
+  final bool? btOuvidaInteira;
+  final bool btRestoPorOuvir;
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
@@ -667,6 +669,8 @@ class SalaSessionState {
     this.btCenasSemTraducao = const [],
     this.btFindingSegmentId,
     this.btClipEnded = false,
+    this.btOuvidaInteira,
+    this.btRestoPorOuvir = false,
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
@@ -1400,7 +1404,7 @@ class SalaSessionState {
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro &&
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
-      btClipEnded &&
+      (btOuvidaInteira ?? btClipEnded) &&
       !btSoOuvir &&
       aBackTranslationGestureActs;
 
@@ -1442,16 +1446,20 @@ class SalaSessionState {
     return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
   }
 
+  bool get _btOuvidaCoberta =>
+      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) && !btRestoPorOuvir;
+
   bool get btContadaInteira =>
-      btClipEnded && _btParteContada && btTraducaoPendente == null;
+      _btOuvidaCoberta &&
+      (btTraducaoPendente == null || btTraducaoPendenteEmprestada);
 
   bool get canAdvanceToTheVerdict =>
       canFinishBackTranslation &&
       btContadaInteira &&
-      btContaEscolhida == null &&
       btFraseQueAguarda == null &&
       btRegravacao == null &&
       channel is! GuideSpeaking &&
+      !awaitingTheGuide &&
       (!joined ||
           partes.indexed.every(
             (parte) => btTrechos.any(
@@ -1466,7 +1474,7 @@ class SalaSessionState {
   bool get btAindaFaltaOuvir =>
       _btDebaixoDoTerminei &&
       btRecusa != CheckRefusal.stretchUntranslated &&
-      !(btClipEnded && _btParteContada);
+      !_btOuvidaCoberta;
 
   bool get btFaltaTraduzirUmTrecho =>
       _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;
@@ -1831,6 +1839,8 @@ class SalaSessionState {
     String? btFindingSegmentId,
     bool clearFindingSegment = false,
     bool? btClipEnded,
+    bool? btOuvidaInteira,
+    bool? btRestoPorOuvir,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
@@ -1975,6 +1985,8 @@ class SalaSessionState {
           ? null
           : (btFindingSegmentId ?? this.btFindingSegmentId),
       btClipEnded: btClipEnded ?? this.btClipEnded,
+      btOuvidaInteira: btOuvidaInteira ?? this.btOuvidaInteira,
+      btRestoPorOuvir: btRestoPorOuvir ?? this.btRestoPorOuvir,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,

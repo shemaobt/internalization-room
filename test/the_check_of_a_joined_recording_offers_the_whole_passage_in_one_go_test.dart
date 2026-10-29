@@ -743,13 +743,17 @@ void main() {
   });
 
   testWidgets('on a joined recording «terminei» stays dimmed while a part has '
-      'no frase told, and a tap sends no check', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+      'no frase told, though the room counts every part heard, and a tap '
+      'sends no check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
     final container = await _naConferencia(
       tester,
       harness,
       aPrimeiraParteContada: false,
     );
+    await _passo(tester);
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
     await waitFor(
       'a gravação tocar até o fim',
       () => container.read(salaSessionProvider).btClipEnded,
@@ -777,10 +781,14 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('on a joined recording with a frase told on every part '
-      '«terminei» is lit, and a tap sends the check', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+  testWidgets('on a joined recording with a frase told on every part and the '
+      'room counting every part heard «terminei» is lit, and a tap sends the '
+      'check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
     final container = await _naConferencia(tester, harness);
+    await _passo(tester);
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
     await waitFor(
       'a gravação tocar até o fim',
       () => container.read(salaSessionProvider).btClipEnded,

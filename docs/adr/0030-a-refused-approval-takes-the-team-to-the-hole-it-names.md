@@ -40,6 +40,18 @@ stands for the check again as hers does; nothing else is given back, and a recor
 heard to its end stays unheard, at conferida as at any other phase. The recording home's
 refusal is not changed here.
 
+Amended by ENG-2054 (2026-10-29, the same rule): «every part heard as the room counts it» is
+the room's newest answer to a listening report, which the gate now reads itself, as hers reads
+`heardComplete` (`Drafting.tsx:2340`); the end of the last part on this tablet and the cursor
+at the end of a part are no longer terms of it. A part playing, a frase's translation heard
+again and a frase opened to be told again leave *terminei* lit, as her `btAct` stays idle for
+all three; a press with a frase opened lets that frase go and checks what was told
+(`Drafting.tsx:1487`); a guide line still on its way closes it, as `replayVerdict` closes hers
+before the sound. A checked passage reopened from the home or picked back up asks the room and
+has *terminei* lit at once when the room counts it heard, so the ENG-2028 sentence on the last
+listening the press silenced holds only for a room that names no list. A telling picked back
+up that stopped short of the end still waits for its untold rest to be heard (ADR 0140 rule 2).
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal

@@ -479,10 +479,11 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto a tradução de uma '
-      'frase toca', (tester) async {
+  testWidgets('R3 — o disco de avanço fica aceso enquanto a tradução de uma '
+      'frase toca, com a sala contando tudo ouvido', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
-      ..room.chunksAnswerWithNoName = true;
+      ..room.chunksAnswerWithNoName = true
+      ..room.listeningUnheardTakeIds = const [];
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -499,7 +500,13 @@ void main() {
 
     await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
     expect(harness.playback.sounding, isTrue);
-    expect(aceso(tester, conferir), isFalse);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'o terminei apagava enquanto a tradução da frase tocava; no dela a '
+          'tradução ouvida de novo não fecha nada',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -507,11 +514,12 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto uma frase com nome '
-      'tocada se abre de novo, e acende com manter a tradução de antes', (
+  testWidgets('R3 — o disco de avanço fica aceso enquanto uma frase com nome '
+      'tocada se abre de novo, com a sala contando tudo ouvido', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -527,18 +535,64 @@ void main() {
     expect(aceso(tester, conferir), isTrue);
 
     await tocar(tester, sceneRehearsalLabelFor('retellFrase', 'pt', n: 1));
-    expect(aceso(tester, conferir), isFalse);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'o terminei apagava com uma frase aberta para traduzir de novo; no '
+          'dela a frase armada não fecha nada',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      aceso(tester, conferir),
-      isFalse,
-      reason: 'o terminei acendia com uma frase aberta para traduzir de novo',
-    );
+    expect(aceso(tester, conferir), isTrue);
 
     await tocar(tester, 'manter a tradução de antes');
     expect(aceso(tester, conferir), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('R3 — o terminei tocado com uma frase aberta para traduzir de '
+      'novo confere as frases contadas e deixa a frase como estava', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocarNoCirculo(tester);
+    await gravarATraducao(tester, harness);
+    for (var vez = 0; vez < 2; vez++) {
+      harness.playback.at = parte;
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+    }
+    final contadas = container.read(salaSessionProvider).btTrechos;
+    await tocar(tester, sceneRehearsalLabelFor('retellFrase', 'pt', n: 1));
+    expect(container.read(salaSessionProvider).btTraducaoPendente, isNotNull);
+
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(1),
+      reason: 'o toque no terminei com a frase armada não pedia a conferência',
+    );
+    expect(
+      container.read(salaSessionProvider).btTraducaoPendente,
+      isNull,
+      reason:
+          'a frase aberta para traduzir de novo ficava armada depois do '
+          'veredito; a dela solta a frase quando o terminei é tocado',
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechos.map((t) => t.retroPath),
+      contadas.map((t) => t.retroPath),
+    );
     closeTheRoom(container);
   });
 
