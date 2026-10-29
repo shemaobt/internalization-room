@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/capture_guard.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -26,8 +27,9 @@ const _panorama = Passagem(
 class _Room {
   final SalaHarness harness;
   final ProviderContainer container;
+  final bool onThePanorama;
 
-  _Room(this.harness, this.container);
+  _Room(this.harness, this.container, {this.onThePanorama = false});
 
   SalaSessionNotifier get notifier =>
       container.read(salaSessionProvider.notifier);
@@ -37,7 +39,11 @@ class _Room {
   CutPoint? get lastCut => harness.room.cutsSent.last;
 
   Future<void> tap() async {
-    notifier.conversaTap();
+    if (onThePanorama) {
+      notifier.panoramaTap();
+    } else {
+      notifier.conversaTap();
+    }
     await settle();
   }
 
@@ -71,6 +77,17 @@ Future<_Room> _inConversa({SalaHarness? harness}) async {
   final container = await inConversa(room);
   addTearDown(container.dispose);
   return _Room(room, container);
+}
+
+Future<_Room> _onThePanorama() async {
+  final harness = SalaHarness();
+  harness.room.passages = [_panorama, ...harness.room.passages];
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final room = _Room(harness, container, onThePanorama: true);
+  await enterThePanorama(room.notifier, () => room.state);
+  await waitFor('o panorama ser dito', () => room.state.panoramaSaid);
+  return room;
 }
 
 Future<_Room> _cutWhileSheSpeaks({
@@ -396,30 +413,118 @@ void main() {
     },
   );
 
-  group('a tap while the voice speaks is ignored', () {
-    test('by the Panorama\'s circle', () async {
-      final harness = SalaHarness();
-      harness.room.passages = [_panorama, ...harness.room.passages];
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final room = _Room(harness, container);
-      harness.voice.holdNextFetch();
-      await enterThePanorama(room.notifier, () => room.state);
-      harness.voice.holdNextLine();
-      harness.voice.finishHeldFetch();
-      await waitFor(
-        'o panorama falar',
-        () => room.state.voice == VoiceState.speaking,
-      );
-      final stops = harness.voice.stops;
-      final captures = harness.recorder.captures;
+  test('a tap on the Panorama\'s circle while her reply speaks stops her and '
+      'opens the microphone, as on the conversation', () async {
+    final room = await _onThePanorama();
+    await room.aReplySpeaking();
+    final stops = room.harness.voice.stops;
+    final captures = room.harness.recorder.captures;
 
-      room.notifier.panoramaTap();
-      await settle();
+    await room.tap();
 
-      expect(harness.voice.stops, stops);
-      expect(harness.recorder.captures, captures);
+    expect(
+      room.harness.voice.stops,
+      greaterThan(stops),
+      reason: 'no Panorama o toque com ela falando era ignorado',
+    );
+    expect(room.state.voice, VoiceState.listening);
+    expect(room.harness.recorder.captures, captures + 1);
+  });
+
+  test('the Panorama\'s next take tells the room it followed an interruption, '
+      'and where, and the take after it tells nothing', () async {
+    final room = await _cutWhileSheSpeaks(on: await _onThePanorama());
+
+    await room.tap();
+    await waitFor(
+      'a vez cortada chegar à sala',
+      () => room.harness.room.cutsSent.length == 2,
+    );
+
+    expect(
+      room.lastCut,
+      const CutPoint(_at, of: _of),
+      reason:
+          'a vez do Panorama depois do corte saía sem dizer onde foi cortada',
+    );
+
+    await waitFor('a sala voltar ao convite', () {
+      return room.state.voice == VoiceState.invite;
     });
+    await room.aRealTake();
+
+    expect(room.harness.room.cutsSent, hasLength(3));
+    expect(room.lastCut, isNull);
+  });
+
+  test('a tap while the Panorama\'s opening speaks cuts it too, and the next '
+      'tap sends the take with where she was cut', () async {
+    final harness = SalaHarness();
+    harness.room.passages = [_panorama, ...harness.room.passages];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final room = _Room(harness, container, onThePanorama: true);
+    await container.read(micPermissionProvider.notifier).check();
+    harness.voice.holdNextFetch();
+    await enterThePanorama(room.notifier, () => room.state);
+    harness.voice.holdNextLine();
+    harness.voice.finishHeldFetch();
+    await waitFor(
+      'o panorama falar',
+      () => room.state.voice == VoiceState.speaking,
+    );
+    harness.voice
+      ..linePosition = _at
+      ..lineLength = _of;
+    final stops = harness.voice.stops;
+    final captures = harness.recorder.captures;
+
+    await room.tap();
+
+    expect(
+      harness.voice.stops,
+      greaterThan(stops),
+      reason: 'a abertura do Panorama seguia falando por cima do toque',
+    );
+    expect(room.state.voice, VoiceState.listening);
+    expect(harness.recorder.captures, captures + 1);
+
+    await room.tap();
+    await waitFor(
+      'a vez cortada chegar à sala',
+      () => harness.room.cutsSent.isNotEmpty,
+    );
+
+    expect(room.lastCut, const CutPoint(_at, of: _of));
+  });
+
+  test('a tap while «Ouvir de novo» plays on the Panorama cuts it as it cuts '
+      'her reply', () async {
+    final room = await _onThePanorama();
+    await room.aReplySpeaking();
+    room.harness.voice.finishHeldLine();
+    await waitFor(
+      'a sala voltar ao convite',
+      () => room.state.voice == VoiceState.invite,
+    );
+    room.harness.voice.holdNextLine();
+    unawaited(room.notifier.hearAgain());
+    await waitFor(
+      'a repetição falar',
+      () => room.state.voice == VoiceState.speaking,
+    );
+    final stops = room.harness.voice.stops;
+    final captures = room.harness.recorder.captures;
+
+    await room.tap();
+
+    expect(
+      room.harness.voice.stops,
+      greaterThan(stops),
+      reason: 'no Panorama a repetição não podia ser cortada',
+    );
+    expect(room.state.voice, VoiceState.listening);
+    expect(room.harness.recorder.captures, captures + 1);
   });
 
   group('a cut whose microphone ends without a take tells the next take '
