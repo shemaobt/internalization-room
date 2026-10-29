@@ -38,6 +38,7 @@ const _failed = 'falhou — toque para tentar de novo';
 const _wholeInstead = 'Gravar a passagem inteira';
 const _theArmLapses = Duration(seconds: 8);
 const _record = 'Gravar';
+const _backToPassage = 'Voltar para a passagem atual';
 
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
@@ -469,6 +470,98 @@ void main() {
       expect(find.text('Cena 1'), findsNothing);
       expect(find.text(_how), findsNothing);
       harness.room.finishHeldSceneList();
+    },
+  );
+
+  testWidgets(
+    'with a grain only in memory, the 6 s cut with no listing read shows the '
+    'choice, not that grain\'s home',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room
+        ..holdNextTakesList()
+        ..holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'sem a listagem da sala, o tablet abria a casa do grão que lembrava, '
+            'e o dela mostra a escolha',
+      );
+      expect(find.text(_homeLine), findsNothing);
+      harness.room
+        ..finishHeldTakesList()
+        ..finishHeldSceneList();
+    },
+  );
+
+  testWidgets(
+    'with a grain only in memory, a listing that fails shows the choice, not '
+    'that grain\'s home',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'a listagem que falhou abria a casa do grão lembrado, e o dela, sem '
+            'o rascunho lido, mostra a escolha',
+      );
+      expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'on the choice over a grain in memory, a tap on that grain the room does not '
+    'answer stays on the choice and says nothing',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _settles(tester);
+      harness.room.grainAnswersFirst.add(const NetworkFailed('sem rede'));
+      final switches = harness.room.grainSwitches.length;
+      final played = harness.voice.played.length;
+      final lines = harness.voice.fixedLines.length;
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(
+        harness.room.grainSwitches.skip(switches),
+        [(grain: Grain.whole, reopens: false)],
+        reason: 'o grão lembrado abria a casa sem perguntar à sala',
+      );
+      expect(find.text(_how), findsOneWidget);
+      expect(find.text(_homeLine), findsNothing);
+      expect(_enabled(tester, _wholeChoice), isTrue);
+      expect(_enabled(tester, _sceneChoice), isTrue);
+      expect(thePersonSign, findsNothing);
+      expect(harness.voice.played, hasLength(played));
+      expect(harness.voice.fixedLines, hasLength(lines));
+
+      harness.room.failTakesWith = null;
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
     },
   );
 
