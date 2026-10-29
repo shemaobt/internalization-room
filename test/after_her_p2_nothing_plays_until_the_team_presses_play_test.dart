@@ -97,6 +97,25 @@ void main() {
     expect(it.estado.canFinishBackTranslation, isFalse);
   });
 
+  test('a P2 naming a part this tablet does not hold leaves terminei dark '
+      'and play replays every part, not a terminei lit over her line', () async {
+    final it = await _recusadoPelaP2((it) => ['ninguem']);
+    final tocadas = it.harness.playback.played.length;
+
+    expect(
+      it.estado.canFinishBackTranslation,
+      isFalse,
+      reason:
+          'com a parte nomeada fora do tablet o terminei ficava aceso debaixo '
+          'da linha de que falta ouvir',
+    );
+    expect(it.harness.playback.played.length, tocadas);
+
+    it.sala.ouvirGravacao();
+    await theClipOpens(it.harness);
+    expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
+  });
+
   test('after her P2 a tap on play replays the recording from its first '
       'part, not only the part the room named', () async {
     final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);
