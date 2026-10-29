@@ -111,6 +111,7 @@ class SceneRehearsalView extends ConsumerWidget {
                     sendable: sendable,
                     unseen: session.sceneTranslationUnseen,
                     adjusts: session.scenePausaAdjusts,
+                    person: session.needsPerson,
                     moving: session.sceneFraseOnTheMove != null,
                     line: session.sceneLine,
                     restartShown: session.sceneRestartShown,

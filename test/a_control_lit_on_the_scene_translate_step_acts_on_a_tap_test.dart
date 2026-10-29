@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 
 import 'a_scene_room.dart';
@@ -11,13 +12,14 @@ import 'scenario_helpers.dart' show byLabel;
 
 const _translate = 'traduzir o ensaio da cena';
 const _keepTheEarlier = 'manter a tradução de antes';
+const _pauseRow = ['um pouco antes', 'ouvir a pausa', 'um pouco depois'];
 
 String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
 
 Duration _s(double seconds) =>
     Duration(microseconds: (seconds * Duration.microsecondsPerSecond).round());
 
-enum _Refusal { waiting, sending, microphone }
+enum _Refusal { waiting, sending, microphone, person }
 
 final _twoFrases = SceneRehearsalRecord(
   rehearsalId: 'ensaio-da-cena-1',
@@ -71,6 +73,9 @@ Future<void> _under(
     _Refusal.microphone => now.copyWith(
       machine: now.machine.copyWith(channel: const Microphone(MicOwner.frase)),
     ),
+    _Refusal.person => now.copyWith(
+      machine: now.machine.copyWith(halt: const Blocking()),
+    ),
   };
   await tester.pump(const Duration(milliseconds: 300));
   look();
@@ -83,6 +88,9 @@ Future<void> _under(
     _Refusal.microphone => then.copyWith(
       machine: then.machine.copyWith(channel: channel),
     ),
+    _Refusal.person => then.copyWith(
+      machine: then.machine.copyWith(halt: const NoHalt()),
+    ),
   };
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -94,7 +102,11 @@ void main() {
       final container = await _theLastFraseTranslatedAgain(tester);
       expect(_lit(tester, _keepTheEarlier), isTrue);
 
-      for (final refusal in _Refusal.values) {
+      for (final refusal in [
+        _Refusal.waiting,
+        _Refusal.sending,
+        _Refusal.microphone,
+      ]) {
         await _under(
           tester,
           container,
@@ -107,6 +119,30 @@ void main() {
                 'fazia nada',
           ),
         );
+      }
+    },
+  );
+
+  testWidgets(
+    'the pause row is drawn out while the screen waits, while «terminei» is in the air, with the microphone open and under the person sign',
+    (tester) async {
+      final container = await _theLastFraseTranslatedAgain(tester);
+      for (final words in _pauseRow) {
+        expect(_lit(tester, words), isTrue);
+      }
+
+      for (final refusal in _Refusal.values) {
+        await _under(tester, container, refusal, () {
+          for (final words in _pauseRow) {
+            expect(
+              _lit(tester, words),
+              isFalse,
+              reason:
+                  'com ${refusal.name}, «$words» ficava aceso e o toque não '
+                  'fazia nada',
+            );
+          }
+        });
       }
     },
   );
