@@ -3502,9 +3502,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
-    if (told.checked) return;
-    void toTheFloor() =>
-        unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
+    void toTheFloor() {
+      if (told.checked) {
+        final generation = _generation;
+        unawaited(
+          _medirAsPartes(state.partes, generation).then((_) {
+            if (_abandoned(generation)) return;
+            state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+          }),
+        );
+        return;
+      }
+      unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
+    }
 
     if (state.everyPartIsHere) return toTheFloor();
     _whenThePartsAreHere = toTheFloor;
