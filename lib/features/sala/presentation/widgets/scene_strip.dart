@@ -101,6 +101,7 @@ class SceneStrip extends ConsumerWidget {
   final bool playing;
   final PartPlaying? take;
   final Duration? stoppedAt;
+  final Paused? paused;
   final double width;
 
   const SceneStrip({
@@ -113,6 +114,7 @@ class SceneStrip extends ConsumerWidget {
     required this.playing,
     this.take,
     this.stoppedAt,
+    this.paused,
     this.width = SceneStrip.fullWidth,
   });
 
@@ -136,7 +138,9 @@ class SceneStrip extends ConsumerWidget {
               stale: stale,
               playhead: playing
                   ? take?.inTheFile(playback.position) ?? playback.position
-                  : stoppedAt,
+                  : stoppedAt ??
+                        paused?.head ??
+                        paused?.what.inTheFile(playback.position),
               pausa: pausa,
             ),
             colors,

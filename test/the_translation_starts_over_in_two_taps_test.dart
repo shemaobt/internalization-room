@@ -536,9 +536,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a restart tapped while a frase is being recorded arms nothing', (
-    tester,
-  ) async {
+  testWidgets('while a frase is being recorded the restart rests dimmed, '
+      'and a tap arms nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _contadaAoVivo(tester, harness);
     harness.playback.at = const Duration(seconds: 7);
@@ -554,6 +554,16 @@ void main() {
       step: () => _passo(tester),
     );
 
+    expect(
+      _drawnAt(tester, _recomecar),
+      0.4,
+      reason: 'o recomeço ficava aceso com a frase sendo gravada',
+    );
+    expect(
+      _enabledAt(tester, _recomecar),
+      Tristate.isFalse,
+      reason: 'o leitor de tela anunciava aceso um botão que a sala ignorava',
+    );
     await tocar(tester, _recomecar);
 
     expect(
@@ -563,36 +573,89 @@ void main() {
     );
     expect(find.text(_recomecar), findsOneWidget);
     closeTheRoom(container);
+    semantics.dispose();
   });
 
-  testWidgets(
-    'a restart tapped while a frase is on its way to the room arms nothing',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _contadaAoVivo(tester, harness);
-      harness.room.holdNextChunk();
-      harness.playback.at = const Duration(seconds: 7);
-      await tester.pump(const Duration(seconds: 1));
-      await tocarNoCirculo(tester);
-      await gravarATraducao(tester);
-      await waitFor(
-        'a frase ir para a sala',
-        () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
-        step: () => _passo(tester),
-      );
+  testWidgets('while a frase is on its way to the room the restart rests '
+      'dimmed, and a tap arms nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _contadaAoVivo(tester, harness);
+    harness.room.holdNextChunk();
+    harness.playback.at = const Duration(seconds: 7);
+    await tester.pump(const Duration(seconds: 1));
+    await tocarNoCirculo(tester);
+    await gravarATraducao(tester);
+    await waitFor(
+      'a frase ir para a sala',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.thinking,
+      step: () => _passo(tester),
+    );
 
-      await tocar(tester, _recomecar);
+    expect(
+      _drawnAt(tester, _recomecar),
+      0.4,
+      reason: 'o recomeço ficava aceso com a frase a caminho da sala',
+    );
+    expect(_enabledAt(tester, _recomecar), Tristate.isFalse);
+    await tocar(tester, _recomecar);
 
-      expect(
-        _recomecoArmado(),
-        findsNothing,
-        reason: 'o recomeço armava com uma frase ainda a caminho da sala',
-      );
-      harness.room.finishHeldChunk();
-      await _passo(tester);
-      closeTheRoom(container);
-    },
-  );
+    expect(
+      _recomecoArmado(),
+      findsNothing,
+      reason: 'o recomeço armava com uma frase ainda a caminho da sala',
+    );
+    harness.room.finishHeldChunk();
+    await _passo(tester);
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
+  testWidgets('while the verdict is heard again the restart rests dimmed, '
+      'and a tap arms nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.playback.at = cabeca;
+    await tocarNoCirculo(tester);
+    await gravarATraducao(tester);
+    await contarAteOFimDaParte(tester, harness);
+    harness.room.readsChecked = true;
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(_drawnAt(tester, _recomecar), 1.0);
+
+    harness.voice.holdNextLine();
+    container.read(salaSessionProvider.notifier).ouvirARespostaDeNovo();
+    await waitFor(
+      'a resposta tocar de novo',
+      () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      _drawnAt(tester, _recomecar),
+      0.4,
+      reason: 'com a voz falando o dela fica apagado; o nosso ficava aceso',
+    );
+    expect(_enabledAt(tester, _recomecar), Tristate.isFalse);
+    await tocar(tester, _recomecar);
+
+    expect(
+      _recomecoArmado(),
+      findsNothing,
+      reason: 'o recomeço armava por cima da resposta falando de novo',
+    );
+    harness.voice.finishHeldLine();
+    await _passo(tester);
+    closeTheRoom(container);
+    semantics.dispose();
+  });
 
   testWidgets(
     'the marks of the last check leave with the frases, and the new frase 1 carries none',

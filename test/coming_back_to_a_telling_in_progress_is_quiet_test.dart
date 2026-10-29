@@ -489,4 +489,29 @@ void main() {
       reason: 'o terminei esperava a gravação tocar outra vez até o fim',
     );
   });
+
+  test('coming back to a telling stopped in the middle keeps terminei dark '
+      'with the room counting every part heard, until the untold rest is '
+      'heard here', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    await _irAoEnsaioEVoltar(it);
+
+    expect(it.estado.btOuvidaInteira, isTrue);
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isFalse,
+      reason:
+          'a contagem da sala acendia o terminei sobre uma tradução parada no '
+          'meio, que a dela só abre com o resto ouvido',
+    );
+    expect(it.estado.btAindaFaltaOuvir, isTrue);
+
+    it.sala.ouvirGravacao();
+    await theClipOpens(it.harness);
+    await atravessarAFronteira(it);
+    await ouvirAteOFim(it, partesDoEnsaio[2]);
+    await settle();
+
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
+  });
 }

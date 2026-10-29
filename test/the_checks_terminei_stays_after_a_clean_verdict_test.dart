@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
@@ -234,6 +239,98 @@ void main() {
       reason: 'o veredito que não tocava devolvia a equipe à tradução',
     );
     expect(byLabel(aprovar), findsOneWidget);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a checked telling reopened from the home has terminei lit at '
+      'once when the room counts it heard, before anything plays', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room
+      ..readsChecked = true
+      ..listeningUnheardTakeIds = const [];
+    final sala = container.read(salaSessionProvider.notifier);
+    sala.leaveTheBackTranslation();
+    await tester.pump(const Duration(milliseconds: 300));
+    final tocadas = harness.playback.played.length;
+
+    sala.startRetro();
+    await waitFor(
+      'a conferida voltar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.playback.played.length, tocadas);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'o terminei da passagem conferida esperava a gravação tocar até o '
+          'fim, com a sala já contando tudo ouvido',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tablet reopened into a checked telling has terminei lit at '
+      'once when the room counts it heard, before anything plays', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..playback.length = parte
+      ..playback.measured = parte;
+    final casa = Directory.systemTemp.createTempSync('sala-conferida');
+    addTearDown(() => casa.deleteSync(recursive: true));
+    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1])).path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    );
+    harness.room
+      ..retroSoFar = BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: parte.inMilliseconds,
+          ),
+        ],
+        checked: true,
+      )
+      ..listeningUnheardTakeIds = const [];
+    final container = harness.container();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    final sala = container.read(salaSessionProvider.notifier);
+    await tester.runAsync(() async {
+      await sala.abrirEscolha();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await Future<void>.delayed(const Duration(seconds: 1));
+    });
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(harness.playback.played, isEmpty);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'a passagem conferida retomada abria com o terminei apagado até uma '
+          'escuta inteira, com a sala já contando tudo ouvido',
+    );
     closeTheRoom(container);
   });
 }
