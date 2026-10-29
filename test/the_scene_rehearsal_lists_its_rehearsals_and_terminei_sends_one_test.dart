@@ -589,6 +589,27 @@ void main() {
         reason: 'a tradução do ensaio de antes tocava no ensaio aberto',
       );
     });
+
+    test('a translation the room cannot hand over says nothing and leaves '
+        'the team listening, never on the choice', () async {
+      final room = await inListenMode();
+      room.harness.room.failClipWith = const SessionGone();
+
+      room.sala.hearTheFraseTranslation('f2');
+      await settle();
+      await settle();
+
+      expect(
+        room.state.stage,
+        SalaStage.cena,
+        reason: 'uma tradução que não descia encerrava a sessão',
+      );
+      expect(room.state.sessionId, _session);
+      expect(room.state.scene.step, SceneStep.sent);
+      expect(room.state.sceneLine, isNull);
+      expect(room.state.machine.aHaltWaitsForTheCanvas, isNull);
+      _expectNoHaltAndNoPerson(room);
+    });
   });
 
   test(
@@ -1989,22 +2010,18 @@ void main() {
       expectCleared(room);
     });
 
-    test(
-      'after a gone session met at the list a refused speaker reads',
-      () async {
-        final room = await _atRest([_sentOne, _unsentTwo]);
-        await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
-        await _theRowOpens(room, 1, SceneStep.sent);
-        room.harness.room.forgetTheSession(_session);
+    test('after a gone session met at the list a refused row reads', () async {
+      final room = await _atRest([_sentOne, _unsentTwo]);
+      await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
+      room.harness.room.forgetTheSession(_session);
 
-        room.sala.hearTheFraseTranslation('f2');
-        await waitFor(
-          'a escolha abrir',
-          () => room.state.stage == SalaStage.escolha,
-        );
+      room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+      await waitFor(
+        'a escolha abrir',
+        () => room.state.stage == SalaStage.escolha,
+      );
 
-        expectCleared(room);
-      },
-    );
+      expectCleared(room);
+    });
   });
 }

@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
@@ -2004,6 +2005,64 @@ void main() {
         room.harness.playback.played.map((path) => path.split('/').last),
         isNot(contains('cena-ensaio-da-cena-1-frase-f1.wav')),
         reason: 'a tradução que chegava depois da pausa tocava sozinha',
+      );
+    },
+  );
+
+  test('a frase\'s translation the room cannot hand over says nothing and '
+      'leaves the team on the translate step, never on the choice', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    room.harness.room.failClipWith = const SessionGone();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    await settle();
+
+    expect(
+      room.state.stage,
+      SalaStage.cena,
+      reason: 'uma tradução que não descia encerrava a sessão',
+    );
+    expect(room.state.sessionId, _session);
+    expect(room.state.scene.step, SceneStep.translate);
+    expect(room.state.sceneLine, isNull);
+    expect(room.state.machine.aHaltWaitsForTheCanvas, isNull);
+    expect(room.state.halt, isA<NoHalt>());
+  });
+
+  test(
+    'a second speaker during a download plays that frase\'s translation, and '
+    'the first ask failing after it writes nothing over it',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.harness.room
+        ..failFraseOf['f2'] = const SessionGone()
+        ..holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f2')
+        ..hearTheFraseTranslation('f1');
+      await settle();
+      room.harness.room.finishHeldClip();
+      await settle();
+      await settle();
+
+      expect(
+        room.state.stage,
+        SalaStage.cena,
+        reason: 'o primeiro pedido, ao falhar, encerrava a sessão por cima',
+      );
+      expect(room.state.sceneLine, isNull);
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        ['cena-ensaio-da-cena-1-frase-f1.wav'],
+        reason: 'o segundo alto-falante ficava apagado e tocava a frase 2',
       );
     },
   );

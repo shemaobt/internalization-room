@@ -5799,14 +5799,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ),
     movedOn,
     generation,
+    failed: (failure) => _decideAt(failure, door: Door.sceneRehearsal),
   );
 
   Future<String?> _fetchASceneClip(
     String name,
     String url,
     bool Function() movedOn,
-    int generation,
-  ) async {
+    int generation, {
+    required void Function(RoomFailure failure) failed,
+  }) async {
     final held = await _heldOnTheTablet(name);
     if (held != null || _abandoned(generation)) return held;
     final clip = await _room.fetchClip(url);
@@ -5829,7 +5831,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered():
         return null;
       case final RoomFailure failure:
-        _decideAt(failure, door: Door.sceneRehearsal);
+        failed(failure);
         return null;
     }
   }
@@ -6773,6 +6775,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       () => _theSceneMovedOn(waiting, generation),
       generation,
+      failed: (_) {},
     );
     if (_theSceneMovedOn(waiting, generation) ||
         !identical(_theTranslationAsked, waiting)) {
