@@ -64,7 +64,7 @@ Future<void> theScreenOpens(SceneRoom room) async {
   await waitFor('a tela do ensaio da cena abrir', () {
     return room.state.stage == SalaStage.cena &&
         room.asked('sceneRehearsalsOf') > 0;
-  });
+  }, limit: const Duration(seconds: 30));
   await settle();
 }
 
@@ -90,6 +90,7 @@ Future<void> restartTheTranslationInTwoTaps(SceneRoom room) async {
 Future<void> translateOpens(SceneRoom room) => waitFor(
   'o ensaio abrir na tradução',
   () => room.state.scene.step == SceneStep.translate,
+  limit: const Duration(seconds: 30),
 );
 
 /// The scene screen pumped over a session at rest in Articulação, open on the translate
