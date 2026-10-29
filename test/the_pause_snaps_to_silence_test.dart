@@ -95,6 +95,12 @@ Future<void> aDicaEOsTresControles(
   expect(rotuloDoCirculo(tester), aDica);
   for (final controle in controles) {
     expect(aceso(tester, controle), isTrue, reason: controle);
+    expect(
+      find.descendant(of: byLabel(controle), matching: find.text(controle)),
+      findsOneWidget,
+      reason:
+          'o controle era um ícone, e a palavra dela só o leitor de tela dizia',
+    );
   }
   final ondeEstao = [
     for (final controle in controles) tester.getCenter(byLabel(controle)).dx,
