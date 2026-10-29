@@ -1379,4 +1379,49 @@ void main() {
       semantics.dispose();
     },
   );
+
+  testWidgets(
+    'a row that plays when the app goes away falls silent and gives its play '
+    'back, not sounding behind the tablet',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(harness.playback.sounding, isTrue);
+
+      for (final away in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(away);
+      }
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.playback.sounding,
+        isFalse,
+        reason: 'o app saía e o ensaio do plano seguia tocando atrás dele',
+      );
+
+      for (final back in const [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(back);
+      }
+      await _theAnswerSettles(tester);
+
+      expect(harness.playback.sounding, isFalse);
+      expect(
+        _pressedAt(tester, _playOn(1)),
+        Tristate.isFalse,
+        reason: 'e a linha voltava ainda em pausa sobre o silêncio',
+      );
+      semantics.dispose();
+    },
+  );
 }

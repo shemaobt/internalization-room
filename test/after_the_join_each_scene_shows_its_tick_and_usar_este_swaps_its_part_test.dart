@@ -1717,6 +1717,51 @@ void main() {
       semantics.dispose();
     },
   );
+
+  testWidgets(
+    'the home\'s sheet whose rehearsal plays when the app goes away falls '
+    'silent and opens back on the play',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(it.listen(s2b));
+      await it.until('o ensaio tocar', () => it.harness.playback.sounding);
+
+      for (final away in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(away);
+      }
+      await it.settle();
+
+      expect(
+        it.harness.playback.sounding,
+        isFalse,
+        reason: 'o app saía e o ensaio da folha da casa seguia tocando',
+      );
+
+      for (final back in const [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(back);
+      }
+      await it.settle();
+
+      expect(it.harness.playback.sounding, isFalse);
+      expect(
+        it.pressed(it.listen(s2b)),
+        Tristate.isFalse,
+        reason: 'e a folha voltava em pausa sobre o silêncio',
+      );
+      semantics.dispose();
+    },
+  );
 }
 
 List<Object?> _heard(_Room it, int after, String? takeId) => [
