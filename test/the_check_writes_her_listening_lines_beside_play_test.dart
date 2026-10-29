@@ -3,6 +3,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
+import 'a_resumed_back_translation_circle_opens_the_microphone_test.dart'
+    show reopenedInto;
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
@@ -161,6 +163,28 @@ void main() {
       findsOneWidget,
       reason: 'o fim da gravação só existia para o VoiceOver',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a bead replaying the recording after its end writes «ouvindo a '
+      'gravação de vocês…», not the end', (tester) async {
+    final (harness, container) = await reopenedInto(tester, toldUpTo: 5000);
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(naTela('fim da gravação'), findsOneWidget);
+
+    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btClipEnded, isTrue);
+    expect(state.btTrechoTocando, isTrue);
+    expect(
+      naTela('ouvindo a gravação de vocês…'),
+      findsOneWidget,
+      reason: 'a conta tocando a gravação no fim se dizia o fim da gravação',
+    );
+    harness.playback.stopWalking();
     closeTheRoom(container);
   });
 }
