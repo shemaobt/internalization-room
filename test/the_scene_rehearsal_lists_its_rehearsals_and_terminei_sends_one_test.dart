@@ -605,6 +605,59 @@ void main() {
     },
   );
 
+  test('play in listen mode after a pause resumes where the take stopped, not '
+      'from its start', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    room.sala.playTheSceneRehearsal();
+    await waitFor(
+      'o ensaio abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(seconds: 5);
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio calar', () => room.state.channel is! PartPlaying);
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      const Duration(seconds: 5),
+      reason: 'o play depois da pausa recomeçava o ensaio do zero',
+    );
+  });
+
+  test('play in listen mode after the take was heard to its end starts it '
+      'again from its start, not from its end', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    room.sala.playTheSceneRehearsal();
+    await waitFor(
+      'o ensaio abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(seconds: 15);
+    room.harness.playback.finishPlayback();
+    await waitFor(
+      'o ensaio acabar',
+      () => room.state.scene.heard == SceneHeard.toTheEnd,
+    );
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      Duration.zero,
+      reason: 'o play depois do fim tocava do fim e calava na hora',
+    );
+  });
+
   test('play in listen mode while the team\'s translation sounds plays the '
       'take, not only a silence', () async {
     final room = await _inListenModeOf(_sentOne, _unsentTwo);
