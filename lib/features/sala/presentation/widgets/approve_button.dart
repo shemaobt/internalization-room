@@ -21,9 +21,9 @@ class ApproveButton extends ConsumerWidget {
       label: rotulo,
       child: Opacity(
         opacity: live ? 1 : 0.35,
-        child: ExcludeSemantics(
-          child: GestureDetector(
-            onTap: live ? notifier.aprovarRascunhoFinal : null,
+        child: GestureDetector(
+          onTap: live ? notifier.aprovarRascunhoFinal : null,
+          child: ExcludeSemantics(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 13),
               decoration: BoxDecoration(

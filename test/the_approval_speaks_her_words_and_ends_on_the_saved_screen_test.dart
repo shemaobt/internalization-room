@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'dart:ui' show Tristate;
+import 'dart:ui' show SemanticsAction, SemanticsActionEvent, Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -984,6 +984,33 @@ void main() {
       expect(enviar.semanticLabel, 'Enviar a gravação');
       expect(enviar.gradient, BeadStyles.verde);
       closeTheRoom(it.container);
+    });
+
+    testWidgets('a VoiceOver double-tap on the approve button approves, not '
+        'only announces it', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+
+      final node = tester.getSemantics(byLabel(_aprovar));
+      expect(
+        node.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
+        reason: 'o VoiceOver anunciava a pílula e o toque duplo não fazia nada',
+      );
+      tester.binding.performSemanticsAction(
+        SemanticsActionEvent(
+          type: SemanticsAction.tap,
+          viewId: tester.view.viewId,
+          nodeId: node.id,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.harness.room.releasesAsked, hasLength(1));
+      closeTheRoom(it.container);
+      semantics.dispose();
     });
 
     testWidgets('a passage the room has not checked says nothing of it, and a '
