@@ -4148,7 +4148,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           )
           when _correntes(guardadas).isEmpty &&
               rows.isEmpty &&
-              state.partes.isEmpty &&
               rehearsalsElsewhere(listed, sessionId):
         state = state.copyWith(rehearsalsElsewhere: true);
         _theGrainOrItsHome(sessionId, listed: guardadas, elsewhere: true);
@@ -4196,7 +4195,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool elsewhere = false,
     bool unread = false,
   }) {
-    if (state.grain != null && !unread) {
+    if (state.grainInForce != null && !unread) {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));

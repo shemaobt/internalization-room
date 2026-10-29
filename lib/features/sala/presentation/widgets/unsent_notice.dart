@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/kept_take.dart';
 import '../../domain/session_state.dart';
 
 class UnsentNotice extends StatelessWidget {
@@ -23,7 +24,9 @@ class UnsentNotice extends StatelessWidget {
           in session.unsentParts.entries)
         if (sendNowLabelFor(
               part,
-              recordingHomeLabelFor('scene', language, n: scene),
+              session.scopeOfRow(scene) == KeptScope.whole
+                  ? recordingHomeLabelFor('wholePassage', language)
+                  : recordingHomeLabelFor('scene', language, n: scene),
               language,
             )
             case final label?)
