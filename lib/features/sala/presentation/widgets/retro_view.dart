@@ -62,6 +62,8 @@ class RetroView extends ConsumerWidget {
         ? _linha(session, language)
         : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
+    final circulo = herCircleSize(MediaQuery.sizeOf(context), 38, 150);
+    final anel = circulo * facilitatorRippleGrowth / 2;
     final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
@@ -117,21 +119,24 @@ class RetroView extends ConsumerWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: 24),
-            FacilitatorCircle(
-              size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
-              halt: session.halt,
-              voice: voz,
-              tongue: lingua,
-              answersATouch:
-                  session.aBackTranslationGestureActs &&
-                  (!conferida || session.btRegravacao != null),
-              notUnderstood: session.wordlessTelling
-                  ? retroLabelFor('notUnderstood', language)
-                  : null,
-              semanticLabel: _circleLabel(session, language),
-              onTap: notifier.retroTap,
-            ),
+            if (!session.btSoOuvir) ...[
+              SizedBox(height: 24 + anel),
+              FacilitatorCircle(
+                size: circulo,
+                halt: session.halt,
+                voice: voz,
+                tongue: lingua,
+                answersATouch:
+                    session.aBackTranslationGestureActs &&
+                    (!conferida || session.btRegravacao != null),
+                notUnderstood: session.wordlessTelling
+                    ? retroLabelFor('notUnderstood', language)
+                    : null,
+                semanticLabel: _circleLabel(session, language),
+                onTap: notifier.retroTap,
+              ),
+              SizedBox(height: anel),
+            ],
             if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
               _ManterADeAntes(
@@ -180,11 +185,28 @@ class RetroView extends ConsumerWidget {
               child: _actions(session, notifier, language, colors),
             ),
             if (session.btPhase == BtPhase.conferida &&
-                session.approvedDraftDrawn == null) ...[
+                (session.approvedDraftDrawn == null ||
+                    session.approvalStillOpen)) ...[
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: FadeUp(child: ApproveButton(live: session.canApprove)),
+              ),
+            ],
+            if (session.approvedDraftDrawn case final aprovado?
+                when session.approvalStillOpen) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  retroLabelFor('approvedDraft', language, n: aprovado.version),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ],
             if (session.offersTheVerdictAgain) ...[
@@ -492,6 +514,7 @@ class RetroView extends ConsumerWidget {
       BtAviso.pausaNaoFica => 'pauseCannotStandThere',
       BtAviso.checagemFalhou => 'externalCheckFailed',
       BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
+      BtAviso.tocarFalhou => 'checkFailed',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);
@@ -675,8 +698,11 @@ class RetroView extends ConsumerWidget {
                 color: ShemaBrand.branco,
               ),
             ),
-            if (session.approvedDraftDrawn != null) const SizedBox(width: 24),
-            if (session.approvedDraftDrawn case final aprovado?)
+            if (session.approvedDraftDrawn != null &&
+                !session.approvalStillOpen)
+              const SizedBox(width: 24),
+            if (session.approvedDraftDrawn case final aprovado?
+                when !session.approvalStillOpen)
               Flexible(
                 child: Text(
                   retroLabelFor('approvedDraft', language, n: aprovado.version),
@@ -725,12 +751,6 @@ class RetroView extends ConsumerWidget {
   }
 
   String _circleLabel(SalaSessionState session, String language) {
-    if (session.btSoOuvir) {
-      return retroLabelFor(
-        session.btClipRodando ? 'listening' : 'listenOnly',
-        language,
-      );
-    }
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }

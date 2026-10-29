@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/codigo_v
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida;
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, thePersonSign;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
@@ -121,7 +121,7 @@ void main() {
     expect(find.text(_badge), findsOneWidget);
     expect(byLabel(_checagem), findsOneWidget);
     expect(find.text(_sinal), findsNothing);
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
     closeTheRoom(container);
   });
 
