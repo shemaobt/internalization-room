@@ -37,12 +37,16 @@ decision in a44568c2.
    that answer would send it: quiet, the listen, or the untranslated stretch. Hers falls back
    to the passage it last held (`Drafting.tsx:1084`), which every heard report keeps up to
    date (`:422`). Every report keeps its answer, and an answer older than the one held never
-   replaces it. A held answer is not "no answer".
+   replaces it. A held answer is not "no answer". The room is also asked, with nothing to
+   report, when a resume lands outside the Back-translation and when it keeps a told stretch
+   (ENG-1954). Hers reads the passage when the screen mounts (`:560`) and takes it from every
+   frase answer (`:1197`), so a Life that resumed and reported nothing is answered too, and a
+   stretch left open by the frase just kept is said.
 5. **No answer held, or an older room**, stays on today's path, with one exception: a frase
    awaiting its translation still comes first, unpadded. The tablet already knows which frase
    it is, a relaunch already goes to it without asking the room, and hers reads it from the
-   passage it holds when the read fails (`Drafting.tsx:1082`). A Life that has not yet had
-   an answer to a report holds none: the resume read carries no unheard list.
+   passage it holds when the read fails (`Drafting.tsx:1082`). A Life holds none until the
+   room answers one of the asks in rule 4: the resume read itself carries no unheard list.
 
 ## Consequences
 
