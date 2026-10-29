@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -22,10 +23,11 @@ import 'package:internalization_room/main.dart' show SalaApp;
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show relaunch;
+import 'scenario_helpers.dart' show relaunch, withRealLetters;
 
 const _sessionId = 'fia-fixture-0001';
 const _herEightCharacters = 'fia-fixt';
+const _aLongPassageId = 'a-long-passage-id-from-the-room';
 final _noon = DateTime(2026, 9, 30, 14, 14, 5);
 
 const _panorama = Passagem(
@@ -665,23 +667,79 @@ void main() {
     },
   );
 
-  testWidgets('at phone width the claquete keeps clear of the hand', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(375, 667);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await withClock(Clock.fixed(_noon), () async {
-      await _openP05(tester);
-      expect(_claquete, findsOneWidget);
+  testWidgets(
+    'on an SE a long passage id is still drawn at her .68rem, never shrunk to fit',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(withRealLetters);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester, pericope: _aLongPassageId);
+        expect(_claquete, findsOneWidget);
+        expect(
+          _words(tester),
+          '$_aLongPassageId · 2026-09-30 14:14 · $_herEightCharacters',
+        );
+        expect(
+          tester.getSize(_claquete).width,
+          greaterThan(366 - 98),
+          reason: 'a linha medida cabia na faixa antiga e nunca encolheria',
+        );
 
-      final hand = tester.getRect(find.byType(HandButton));
-      final claquete = tester.getRect(_claquete);
-      expect(claquete.left, greaterThanOrEqualTo(hand.right + 8 - 0.5));
-      expect(claquete.right, closeTo(366, 0.5));
-      expect(claquete.bottom, closeTo(649.658, 0.5));
-    });
-  });
+        final style = tester
+            .widget<Text>(
+              find.descendant(of: _claquete, matching: find.byType(Text)),
+            )
+            .style!;
+        final drawn =
+            style.fontSize! *
+            tester.getRect(_claquete).height /
+            tester.getSize(_claquete).height;
+        expect(
+          drawn,
+          closeTo(10.88, 0.01),
+          reason:
+              'uma passagem longa num SE encolhia a claquete abaixo do '
+              '.68rem dela',
+        );
+      });
+    },
+  );
+
+  testWidgets(
+    'on an SE a long claquete is written whole from her 2.4%, not cut at the hand',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(withRealLetters);
+      await withClock(Clock.fixed(_noon), () async {
+        await _openP05(tester, pericope: _aLongPassageId);
+        expect(_claquete, findsOneWidget);
+
+        final line = tester.renderObject<RenderParagraph>(
+          find.descendant(of: _claquete, matching: find.byType(RichText)),
+        );
+        expect(
+          line.didExceedMaxLines,
+          isFalse,
+          reason: 'a claquete ficava presa entre a mão e o canto e era cortada',
+        );
+        final hand = tester.getRect(find.byType(HandButton));
+        final claquete = tester.getRect(_claquete);
+        expect(claquete.right, closeTo(366, 0.5));
+        expect(claquete.bottom, closeTo(649.658, 0.5));
+        expect(
+          claquete.left,
+          lessThan(98),
+          reason: 'a dela não tem limite à esquerda; a nossa parava em 98',
+        );
+        expect(claquete.left, greaterThanOrEqualTo(0));
+        expect(claquete.overlaps(hand), isFalse);
+      });
+    },
+  );
 
   testWidgets(
     'on an SE her corner keeps the claquete clear of the replay, the hand and the circle',
