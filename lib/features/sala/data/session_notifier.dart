@@ -10800,7 +10800,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (verdict.refusal == CheckRefusal.partUnheard) {
-      state = state.copyWith(btRecusa: verdict.refusal);
+      state = state.copyWith(btRecusa: verdict.refusal, btOuvidaInteira: false);
     }
     if (verdict.refusal == CheckRefusal.fraseAwaiting &&
         verdict.fixedLine.isEmpty) {

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -95,5 +96,35 @@ void main() {
     await it.sala.finishBackTranslation();
     expect(it.harness.room.playedByTakeSent.length, enviadas + 1);
     expect(it.harness.playback.sounding, isFalse);
+  });
+
+  test('a check the room refuses as a part unheard darkens terminei until the '
+      'room counts that part heard, though it had counted it before', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    for (final quanto in partesDoEnsaio) {
+      await ouvirETraduzirAParteInteira(it, quanto);
+    }
+    await settle();
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
+    it.harness.room
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [it.partes[2].takeId!]
+      ..holdNextListening();
+
+    await pedirOVeredito(it);
+    await settle();
+
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isFalse,
+      reason:
+          'a recusa da sala por uma parte sem ouvir deixava o terminei aceso '
+          'pela contagem de antes',
+    );
+
+    it.harness.room.finishHeldListening();
+    await settle(const Duration(milliseconds: 400));
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
   });
 }
