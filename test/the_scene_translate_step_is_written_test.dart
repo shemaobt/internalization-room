@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -1787,6 +1788,50 @@ void main() {
               .width,
           wide,
           reason: 'no iPad a lista tinha 438 pontos e as frases 470',
+        );
+      },
+    );
+  }
+  for (final (step, line, open)
+      in <(String, String, Future<void> Function(WidgetTester))>[
+        (
+          'record step',
+          'Toquem no círculo para gravar o ensaio da cena; toquem de novo '
+              'para parar.',
+          (tester) => _onTheSceneScreen(
+            tester,
+            scenesHeld: true,
+            until: (state) => state.stage == SalaStage.cena,
+          ),
+        ),
+        (
+          'translate step',
+          'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+              'acaba, e de novo para traduzir só aquela frase.',
+          (tester) => _onTheSceneScreen(
+            tester,
+            rehearsals: [
+              _rehearsal(frases: [_frase('f1', 0, 3000)]),
+            ],
+            until: (state) => state.scene.step == SceneStep.translate,
+          ),
+        ),
+        ('listen mode', _listenLine, _inListenMode),
+      ]) {
+    testWidgets(
+      'the $step sub line is drawn at her normal letter spacing, not spread by a quarter point',
+      (tester) async {
+        await open(tester);
+        await pumpUntil(tester, () => find.text(line).evaluate().isNotEmpty);
+
+        expect(
+          tester
+              .renderObject<RenderParagraph>(find.text(line))
+              .text
+              .style
+              ?.letterSpacing,
+          0,
+          reason: 'a linha herdava o espaçamento de .25 do Material',
         );
       },
     );

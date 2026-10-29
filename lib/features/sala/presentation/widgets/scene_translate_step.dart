@@ -748,6 +748,7 @@ class SceneSub extends StatelessWidget {
     final style = TextStyle(
       color: SalaColors.of(context).claquete,
       fontSize: 0.92 * _rem,
+      letterSpacing: 0,
     );
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
