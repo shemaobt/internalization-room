@@ -1445,6 +1445,7 @@ class SalaSessionState {
       btContaEscolhida == null &&
       btFraseQueAguarda == null &&
       btRegravacao == null &&
+      channel is! GuideSpeaking &&
       btTrechos.any((trecho) => trecho.contado);
 
   bool get btRestoDepoisDoCorte {
