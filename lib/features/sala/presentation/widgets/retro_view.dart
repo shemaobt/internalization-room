@@ -890,14 +890,19 @@ class _ALinhaDaEscuta extends ConsumerWidget {
       animate: session.channel is PartPlaying,
       reducible: false,
       builder: (context, _) {
-        final lugar = parte == null
-            ? null
-            : firstListenPositionFor(
-                parte + 1,
-                playback.position,
-                playback.playingLength,
-                language,
-              );
+        final lugar = switch (parte) {
+          null => null,
+          final parte
+              when session.partes.elementAtOrNull(parte)?.scopeId ==
+                  KeptScope.whole =>
+            sceneClockOf(playback.position, playback.playingLength),
+          final parte => firstListenPositionFor(
+            parte + 1,
+            playback.position,
+            playback.playingLength,
+            language,
+          ),
+        };
         return Text(
           [
             if (linha case final linha?) retroLabelFor(linha, language),
