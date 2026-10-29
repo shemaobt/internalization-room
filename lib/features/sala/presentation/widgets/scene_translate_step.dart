@@ -34,6 +34,7 @@ class SceneTranslateStep extends ConsumerWidget {
   final bool unseen;
   final bool adjusts;
   final bool person;
+  final bool held;
   final bool moving;
   final SceneLine? line;
   final bool restartShown;
@@ -51,6 +52,7 @@ class SceneTranslateStep extends ConsumerWidget {
     required this.unseen,
     required this.adjusts,
     required this.person,
+    required this.held,
     required this.moving,
     required this.line,
     required this.restartShown,
@@ -112,7 +114,7 @@ class SceneTranslateStep extends ConsumerWidget {
         if (adjusts) ...[
           const SizedBox(height: 12),
           PauseAdjustRow(
-            lit: idle && !person,
+            lit: idle && !person && !held,
             language: language,
             onEarlier: notifier.pauseEarlier,
             onHear: notifier.hearThePause,

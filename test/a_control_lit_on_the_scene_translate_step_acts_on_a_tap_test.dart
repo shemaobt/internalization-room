@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
@@ -8,9 +9,11 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 
 import 'a_scene_room.dart';
 import 'a_wav_take.dart';
+import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 
 const _translate = 'traduzir o ensaio da cena';
+const _tell = 'Toque para traduzir esta frase do ensaio da cena';
 const _keepTheEarlier = 'manter a tradução de antes';
 const _pauseRow = ['um pouco antes', 'ouvir a pausa', 'um pouco depois'];
 
@@ -31,10 +34,10 @@ final _twoFrases = SceneRehearsalRecord(
   ],
 );
 
-Future<ProviderContainer> _theLastFraseTranslatedAgain(
+Future<(SalaHarness, ProviderContainer)> _theLastFraseTranslatedAgain(
   WidgetTester tester,
 ) async {
-  final (_, container) = await translateOnScreen(
+  final (harness, container) = await translateOnScreen(
     tester,
     take: aSpokenWav(
       length: const Duration(seconds: 20),
@@ -51,7 +54,35 @@ Future<ProviderContainer> _theLastFraseTranslatedAgain(
   await tester.pump(const Duration(milliseconds: 100));
   await tester.tap(byLabel(_bar(2)));
   await tester.pump(const Duration(milliseconds: 300));
-  return container;
+  return (harness, container);
+}
+
+Future<void> _aFraseHeldToBeSentAgain(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  harness.room.sceneAnswersFirst.add(
+    const Refused(RefusalCode.sceneRehearsalSending),
+  );
+  await tester.tap(byLabel(_tell));
+  await pumpUntil(
+    tester,
+    () => switch (container.read(salaSessionProvider).channel) {
+      Microphone(owner: MicOwner.frase) => true,
+      _ => false,
+    },
+  );
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(byLabel(_tell));
+  await tester.pump(const Duration(milliseconds: 300));
+  await pumpUntil(
+    tester,
+    () => !container.read(salaSessionProvider).scene.waiting,
+  );
+  await tester.pump(const Duration(milliseconds: 500));
+  expect(container.read(salaSessionProvider).scene.waiting, isFalse);
+  expect(container.read(salaSessionProvider).channel, isNot(isA<Microphone>()));
 }
 
 bool _lit(WidgetTester tester, String words) => byLabel(words).evaluate().any(
@@ -99,7 +130,7 @@ void main() {
   testWidgets(
     '«manter a tradução de antes» is drawn out while the screen waits, while «terminei» is in the air and with the microphone open',
     (tester) async {
-      final container = await _theLastFraseTranslatedAgain(tester);
+      final (_, container) = await _theLastFraseTranslatedAgain(tester);
       expect(_lit(tester, _keepTheEarlier), isTrue);
 
       for (final refusal in [
@@ -126,7 +157,7 @@ void main() {
   testWidgets(
     'the pause row is drawn out while the screen waits, while «terminei» is in the air, with the microphone open and under the person sign',
     (tester) async {
-      final container = await _theLastFraseTranslatedAgain(tester);
+      final (_, container) = await _theLastFraseTranslatedAgain(tester);
       for (final words in _pauseRow) {
         expect(_lit(tester, words), isTrue);
       }
@@ -143,6 +174,26 @@ void main() {
             );
           }
         });
+      }
+    },
+  );
+
+  testWidgets(
+    'the pause row is drawn out while a frase the room did not keep waits to be sent again',
+    (tester) async {
+      final (harness, container) = await _theLastFraseTranslatedAgain(tester);
+
+      await _aFraseHeldToBeSentAgain(tester, harness, container);
+
+      for (final words in _pauseRow) {
+        expect(byLabel(words), findsOneWidget);
+        expect(
+          _lit(tester, words),
+          isFalse,
+          reason:
+              'com uma frase guardada para enviar de novo, «$words» ficava '
+              'aceso e o toque não fazia nada',
+        );
       }
     },
   );

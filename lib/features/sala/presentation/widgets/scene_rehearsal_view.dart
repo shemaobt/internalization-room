@@ -112,6 +112,7 @@ class SceneRehearsalView extends ConsumerWidget {
                     unseen: session.sceneTranslationUnseen,
                     adjusts: session.scenePausaAdjusts,
                     person: session.needsPerson,
+                    held: session.sceneFraseHeld,
                     moving: session.sceneFraseOnTheMove != null,
                     line: session.sceneLine,
                     restartShown: session.sceneRestartShown,
