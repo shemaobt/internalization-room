@@ -627,6 +627,70 @@ void main() {
     return it;
   }
 
+  Future<_Retomada> semAParteDoisComRegravadas(SalaHarness harness) async {
+    harness.room
+      ..passageScenes = tresCenas
+      ..refuseClipOf.add('gravacao-2')
+      ..holdNextClip();
+    final it = await _reabrir(
+      harness,
+      parouEm: SalaStage.ensaio,
+      naSala: [
+        for (var n = 1; n <= 3; n++)
+          TakeView(
+            takeId: 'gravacao-velha-$n',
+            kind: 'ensaio',
+            scope: KeptScope.parte(n),
+            ordinal: n,
+          ),
+        ...salaComPassadas([1, 2, 1]),
+      ],
+      contado: BackTranslationProgress(
+        stale: [
+          for (var n = 1; n <= 3; n++)
+            SegmentView(
+              segmentId: 'trecho-velho-$n',
+              takeId: 'gravacao-velha-$n',
+              startsMs: 0,
+              endsMs: 4000,
+            ),
+        ],
+      ),
+    );
+    await waitFor(
+      'as frases regravadas acharem as suas partes',
+      () => it.estado.btTrechosRegravados.length == 3,
+    );
+    harness.room.finishHeldClip();
+    await oEnsaioAbre(it);
+    return it;
+  }
+
+  List<(String?, int?)> asRegravadasNaTela(_Retomada it) => [
+    for (final trecho in it.estado.btTrechosRegravados)
+      (
+        trecho.segmentId,
+        switch (it.estado.partes.elementAtOrNull(trecho.parte)) {
+          final parte? => KeptScope.numberOf(parte.scopeId),
+          null => null,
+        },
+      ),
+  ];
+
+  test('as frases regravadas de uma parte que a sala perdeu saem com ela, e '
+      'as das partes seguintes ficam nas suas', () async {
+    final it = await semAParteDoisComRegravadas(SalaHarness());
+
+    expect(numerosDasPartes(it), [1, 3]);
+    expect(
+      asRegravadasNaTela(it),
+      [('trecho-velho-1', 1), ('trecho-velho-3', 3)],
+      reason:
+          'a frase regravada da parte 2 ficava e lia «parte 3», e a da parte 3 '
+          'apontava para depois da última parte',
+    );
+  });
+
   group('uma parte que a sala nao tem mais', () {
     test('deixa a linha dela nao gravada e as outras com as suas', () async {
       final it = await semAParteDois(SalaHarness());

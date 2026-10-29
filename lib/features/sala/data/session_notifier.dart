@@ -3503,7 +3503,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             if (take.takeId != parte.takeId) take,
         ],
         partsAway: {...state.partsAway}..remove(parte.takeId),
-        btTrechos: _osTrechosSemAParte(fora),
+        btTrechos: _osTrechosSemAParte(state.btTrechos, fora),
+        btTrechosRegravados: _osTrechosSemAParte(
+          state.btTrechosRegravados,
+          fora,
+        ),
         parteARegravar: switch (regravando) {
           final at? when at > fora => at - 1,
           _ => regravando,
@@ -3527,8 +3531,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The stretches as they stand once the part at [fora] has left the parts: its own go
   /// with it, and each later one moves down to its part's new place (ADR 0022).
-  List<Trecho> _osTrechosSemAParte(int fora) => [
-    for (final trecho in state.btTrechos)
+  List<Trecho> _osTrechosSemAParte(List<Trecho> trechos, int fora) => [
+    for (final trecho in trechos)
       if (trecho.parte != fora)
         trecho.parte < fora
             ? trecho
