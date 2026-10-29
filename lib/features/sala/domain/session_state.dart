@@ -460,6 +460,8 @@ class SalaSessionState {
   final Set<String> comecadas;
   final List<Trecho> btTrechos;
   final List<Trecho> btTrechosRegravados;
+  final List<String> btNaoOuvidas;
+  final int? btParteQueTocou;
   final List<BtFinding> btFindings;
   final bool btConferindo;
   final bool btVeredito;
@@ -656,6 +658,8 @@ class SalaSessionState {
     this.comecadas = const {},
     this.btTrechos = const [],
     this.btTrechosRegravados = const [],
+    this.btNaoOuvidas = const [],
+    this.btParteQueTocou,
     this.btFindings = const [],
     this.btConferindo = false,
     this.btVeredito = false,
@@ -1804,6 +1808,9 @@ class SalaSessionState {
     bool clearRoda = false,
     List<Trecho>? btTrechos,
     List<Trecho>? btTrechosRegravados,
+    List<String>? btNaoOuvidas,
+    int? btParteQueTocou,
+    bool clearBtParteQueTocou = false,
     List<BtFinding>? btFindings,
     bool? btConferindo,
     bool? btVeredito,
@@ -1944,6 +1951,10 @@ class SalaSessionState {
       comecadas: comecadas ?? this.comecadas,
       btTrechos: btTrechos ?? this.btTrechos,
       btTrechosRegravados: btTrechosRegravados ?? this.btTrechosRegravados,
+      btNaoOuvidas: btNaoOuvidas ?? this.btNaoOuvidas,
+      btParteQueTocou: clearBtParteQueTocou
+          ? null
+          : (btParteQueTocou ?? this.btParteQueTocou),
       btFindings: btFindings ?? this.btFindings,
       btConferindo: btConferindo ?? this.btConferindo,
       btVeredito: btVeredito ?? this.btVeredito,
