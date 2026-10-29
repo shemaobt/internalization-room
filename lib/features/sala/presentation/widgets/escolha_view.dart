@@ -85,8 +85,7 @@ class _Books extends StatelessWidget {
 
   const _Books({required this.session, required this.language});
 
-  bool _isTheEntryLeft(Passagem entry) =>
-      session.isTheEntryLeft(entry, language: language);
+  bool _isTheEntryLeft(Passagem entry) => session.isTheEntryLeft(entry);
 
   @override
   Widget build(BuildContext context) {
