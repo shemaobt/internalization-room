@@ -1274,6 +1274,59 @@ void main() {
     );
   }
 
+  testWidgets(
+    '«um pouco antes» carries the clock and the strip\'s playhead to the pausa it moved to, not where the take stopped',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) =>
+            state.scene.step == SceneStep.translate &&
+            state.sceneEnvelope != null,
+      );
+      const moved =
+          'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir — 0:06 / 0:10';
+
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.pausa != null,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_playhead(tester), closeTo(204.4, 0.01));
+
+      await tester.tap(byLabel('um pouco antes'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        container.read(salaSessionProvider).scene.pausa,
+        const Duration(milliseconds: 6600),
+      );
+
+      expect(
+        find.text(moved),
+        findsOneWidget,
+        reason: 'a pausa movida deixava o relógio onde o take tinha parado',
+      );
+      expect(
+        _playhead(tester),
+        closeTo(192.72, 0.01),
+        reason: 'a pausa movida deixava o marcador onde o take tinha parado',
+      );
+    },
+  );
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 

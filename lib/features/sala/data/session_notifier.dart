@@ -6376,7 +6376,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (to == Nudge.later ? nudged <= pausa : nudged >= pausa) return;
     _silenceTheRoom();
     _theRefusalLineGoes();
-    state = state.copyWith(scene: state.scene.copyWith(pausa: nudged));
+    state = state.copyWith(
+      scene: state.scene.copyWith(pausa: nudged),
+      sceneStoppedAt: nudged,
+    );
   }
 
   /// «ouvir a pausa»: up to 1.5 s before the pausa, never from before the previous
