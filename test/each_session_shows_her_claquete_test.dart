@@ -677,6 +677,15 @@ void main() {
       await withClock(Clock.fixed(_noon), () async {
         await _openP05(tester, pericope: _aLongPassageId);
         expect(_claquete, findsOneWidget);
+        expect(
+          _words(tester),
+          '$_aLongPassageId · 2026-09-30 14:14 · $_herEightCharacters',
+        );
+        expect(
+          tester.getSize(_claquete).width,
+          greaterThan(366 - 98),
+          reason: 'a linha medida cabia na faixa antiga e nunca encolheria',
+        );
 
         final style = tester
             .widget<Text>(
