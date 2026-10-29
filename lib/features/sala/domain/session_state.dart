@@ -1423,6 +1423,17 @@ class SalaSessionState {
     return btFimDasPartesMs[btParte - 1];
   }
 
+  int numeroDaParte(int parte) => switch (partes.elementAtOrNull(parte)) {
+    final take? => KeptScope.numberOf(take.scopeId) ?? parte + 1,
+    null => parte + 1,
+  };
+
+  Duration? btTamanhoDaParte(int parte) {
+    if (parte >= btFimDasPartesMs.length) return null;
+    final inicio = parte == 0 ? 0 : btFimDasPartesMs[parte - 1];
+    return Duration(milliseconds: btFimDasPartesMs[parte] - inicio);
+  }
+
   int? get _btParteMs {
     final inicio = _btInicioDaParteMs;
     if (inicio == null || btParte >= btFimDasPartesMs.length) return null;

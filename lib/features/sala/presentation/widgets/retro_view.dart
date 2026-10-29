@@ -451,12 +451,12 @@ class RetroView extends ConsumerWidget {
     ];
   }
 
-  int? _parteNaTela(SalaSessionState session, Trecho trecho) => trecho.parte < 0
+  int? _parteNaTela(SalaSessionState session, Trecho trecho) =>
+      trecho.parte < 0 ||
+          session.partes.elementAtOrNull(trecho.parte)?.scopeId ==
+              KeptScope.whole
       ? null
-      : switch (session.partes.elementAtOrNull(trecho.parte)) {
-          final parte? => KeptScope.numberOf(parte.scopeId),
-          null => trecho.parte + 1,
-        };
+      : session.numeroDaParte(trecho.parte);
 
   List<({bool dela, int onde, Trecho trecho})> _naOrdem(
     SalaSessionState session,
@@ -873,7 +873,9 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
-          if (_aEscuta(session) case final linha?) ...[
+          if (_aEscuta(session) case final linha
+              when linha != null ||
+                  !session.btSoOuvir && _parteNoAr(session) != null) ...[
             const SizedBox(width: 11.2),
             Flexible(
               child: _ALinhaDaEscuta(
@@ -902,6 +904,7 @@ class RetroView extends ConsumerWidget {
       return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
     }
     if (session.btClipRodando || session.btTrechoTocando) return 'listening';
+    if (session.btParteFronteira) return null;
     return 'paused';
   }
 
@@ -963,7 +966,8 @@ class RetroView extends ConsumerWidget {
 }
 
 /// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while
-/// a part sounds or is held; either alone when the other is missing.
+/// a part sounds or is held, or the end of a sentence told or recorded again while nothing
+/// sounds; either alone when the other is missing.
 class _ALinhaDaEscuta extends ConsumerWidget {
   final SalaSessionState session;
   final String language;
@@ -990,14 +994,13 @@ class _ALinhaDaEscuta extends ConsumerWidget {
       builder: (context, _) {
         final lugar = switch (parte) {
           null => null,
-          final parte
-              when session.partes.elementAtOrNull(parte)?.scopeId ==
-                  KeptScope.whole =>
-            sceneClockOf(playback.position, playback.playingLength),
-          final parte => firstListenPositionFor(
-            parte + 1,
-            playback.position,
-            playback.playingLength,
+          (:final parte, :final ondeFicou) => _oLugar(
+            session,
+            parte,
+            ondeFicou ?? playback.position,
+            ondeFicou == null
+                ? playback.playingLength
+                : session.btTamanhoDaParte(parte),
             language,
           ),
         };
@@ -1014,12 +1017,50 @@ class _ALinhaDaEscuta extends ConsumerWidget {
   }
 }
 
-int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
-  PartPlaying(:final part) => part.part,
-  Paused(what: final PartSound part) ||
-  Microphone(held: Paused(what: final PartSound part)) => part.part,
-  _ => null,
-};
+String _oLugar(
+  SalaSessionState session,
+  int parte,
+  Duration at,
+  Duration? length,
+  String language,
+) => session.partes.elementAtOrNull(parte)?.scopeId == KeptScope.whole
+    ? sceneClockOf(at, length)
+    : firstListenPositionFor(
+        session.numeroDaParte(parte),
+        at,
+        length,
+        language,
+      );
+
+({int parte, Duration? ondeFicou})? _parteNoAr(SalaSessionState session) =>
+    switch (session.channel) {
+      PartPlaying(:final part) ||
+      Paused(what: final PartSound part) ||
+      Microphone(
+        held: Paused(what: final PartSound part),
+      ) => (parte: part.part, ondeFicou: null),
+      Playing(held: Paused(what: final PartSound part)) => (
+        parte: part.part,
+        ondeFicou: part.from,
+      ),
+      _ when !session.btTrechoTocando => switch (_aFraseDeNovo(session)) {
+        final trecho?
+            when trecho.parte >= 0 && trecho.parte < session.partes.length =>
+          (parte: trecho.parte, ondeFicou: trecho.lugarTo),
+        _ => null,
+      },
+      _ => null,
+    };
+
+Trecho? _aFraseDeNovo(SalaSessionState session) =>
+    session.btTrechoTraduzidoDeNovo ??
+    switch (session.btRegravacao) {
+      final regravacao? =>
+        session.btTrechos
+            .where((trecho) => trecho.frase == regravacao.frase)
+            .firstOrNull,
+      null => null,
+    };
 
 class _ManterADeAntes extends StatelessWidget {
   final String label;
