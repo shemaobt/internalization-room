@@ -1,14 +1,9 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -17,14 +12,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/bead_sty
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
-import 'a_scene_room.dart' show articulation, pumpUntil;
-import 'a_wav_take.dart';
-import 'fakes.dart';
-import 'sala_screen_test.dart' show pumpSala;
+import 'a_scene_room.dart' show onTheSceneStep, pumpUntil, theIPad, theSE;
 import 'scenario_helpers.dart' show byLabel;
-
-const _se = (name: 'the iPhone SE', size: Size(375, 667), bar: 20.0);
-const _ipad = (name: 'the iPad', size: Size(820, 1180), bar: 24.0);
 
 final _frases = [
   for (var n = 0; n < 4; n++)
@@ -47,20 +36,6 @@ SceneRehearsalRecord _rehearsal({
   frases: frases ?? _frases,
 );
 
-Future<void> _withRealLetters() async {
-  final fonts =
-      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
-  final roboto = FontLoader('Roboto');
-  for (final weight in ['Regular', 'Medium', 'Bold']) {
-    roboto.addFont(
-      File(
-        '$fonts/Roboto-$weight.ttf',
-      ).readAsBytes().then(ByteData.sublistView),
-    );
-  }
-  await roboto.load();
-}
-
 Future<ProviderContainer> _onTheStep(
   WidgetTester tester, {
   required Size screen,
@@ -68,13 +43,13 @@ Future<ProviderContainer> _onTheStep(
   required SceneStep step,
   int listed = 1,
   List<Scene> scenes = const [],
-}) async {
-  await tester.runAsync(_withRealLetters);
-  final harness = SalaHarness(filaEmMemoria: true)
-    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = articulation
-    ..room.passageScenes = scenes;
-  harness.room.sceneRehearsals.addAll([
+}) => onTheSceneStep(
+  tester,
+  screen: screen,
+  bar: bar,
+  step: step,
+  scenes: scenes,
+  rehearsals: [
     for (var n = 1; n <= listed; n++)
       _rehearsal(
         n: n,
@@ -86,42 +61,8 @@ Future<ProviderContainer> _onTheStep(
             ? const [SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 12000)]
             : null,
       ),
-  ]);
-  harness.room.sceneAudio = aSpokenWav(length: const Duration(seconds: 10));
-  harness.playback.measured = const Duration(seconds: 10);
-  tester.view
-    ..physicalSize = screen
-    ..devicePixelRatio = 1
-    ..padding = FakeViewPadding(top: bar)
-    ..viewPadding = FakeViewPadding(top: bar);
-  addTearDown(tester.view.reset);
-  final container = await pumpSala(tester, harness);
-  addTearDown(() => closeTheRoom(container));
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  await pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).voice == VoiceState.invite,
-  );
-  await tester.pump(const Duration(milliseconds: 1500));
-  await tester.tap(byLabel('ensaio da cena'));
-  await pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).sceneRehearsals.isNotEmpty,
-  );
-  if (step == SceneStep.sent) {
-    notifier.openTheListedSceneRehearsal('ensaio-da-cena-1');
-  }
-  await pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).scene.step == step,
-  );
-  await tester.pump(const Duration(milliseconds: 1500));
-  expect(container.read(salaSessionProvider).scene.step, step);
-  return container;
-}
+  ],
+);
 
 Iterable<Rect> _rectsOf(Type type) => find
     .descendant(
@@ -135,7 +76,7 @@ Iterable<Rect> _rectsOf(Type type) => find
     });
 
 void main() {
-  for (final device in [_se, _ipad]) {
+  for (final device in [theSE, theIPad]) {
     testWidgets(
       'on ${device.name} the scene rehearsal opens its heading at her 9vh, '
       'under the way back in her corner, not at the top of the screen',
@@ -207,7 +148,12 @@ void main() {
       'on the iPhone SE the ${step.name} step stands her 1.6rem above the '
       'session list, not flush on its heading',
       (tester) async {
-        await _onTheStep(tester, screen: _se.size, bar: _se.bar, step: step);
+        await _onTheStep(
+          tester,
+          screen: theSE.size,
+          bar: theSE.bar,
+          step: step,
+        );
         final page = tester
             .renderObject<RenderFlex>(
               find
@@ -241,8 +187,8 @@ void main() {
     (tester) async {
       final container = await _onTheStep(
         tester,
-        screen: _se.size,
-        bar: _se.bar,
+        screen: theSE.size,
+        bar: theSE.bar,
         step: SceneStep.record,
         listed: 8,
         scenes: const [
@@ -278,8 +224,8 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _onTheStep(
         tester,
-        screen: _se.size,
-        bar: _se.bar,
+        screen: theSE.size,
+        bar: theSE.bar,
         step: SceneStep.translate,
       );
       final heading = tester.getRect(find.text('Ensaio da cena'));
@@ -287,7 +233,7 @@ void main() {
 
       expect(
         heading.width,
-        greaterThan(_se.size.width - 120),
+        greaterThan(theSE.size.width - 120),
         reason: 'o título não chegou a sair de entre as margens',
       );
       expect(
@@ -309,8 +255,8 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _onTheStep(
         tester,
-        screen: _se.size,
-        bar: _se.bar,
+        screen: theSE.size,
+        bar: theSE.bar,
         step: SceneStep.placesUnknown,
         listed: 8,
       );

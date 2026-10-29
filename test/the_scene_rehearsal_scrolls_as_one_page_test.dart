@@ -1,12 +1,7 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -15,14 +10,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/bead_sty
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
-import 'a_scene_room.dart' show articulation, pumpUntil;
-import 'a_wav_take.dart';
-import 'fakes.dart';
-import 'sala_screen_test.dart' show pumpSala;
+import 'a_scene_room.dart' show onTheSceneStep, theIPad, theSE;
 import 'scenario_helpers.dart' show byLabel;
-
-const _se = (name: 'the iPhone SE', size: Size(375, 667), bar: 20.0);
-const _ipad = (name: 'the iPad', size: Size(820, 1180), bar: 24.0);
 
 const _list = 'ensaios da cena desta sessão';
 
@@ -50,20 +39,6 @@ List<SceneFrase> _frases({required bool placed}) => [
     ),
 ];
 
-Future<void> _withRealLetters() async {
-  final fonts =
-      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
-  final roboto = FontLoader('Roboto');
-  for (final weight in ['Regular', 'Medium', 'Bold']) {
-    roboto.addFont(
-      File(
-        '$fonts/Roboto-$weight.ttf',
-      ).readAsBytes().then(ByteData.sublistView),
-    );
-  }
-  await roboto.load();
-}
-
 Future<ProviderContainer> _onTheStep(
   WidgetTester tester, {
   required Size screen,
@@ -72,56 +47,27 @@ Future<ProviderContainer> _onTheStep(
   List<Scene> scenes = const [],
   int listed = 10,
 }) async {
-  await tester.runAsync(_withRealLetters);
   final opensUnsent =
       step == SceneStep.translate || step == SceneStep.placesUnknown;
-  final harness = SalaHarness(filaEmMemoria: true)
-    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = articulation
-    ..room.passageScenes = scenes;
-  harness.room.sceneRehearsals.addAll([
-    for (var n = 1; n <= listed; n++)
-      SceneRehearsalRecord(
-        rehearsalId: 'ensaio-da-cena-$n',
-        sessionId: 'sessao-1',
-        n: n,
-        sentAt: opensUnsent && n == listed ? null : '2026-10-27T10:00:00+00:00',
-        frases: _frases(placed: step != SceneStep.placesUnknown),
-      ),
-  ]);
-  harness.room.sceneAudio = aSpokenWav(length: const Duration(seconds: 10));
-  harness.playback.measured = const Duration(seconds: 10);
-  tester.view
-    ..physicalSize = screen
-    ..devicePixelRatio = 1
-    ..padding = FakeViewPadding(top: bar)
-    ..viewPadding = FakeViewPadding(top: bar);
-  addTearDown(tester.view.reset);
-  final container = await pumpSala(tester, harness);
-  addTearDown(() => closeTheRoom(container));
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  await pumpUntil(
+  final container = await onTheSceneStep(
     tester,
-    () => container.read(salaSessionProvider).voice == VoiceState.invite,
+    screen: screen,
+    bar: bar,
+    step: step,
+    scenes: scenes,
+    rehearsals: [
+      for (var n = 1; n <= listed; n++)
+        SceneRehearsalRecord(
+          rehearsalId: 'ensaio-da-cena-$n',
+          sessionId: 'sessao-1',
+          n: n,
+          sentAt: opensUnsent && n == listed
+              ? null
+              : '2026-10-27T10:00:00+00:00',
+          frases: _frases(placed: step != SceneStep.placesUnknown),
+        ),
+    ],
   );
-  await tester.pump(const Duration(milliseconds: 1500));
-  await tester.tap(byLabel('ensaio da cena'));
-  await pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).sceneRehearsals.isNotEmpty,
-  );
-  if (step == SceneStep.sent) {
-    notifier.openTheListedSceneRehearsal('ensaio-da-cena-1');
-  }
-  await pumpUntil(
-    tester,
-    () => container.read(salaSessionProvider).scene.step == step,
-  );
-  await tester.pump(const Duration(milliseconds: 1500));
-  expect(container.read(salaSessionProvider).scene.step, step);
   expect(
     container.read(salaSessionProvider).sceneQuestionShown,
     scenes.length > 1,
@@ -145,8 +91,8 @@ void main() {
       (tester) async {
         await _onTheStep(
           tester,
-          screen: _se.size,
-          bar: _se.bar,
+          screen: theSE.size,
+          bar: theSE.bar,
           step: shown.step,
           scenes: shown.scenes,
         );
@@ -176,8 +122,8 @@ void main() {
       (tester) async {
         await _onTheStep(
           tester,
-          screen: _se.size,
-          bar: _se.bar,
+          screen: theSE.size,
+          bar: theSE.bar,
           step: shown.step,
           scenes: shown.scenes,
         );
@@ -199,8 +145,8 @@ void main() {
       (tester) async {
         await _onTheStep(
           tester,
-          screen: _se.size,
-          bar: _se.bar,
+          screen: theSE.size,
+          bar: theSE.bar,
           step: shown.step,
           scenes: shown.scenes,
         );
@@ -227,7 +173,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(
-          last.top >= 0 && last.bottom <= _se.size.height,
+          last.top >= 0 && last.bottom <= theSE.size.height,
           isTrue,
           reason:
               'o último ensaio da lista ficava escondido numa rolagem de um '
@@ -244,8 +190,8 @@ void main() {
       (tester) async {
         await _onTheStep(
           tester,
-          screen: _ipad.size,
-          bar: _ipad.bar,
+          screen: theIPad.size,
+          bar: theIPad.bar,
           step: shown.step,
           listed: 1,
         );
@@ -271,8 +217,8 @@ void main() {
         '${shown.name} step, so no line scrolls under it', (tester) async {
       await _onTheStep(
         tester,
-        screen: _se.size,
-        bar: _se.bar,
+        screen: theSE.size,
+        bar: theSE.bar,
         step: shown.step,
       );
       tester
@@ -292,7 +238,7 @@ void main() {
 
       expect(
         wayBack.top,
-        closeTo(_se.bar + _se.size.height * 0.05 - 2 - 200, 0.01),
+        closeTo(theSE.bar + theSE.size.height * 0.05 - 2 - 200, 0.01),
         reason: 'a volta ficava parada no canto enquanto a página rolava',
       );
       expect(
