@@ -565,6 +565,39 @@ void main() {
   );
 
   testWidgets(
+    'a part an earlier visit kept on the tablet does not hide the other '
+    'language\'s line, the choice stands under it',
+    (tester) async {
+      final audio = _anAudioFile(KeptScope.parte(1));
+      final (_, container) = await _reopened(
+        tester,
+        stage: SalaStage.ensaio,
+        roomTakes: const [],
+        keptTakes: [KeptTake(scopeId: KeptScope.parte(1), path: audio.path)],
+        before: (harness) {
+          _waitsInTheOutbox(harness, KeptScope.parte(1), audio);
+          harness.room.sceneRehearsals.add(_rehearsal('outra-sessao'));
+        },
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).partes, hasLength(1));
+      expect(
+        find.text(_elsewhere),
+        findsOneWidget,
+        reason:
+            'a gravação que voltou ao tablet escondia a linha da outra língua',
+      );
+      expect(find.text(_how), findsOneWidget);
+      expect(find.text(_planLine), findsNothing);
+    },
+  );
+
+  testWidgets(
     '5. with a grain in force, the 6 s cut opens that grain\'s home, never the '
     'choice',
     (tester) async {
