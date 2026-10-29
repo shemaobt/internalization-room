@@ -202,6 +202,7 @@ class FraseList extends StatelessWidget {
                       onTap: row.onEstado,
                       dormindo: row.estadoDormindo,
                       toggled: row.estadoArmado ? true : null,
+                      semEsmaecer: true,
                     ),
             ),
         ],
@@ -215,12 +216,14 @@ class _Pill extends StatelessWidget {
   final VoidCallback? onTap;
   final bool dormindo;
   final bool? toggled;
+  final bool semEsmaecer;
 
   const _Pill({
     required this.label,
     required this.onTap,
     this.dormindo = false,
     this.toggled,
+    this.semEsmaecer = false,
   });
 
   @override
@@ -235,7 +238,9 @@ class _Pill extends StatelessWidget {
       excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null
-            ? 0.35
+            ? semEsmaecer
+                  ? 1
+                  : 0.35
             : dormindo
             ? 0.4
             : 1,
