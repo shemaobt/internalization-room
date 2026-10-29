@@ -26,11 +26,19 @@ ADRs and over Henok's rulings of 25 September.
 2. **It cuts nothing.** No sound is silenced: a part, a stretch, a translation or a verdict
    plays on. No capture closes: the microphone stays open and the circle's tap sends the take.
    The circle, «terminei», the approval and the way back still answer.
-3. **It rises only on the Conversation.** «Pronto» after the approval takes the team straight
-   there; then the sign rises and calls a person, even for a halt raised by the build guard or
-   an `Error`. Every other way out (back to the Ensaio, the external check) drops it. Hers never
-   raises it at all; criterion 1 of ENG-2009 asks for the wait, so it stays.
-4. **A verdict whose sound failed twice is still offered by «ouvir a resposta de novo»**, as
+3. **It rises only on the Conversation, as the halt it was.** «Pronto» after the approval
+   takes the team straight there. Then the sign rises, and it calls a person only if the
+   halt did: one from the build guard or an `Error` still calls nobody, and its tap reads
+   nothing (ADR 0125). If two halts wait, one that calls is never quieted by one that does
+   not. Every other way out (back to the Ensaio, the external check) drops it. Hers never
+   raises it at all; criterion 1 of ENG-2009 asks for the wait, so it stays. The same
+   holds for a halt waiting from the Scene rehearsal or the Checagem externa.
+4. **A line the room serves, heard to its end on the Back-translation, lets the waiting
+   halt go.** A verdict whose sound failed twice and is then heard through «ouvir a
+   resposta de novo» leaves nothing waiting, so the Conversation does not call a person for
+   a reply the team already heard. A bundled fixed line says nothing of the room and lets
+   nothing go.
+5. **A verdict whose sound failed twice is still offered by «ouvir a resposta de novo»**, as
    hers, unless it is the fail-safe verdict, which is never remembered.
 
 ## Considered Options
@@ -57,4 +65,6 @@ apply.
 - 0036: a halt that lands inside a capture on the Back-translation no longer closes it.
 - 0044: «a halt silences every station» no longer covers the Back-translation, and the lift
   replay there is reached only by a halt carried in.
-- 0159: item 3 is reversed.
+- 0159: item 3 is reversed. Item 2's «once raised on the Canvas it calls for a person» now
+  holds only for a halt that called; one from the build guard or an `Error` rises calling
+  nobody.
