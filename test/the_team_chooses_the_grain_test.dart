@@ -376,9 +376,7 @@ void main() {
       harness.room.holdNextSceneList();
       await _tap(tester, _sceneByScene);
 
-      expect(harness.room.grainSwitches, [
-        (grain: Grain.scene, reopens: false),
-      ]);
+      expect(harness.room.grainSwitches, [(grain: Grain.scene, reopens: true)]);
       expect(find.text(_thinking), findsOneWidget);
 
       harness.room.finishHeldSceneList();
@@ -397,9 +395,7 @@ void main() {
       await _tap(tester, _whole);
       await _settles(tester);
 
-      expect(harness.room.grainSwitches, [
-        (grain: Grain.whole, reopens: false),
-      ]);
+      expect(harness.room.grainSwitches, [(grain: Grain.whole, reopens: true)]);
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_whole), findsOneWidget);
       expect(find.text('Cena 1'), findsNothing);
@@ -570,7 +566,7 @@ void main() {
 
       expect(
         harness.room.grainSwitches.skip(switches),
-        [(grain: Grain.whole, reopens: false)],
+        [(grain: Grain.whole, reopens: true)],
         reason: 'o grão lembrado abria a casa sem perguntar à sala',
       );
       expect(find.text(_how), findsOneWidget);
@@ -818,8 +814,92 @@ void main() {
   );
 
   testWidgets(
-    '11. on the choice over an approved draft, a refused switch arms the next '
-    'tap with her text and the armed tap re-opens the draft',
+    'on the choice over a draft the tablet knows is approved, one tap opens '
+    'that grain\'s home, never her armed text',
+    (tester) async {
+      final (harness, container) = await _onTheJoinedHome(
+        tester,
+        before: (harness) =>
+            harness.room.approvedDraft = const ApprovedDraft(version: 1),
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(find.text(_how), findsOneWidget);
+      expect(container.read(salaSessionProvider).overAnApprovedDraft, isTrue);
+      harness.room.failTakesWith = null;
+      final switches = harness.room.grainSwitches.length;
+
+      await _tap(tester, _whole);
+
+      expect(
+        find.text(_reopenArmed),
+        findsNothing,
+        reason:
+            'o botão do grão armava com «toquem de novo» sobre o rascunho '
+            'aprovado, e o dela age no primeiro toque',
+      );
+      await _settles(tester);
+
+      expect(
+        harness.room.grainSwitches.skip(switches),
+        [(grain: Grain.whole, reopens: true)],
+        reason: 'o primeiro toque só armava, sem chamar a sala',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_how), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'on the choice over an approved draft, a tap on the grain the room already '
+    'holds keeps the approval and the parts',
+    (tester) async {
+      final (harness, container) = await _onTheJoinedHome(
+        tester,
+        before: (harness) =>
+            harness.room.approvedDraft = const ApprovedDraft(version: 1),
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(find.text(_how), findsOneWidget);
+      harness.room.failTakesWith = null;
+      final switches = harness.room.grainSwitches.length;
+
+      await _tap(tester, _sceneByScene);
+      await _settles(tester);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches.skip(switches), [
+        (grain: Grain.scene, reopens: true),
+      ]);
+      expect(
+        harness.room.approvedDraft,
+        isNotNull,
+        reason:
+            'o toque no grão que a sala já tinha levava o reabrir e desfazia a '
+            'aprovação',
+      );
+      expect(
+        container.read(salaSessionProvider).overAnApprovedDraft,
+        isTrue,
+        reason:
+            'a sessão lida depois do toque já não trazia a aprovação, num toque '
+            'que não mudou nada',
+      );
+      expect(byLabel(_recordAgain), findsNWidgets(3));
+      expect(find.text(_how), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '11. on the choice over a draft the tablet did not know was approved, the '
+    'one tap re-opens it and opens the home, not a refusal',
     (tester) async {
       final (harness, _) = await _onTheChoice(tester);
       harness.room.approvedDraft = const ApprovedDraft(version: 1);
@@ -827,26 +907,16 @@ void main() {
       await _tap(tester, _whole);
       await _settles(tester);
 
-      expect(harness.room.grainSwitches, [
-        (grain: Grain.whole, reopens: false),
-      ]);
-      expect(find.text(_how), findsOneWidget);
-
-      await _tap(tester, _whole);
-
-      expect(find.text(_reopenArmed), findsOneWidget);
-      expect(harness.room.grainSwitches, hasLength(1));
-
-      await tester.pump(const Duration(seconds: 2));
-      await _tap(tester, _reopenArmed);
-      await _settles(tester);
-
-      expect(harness.room.grainSwitches.last, (
-        grain: Grain.whole,
-        reopens: true,
-      ));
+      expect(
+        harness.room.grainSwitches,
+        [(grain: Grain.whole, reopens: true)],
+        reason:
+            'a escolha subia sem reabrir, a sala recusava, e a equipe ficava '
+            'na escolha tocando de novo',
+      );
       expect(find.text(_homeLine), findsOneWidget);
       expect(find.text(_whole), findsOneWidget);
+      expect(find.text(_how), findsNothing);
     },
   );
 
@@ -918,9 +988,7 @@ void main() {
       await _tap(tester, _sceneInstead);
       await _settles(tester);
 
-      expect(harness.room.grainSwitches, [
-        (grain: Grain.scene, reopens: false),
-      ]);
+      expect(harness.room.grainSwitches, [(grain: Grain.scene, reopens: true)]);
       expect(find.text(_homeLine), findsOneWidget);
     });
   });
