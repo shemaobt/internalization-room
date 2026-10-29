@@ -3508,7 +3508,9 @@ void main() {
   );
 
   test('a panorama that cannot be spoken leaves a way back', () async {
-    final harness = SalaHarness()..voice.succeeds = false;
+    final harness = SalaHarness()
+      ..voice.succeeds = false
+      ..room.resumesTheLatest = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -3529,12 +3531,17 @@ void main() {
     await settle();
 
     expect(
-      harness.room.calls.where((call) => call == 'openSession'),
-      hasLength(2),
-      reason: 'um novo toque tenta de novo em vez de bater numa tela morta',
+      container.read(salaSessionProvider).canHearAgain,
+      isTrue,
+      reason: 'um novo toque batia numa tela sem nada para ouvir',
     );
     expect(
-      harness.room.pericopesAsked,
+      harness.room.calls.where((call) => call == 'openSession'),
+      hasLength(1),
+      reason: 'o toque pedia de novo a abertura que a sala já tinha dado',
+    );
+    expect(
+      harness.room.sessionIds,
       hasLength(1),
       reason:
           'tentar de novo não é abrir outro panorama: cada toque deixava uma sessão abandonada no servidor',
