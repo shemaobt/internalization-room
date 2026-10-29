@@ -7555,6 +7555,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await queue.flush();
     await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
+    if (!_endedSince(life) && !state.unsentParts.containsKey(cena)) {
+      _toItsHome();
+    }
   }
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.

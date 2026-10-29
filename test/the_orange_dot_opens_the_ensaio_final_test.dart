@@ -1115,6 +1115,47 @@ void main() {
   );
 
   testWidgets(
+    'a take sent from the plan\'s notice, once the room has it, opens the '
+    'recording home instead of leaving the plan up',
+    (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_planLine), findsOneWidget);
+
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'um envio que não chegou à sala tirava o plano da tela',
+      );
+
+      harness.room.unreachableTake = null;
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a gravação chegava à sala e o plano continuava na tela, e o dela '
+            'passa para a casa de gravação',
+      );
+      expect(find.text(_planLine), findsNothing);
+    },
+  );
+
+  testWidgets(
     'on the grain choice a take only on the tablet is offered under her '
     'notice too',
     (tester) async {
