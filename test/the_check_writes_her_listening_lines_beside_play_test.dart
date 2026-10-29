@@ -6,7 +6,8 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show passaDoCursor, pausar, tocar;
-import 'the_pause_snaps_to_silence_test.dart' show entrarComAFala, s;
+import 'the_pause_snaps_to_silence_test.dart'
+    show entrarComAFala, pausarAos, rotuloDoCirculo, s, umaLacunaAos3;
 
 Finder naTela(String linha) =>
     find.descendant(of: find.byType(RetroView), matching: find.text(linha));
@@ -58,6 +59,33 @@ void main() {
       ),
       findsOneWidget,
       reason: 'a parte parada não dizia nada ao lado do play',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a pause marked on a silence writes «a pausa ficou aqui…» '
+      'beside play, where the circle only said it to VoiceOver', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    expect(
+      rotuloDoCirculo(tester),
+      'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo '
+      'para traduzir',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.textContaining(
+          'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no '
+          'círculo para traduzir — parte 1 · ',
+        ),
+      ),
+      findsOneWidget,
+      reason: 'a pausa marcada não dizia onde ficou ao lado do play',
     );
     closeTheRoom(container);
   });
