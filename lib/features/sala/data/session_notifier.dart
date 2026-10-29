@@ -11426,7 +11426,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Only over a row nothing else has touched. This reading is built out of the answer
     // the resume came in with, so writing it over a row that moved meanwhile would take
     // the stretch the team just told back off the screen.
-    if (faltando.isEmpty || !identical(state.btTrechos, eram)) return;
+    if (faltando.isEmpty) return;
+    if (!identical(state.btTrechos, eram)) {
+      state = state.copyWith(
+        btTrechos: [
+          for (final trecho in state.btTrechos)
+            if (naParte[trecho.takeId] case final parte?)
+              _naParte(trecho, parte)
+            else
+              trecho,
+        ],
+      );
+      return;
+    }
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
