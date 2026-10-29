@@ -10,15 +10,14 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart`: fixtures never travel between
 /// modules, only the shape does.
 Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-963').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final gravada = File('${aTempDir('sala-963').path}/p1.m4a')
+    ..writeAsBytesSync([1, 2, 3]);
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,

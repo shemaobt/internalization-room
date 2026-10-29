@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/recording_repository.dart';
 import 'package:record/record.dart';
 
+import 'support/temp.dart';
+
 class _SilentMicrophone extends RecordPlatform {
   @override
   Future<void> create(String recorderId) async {}
@@ -27,7 +29,7 @@ void main() {
 
   setUp(() {
     RecordPlatform.instance = _SilentMicrophone();
-    documents = Directory.systemTemp.createTempSync('sala-documentos');
+    documents = aTempDir('sala-documentos');
     messenger.setMockMethodCallHandler(
       pathProvider,
       (call) async => documents.path,
@@ -37,7 +39,6 @@ void main() {
   tearDown(() {
     messenger.setMockMethodCallHandler(pathProvider, null);
     RecordPlatform.instance = platformBefore;
-    documents.deleteSync(recursive: true);
   });
 
   test(

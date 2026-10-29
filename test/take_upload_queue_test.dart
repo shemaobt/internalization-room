@@ -18,16 +18,16 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
+import 'support/temp.dart';
 
 void main() {
   late Directory home;
   late FakeRecorder recorder;
 
   setUp(() {
-    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    home = aTempDir('fila-tomadas');
     recorder = FakeRecorder();
   });
-  tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
 
@@ -72,9 +72,7 @@ void main() {
 
   /// The tablet comes back from a backup under a container prefix it has never had.
   void theContainerIsRenamed() {
-    final restored = Directory.systemTemp.createTempSync(
-      'fila-tomadas-restaurada',
-    );
+    final restored = aTempDir('fila-tomadas-restaurada');
     Directory(
       '${home.path}/guardadas',
     ).renameSync('${restored.path}/guardadas');

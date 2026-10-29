@@ -54,6 +54,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
+import 'support/temp.dart';
+
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
 /// passes in silence surfaces as an unrelated error several lines later.
 Future<void> waitFor(
@@ -367,18 +369,6 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> dispose() async {}
 }
 
-Directory aTempHome(String prefix) {
-  final home = Directory.systemTemp.createTempSync(prefix);
-  try {
-    addTearDown(() {
-      if (home.existsSync()) home.deleteSync(recursive: true);
-    });
-  } on StateError {
-    return home;
-  }
-  return home;
-}
-
 class FakeRecorder implements RecordingRepository {
   /// The same ordered log the players write to: the microphone opening on a silent room
   /// is an order between two doubles, not a pair of counters.
@@ -388,7 +378,7 @@ class FakeRecorder implements RecordingRepository {
 
   final StreamController<bool> _interruptions =
       StreamController<bool>.broadcast();
-  final Directory home = aTempHome('sala-gravacoes');
+  final Directory home = aTempDir('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
   bool returnsEmpty = false;
@@ -4510,8 +4500,7 @@ class SalaHarness {
   }) : room = room ?? FakeRoom(),
        roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
        look = look ?? FakeLookLedger(),
-       takesHome =
-           takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
+       takesHome = takesHome ?? aTempDir('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);

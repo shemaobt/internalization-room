@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _a502 = NetworkFailed('HTTP 502');
 const _aWhile = Duration(seconds: 1);
@@ -42,8 +43,7 @@ class _Check {
 }
 
 Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
-  final casa = Directory.systemTemp.createTempSync('sala-veredito');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-veredito');
   harness.playback
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);

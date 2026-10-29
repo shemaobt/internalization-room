@@ -30,6 +30,7 @@ import 'the_pause_snaps_to_silence_test.dart'
         rotuloDoCirculo,
         s,
         traduzirEConfirmar;
+import 'support/temp.dart';
 
 final _duasLacunas = aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(6.0), s(6.4))]);
 
@@ -116,8 +117,7 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
   SalaHarness harness, {
   bool aguarda = true,
 }) async {
-  final pasta = Directory.systemTemp.createTempSync('sala-1223');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1223');
   const daSala = [
     SegmentView(
       segmentId: 'trecho-1',

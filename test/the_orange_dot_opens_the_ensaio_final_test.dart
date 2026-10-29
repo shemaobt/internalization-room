@@ -27,6 +27,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, relaunch, settle, thePersonSign;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
+import 'support/temp.dart';
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _openEnsaioFinal = 'Abrir o Ensaio Final';
@@ -236,8 +237,7 @@ TakeView _roomPart(int n, {required int pass, String? origin}) => TakeView(
 
 /// Part 1 of the passage waits in the Outbox for a room that cannot take it.
 void _partOneWaitsInTheOutbox(SalaHarness harness) {
-  final waiting = Directory.systemTemp.createTempSync('sala-1382-fila');
-  addTearDown(() => waiting.deleteSync(recursive: true));
+  final waiting = aTempDir('sala-1382-fila');
   final audio = File('${waiting.path}/ensaio-parte-1.m4a')
     ..writeAsBytesSync([1, 2, 3, 4]);
   harness.room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
@@ -255,8 +255,7 @@ void _partOneWaitsInTheOutbox(SalaHarness harness) {
 }
 
 void _theWholeWaitsInTheOutbox(SalaHarness harness) {
-  final waiting = Directory.systemTemp.createTempSync('sala-2078-inteira');
-  addTearDown(() => waiting.deleteSync(recursive: true));
+  final waiting = aTempDir('sala-2078-inteira');
   final audio = File('${waiting.path}/ensaio-inteiro.m4a')
     ..writeAsBytesSync([1, 2, 3, 4]);
   harness.room.unreachableTake = 'ensaio/${KeptScope.whole}';
@@ -521,8 +520,7 @@ Future<_Home> _reopenOverTheWholeSetAside(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1382-inteiro');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-1382-inteiro');
   final guardadas = Directory('${home.path}/guardadas')..createSync();
   final harness = SalaHarness(takesHome: home)
     ..room.passageScenes = _threeScenes
@@ -1341,8 +1339,7 @@ void main() {
         tester,
         roomTakes: const [],
         before: (harness) {
-          final waiting = Directory.systemTemp.createTempSync('sala-1861-home');
-          addTearDown(() => waiting.deleteSync(recursive: true));
+          final waiting = aTempDir('sala-1861-home');
           final audio = File('${waiting.path}/ensaio-inteiro.m4a')
             ..writeAsBytesSync([1, 2, 3, 4]);
           harness.room
@@ -1413,10 +1410,7 @@ void main() {
         tester,
         roomTakes: const [],
         before: (harness) {
-          final waiting = Directory.systemTemp.createTempSync(
-            'sala-1861-whole',
-          );
-          addTearDown(() => waiting.deleteSync(recursive: true));
+          final waiting = aTempDir('sala-1861-whole');
           final audio = File('${waiting.path}/ensaio-inteiro.m4a')
             ..writeAsBytesSync([1, 2, 3, 4]);
           harness.room
@@ -1637,8 +1631,7 @@ void main() {
     testWidgets('stays out of the telling-back after a second relaunch', (
       tester,
     ) async {
-      final home = Directory.systemTemp.createTempSync('sala-1382-traducao');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-1382-traducao');
       final harness = SalaHarness(takesHome: home)
         ..playback.measured = const Duration(seconds: 10);
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(

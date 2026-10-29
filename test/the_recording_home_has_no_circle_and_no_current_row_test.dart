@@ -21,6 +21,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -46,7 +47,7 @@ void _umIpadEmPe(WidgetTester tester) {
 }
 
 SalaHarness _umaSala() =>
-    SalaHarness(filaEmMemoria: true, takesHome: aTempHome('sala-1872'))
+    SalaHarness(filaEmMemoria: true, takesHome: aTempDir('sala-1872'))
       ..room.passageScenes = _cenas;
 
 Future<ProviderContainer> _naCasaDoEnsaio(
@@ -358,7 +359,7 @@ void main() {
     tester,
   ) async {
     _umIpadEmPe(tester);
-    final casa = aTempHome('sala-1872-aviso');
+    final casa = aTempDir('sala-1872-aviso');
     final gravada = File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
     final harness = _umaSala()
       ..room.serverStatus = 'needs_person'

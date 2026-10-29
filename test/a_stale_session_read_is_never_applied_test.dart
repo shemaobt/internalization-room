@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 const _beat = Duration(milliseconds: 150);
 
@@ -43,8 +44,7 @@ Future<void> _aReadIsHeld(SalaHarness harness) async {
 }
 
 Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
-  final pasta = Directory.systemTemp.createTempSync('sala-1168-velha');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1168-velha');
   final gravada = File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',

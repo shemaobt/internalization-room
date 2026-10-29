@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _traduzidos = BackTranslationProgress(
   segments: [
@@ -28,10 +29,8 @@ Future<ProviderContainer> _reopensInto(
   SalaStage parouEm, {
   BackTranslationProgress contado = const BackTranslationProgress(),
 }) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-687').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final gravada = File('${aTempDir('sala-687').path}/p1.m4a')
+    ..writeAsBytesSync([1, 2, 3]);
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: parouEm,

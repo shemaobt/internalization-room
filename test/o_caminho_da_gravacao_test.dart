@@ -11,12 +11,11 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 /// The app's storage, which a restore, a reinstall or a new tablet moves wholesale.
 class _Storage {
-  final Directory root = Directory.systemTemp.createTempSync(
-    'sala-armazenamento',
-  );
+  final Directory root = aTempDir('sala-armazenamento');
   late Directory _recordings = _makeRecordings('um');
 
   Directory _makeRecordings(String prefix) =>
@@ -45,17 +44,11 @@ class _Storage {
       file.deleteSync();
     }
   }
-
-  void dispose() {
-    if (root.existsSync()) root.deleteSync(recursive: true);
-  }
 }
 
 ({_Storage storage, WorkInProgress ledger}) _aTabletWithAPlace() {
   final storage = _Storage();
-  addTearDown(storage.dispose);
-  final ledgerHome = Directory.systemTemp.createTempSync('sala-em-curso');
-  addTearDown(() => ledgerHome.deleteSync(recursive: true));
+  final ledgerHome = aTempDir('sala-em-curso');
   return (
     storage: storage,
     ledger: WorkInProgress(

@@ -17,6 +17,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _sessao = 'sessao-antiga';
 const _parte = Duration(seconds: 10);
@@ -93,8 +94,7 @@ Future<_Retomada> _reabrir(
   BackTranslationProgress contado = const BackTranslationProgress(),
   List<TakeView>? naSala,
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-retomada-busca');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-retomada-busca');
   final nomeados = [for (var n = 1; n <= partes; n++) '${casa.path}/p$n.m4a'];
   for (var n = 1; n <= partes; n++) {
     if (!aindaNoTablet.contains(n)) continue;
@@ -1187,8 +1187,7 @@ void main() {
   test('uma correcao guardada ao lado das partes nao conta como parte: a cena '
       'por gravar ainda sobe acima da passada da sala', () async {
     final harness = SalaHarness()..room.passageScenes = tresCenas;
-    final casa = Directory.systemTemp.createTempSync('sala-1355-correcao');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-1355-correcao');
     String arquivo(String nome) {
       final caminho = '${casa.path}/$nome.m4a';
       File(caminho).writeAsBytesSync([1, 2, 3]);

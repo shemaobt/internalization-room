@@ -22,6 +22,7 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart'
     show byLabel, enterThePanorama, enterThePassage, relaunch, settle;
 import 'um_ensaio_de_tres_partes.dart' show Sala, gravarUmaParteDoEnsaio;
+import 'support/temp.dart';
 
 const _livroComPanorama = [
   Passagem(
@@ -464,8 +465,7 @@ void main() {
   test(
     'the room language chosen on one launch is the one the next launch reads',
     () async {
-      final home = Directory.systemTemp.createTempSync('sala-lingua');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-lingua');
       final first = await RoomLanguageLedger.read(home: () async => home);
 
       expect(first.chosen, isNull);

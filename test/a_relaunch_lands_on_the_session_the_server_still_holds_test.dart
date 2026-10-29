@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 class _Tablet {
   final SalaHarness harness;
@@ -46,8 +47,7 @@ Future<_Tablet> _aTablet({
   String lingua = testLanguage,
   bool watching = false,
 }) async {
-  final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-sessao-atual');
   final harness = SalaHarness(
     lingua: lingua,
     watchesWithoutAHalt: watching,
@@ -159,8 +159,7 @@ _Tablet _aTabletHolding(SalaStage stage, {List<KeptTake> takes = const []}) {
 }
 
 KeptTake _aPartHere() {
-  final home = Directory.systemTemp.createTempSync('sala-parte-aqui');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-parte-aqui');
   return KeptTake(
     scopeId: KeptScope.parte(1),
     path: (File('${home.path}/p1.m4a')..writeAsBytesSync([1])).path,

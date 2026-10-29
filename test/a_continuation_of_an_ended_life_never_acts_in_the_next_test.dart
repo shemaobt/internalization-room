@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
+import 'support/temp.dart';
 
 const _livroComPanorama = [
   Passagem(
@@ -258,8 +259,7 @@ int _criacoes(_Caso caso) =>
 
 Future<_Caso> _naTraducaoRetomada({required List<SegmentView> told}) async {
   final caso = _umaSala();
-  final casa = Directory.systemTemp.createTempSync('sala-vida');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-vida');
   caso.harness.playback
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);

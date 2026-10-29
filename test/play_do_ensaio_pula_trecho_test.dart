@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 /// ENG-824: six rehearsal parts, each told back as exactly one stretch, the
 /// last one recounted by the short way. Reproduces the play skipping the one
@@ -105,10 +106,8 @@ Future<void> _traduzirDeNovoPeloCaminhoCurto(Sala it) async {
 Future<(Sala, File)> _retomadaComUmTrechoSemParte({
   int trechosComParte = 1,
 }) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-824').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final gravada = File('${aTempDir('sala-824').path}/p1.m4a')
+    ..writeAsBytesSync([1, 2, 3]);
   final harness = SalaHarness()
     ..emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',

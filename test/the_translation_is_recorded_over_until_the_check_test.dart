@@ -20,6 +20,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show pausadaNoToque, tocarNoCirculo;
+import 'support/temp.dart';
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -307,10 +308,8 @@ void main() {
 
   testWidgets('R3 — uma frase sem tradução no tablet, traduzida de novo antes '
       'do veredito, abre e toca a sua língua materna', (tester) async {
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-1117').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-1117').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     final harness = SalaHarness(filaEmMemoria: true);
     harness.playback
       ..measured = parte
@@ -600,10 +599,8 @@ void main() {
     WidgetTester tester,
     SalaHarness harness,
   ) async {
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-1117').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-1117').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.playback
       ..measured = parte
       ..length = parte;

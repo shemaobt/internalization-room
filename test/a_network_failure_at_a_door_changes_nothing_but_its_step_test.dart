@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 const _aLadderThatWaits = [Duration(hours: 1)];
 const _theKeyStillInFlight = Refused('IDEMPOTENCY_KEY_IN_FLIGHT');
@@ -59,8 +60,7 @@ Future<_Room> _aResumedBackTranslation(
   SalaHarness harness, {
   List<SegmentView> told = const [],
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-alcance');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-alcance');
   harness.playback
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
@@ -573,8 +573,7 @@ void main() {
 
   group('11: a take stranded on a refusal', () {
     test('a manifest written before the code was kept still loads', () async {
-      final home = Directory.systemTemp.createTempSync('sala-manifesto-antigo');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-manifesto-antigo');
       final guardadas = Directory('${home.path}/guardadas')..createSync();
       File('${guardadas.path}/ensaio-p1.m4a').writeAsBytesSync([1, 2, 3]);
       File('${guardadas.path}/fila.json').writeAsStringSync(

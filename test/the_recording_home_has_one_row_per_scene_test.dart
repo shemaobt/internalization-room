@@ -27,6 +27,7 @@ import 'the_back_translation_is_told_by_beads_test.dart' show tocarNoCirculo;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show cabeca, gravarATraducao, parte;
+import 'support/temp.dart';
 
 const _cenasEmPortugues = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -163,8 +164,7 @@ Future<Sala> _reabrirNaTraducao({
   required List<TakeView> naSala,
   required List<SegmentView> contados,
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-1406-inteiro');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1406-inteiro');
   final harness = SalaHarness()
     ..playback.measured = const Duration(seconds: 10);
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -258,8 +258,7 @@ Future<Sala> _reabrirComOInteiro({
   required bool comACena1,
   List<BtFinding> achados = const [_achadoNoInteiro],
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-1406-achado');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1406-achado');
   final harness = SalaHarness()
     ..playback.measured = const Duration(seconds: 10);
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -317,8 +316,7 @@ Future<ProviderContainer> _retomarNoEnsaio(
   void Function(SalaHarness)? antes,
 }) async {
   _umIpadEmPe(tester);
-  final casa = Directory.systemTemp.createTempSync('sala-1406-retomada');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1406-retomada');
   harness ??= SalaHarness(filaEmMemoria: true);
   harness
     ..room.passageScenes = cenas
@@ -656,8 +654,7 @@ void main() {
   test(
     'a Resume point written with a joined part reads its origin back',
     () async {
-      final casa = Directory.systemTemp.createTempSync('sala-1406-linha');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-linha');
       WorkInProgress noDisco() =>
           WorkInProgress(home: () async => casa, recordings: () async => casa);
 
@@ -1017,8 +1014,7 @@ void main() {
     'a passage left in its translation reopens there with scenes still missing '
     'their part',
     () async {
-      final casa = Directory.systemTemp.createTempSync('sala-1406-na-traducao');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-na-traducao');
       final harness = SalaHarness()
         ..room.passageScenes = _cenasEmPortugues
         ..room.retroSoFar = const BackTranslationProgress(
@@ -1064,8 +1060,7 @@ void main() {
     'a whole rehearsal the room holds with no number, reopened in its telling-'
     'back, plays there',
     () async {
-      final casa = Directory.systemTemp.createTempSync('sala-1406-inteiro');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-inteiro');
       final harness = SalaHarness()
         ..playback.measured = const Duration(seconds: 10);
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -1322,8 +1317,7 @@ void main() {
     'scene\'s number',
     (tester) async {
       _umIpadEmPe(tester);
-      final casa = Directory.systemTemp.createTempSync('sala-1406-rotulos');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-rotulos');
       final harness = SalaHarness(filaEmMemoria: true)
         ..playback.measured = const Duration(seconds: 10);
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -1497,8 +1491,7 @@ void main() {
     'home, and its tap leads to the scene rows',
     (tester) async {
       _umIpadEmPe(tester);
-      final casa = Directory.systemTemp.createTempSync('sala-1766-achado');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1766-achado');
       final harness = SalaHarness(filaEmMemoria: true)
         ..playback.measured = const Duration(seconds: 10);
       final inteiro = File('${casa.path}/inteiro.m4a')

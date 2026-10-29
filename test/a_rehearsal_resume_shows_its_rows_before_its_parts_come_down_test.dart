@@ -15,6 +15,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -143,8 +144,7 @@ Future<ProviderContainer> _retomar(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final casa = Directory.systemTemp.createTempSync('sala-1762-retomada');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1762-retomada');
   harness
     ..room.passageScenes = cenas
     ..room.takes.addAll(naSala ?? [for (final n in numeros) _naSala(n)]);

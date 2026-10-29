@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +8,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _theNetworkDrops = NetworkFailed('a rede caiu');
 const _theCeiling = Duration(milliseconds: 400);
@@ -30,8 +30,7 @@ class _Tablet {
 }
 
 Future<_Tablet> _aTablet() async {
-  final home = Directory.systemTemp.createTempSync('sala-de-novo');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-de-novo');
   final harness = SalaHarness(
     currentSession: LedgerThatReadsLate(home: () async => home),
   );

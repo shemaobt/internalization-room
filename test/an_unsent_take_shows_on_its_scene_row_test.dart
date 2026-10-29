@@ -23,6 +23,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, offTheRows, relaunch, settle;
+import 'support/temp.dart';
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -272,8 +273,7 @@ Future<void> _retomarComAParte1(
   required String? origin,
 }) async {
   _umIpadEmPe(tester);
-  final pasta = Directory.systemTemp.createTempSync('sala-1420-juntou');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1420-juntou');
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.passageScenes = _cenas
     ..room.takes.add(
@@ -676,8 +676,7 @@ void main() {
     'notice and are not lost',
     (tester) async {
       _umIpadEmPe(tester);
-      final casaDasTomadas = Directory.systemTemp.createTempSync('sala-1420');
-      addTearDown(() => casaDasTomadas.deleteSync(recursive: true));
+      final casaDasTomadas = aTempDir('sala-1420');
       final guardadas = Directory('${casaDasTomadas.path}/guardadas')
         ..createSync();
       final audio = File('${guardadas.path}/ensaio-parte-1.m4a')
@@ -876,8 +875,7 @@ void main() {
       'recorded: $como',
       (tester) async {
         _umIpadEmPe(tester);
-        final casaDasTomadas = Directory.systemTemp.createTempSync('sala-1420');
-        addTearDown(() => casaDasTomadas.deleteSync(recursive: true));
+        final casaDasTomadas = aTempDir('sala-1420');
         final guardadas = Directory('${casaDasTomadas.path}/guardadas')
           ..createSync();
         final parte2 = File('${guardadas.path}/ensaio-parte-2.m4a')

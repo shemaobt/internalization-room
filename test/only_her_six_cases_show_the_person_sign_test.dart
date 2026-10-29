@@ -23,6 +23,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 class _Room {
   final SalaHarness harness;
@@ -142,8 +143,7 @@ Future<void> _terminei(_Room room) async {
 /// A tablet reopening straight into an unchecked telling-back. Copied from
 /// `every_door_that_falls_takes_the_room_out_of_reach_test.dart`.
 Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
-  final casa = Directory.systemTemp.createTempSync('sala-1355');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1355');
   harness.playback
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
@@ -805,8 +805,7 @@ void main() {
   test('a resume that lands clears the count of failed resumes, so only '
       'consecutive failures forget the passage', () async {
     final harness = SalaHarness();
-    final casa = Directory.systemTemp.createTempSync('sala-1355-ensaio');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-1355-ensaio');
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,
@@ -937,8 +936,7 @@ void main() {
       'calmly back to the passage menu', () async {
     final harness = SalaHarness()
       ..room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
-    final casa = Directory.systemTemp.createTempSync('sala-1355-retro');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-1355-retro');
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,

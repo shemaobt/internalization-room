@@ -7,12 +7,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
-Directory _home() {
-  final home = Directory.systemTemp.createTempSync('sala-lugar');
-  addTearDown(() => home.deleteSync(recursive: true));
-  return home;
-}
+Directory _home() => aTempDir('sala-lugar');
 
 /// Put something in the way of the folder the ledger keeps its file in, so every write
 /// from here on throws the way a full or read-only disk does.

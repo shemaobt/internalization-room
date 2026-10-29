@@ -15,6 +15,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, voiceOverTap;
+import 'support/temp.dart';
 
 const _gravacao = 'gravacao-1';
 const _sessao = 'sessao-antiga';
@@ -100,8 +101,7 @@ void _naLinha(
   SalaStage stage = SalaStage.retro,
   ({int version, int number})? ouvinte,
 }) {
-  final home = Directory.systemTemp.createTempSync('sala-ouvinte');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-ouvinte');
   harness.emAberto.rows['$_linha/${harness.lingua}'] = ResumePoint(
     sessionId: _sessao,
     stage: stage,
@@ -798,8 +798,7 @@ void main() {
   });
 
   test('the listener in progress survives the disk', () async {
-    final home = Directory.systemTemp.createTempSync('sala-em-curso-ouvinte');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-em-curso-ouvinte');
     final ledger = WorkInProgress(
       home: () async => home,
       recordings: () async => Directory('${home.path}/recordings'),

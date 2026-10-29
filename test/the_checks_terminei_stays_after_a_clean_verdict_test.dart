@@ -25,6 +25,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         parte,
         tocar,
         tocarNoCirculo;
+import 'support/temp.dart';
 
 Future<ProviderContainer> _ateAConferida(
   WidgetTester tester,
@@ -282,8 +283,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true)
       ..playback.length = parte
       ..playback.measured = parte;
-    final casa = Directory.systemTemp.createTempSync('sala-conferida');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-conferida');
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,

@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle, theChoiceOffersAPassage;
+import 'support/temp.dart';
 
 const _thePassageClosed = Refused('PASSAGE_CLOSED');
 const _oneStepOfTheLadder = Duration(milliseconds: 20);
@@ -566,8 +567,7 @@ void main() {
 
   test('a passage closed keeps its unsent take on the tablet even when the '
       'Resume points cannot be read', () async {
-    final casa = Directory.systemTemp.createTempSync('sala-lugar-ilegivel');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-lugar-ilegivel');
     Directory('${casa.path}/guardadas').createSync(recursive: true);
     File(
       '${casa.path}/guardadas/em_curso.json',
