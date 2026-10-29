@@ -308,7 +308,41 @@ void main() {
   );
 
   menuTest(
-    'an English entry left is not tinted while the Room language is Portuguese',
+    'a Portuguese entry left keeps its tint when the team taps «EN», the '
+    'Panorama too',
+    (tester) async {
+      final container = await _theChoice(tester, _aRoomListing(_ruth));
+      await tester.tap(find.text('Rute 1:6–14'));
+      await _catchUp(tester);
+      await _leave(tester, container);
+
+      await tester.tap(find.text('EN'));
+      await _catchUp(tester);
+
+      expect(
+        _everyPill(tester).where((words) => _tinted(tester, words)),
+        ['Ruth 1:6–14'],
+        reason: 'a passagem deixada em português perdia a cor na lista inglesa',
+      );
+
+      await tester.tap(find.text('PT'));
+      await _catchUp(tester);
+      await tester.tap(find.text(_panoramaPt));
+      await _catchUp(tester);
+      await _leave(tester, container);
+      await tester.tap(find.text('EN'));
+      await _catchUp(tester);
+
+      expect(
+        _everyPill(tester).where((words) => _tinted(tester, words)),
+        ['◈ Book Panorama'],
+        reason: 'o panorama deixado em português perdia a cor na lista inglesa',
+      );
+    },
+  );
+
+  menuTest(
+    'an English entry left keeps its tint while the Room language is Portuguese',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true, lingua: null)
         ..room.passages = _ruth;
@@ -324,7 +358,8 @@ void main() {
 
       expect(
         _everyPill(tester).where((words) => _tinted(tester, words)),
-        isEmpty,
+        ['Rute 1:6–14'],
+        reason: 'a passagem deixada em inglês perdia a cor na lista portuguesa',
       );
       expect(byLabel(roomLabelFor('backToPassage', 'pt')), findsOneWidget);
 
