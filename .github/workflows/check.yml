@@ -5,8 +5,15 @@ on:
   push:
     branches: [main]
 
+# The one Flutter version CI verifies (AGENTS.md); both jobs read it from here.
+env:
+  FLUTTER_VERSION: 3.44.9
+
+# The suite ran as one 21-minute job, and every merge waits on it. It now runs in six
+# shards side by side on GitHub's free runners for public repositories (same tests, same
+# flags), and `check` still reports one verdict for the whole.
 jobs:
-  check:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -15,7 +22,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.9
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
@@ -30,9 +37,6 @@ jobs:
 
       - name: Format
         run: dart format --output=none --set-exit-if-changed lib test tool
-
-      - name: Test
-        run: flutter test --reporter expanded --concurrency=2
 
       # Three skipped tests sat green for weeks, one with an empty body and a reason that
       # had stopped being true. A paused test is a decision, and a decision belongs in a
@@ -55,3 +59,51 @@ jobs:
       # deliberately not here: `--sync` is run by hand, against a checkout, when she has ruled.
       - name: Nothing of Marcia's moved without her word
         run: dart run tool/sync_doctrine.dart --check
+
+  test:
+    runs-on: ubuntu-latest
+    # A shard takes 3–6 minutes. A hung test (each testWidgets waits up to 10 minutes)
+    # once held a shard for 90 minutes and the merge queue with it; 20 minutes fails it fast.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Provide a .env
+        run: cp .env.example .env
+
+      # Whole files per shard, never a file split across shards: some files' tests run in
+      # order and lean on it, and flutter's --total-shards splits a file's tests apart.
+      # Files go to shards by size (largest first, into the lightest shard) so the six
+      # finish together.
+      - name: Test (shard ${{ matrix.shard }} of 6)
+        run: |
+          files=$(find test -name '*_test.dart' -printf '%s %p\n' | sort -rn | awk -v k=${{ matrix.shard }} -v n=6 '
+            { best = 0; for (i = 1; i < n; i++) if (load[i] < load[best]) best = i
+              load[best] += $1; if (best == k) print $2 }')
+          echo "$files" | wc -l
+          flutter test --reporter expanded --concurrency=2 $files
+
+  check:
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard and the lint passed
+        run: |
+          [ "${{ needs.lint.result }}" = success ] && [ "${{ needs.test.result }}" = success ] || {
+            echo "::error::lint=${{ needs.lint.result }} test=${{ needs.test.result }}"; exit 1; }

@@ -1,11 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
@@ -192,44 +190,45 @@ void main() {
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('a conferida não oferece o círculo a um toque que não responde', (
-    tester,
-  ) async {
+  testWidgets('a conferida desenha o anel telha dela, que não responde ao '
+      'toque, nunca um círculo de barro', (tester) async {
     final container = await _pumpToPergunta(tester);
     await _consertoQueNaoPegou(tester, container);
     await _oVeredictoVoltaLimpo(tester, container);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    await tester.pump(const Duration(milliseconds: 1000));
 
-    final colors = SalaColors.of(
-      tester.element(find.byType(FacilitatorCircle)),
+    final circulo = tester.widget<FacilitatorCircle>(
+      find.byType(FacilitatorCircle),
     );
-    final pintados = [
-      for (final elemento
-          in find
-              .descendant(
-                of: find.byType(FacilitatorCircle),
-                matching: find.byType(Container),
-              )
-              .evaluate())
-        if ((elemento.widget as Container).decoration case BoxDecoration(
-          :final gradient?,
-        ))
-          gradient,
-    ];
+    expect(circulo.answersATouch, isFalse);
+    final pintados = tester
+        .widgetList<Container>(
+          find.descendant(
+            of: find.byType(FacilitatorCircle),
+            matching: find.byType(Container),
+          ),
+        )
+        .map((caixa) => caixa.decoration)
+        .whereType<BoxDecoration>()
+        .toList();
 
     expect(
-      pintados,
-      isNot(contains(BeadStyles.telha(colors))),
+      [
+        for (final pintado in pintados)
+          if (pintado.border case final Border borda) borda.top,
+      ],
+      [const BorderSide(color: Color(0xFFBE4A01), width: 1.5)],
       reason:
-          'a conferida desenhava o círculo de telha do convite, e o toque '
-          'nele não responde nada: a tela da Marcia deixa o círculo vivo '
-          'ali, a nossa mandou a escuta para o botão de ouvir, então um '
-          'convite sem resposta é um toque morto',
+          'com a checagem limpa o .check-circle dela segue na tela em '
+          'data-state idle, só desabilitado (Drafting.tsx:2404-2406, '
+          'globals.css:379, :385); o nosso trocava por um círculo de barro '
+          'com borda cord',
     );
     expect(
-      pintados,
-      contains(BeadStyles.clay(colors)),
-      reason: 'o círculo que não responde respira devagar, como o parado',
+      pintados.expand((pintado) => pintado.gradient?.colors ?? <Color>[]),
+      everyElement(predicate<Color>((cor) => cor.a < 1)),
+      reason: 'o anel dela é vazado: por dentro só o areia translúcido',
     );
 
     await _deixarOColarFechar(tester);

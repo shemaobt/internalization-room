@@ -17,8 +17,8 @@ import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her title and this session's list are written on every
 /// step, the translate, places-unknown and sent steps write her words (ADR 0014), the
-/// record step writes the take's state (ADR 0131), and its other words reach the team
-/// only through VoiceOver.
+/// record step writes her instruction and hint (ADR 0155) and the take's state (ADR
+/// 0131), and its circle is named only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -43,6 +43,13 @@ class SceneRehearsalView extends ConsumerWidget {
             fontSize: 26,
             fontWeight: FontWeight.w500,
           ),
+          top:
+              MediaQuery.viewPaddingOf(context).top +
+              MediaQuery.sizeOf(context).height * 0.09,
+          corner:
+              MediaQuery.viewPaddingOf(context).top +
+              MediaQuery.sizeOf(context).height * 0.05 +
+              42,
         ),
         Expanded(
           child: Center(
@@ -106,14 +113,16 @@ class SceneRehearsalView extends ConsumerWidget {
                 restart: session.sceneRestart,
                 stoppedAt: session.sceneStoppedAt,
               ),
-              SceneStep.placesUnknown => ScenePlacesUnknown(
-                scene: scene,
-                language: language,
-                sending: sending,
-                sendable: sendable,
-                line: session.sceneLine,
-                restartShown: session.sceneRestartShown,
-                restart: session.sceneRestart,
+              SceneStep.placesUnknown => SingleChildScrollView(
+                child: ScenePlacesUnknown(
+                  scene: scene,
+                  language: language,
+                  sending: sending,
+                  sendable: sendable,
+                  line: session.sceneLine,
+                  restartShown: session.sceneRestartShown,
+                  restart: session.sceneRestart,
+                ),
               ),
               SceneStep.sent => SceneListenMode(
                 scene: scene,
@@ -129,7 +138,7 @@ class SceneRehearsalView extends ConsumerWidget {
         ),
         if (session.sceneRehearsals.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 32),
+            padding: const EdgeInsets.only(top: 25.6, bottom: 32),
             child: SceneRehearsalList(
               rows: session.sceneRehearsals,
               onScreen: scene.rehearsal?.rehearsalId,
@@ -170,13 +179,18 @@ class _TheRecordStep extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SingleChildScrollView(child: _theStep());
+
+  Widget _theStep() {
     final chip = this.chip;
     final circle =
         question ??
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SceneSub(label('subRecord')),
+            const SizedBox(height: 12),
             if (chip != null) ...[chip, const SizedBox(height: 24)],
             FocusOnArrival(
               wanted: focused,
@@ -186,6 +200,12 @@ class _TheRecordStep extends StatelessWidget {
                 label: label,
                 onTap: onTap,
               ),
+            ),
+            const SizedBox(height: 12),
+            SceneRecordHint(
+              recording: recording,
+              keeping: keep is Keeping,
+              label: label,
             ),
           ],
         );
@@ -201,7 +221,6 @@ class _TheRecordStep extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         circle,
-        const SizedBox(height: 24),
         SceneTakeState(
           recording: recording,
           keep: keep,

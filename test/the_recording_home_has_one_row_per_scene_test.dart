@@ -53,6 +53,7 @@ const _gravarDeNovo = 'Gravar de novo';
 const _parar = 'Parar';
 const _enviarAGravacao = 'Enviar a gravação';
 const _irParaATraducao = 'Traduzir a gravação';
+const _gravarAPassagemInteira = 'Gravar a passagem inteira';
 
 const _sessao = 'sessao-antiga';
 
@@ -109,6 +110,23 @@ Future<void> _gravarNaLinha(
   await _tocar(tester, _naLinha(n, deNovo ? _gravarDeNovo : _gravar));
   await _tocar(tester, _naLinha(n, _parar));
   await _confirmarAParte(tester);
+}
+
+Future<(SalaHarness, ProviderContainer)> _comAParte1NoAr(
+  WidgetTester tester,
+) async {
+  final harness = SalaHarness()..room.holdNextTake(KeptScope.parte(1));
+  final container = await _naCasaDoEnsaio(tester, harness: harness);
+  await tester.pump(const Duration(seconds: 1));
+  var chegou = false;
+  unawaited(harness.room.untilTakeHeld().then((_) => chegou = true));
+  await _gravarNaLinha(tester, 1);
+  await waitFor(
+    'a gravação chegar à porta',
+    () => chegou,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  return (harness, container);
 }
 
 bool _discoAceso(WidgetTester tester) =>
@@ -407,6 +425,36 @@ void main() {
     expect(find.text(_todasAsPartes), findsNothing);
     await _tocar(tester, inTheHome(_irParaATraducao));
     expect(_estado(container).stage, SalaStage.retro);
+    closeTheRoom(container);
+  });
+
+  testWidgets('«Ouvir tudo» shows her title and ends with «fim da gravação»', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naCasaDoEnsaio(tester, harness: harness);
+    expect(find.text('Ouvir tudo'), findsNothing);
+    for (var n = 1; n <= 4; n++) {
+      await _gravarNaLinha(tester, n);
+    }
+
+    await _tocar(tester, find.text('Ouvir tudo'));
+
+    expect(
+      find.text('A gravação de vocês inteira, parte por parte.'),
+      findsOneWidget,
+    );
+    expect(find.text('fim da gravação'), findsNothing);
+    expect(find.text('Ouvir tudo'), findsNothing);
+    for (var n = 0; n < 4; n++) {
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.text('fim da gravação'), findsOneWidget);
+    await tester.tap(find.text('fim da gravação'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(_estado(container).ouvirTudo, OuvirTudo.fora);
+    expect(find.text('Ouvir tudo'), findsOneWidget);
     closeTheRoom(container);
   });
 
@@ -1304,6 +1352,10 @@ void main() {
       await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
       await _gravarACenaEGuardar(it, 1);
       await _gravarACenaEGuardar(it, 2);
+      await waitFor(
+        'a sala nomear as duas cenas',
+        () => it.estado.keptTakes.every((take) => take.takeId != null),
+      );
       final antes = it.harness.playback.played.length;
 
       it.sala.startRetro();
@@ -1664,6 +1716,103 @@ void main() {
       expect(it.harness.room.grainSwitches, hasLength(1));
       expect(it.estado.sceneRows, hasLength(2));
       expect([for (final t in it.estado.btTrechos) t.segmentId], contados);
+    },
+  );
+
+  testWidgets(
+    'the grain switch stands on a home whose scene list never answered',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..room.failScenesWith = const NetworkFailed('sem rede');
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      await tester.pump(const Duration(seconds: 12));
+
+      expect(
+        find.text(_gravarAPassagemInteira),
+        findsOneWidget,
+        reason: 'sem a lista das cenas a casa escondia a troca do grão',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('the grain switch rests while a take records', (tester) async {
+    final container = await _naCasaDoEnsaio(tester);
+    await tester.pump(const Duration(seconds: 1));
+
+    await _tocar(tester, _naLinha(1, _gravar));
+
+    expect(
+      tester
+          .widget<Semantics>(byLabel(_gravarAPassagemInteira))
+          .properties
+          .enabled,
+      isFalse,
+      reason: 'a troca do grão ficava viva com o microfone aberto',
+    );
+    await _tocar(tester, _naLinha(1, _parar));
+    closeTheRoom(container);
+  });
+
+  testWidgets('the grain switch rests while a take is on its way to the room', (
+    tester,
+  ) async {
+    final (harness, container) = await _comAParte1NoAr(tester);
+
+    expect(
+      tester
+          .widget<Semantics>(byLabel(_gravarAPassagemInteira))
+          .properties
+          .enabled,
+      isFalse,
+      reason: 'a troca do grão ficava viva com a gravação a caminho da sala',
+    );
+    harness.room.finishHeldTake();
+    await letTheRehearsalReachTheRoom(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a tap on the grain switch while a take is on its way switches nothing',
+    (tester) async {
+      final (harness, container) = await _comAParte1NoAr(tester);
+
+      await _tocar(tester, find.text(_gravarAPassagemInteira));
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(
+        harness.room.grainSwitches,
+        isEmpty,
+        reason: 'o toque trocava o grão com a gravação ainda no ar',
+      );
+      harness.room.finishHeldTake();
+      await letTheRehearsalReachTheRoom(tester);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'the grain switch rests while a take is being kept on the tablet',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      await tester.pump(const Duration(seconds: 1));
+      (harness.takes as FakeTakeQueue).holdNextKeep();
+
+      await _gravarNaLinha(tester, 1);
+
+      expect(
+        tester
+            .widget<Semantics>(byLabel(_gravarAPassagemInteira))
+            .properties
+            .enabled,
+        isFalse,
+        reason:
+            'a troca do grão ficava viva com a gravação ainda sendo guardada',
+      );
+      (harness.takes as FakeTakeQueue).finishHeldKeep();
+      await letTheRehearsalReachTheRoom(tester);
+      closeTheRoom(container);
     },
   );
 }

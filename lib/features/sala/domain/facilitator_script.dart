@@ -50,10 +50,6 @@ int acknowledgementAfter(int last, Random random) =>
     instantAckLines.length;
 
 const circleLabels = {
-  'needsPerson': {
-    'pt': 'Um momento para uma pessoa',
-    'en': 'A moment for someone',
-  },
   'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 
@@ -388,6 +384,11 @@ const sceneRehearsalLabels = {
   'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
   'listSent': {'pt': 'enviado', 'en': 'sent'},
   'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
+  'subRecord': {
+    'pt':
+        'Toquem no círculo para gravar o ensaio da cena; toquem de novo para parar.',
+    'en': 'Tap the circle to record the scene rehearsal; tap again to stop.',
+  },
   'subTranslate': {
     'pt':
         'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',
@@ -437,12 +438,14 @@ String _sceneClockLineFor(
   Duration at,
   Duration? length,
   String language,
-) {
+) =>
+    '${sceneRehearsalLabelFor(control, language)} — ${sceneClockOf(at, length)}';
+
+String sceneClockOf(Duration at, Duration? length) {
   final ofTheTake = length != null && length > Duration.zero
       ? ' / ${minutesAndSecondsOf(length)}'
       : '';
-  return '${sceneRehearsalLabelFor(control, language)} — '
-      '${minutesAndSecondsOf(at)}$ofTheTake';
+  return '${minutesAndSecondsOf(at)}$ofTheTake';
 }
 
 /// A scene button's name: «cena N» and the scene's title.
@@ -694,6 +697,15 @@ String savedScreenLabelFor(String key, String language) =>
 /// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
 /// playing cue VoiceOver reads is the room's own.
 const recordingHomeLabels = {
+  'listenAll': {'pt': 'Ouvir tudo', 'en': 'Hear it all'},
+  'listenAllAria': {
+    'pt': 'Ouvir a gravação inteira',
+    'en': 'Hear the whole recording',
+  },
+  'listenAllTitle': {
+    'pt': 'A gravação de vocês inteira, parte por parte.',
+    'en': 'Your whole recording, part by part.',
+  },
   'title': {'pt': 'Gravem o ensaio de vocês', 'en': 'Record your rehearsal'},
   'how': {
     'pt': 'Como vocês querem gravar?',

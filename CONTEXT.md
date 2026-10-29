@@ -78,7 +78,7 @@ A line the server composes for this turn, which the room fetches and caches befo
 _Avoid_: linha falada, generated line, TTS, fixed line (hers, by name)
 
 **Fail-safe line**:
-The line the room falls back to when it could not compose an answer. It is a reply like any other: «Ouvir de novo» says it again (ADR 0140), except a retro verdict the room could not compose, which is not kept and leaves the line before it to be said again.
+The line the room falls back to when it could not compose an answer. It is a reply like any other: «Ouvir de novo» says it again (ADR 0152), except a retro verdict the room could not compose, which is not kept and leaves the line before it to be said again.
 _Avoid_: linha de segurança, fallback, fixed line (the mechanism rather than this role)
 
 **Analyst**:
@@ -180,7 +180,7 @@ A scene take or a part too short to be anything the team said, or one the record
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
-The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
+The short window after a Conversation take opens in which the team's next tap on the circle is ignored instead of ending the take: the take goes on recording, and nothing is sent or thrown away. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
 
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
@@ -263,7 +263,7 @@ One of the necklace's twelve, whatever the passage's number of elements. The roo
 _Avoid_: conta, pearl, item, bead for an element of the Map, part bead or stretch bead (retired with the Bead row)
 
 **Part strips**:
-The rows at the top of the Back-translation and the findings, one per Part, hers: «parte N» written (or «A passagem inteira» for a whole-passage take) beside the strip of that part's take, its loudness drawn so a silence reads as a valley, each told Stretch a band with a tick at its cut, a stretch of a part recorded again faint and dotted, the pending pausa in telha and the player's line. The strip cannot be tapped (ADR 0141).
+The rows at the top of the Back-translation and the findings, one per Part, hers: «parte N» written (or «A passagem inteira» for a whole-passage take) beside the strip of that part's take, its loudness drawn so a silence reads as a valley, each told Stretch a band with a tick at its cut, a stretch of a part recorded again faint and dotted, the pending pausa in telha and the player's line. The strip cannot be tapped (ADR 0153).
 _Avoid_: Bead row (retired on 2026-10-27), cord, reading head (retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
@@ -459,7 +459,7 @@ The team's recording of a passage with its frases and telling-back, kept across 
 _Avoid_: rascunho final (the approved version's words on the screen), session (what holds it)
 
 **Approved draft** (*rascunho final aprovado*):
-A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase.
+A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase. Over a forced version the approve button stands, with the badge under it, once the telling is checked, and a press mints the next version (ADR 0150).
 _Avoid_: approved mark (the «●» on the Choice), finished passage, closed passage
 
 **Approved mark**:
@@ -505,11 +505,11 @@ _Avoid_: retro retomada, resuming from scratch
 ### The room and the people
 
 **Halt**:
-The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), one reply's sound failing to load twice (ADR 0140), a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
+The state in which the room cannot carry on alone and calls for a person, insisting at intervals until it is answered. A halt either blocks, and then only the team's tap on the person sign clears it, or is a warning. A halt never changes the Station or its Step; a blocking one silences the Channel. It is raised only in Marcia's six cases: a spoken turn refused or answered without a reply, a turn given up whose One look finds nothing, a scene rehearsal given up whose look finds nothing or answered without a reply (shown once the team is back on the Conversation), one reply's sound failing to load twice (ADR 0152), a tablet that cannot record (a refused start on the Conversation or the Panorama), and the microphone failing to start twice in a row. Outside them, a halt that calls nobody is raised only by the build guard on a broken build (no room address), or by an `Error` in anything the room hands off; the team's tap clears it without reading anything (ADR 0125). A Session read never raises one (ADR 0093).
 _Avoid_: sala parada, stuck room, pause
 
 **Person sign**:
-How a blocking Halt is drawn: a soft wash over the whole screen with the Shema mark and two outlined figures, with no words and no sound. The circle, the moment label, the orange dot, the red microphone and the passage button fade under it. While any of it is on screen it takes every tap, and a tap anywhere on it once fully shown clears it and the room rests; nothing is replayed or resent, and nothing the Desk does clears it or holds it (ADR 0107).
+How a blocking Halt is drawn: a soft wash over the whole screen with the Shema mark and two outlined figures, with no words and no sound. The circle, the moment label, the orange dot, the red microphone and the passage button fade under it. It says no word to VoiceOver and is no button. While any of it is on screen it takes every tap, and a tap anywhere on it as it rises or once fully shown clears it and the room rests; nothing is replayed or resent, and nothing the Desk does clears it or holds it (ADR 0107, 0144).
 _Avoid_: handoff (her CSS name), halt screen, sinal de pessoa, the userCheck glyph (retired)
 
 **Warning**:

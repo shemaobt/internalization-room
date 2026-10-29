@@ -257,40 +257,40 @@ void main() {
     );
   });
 
-  testWidgets(
-    'the beads stay where they hung on the cord when the passage closes',
-    (tester) async {
-      const conversing = SalaSessionState(
-        coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
+  testWidgets('the beads stay where they sat when the passage closes', (
+    tester,
+  ) async {
+    const conversing = SalaSessionState(
+      coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
+    );
+    await pumpColar(tester, conversing);
+    final hung = [
+      for (var i = 0; i < 12; i++)
+        tester.getCenter(find.byType(ThreadIn).at(i)),
+    ];
+
+    await pumpColar(
+      tester,
+      conversing.copyWith(
+        machine: Machine(station: Station.stored(SalaStage.fim)),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 2));
+
+    for (var i = 0; i < 12; i++) {
+      expect(
+        tester.getCenter(find.byType(ThreadIn).at(i)),
+        hung[i],
+        reason:
+            'no fecho a conta $i deslizava do arco para um círculo em volta do '
+            'facilitador — o time via o colar se mexer quando nada tinha mudado',
       );
-      await pumpColar(tester, conversing);
-      final hung = [
-        for (var i = 0; i < 12; i++)
-          tester.getCenter(find.byType(ThreadIn).at(i)),
-      ];
-
-      await pumpColar(
-        tester,
-        conversing.copyWith(
-          machine: Machine(station: Station.stored(SalaStage.fim)),
-        ),
-      );
-      await tester.pump(const Duration(seconds: 2));
-
-      for (var i = 0; i < 12; i++) {
-        expect(
-          tester.getCenter(find.byType(ThreadIn).at(i)),
-          hung[i],
-          reason:
-              'no fecho a conta $i deslizava do arco para um círculo em volta do '
-              'facilitador — o time via o colar se mexer quando nada tinha mudado',
-        );
-      }
-    },
-  );
+    }
+  });
 
   testWidgets(
-    'the cord is a thin line the beads hang on, at the Closing and in the conversation',
+    'the beads sit in one row with nothing drawn under them, at the Closing '
+    'and in the conversation',
     (tester) async {
       final closing = SalaSessionState(
         machine: Machine(station: Station.stored(SalaStage.fim)),
@@ -305,41 +305,48 @@ void main() {
         await tester.pump(const Duration(seconds: 2));
 
         expect(
-          find.byType(ColarOverlay),
-          paints..path(
-            color: SalaColors.light.line,
-            strokeWidth: 1.5,
-            includes: const [Offset(400, 30)],
-            excludes: const [Offset(400, 296)],
+          find.descendant(
+            of: find.byType(ColarOverlay),
+            matching: find.byType(CustomPaint),
           ),
+          findsNothing,
           reason:
-              'o cordão é um fio de 1,5px na cor da linha, no fecho e na conversa',
+              'um cordão em arco atravessava a tela por baixo das contas, e o '
+              'colar dela é só a fileira de contas',
         );
       }
     },
   );
 
-  testWidgets('the beads are 16 px, on the cord and at the Closing', (
-    tester,
-  ) async {
+  testWidgets('the beads are 9 px and 11 px apart, as hers, in the '
+      'conversation and at the Closing', (tester) async {
     const conversing = SalaSessionState(
       coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
     );
-    await pumpColar(tester, conversing);
-    for (var i = 0; i < 12; i++) {
-      expect(tester.getSize(find.byType(ThreadIn).at(i)), const Size(16, 16));
-    }
-
-    await pumpColar(
-      tester,
+    for (final session in [
+      conversing,
       conversing.copyWith(
         machine: Machine(station: Station.stored(SalaStage.fim)),
       ),
-    );
-    await tester.pump(const Duration(seconds: 2));
+    ]) {
+      await pumpColar(tester, session);
+      await tester.pump(const Duration(seconds: 2));
 
-    for (var i = 0; i < 12; i++) {
-      expect(tester.getSize(find.byType(ThreadIn).at(i)), const Size(16, 16));
+      for (var i = 0; i < 12; i++) {
+        expect(
+          tester.getSize(find.byType(ThreadIn).at(i)),
+          const Size(9, 9),
+          reason: 'as contas tinham 16 px, quase o dobro das dela',
+        );
+      }
+      for (var i = 1; i < 12; i++) {
+        expect(
+          tester.getTopLeft(find.byType(ThreadIn).at(i)).dx -
+              tester.getTopRight(find.byType(ThreadIn).at(i - 1)).dx,
+          moreOrLessEquals(11, epsilon: 0.01),
+          reason: 'o espaço entre as contas não era o dela',
+        );
+      }
     }
   });
 
@@ -398,9 +405,7 @@ void main() {
     expectFiveLitBeadsGlowAndSevenDoNot(tester);
   });
 
-  testWidgets('the dark necklace reads: thin cord, glow, dark oat', (
-    tester,
-  ) async {
+  testWidgets('the dark necklace reads: glow, dark oat', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
@@ -411,10 +416,6 @@ void main() {
       ),
     );
 
-    expect(
-      find.byType(ColarOverlay),
-      paints..path(color: SalaColors.dark.line, strokeWidth: 1.5),
-    );
     expectFiveLitBeadsGlowAndSevenDoNot(tester, colors: SalaColors.dark);
   });
 

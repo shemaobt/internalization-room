@@ -304,7 +304,7 @@ void main() {
           container.read(salaSessionProvider).channel,
           isNot(isA<PartPlaying>()),
         );
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:03 / 0:10'), findsOneWidget);
         await _onScreenTheFraseIsSent(tester, harness, container);
         expect(harness.room.frasesKept.single.startsMs, 0);
         expect(harness.room.frasesKept.single.endsMs, 3100);
@@ -324,7 +324,7 @@ void main() {
 
         await _tapAndSettle(tester, _tell);
 
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:06 / 0:10'), findsOneWidget);
         await _onScreenTheFraseIsSent(tester, harness, container);
         expect(harness.room.frasesKept.single.endsMs, 6000);
       },
@@ -352,6 +352,83 @@ void main() {
           3500,
           6100,
         ]);
+      },
+    );
+
+    test(
+      'a take whose loudness is still being read is not read again when the room lists it anew',
+      () async {
+        final room = await atRest(
+          SalaHarness(filaEmMemoria: true, restartWake: Duration.zero),
+        );
+        room.harness.holdTheEnvelope();
+        room.harness.room
+          ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 3000)]))
+          ..sceneAudio = aSpokenWav(gaps: [(_s(3.0), _s(3.2))])
+          ..refuseRestartWith = RefusalCode.restartOutOfOrder;
+        room.harness.playback.measured = const Duration(seconds: 10);
+        room.sala.openTheSceneRehearsal();
+        await translateOpens(room);
+        await settle();
+        final listed = room.asked('sceneRehearsalsOf');
+
+        await restartTheTranslationInTwoTaps(room);
+        await waitFor(
+          'a sala listar os ensaios de novo',
+          () =>
+              room.asked('sceneRehearsalsOf') > listed &&
+              !room.state.scene.waiting,
+        );
+        await settle();
+
+        expect(room.asked('sceneRehearsalsOf'), greaterThan(listed));
+        expect(
+          room.harness.mostEnvelopesReadAtOnce,
+          1,
+          reason:
+              'a lista relida mostrava o mesmo take de novo, e o arquivo inteiro era '
+              'lido outra vez enquanto a primeira leitura ainda corria',
+        );
+        room.harness.giveTheEnvelope();
+        await waitFor(
+          'o envelope chegar',
+          () => room.state.sceneEnvelope != null,
+        );
+        expect(room.state.sceneEnvelope, isNotNull);
+      },
+    );
+
+    test(
+      'a take still being read is not read again when another row is opened and it is opened back',
+      () async {
+        final room = await _onTheTranslateStep(
+          rehearsal: _rehearsal(n: 2),
+          alsoListed: [_rehearsal()],
+          loudnessLate: true,
+        );
+        for (final n in [1, 2]) {
+          room.sala.openTheListedSceneRehearsal('ensaio-da-cena-$n');
+          await waitFor(
+            'o ensaio $n abrir',
+            () =>
+                room.state.scene.rehearsal?.n == n && !room.state.scene.waiting,
+          );
+          await settle();
+        }
+
+        expect(
+          room.harness.mostEnvelopesReadAtOnce,
+          2,
+          reason:
+              'só uma leitura era lembrada, a do último take; voltar ao primeiro '
+              'lia o arquivo inteiro de novo com a primeira leitura ainda no ar',
+        );
+        room.harness.giveTheEnvelope();
+        await waitFor(
+          'o envelope chegar',
+          () => room.state.sceneEnvelope != null,
+        );
+        expect(room.state.sceneEnvelope, isNotNull);
       },
     );
 
@@ -456,7 +533,7 @@ void main() {
         container.read(salaSessionProvider).channel,
         isNot(isA<PartPlaying>()),
       );
-      expect(byLabel(_pausaHint), findsOneWidget);
+      expect(byLabel('$_pausaHint — 0:03 / 0:10'), findsOneWidget);
       await _onScreenTheFraseIsSent(tester, harness, container);
       expect(harness.room.frasesKept.single.endsMs, 3100);
     });
@@ -633,7 +710,7 @@ void main() {
         await _onScreenTheFraseIsSent(tester, harness, container);
 
         expect(byLabel(_bar(1)), findsNothing);
-        expect(byLabel(_pausaHint), findsOneWidget);
+        expect(byLabel('$_pausaHint — 0:03 / 0:10'), findsOneWidget);
         await _tapAndSettle(tester, _tell);
         await pumpUntil(
           tester,
@@ -1495,8 +1572,8 @@ void main() {
 
       await _tapAndSettle(tester, _tell);
 
-      expect(byLabel(_pausaAtTheTap), findsOneWidget);
-      expect(byLabel(_pausaHint), findsNothing);
+      expect(byLabel('$_pausaAtTheTap — 0:03 / 0:10'), findsOneWidget);
+      expect(find.textContaining(_pausaHint), findsNothing);
     });
 
     testWidgets(
@@ -1633,7 +1710,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(harness.sounds.skip(sounds), isEmpty);
-      expect(byLabel(_pausaHint), findsOneWidget);
+      expect(byLabel('$_pausaHint — 0:04 / 0:10'), findsOneWidget);
     });
   });
 }

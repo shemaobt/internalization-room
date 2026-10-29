@@ -260,7 +260,9 @@ void main() {
 
   test('returning to the same Panorama in the same language reuses its '
       'session', () async {
-    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final harness = SalaHarness()
+      ..room.passages = const [_panorama, _p01]
+      ..room.resumesTheLatest = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -278,22 +280,14 @@ void main() {
     notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
-    expect(harness.room.pericopesAsked, ['OV-Ruth', 'P01']);
+    expect(harness.room.pericopesAsked, ['OV-Ruth', 'P01', 'OV-Ruth']);
     final [panorama, passage] = harness.room.sessionIds;
     expect(
       harness.room.sessionsSpokenTo,
-      [panorama, passage, panorama],
+      [panorama, passage],
       reason:
           'voltar ao Panorama não cunha uma segunda sessão de panorama, '
-          'mas cada entrada ainda pede o turno de abertura de novo',
-    );
-    expect(
-      harness.room.turnIdsAsked.last,
-      isNot(harness.room.turnIdsAsked.first),
-      reason:
-          'o primeiro toque já foi falado por inteiro; reaproveitar o '
-          'id dele no segundo faria o servidor devolver aquela abertura '
-          'em vez de abrir a de novo pedida',
+          'e a sessão que a sala diz aberta não pede a abertura de novo',
     );
   });
 

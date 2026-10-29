@@ -62,7 +62,11 @@ class SceneTranslateStep extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
+    final take = switch (channel) {
+      final PartPlaying playing when playing.part.path == scene.take => playing,
+      _ => null,
+    };
+    final playing = take != null;
     final telling = channel is Microphone;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     final idle = !sending && !scene.waiting && !telling;
@@ -76,11 +80,11 @@ class SceneTranslateStep extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Sub(said('subTranslate')),
+          SceneSub(said('subTranslate')),
           const SizedBox(height: 12),
           _PlayRow(
             mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
-            playing: playing,
+            take: take,
             label: said('playPause'),
             hint: (at) => _hintOf(playing: playing, at: at),
           ),
@@ -101,6 +105,8 @@ class SceneTranslateStep extends ConsumerWidget {
             ],
             pausa: scene.pausa,
             playing: playing,
+            take: take,
+            stoppedAt: stoppedAt,
           ),
           if (adjusts) ...[
             const SizedBox(height: 12),
@@ -244,20 +250,29 @@ class SceneTranslateStep extends ConsumerWidget {
     _ => null,
   };
 
-  /// Her hint: the pausa waiting, the take playing with her clock, the end of the take,
-  /// or the take paused; nothing before the team listens.
+  /// Her hint: a frase translated again, listening or her clock alone; else the pausa
+  /// waiting, the take playing with her clock, the end of the take, or the take paused;
+  /// nothing before the team listens.
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;
+    final clock = playing ? at : stoppedAt;
     if (!scene.listened) return null;
+    if (scene.translatingAgain != null) {
+      if (playing) return sceneListeningLineFor(at, scene.length, language);
+      return clock == null ? null : sceneClockOf(clock, scene.length);
+    }
     if (pausa != null) {
       if (end != null && pausa >= end) {
         return sceneRehearsalLabelFor('ended', language);
       }
-      return retroLabelFor(
+      final words = retroLabelFor(
         envelope == null ? 'pauseAtTheTap' : 'pauseHint',
         language,
       );
+      return clock == null
+          ? words
+          : '$words — ${sceneClockOf(clock, scene.length)}';
     }
     if (playing) return sceneListeningLineFor(at, scene.length, language);
     if (!scene.moreToTell) return sceneRehearsalLabelFor('ended', language);
@@ -418,7 +433,11 @@ class SceneListenMode extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
-    final playing = channel is PartPlaying;
+    final take = switch (channel) {
+      final PartPlaying playing when playing.part.path == scene.take => playing,
+      _ => null,
+    };
+    final playing = take != null;
     final frases = scene.rehearsal?.currentFrases ?? const <SceneFrase>[];
     int span(SceneFrase frase) => switch ((frase.startsMs, frase.endsMs)) {
       (final int starts, final int ends) => max(0, ends - starts),
@@ -431,7 +450,7 @@ class SceneListenMode extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _Sub(
+            child: SceneSub(
               said('listen'),
               heard: line == SceneLine.diskFailed
                   ? '${said('listen')} — ${said('diskFailed')}'
@@ -441,7 +460,7 @@ class SceneListenMode extends ConsumerWidget {
           const SizedBox(height: 12),
           _PlayRow(
             mood: sending || scene.waiting ? ButtonMood.dimmed : ButtonMood.lit,
-            playing: playing,
+            take: take,
             label: said('playPause'),
             hint: (at) => switch ((playing, scene.heard)) {
               (true, _) => sceneListeningLineFor(at, scene.length, language),
@@ -461,6 +480,8 @@ class SceneListenMode extends ConsumerWidget {
             frases: frases,
             pausa: null,
             playing: playing,
+            take: take,
+            stoppedAt: stoppedAt,
           ),
           const SizedBox(height: 16),
           if (frases.isNotEmpty) ...[
@@ -494,13 +515,13 @@ class SceneListenMode extends ConsumerWidget {
 
 class _PlayRow extends ConsumerWidget {
   final ButtonMood mood;
-  final bool playing;
+  final PartPlaying? take;
   final String label;
   final String? Function(Duration at) hint;
 
   const _PlayRow({
     required this.mood,
-    required this.playing,
+    required this.take,
     required this.label,
     required this.hint,
   });
@@ -509,6 +530,7 @@ class _PlayRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
+    final playing = take != null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 60),
       child: Row(
@@ -532,7 +554,9 @@ class _PlayRow extends ConsumerWidget {
               period: const Duration(seconds: 1),
               animate: playing,
               reducible: false,
-              builder: (context, _) => switch (hint(playback.position)) {
+              builder: (context, _) => switch (hint(
+                take?.inTheFile(playback.position) ?? playback.position,
+              )) {
                 final words? => _Written(
                   words,
                   style: TextStyle(color: colors.mut, fontSize: 16),
@@ -640,7 +664,7 @@ class _ListedRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: onScreen ? ShemaBrand.azul : colors.line,
+                  color: onScreen ? colors.azul : colors.line,
                   width: 1.2,
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -710,11 +734,27 @@ class _Written extends StatelessWidget {
   );
 }
 
-class _Sub extends StatelessWidget {
+double chOf(BuildContext context, TextStyle style) {
+  final zero = TextPainter(
+    text: TextSpan(
+      text: '0',
+      style: DefaultTextStyle.of(
+        context,
+      ).style.merge(style).copyWith(letterSpacing: 0),
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final ch = zero.width;
+  zero.dispose();
+  return ch;
+}
+
+class SceneSub extends StatelessWidget {
   final String words;
   final String? heard;
 
-  const _Sub(this.words, {this.heard});
+  const SceneSub(this.words, {super.key, this.heard});
 
   @override
   Widget build(BuildContext context) {
@@ -722,20 +762,8 @@ class _Sub extends StatelessWidget {
       color: SalaColors.of(context).claquete,
       fontSize: 0.92 * _rem,
     );
-    final zero = TextPainter(
-      text: TextSpan(
-        text: '0',
-        style: DefaultTextStyle.of(
-          context,
-        ).style.merge(style).copyWith(letterSpacing: 0),
-      ),
-      textDirection: TextDirection.ltr,
-      textScaler: MediaQuery.textScalerOf(context),
-    )..layout();
-    final ch = zero.width;
-    zero.dispose();
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 36 * ch),
+      constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
       child: _Written(words, heard: heard, style: style),
     );
   }
