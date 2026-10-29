@@ -240,7 +240,7 @@ void main() {
     test('an m4a take goes up with its time and its fingerprint and no '
         'length', () async {
       final scene = utf8.encode('cena em m4a');
-      final retro = utf8.encode('traducao em m4a');
+      final parte = utf8.encode('parte em m4a');
       final queue = queueAt(() => clock);
       await keep(
         queue,
@@ -250,8 +250,8 @@ void main() {
       );
       await keep(
         queue,
-        recorded('retro', retro, extension: 'm4a'),
-        kind: 'retro',
+        recorded('parte', parte, extension: 'm4a'),
+        kind: 'ensaio',
         scope: 'parte-1',
       );
 
@@ -264,7 +264,7 @@ void main() {
       });
       expect(_fields(requests.last), {
         'recorded_at': stopped.toUtc().toIso8601String(),
-        'sha256': sha256Of(retro),
+        'sha256': sha256Of(parte),
       });
     });
 

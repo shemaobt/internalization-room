@@ -355,7 +355,7 @@ void main() {
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(
       rotuloDoCirculo(tester),
-      'Tocar para gravar a tradução de novo',
+      'não entendi — traduzam de novo esse pedaço',
       reason: 'a gravação feita no fim passava a dizer que a gravação acabou',
     );
     closeTheRoom(container);
