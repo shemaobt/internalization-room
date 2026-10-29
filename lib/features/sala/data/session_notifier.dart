@@ -8683,9 +8683,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    if (_oQueFaltaOuvir case _OQueFaltaOuvir(
-      :final aFrente,
-    ) when aFrente.isNotEmpty && state.btRecusa == CheckRefusal.partUnheard) {
+    if (_oQueFaltaOuvir case _OQueFaltaOuvir(:final aFrente)
+        when aFrente.isNotEmpty &&
+            state.btRecusa == CheckRefusal.partUnheard &&
+            !state.btClipPausada) {
       _ouvirAsPartes(aFrente, paraNaUltima: true);
       return;
     }

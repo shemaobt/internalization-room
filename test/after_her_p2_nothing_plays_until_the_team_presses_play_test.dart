@@ -116,6 +116,29 @@ void main() {
     expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
   });
 
+  test('a replay after her P2 held mid-part goes on with that part at the '
+      'next tap, not with the next part', () async {
+    final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);
+    final tocadas = it.harness.playback.played.length;
+
+    it.sala.ouvirGravacao();
+    await theClipOpens(it.harness);
+    it.harness.playback.at = const Duration(seconds: 4);
+    it.sala.ouvirGravacao();
+    await waitFor('a gravação parar', () => it.estado.btClipPausada);
+    it.sala.ouvirGravacao();
+    await waitFor('a gravação voltar', () => it.estado.btClipRodando);
+
+    expect(
+      it.harness.playback.played.skip(tocadas),
+      [it.partes[0].path],
+      reason:
+          'o segundo toque pulava para a parte seguinte, e o resto da '
+          'primeira se perdia',
+    );
+    expect(it.estado.btClipPausada, isFalse);
+  });
+
   test('after her P2 a tap on play replays the recording from its first '
       'part, not only the part the room named', () async {
     final it = await _recusadoPelaP2((it) => [it.partes[2].takeId!]);
