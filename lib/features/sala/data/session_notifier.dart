@@ -3196,6 +3196,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     unawaited(_countUnsent());
+    unawaited(_adoptTheNames(_takes, _thisLife));
     return _Resume.landed;
   }
 
@@ -3910,9 +3911,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final SessionGone gone:
         _decideAt(gone, door: Door.stretches);
       case final RoomFailure failure:
-        state = state.copyWith(bringBackFailed: cena);
+        final cannotEnter = switch (failure) {
+          Refused(code: RefusalCode.nothingToBringBack) => true,
+          _ => false,
+        };
+        state = state.copyWith(
+          bringBackFailed: (cena: cena, cannotEnter: cannotEnter),
+        );
         _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
-        unawaited(_readWhatComesBack(laidOn: cena));
+        unawaited(_readWhatComesBack(laidOn: cannotEnter ? null : cena));
     }
   }
 
@@ -3964,14 +3971,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// on the tablet, in the Outbox or in the room, came from a join, while a scene is left
   /// to join. A read that fails or has not answered within [planReadWait], a passage with
   /// no scenes and rehearsals only in the other language's session ask the grain while
-  /// none is in force, and open that grain's recording home otherwise (ADR 0134).
+  /// none is in force, and open that grain's recording home otherwise; a read that fails
+  /// or runs out with the room's listing unread asks the grain whatever is in force
+  /// (ADR 0134).
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
+    var listingRead = false;
     final reads = (
       _takes.pending(),
       _room.takesListingOf(sessionId).then((listing) {
         if (listing case Answered(:final value) when !_abandoned(generation)) {
+          listingRead = true;
           _theRoomsGrainHeard(value);
           if (value.grain case final grain?
               when state.ensaioFinalPlan is GrainAsked &&
@@ -3997,7 +4008,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _timers.remove('planRead')?.cancel();
     final read = answered;
-    if (read == null) return _theGrainOrItsHome(sessionId);
+    if (read == null) {
+      return _theGrainOrItsHome(sessionId, unread: !listingRead);
+    }
     final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
@@ -4060,7 +4073,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scenesOfThePassage: passage,
         );
       default:
-        _theGrainOrItsHome(sessionId);
+        _theGrainOrItsHome(sessionId, unread: !listingRead);
     }
   }
 
@@ -4068,8 +4081,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId, {
     List<TakeView>? listed,
     bool elsewhere = false,
+    bool unread = false,
   }) {
-    if (state.grain != null) {
+    if (state.grain != null && !unread) {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));
@@ -4092,6 +4106,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           grain,
           reopens: state.overAnApprovedDraft,
           then: () => _toTheGrainsHome(grain, sessionId),
+          fromTheChoice: true,
         ),
       ),
     );
@@ -4124,20 +4139,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_onThePlan) _openTheRecordingHome(state.sessionId!);
   }
 
-  /// «gravar a passagem inteira de uma vez», on the plan and on a scene home over a
-  /// joined recording.
+  /// «gravar a passagem inteira de uma vez», on the plan, on a scene home over a joined
+  /// recording, and on the check of one.
   void recordTheWholePassage() => _gesture(() {
-    if (!_aGrainControlActs || (state.recordsTheWhole && !_onThePlan)) return;
+    if (!(state.station is Retro
+            ? state.wholeSwitchActsOnTheCheck
+            : _aGrainControlActs) ||
+        (state.recordsTheWhole && !_onThePlan)) {
+      return;
+    }
     _armedTap(
       'whole',
       needs: state.wholeSwitchArms,
-      then: () => _handOff(
-        _switchTheGrain(
-          Grain.whole,
-          reopens: state.overAnApprovedDraft,
-          then: _toItsHome,
-        ),
-      ),
+      then: () {
+        final reopens = state.overAnApprovedDraft;
+        if (state.station is Retro) _goEnsaio();
+        _handOff(
+          _switchTheGrain(Grain.whole, reopens: reopens, then: _toItsHome),
+        );
+      },
     );
   });
 
@@ -4179,10 +4199,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Grain grain, {
     required bool reopens,
     required void Function() then,
+    bool fromTheChoice = false,
   }) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    if (state.grainInForce == grain) return then();
+    if (!fromTheChoice && state.grainInForce == grain) return then();
     final generation = _waitOnTheGeneration;
     state = state.copyWith(grainSwitching: true);
     final answer = await _room.switchTheGrain(
@@ -7546,9 +7567,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// nameless sends every stretch told over it up as a telling of the whole passage.
   ///
   /// The name goes to the file it was given for, never to every take of the scope: a part
-  /// recorded again shares its scope with the recording it replaced, and the row is what
-  /// tells the two apart.
+  /// recorded again shares its scope with the recording it replaced. This visit's rows tell
+  /// the two apart by row; a row an earlier visit wrote, by its pass and the file it was
+  /// copied from.
   Future<void> _adoptTheNames(TakeUploadQueue queue, int? life) async {
+    if (state.sessionId case final sessionId? when !_endedSince(life)) {
+      for (final take in state.keptTakes) {
+        if (take.takeId != null) continue;
+        final id = queue.takeIdOfThePart(sessionId, take);
+        if (id == null) continue;
+        state = state.copyWith(
+          keptTakes: [
+            for (final kept in state.keptTakes)
+              if (kept.path == take.path) kept.withTakeId(id) else kept,
+          ],
+        );
+      }
+    }
     for (final linha in _semNome.keys.toList()) {
       final id = await queue.takeIdOf(linha);
       if (_endedSince(life)) return;
@@ -7869,6 +7904,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void theAppWentAway() {
     _cortarAEscutaNoAr();
     _relatarAEscuta();
+    if (state.planListening != null) _silenceThePlan();
   }
 
   void startRetro() => _gesture(() => _startRetro());
@@ -10778,11 +10814,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  /// «Pronto» drops the Saved screen and nothing else: the Station, the checked Step and
-  /// the Resume point stay where the approval left them.
+  /// «Pronto» drops the Saved screen and leaves the recording, the home and the
+  /// Back-translation alike, for the conversation at rest, as hers does (`Drafting.tsx:2196`
+  /// calls `onExit`, `exitDrafting` at `page.tsx:413`). The checked Step and the Resume point
+  /// stay where the approval left them.
   void pronto() => _gesture(() {
     if (state.ensaioSalvo == null) return;
-    state = state.copyWith(clearEnsaioSalvo: true);
+    state = state.copyWith(clearEnsaioSalvo: true, clearLastSpoken: true);
+    _arriveAt(const TheRecordingLeft());
+    _landWhereTheyStopped(done: state.machine.theCanvasEnded);
   });
 
   /// The room is already silent — the press silenced it — and the last listening of a

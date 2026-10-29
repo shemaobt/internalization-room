@@ -1406,6 +1406,7 @@ class FakeRoom implements RoomRepository {
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
+  bool readsChecked = false;
 
   /// Whether the verdict itself is a canned line the room could not compose — the wire
   /// twin of [turnsAreCanned] for the turn that closes a telling-back, and the only way a
@@ -2571,6 +2572,7 @@ class FakeRoom implements RoomRepository {
             retroSoFar ??
             BackTranslationProgress(
               segments: _numbered,
+              checked: readsChecked,
               awaitingSegmentId: awaitingSegmentId,
             ),
         approved: approvedDraft,
@@ -4169,6 +4171,21 @@ class FakeTakeQueue implements TakeUploadQueue {
     if (forgetsNames) return null;
     for (final entry in rows) {
       if (entry.id == row) return entry.takeId;
+    }
+    return null;
+  }
+
+  @override
+  String? takeIdOfThePart(String sessionId, KeptTake part) {
+    if (forgetsNames) return null;
+    for (final entry in rows) {
+      if (entry.stored &&
+          entry.sessionId == sessionId &&
+          entry.scope == part.scopeId &&
+          (entry.passNumber ?? 1) == part.pass &&
+          entry.path == part.path) {
+        return entry.takeId;
+      }
     }
     return null;
   }
