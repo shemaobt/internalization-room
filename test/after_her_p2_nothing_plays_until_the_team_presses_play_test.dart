@@ -66,36 +66,45 @@ void main() {
     expect(it.estado.canFinishBackTranslation, isTrue);
   });
 
-  test('a re-read that lands after the team pressed play leaves the replay '
-      'playing and her line standing', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    it.harness.room
-      ..verdictRefusal = CheckRefusal.partUnheard
-      ..verdictFixedLine = 'P2'
-      ..verdictUnheardTakeIds = [it.partes[2].takeId!]
-      ..listeningUnheardTakeIds = const []
-      ..holdNextListening();
-    await pedirOVeredito(it);
+  test(
+    'a re-read that lands after the team pressed play leaves the replay '
+    'playing and her line standing, with terminei lit by the room\'s count',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.partUnheard
+        ..verdictFixedLine = 'P2'
+        ..verdictUnheardTakeIds = [it.partes[2].takeId!]
+        ..listeningUnheardTakeIds = const []
+        ..holdNextListening();
+      await pedirOVeredito(it);
 
-    it.sala.ouvirGravacao();
-    await theClipOpens(it.harness);
-    it.harness.room.finishHeldListening();
-    await settle();
+      it.sala.ouvirGravacao();
+      await theClipOpens(it.harness);
+      it.harness.room.finishHeldListening();
+      await settle();
 
-    expect(
-      it.estado.btClipRodando,
-      isTrue,
-      reason: 'a resposta atrasada não pode parar a gravação que a equipe pôs',
-    );
-    expect(
-      it.estado.btRecusa,
-      CheckRefusal.partUnheard,
-      reason:
-          'a resposta atrasada apagava a linha no meio da escuta, e a escuta '
-          'perdia as partes que ainda vinham',
-    );
-    expect(it.estado.canFinishBackTranslation, isFalse);
-  });
+      expect(
+        it.estado.btClipRodando,
+        isTrue,
+        reason:
+            'a resposta atrasada não pode parar a gravação que a equipe pôs',
+      );
+      expect(
+        it.estado.btRecusa,
+        CheckRefusal.partUnheard,
+        reason:
+            'a resposta atrasada apagava a linha no meio da escuta, e a escuta '
+            'perdia as partes que ainda vinham',
+      );
+      expect(
+        it.estado.canFinishBackTranslation,
+        isTrue,
+        reason:
+            'a sala já contava tudo ouvido e o terminei esperava a escuta acabar',
+      );
+    },
+  );
 
   test('a P2 naming a part this tablet does not hold leaves terminei dark '
       'and play replays every part, not a terminei lit over her line', () async {
@@ -166,6 +175,7 @@ void main() {
       isFalse,
       reason: 'no meio da escuta de novo o terminei acendia',
     );
+    it.harness.room.listeningUnheardTakeIds = const [];
     await ouvirAteOFim(it, partesDoEnsaio[2]);
 
     expect(
