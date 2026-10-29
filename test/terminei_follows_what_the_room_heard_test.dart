@@ -127,4 +127,30 @@ void main() {
     await settle(const Duration(milliseconds: 400));
     expect(it.estado.canAdvanceToTheVerdict, isTrue);
   });
+
+  test('the room\'s count of a passage the team left, answered late, is never '
+      'the count of what stands on the tablet next', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    await traduzirUmTrecho(it, const Duration(seconds: 4));
+    expect(it.estado.btOuvidaInteira, isTrue);
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room.holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    expect(it.estado.sessionId, isNull);
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btOuvidaInteira,
+      isNull,
+      reason:
+          'a resposta atrasada da passagem deixada valia como a contagem da '
+          'que veio depois',
+    );
+  });
 }
