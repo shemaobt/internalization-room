@@ -1503,6 +1503,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('an answer that does not name the new sentence says nothing, '
+      'plays nothing and leaves the list quiet', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    harness.room.sentenceAnswersFirst.add(const Answered(TellingAgain()));
+    harness.voice.fixedLines.clear();
+    final tocadas = harness.playback.ranges.length;
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz dizia «a frase nova já está no lugar» e nada tocava',
+    );
+    expect(harness.playback.ranges.skip(tocadas), isEmpty);
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsNothing,
+    );
+    closeTheRoom(container);
+  });
+
   Future<String> deitarSemAParte(
     WidgetTester tester,
     SalaHarness harness,

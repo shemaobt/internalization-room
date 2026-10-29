@@ -9947,27 +9947,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ],
     );
     _rememberWhereTheyAre(const Retro());
-    if (trocada == false) {
+    if (trocada == null) return;
+    if (!trocada) {
       _aFraseDevida = nome;
       return _guardarAFrase(frase);
     }
-    await _aFraseNovaNoLugar(nome, generation, tocar: trocada == true);
+    await _aFraseNovaNoLugar(nome, generation);
   }
 
   late String? _aFraseDevida;
 
-  Future<void> _aFraseNovaNoLugar(
-    String nome,
-    int generation, {
-    required bool tocar,
-  }) async {
+  Future<void> _aFraseNovaNoLugar(String nome, int generation) async {
     await _sayALine(
       LineKind.guide,
       fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
     );
     if (_abandoned(generation)) return;
     final trecho = _armarOTrecho(state.trechoChamado(nome));
-    if (trecho != null && tocar) _tocarAFraseNova(trecho);
+    if (trecho != null) _tocarAFraseNova(trecho);
   }
 
   Future<void> _buscarAParteDeNovo() async {
@@ -9993,7 +9990,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     if (!trocada) return _guardarAFrase(frase);
     state = state.copyWith(clearBtRegravacao: true);
-    await _aFraseNovaNoLugar(nome, generation, tocar: true);
+    await _aFraseNovaNoLugar(nome, generation);
   }
 
   Future<bool> _aParteComAFrase(
