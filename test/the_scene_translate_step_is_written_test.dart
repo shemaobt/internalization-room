@@ -511,6 +511,37 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a written button keeps its outline outside its padding, so «terminei» and «traduzir» are not 3 points smaller than they were',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+
+      for (final (words, across, down) in [
+        ('terminei', 32 + 1.5, 14 + 1.5),
+        ('traduzir o ensaio da cena', 20 + 1.5, 10 + 1.5),
+        ('gravar o ensaio da cena de novo', 20.0, 10.0),
+      ]) {
+        final button = tester.getRect(byLabel(words));
+        final text = tester.getRect(
+          find.descendant(of: byLabel(words), matching: find.text(words)),
+        );
+        expect(
+          text.left - button.left,
+          closeTo(across, 0.01),
+          reason: 'o contorno saía de dentro do espaço das palavras: $words',
+        );
+        expect(button.right - text.right, closeTo(across, 0.01), reason: words);
+        expect(text.top - button.top, closeTo(down, 0.01), reason: words);
+        expect(button.bottom - text.bottom, closeTo(down, 0.01), reason: words);
+      }
+    },
+  );
   for (final look in [Brightness.light, Brightness.dark]) {
     testWidgets(
       'in the ${look.name} look a dimmed «terminei» on the scene rehearsal reads at 4.5:1 or better, not its paper fading with the pill',

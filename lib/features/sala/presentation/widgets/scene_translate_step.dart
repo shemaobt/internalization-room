@@ -805,6 +805,9 @@ class _WrittenButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
+    final outline = bare
+        ? null
+        : Border.all(color: colors.vermelhoMic, width: 1.5);
     return Semantics(
       button: true,
       enabled: live,
@@ -816,17 +819,14 @@ class _WrittenButton extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              if (!bare)
+              if (outline != null)
                 Positioned.fill(
                   child: Opacity(
                     opacity: live ? 1 : 0.35,
                     child: Container(
                       decoration: BoxDecoration(
                         color: large ? colors.vermelhoMic : null,
-                        border: Border.all(
-                          color: colors.vermelhoMic,
-                          width: 1.5,
-                        ),
+                        border: outline,
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -838,7 +838,7 @@ class _WrittenButton extends StatelessWidget {
                   padding: EdgeInsets.symmetric(
                     horizontal: large ? 32 : 20,
                     vertical: large ? 14 : 10,
-                  ),
+                  ).add(outline?.dimensions ?? EdgeInsets.zero),
                   child: Text(
                     words,
                     textAlign: TextAlign.center,
