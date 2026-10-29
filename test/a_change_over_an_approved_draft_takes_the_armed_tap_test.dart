@@ -184,6 +184,24 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('over an approved draft the armed «regravar a frase 2» reads '
+      'pressed to VoiceOver', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _aprovada(tester, harness);
+
+    await tocarNaLista(tester, _regravar(2));
+
+    expect(
+      tester.getSemantics(_naLista(_armado)),
+      isSemantics(hasToggledState: true, isToggled: true),
+      reason: 'o regravar armado soava solto para o VoiceOver',
+    );
+    await tester.pump(const Duration(seconds: 8));
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   testWidgets('the sentence of a confirmed armed tap goes up with the '
       're-open, and the badge leaves with the next read', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

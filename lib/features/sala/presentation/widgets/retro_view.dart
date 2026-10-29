@@ -389,6 +389,7 @@ class RetroView extends ConsumerWidget {
                 : sceneRehearsalLabelFor('rerecordFrase', language, n: n)
           : null,
       regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
+      regravarArmado: session.armedTap?.control == 'rerecord:${trecho.frase}',
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,

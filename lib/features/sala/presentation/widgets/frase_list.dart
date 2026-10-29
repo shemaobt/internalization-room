@@ -22,6 +22,7 @@ class FraseRow {
   final bool regravando;
   final String? regravar;
   final bool regravarDormindo;
+  final bool regravarArmado;
   final VoidCallback? onRegravar;
   final FraseRevisao? revisao;
   final String? estado;
@@ -42,6 +43,7 @@ class FraseRow {
     this.regravando = false,
     this.regravar,
     this.regravarDormindo = false,
+    this.regravarArmado = false,
     this.onRegravar,
     this.revisao,
     this.estado,
@@ -394,7 +396,7 @@ class _FraseTile extends StatelessWidget {
                           label: regravar,
                           onTap: row.onRegravar,
                           dormindo: row.regravarDormindo,
-                          toggled: row.regravando,
+                          toggled: row.regravando || row.regravarArmado,
                         ),
                     ],
                   ),
