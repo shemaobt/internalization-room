@@ -885,7 +885,9 @@ class SalaSessionState {
   bool showsNoRow(String scopeId) =>
       grainInForce != null && rowOf(scopeId) == null;
 
-  /// The scope a recording on row [number] is kept under, at the grain in force.
+  /// The scope a recording on row [number] is kept under: the whole while the passage is
+  /// recorded whole and on row 0, where the whole stands while no grain is in force; the
+  /// part numbered [number] otherwise.
   String scopeOfRow(int number) => recordsTheWhole || number == 0
       ? KeptScope.whole
       : KeptScope.parte(number);
