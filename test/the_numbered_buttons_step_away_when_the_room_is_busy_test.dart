@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, labelsHeard;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show aKept, atRestAfterATurn;
 
@@ -148,24 +147,8 @@ void main() {
         reason: 'os botões ficaram com a tela chamando uma pessoa',
       );
       expect(_deaf(tester), isTrue);
-      final heard = <String>[];
-      bool visit(SemanticsNode node) {
-        heard.add(node.label);
-        node.visitChildren(visit);
-        return true;
-      }
-
-      visit(
-        tester
-            .binding
-            .renderViews
-            .first
-            .owner!
-            .semanticsOwner!
-            .rootSemanticsNode!,
-      );
       expect(
-        heard,
+        labelsHeard(tester),
         isNot(contains('Hear how you told part 1')),
         reason: 'o leitor de tela ainda alcançava o take sob o sinal',
       );

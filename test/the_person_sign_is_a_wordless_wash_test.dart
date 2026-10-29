@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -108,20 +107,6 @@ Future<void> _tapACorner(_Sala sala) async {
   await _pass(sala, 20);
 }
 
-List<String> _labelsHeard(WidgetTester tester) {
-  final labels = <String>[];
-  bool visit(SemanticsNode node) {
-    labels.add(node.label);
-    node.visitChildren(visit);
-    return true;
-  }
-
-  visit(
-    tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!,
-  );
-  return labels;
-}
-
 double _opacityOf(Finder what) => find
     .ancestor(of: what, matching: find.byType(AnimatedOpacity))
     .evaluate()
@@ -216,7 +201,7 @@ void main() {
       await _pass(sala, 20);
 
       expect(thePersonSign, findsOneWidget);
-      expect(_labelsHeard(tester), isNot(contains(_theSign)));
+      expect(labelsHeard(tester), isNot(contains(_theSign)));
       expect(
         tester
             .getSemantics(
@@ -246,7 +231,7 @@ void main() {
       expect(_hitTestable(_leavePassage), isFalse);
       expect(find.byType(FacilitatorCircle).hitTestable(), findsNothing);
       expect(
-        _labelsHeard(tester),
+        labelsHeard(tester),
         isNot(
           contains(
             tester
@@ -365,14 +350,14 @@ void main() {
       final container = await pumpSala(tester, SalaHarness());
       await tester.pump(const Duration(milliseconds: 1500));
       const beneath = ['Escolha a passagem', 'Claro', 'Escuro', 'PT', 'EN'];
-      expect(_labelsHeard(tester), containsAll(beneath));
+      expect(labelsHeard(tester), containsAll(beneath));
 
       container.read(salaSessionProvider.notifier).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(thePersonSign, findsOneWidget);
       expect(
-        _labelsHeard(tester).where(beneath.contains),
+        labelsHeard(tester).where(beneath.contains),
         isEmpty,
         reason:
             'sob o sinal o VoiceOver ainda chegava ao título e às chaves da escolha',
@@ -390,7 +375,7 @@ void main() {
       sala.container.read(salaSessionProvider.notifier).goEnsaio();
       await _pass(sala, 20);
       expect(_read(sala).stage, SalaStage.ensaio);
-      final beneath = _labelsHeard(
+      final beneath = labelsHeard(
         tester,
       ).where((label) => label.isNotEmpty).toSet();
       expect(beneath, isNotEmpty);
@@ -400,7 +385,7 @@ void main() {
 
       expect(thePersonSign, findsOneWidget);
       expect(
-        _labelsHeard(tester).where(beneath.contains),
+        labelsHeard(tester).where(beneath.contains),
         isEmpty,
         reason: 'sob o sinal o VoiceOver ainda chegava aos botões do ensaio',
       );
@@ -547,7 +532,7 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 16));
 
-      expect(_labelsHeard(tester), isNot(contains(label)));
+      expect(labelsHeard(tester), isNot(contains(label)));
       heard.dispose();
       closeTheRoom(sala.container);
     },
