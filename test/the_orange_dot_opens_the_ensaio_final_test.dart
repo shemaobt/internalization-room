@@ -249,6 +249,7 @@ void _partOneWaitsInTheOutbox(SalaHarness harness) {
       kind: 'ensaio',
       scope: KeptScope.parte(1),
       passNumber: 1,
+      chunkIndex: 1,
     ),
   );
 }
@@ -1183,6 +1184,85 @@ void main() {
             'ficou no tablet',
       );
       expect(find.text(_sendSceneOne), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a scene take sent from the grain choice opens the home of the grain the '
+    'room now holds, scene by scene, not one nobody chose',
+    (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        scenes: const [],
+        before: (harness) {
+          _partOneWaitsInTheOutbox(harness);
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_how), findsOneWidget);
+
+      harness.room.unreachableTake = null;
+      await tester.tap(find.text(_sendSceneOne));
+      await letTheRehearsalReachTheRoom(tester);
+      await _theAnswerSettles(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_how),
+        findsNothing,
+        reason:
+            'a gravação mandada da escolha chegava à sala e a pergunta '
+            'continuava na tela, e a dela passa para a casa da cena',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text('A passagem inteira'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a whole-passage take on the tablet is offered on the whole-passage home '
+    'under her notice, named by the passage',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        before: (harness) {
+          final waiting = Directory.systemTemp.createTempSync('sala-1861-home');
+          addTearDown(() => waiting.deleteSync(recursive: true));
+          final audio = File('${waiting.path}/ensaio-inteiro.m4a')
+            ..writeAsBytesSync([1, 2, 3, 4]);
+          harness.room
+            ..grain = Grain.whole
+            ..unreachableTake = 'ensaio/${KeptScope.whole}';
+          harness.playback.measured = const Duration(seconds: 48);
+          (harness.takes as FakeTakeQueue).rows.add(
+            PendingTake(
+              id: 'na-fila-inteira',
+              path: audio.path,
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: KeptScope.whole,
+              passNumber: 1,
+            ),
+          );
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_pendingNotice), findsOneWidget);
+      expect(
+        find.text('A passagem inteira · 0:48 — enviar agora'),
+        findsOneWidget,
+        reason:
+            'a casa da passagem inteira não oferecia a gravação que ficou '
+            'no tablet',
+      );
     },
   );
 
