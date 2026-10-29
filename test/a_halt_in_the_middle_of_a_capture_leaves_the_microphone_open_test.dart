@@ -59,8 +59,6 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   return (container, notifier, read);
 }
 
-/// The build guard raises a halt over the capture: the one halt a team on the
-/// back-translation can meet besides the verdict that will not sound.
 Future<void> _aHaltIsRaised(SalaSessionNotifier notifier) async {
   notifier.haltForABrokenBuild();
   await settle();
