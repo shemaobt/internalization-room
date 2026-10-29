@@ -591,6 +591,45 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the verdict is heard again «terminei» is dimmed and a tap '
+      'sends no check, not a check that cuts the voice', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _vereditoNaFraseTres(tester, harness);
+
+    harness.voice.holdNextLine();
+    await tocar(tester, 'ouvir a resposta de novo');
+    await waitFor(
+      'a resposta falar de novo',
+      () => container.read(salaSessionProvider).voice == VoiceState.speaking,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      aceso(tester, 'terminei'),
+      isFalse,
+      reason:
+          'o terminei ficava aceso enquanto a voz repetia o veredito, e o '
+          'dela fica fechado enquanto a voz fala',
+    );
+    await tester.tap(byLabel('terminei'));
+    await _passo(tester);
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(1),
+      reason: 'o toque cortava a voz e pedia uma nova conferência',
+    );
+
+    harness.voice.finishHeldLine();
+    await waitFor(
+      'a voz terminar',
+      () => container.read(salaSessionProvider).voice == VoiceState.invite,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    expect(aceso(tester, 'terminei'), isTrue);
+    closeTheRoom(container);
+  });
+
   testWidgets('after a verdict with findings a frase row opens its frase to '
       'be told again, as it does before a verdict', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
