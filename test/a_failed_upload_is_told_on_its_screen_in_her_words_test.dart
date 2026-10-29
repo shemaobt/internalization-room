@@ -249,9 +249,16 @@ class _Casa {
   }
 
   Future<void> ateVer(Finder alvo) async {
-    for (var i = 0; i < 100 && alvo.evaluate().isEmpty; i++) {
+    final waited = Stopwatch()..start();
+    for (
+      var vez = 0;
+      alvo.evaluate().isEmpty &&
+          (vez < 100 || waited.elapsed < const Duration(seconds: 30));
+      vez++
+    ) {
       await emTempoReal(() => settle(const Duration(milliseconds: 100)));
     }
+    expect(alvo.evaluate(), isNotEmpty, reason: 'ver $alvo');
   }
 
   Future<void> guardarSemEsperar(int n) async {
