@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0100
+status: accepted, amended by 0100, 0146
 date: 2026-10-20
 amends: 0053 (a door of its own and its rows), 0068, 0085, 0099
 ---
