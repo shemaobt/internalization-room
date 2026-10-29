@@ -54,8 +54,8 @@ Future<_Conferida> _ateAConferida(
   await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);
@@ -486,8 +486,8 @@ void main() {
     await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     sala.goEnsaio();
-    sala.ensaioTap();
-    sala.ensaioTap();
+    sala.gravarACena(1);
+    sala.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     sala.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);

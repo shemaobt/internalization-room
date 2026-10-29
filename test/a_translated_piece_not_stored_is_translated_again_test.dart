@@ -335,7 +335,7 @@ void main() {
       final antes = SalaHarness();
       final primeira = await aRetomadaNoEnsaio(antes, traduzidasAte: [30000]);
       antes.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
-      await gravarSemEsperarNome(primeira);
+      await gravarSemEsperarNome(primeira, 2);
       await settle();
       final (harness, container) = await relaunch(antes, primeira);
       final notifier = container.read(salaSessionProvider.notifier);

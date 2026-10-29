@@ -31,14 +31,18 @@ class Sala {
   List<KeptTake> get partes => estado.partes;
 }
 
-Future<void> gravarUmaParteDoEnsaio(Sala it) async {
+Future<void> gravarUmaParteDoEnsaio(Sala it, int cena) async {
   final antes = it.estado.keptTakes.length;
-  it.sala.ensaioTap();
+  await waitFor(
+    'a linha da cena $cena aparecer',
+    () => it.estado.sceneRows.any((row) => row.number == cena),
+  );
+  it.sala.gravarACena(cena);
   await waitFor(
     'a gravação da parte começar',
     () => it.estado.ensaio == EnsaioStatus.recording,
   );
-  it.sala.ensaioTap();
+  it.sala.gravarACena(cena);
   await waitFor(
     'a gravação da parte terminar',
     () => it.estado.ensaio == EnsaioStatus.recorded,
@@ -119,7 +123,7 @@ Future<Sala> umEnsaioGravado(
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var onde = 0; onde < partes.length; onde++) {
-    await gravarUmaParteDoEnsaio(it);
+    await gravarUmaParteDoEnsaio(it, onde + 1);
   }
   final gravadas = it.estado.keptTakes;
   for (var onde = 0; onde < partes.length; onde++) {

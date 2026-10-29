@@ -16,7 +16,6 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/main.dart';
@@ -298,11 +297,6 @@ Future<Sala> _reabrirComOInteiro({
   await settle();
   return it;
 }
-
-Finder get _circulo => find.descendant(
-  of: find.byType(EnsaioView),
-  matching: find.byType(FacilitatorCircle),
-);
 
 SalaSessionState _estado(ProviderContainer container) =>
     container.read(salaSessionProvider);
@@ -810,8 +804,8 @@ void main() {
   );
 
   testWidgets(
-    'a recording waiting for the check sounds at its scene\'s place, its row '
-    'current while it plays',
+    'a recording waiting for the check sounds at its scene\'s place, with no '
+    'row drawn selected while it plays',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _naCasaDoEnsaio(tester, harness: harness);
@@ -838,8 +832,9 @@ void main() {
             )
             .properties
             .selected,
-        isTrue,
-        reason: 'a gravação da cena 2 soa, e é a linha dela que se acende',
+        isNot(isTrue),
+        reason:
+            'a gravação da cena 2 soa, e nenhuma linha se acende, como na dela',
       );
       for (var vez = 0; vez < 3; vez++) {
         harness.playback.finishPlayback();
@@ -871,139 +866,30 @@ void main() {
   testWidgets(
     'while the scene list has not answered, translation stays closed',
     (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true)
-        ..room.failScenesWith = const NetworkFailed('sem rede');
-      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _retomarNoEnsaio(
+        tester,
+        numeros: [1],
+        harness: harness,
+        antes: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
 
-      await _tocar(tester, _circulo);
-      await _tocar(tester, _circulo);
-      await _confirmarAParte(tester);
       expect(_estado(container).partes, hasLength(1));
       expect(_discoAceso(tester), isFalse);
-      container.read(salaSessionProvider.notifier).startRetro();
+      notifier.startRetro();
       await tester.pump(const Duration(milliseconds: 200));
       expect(_estado(container).stage, SalaStage.ensaio);
 
       harness.room.failScenesWith = null;
-      await tester.pump(const Duration(seconds: 3));
+      notifier.goEnsaio();
+      await tester.pump(const Duration(seconds: 1));
       for (var n = 1; n <= 4; n++) {
         expect(_linha(n), findsOneWidget);
       }
     },
   );
-
-  testWidgets(
-    'a scene list still missing after its retries is asked again when the '
-    'team keeps a part',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true)
-        ..room.failScenesWith = const NetworkFailed('sem rede');
-      await _naCasaDoEnsaio(tester, harness: harness);
-      await tester.pump(const Duration(seconds: 12));
-
-      await _tocar(tester, _circulo);
-      harness.room.failScenesWith = null;
-      await _tocar(tester, _circulo);
-      await _confirmarAParte(tester);
-
-      for (var n = 1; n <= 4; n++) {
-        expect(_linha(n), findsOneWidget);
-      }
-    },
-  );
-
-  testWidgets(
-    'with the scene list missing, the circle never records past the parts the '
-    'room holds',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _retomarNoEnsaio(
-        tester,
-        numeros: [1, 2, 3, 4],
-        harness: harness,
-        antes: (harness) =>
-            harness.room.failScenesWith = const NetworkFailed('sem rede'),
-      );
-      await tester.pump(const Duration(seconds: 12));
-
-      await _tocar(tester, _circulo);
-      await _tocar(tester, _circulo);
-      await _confirmarAParte(tester);
-
-      expect([
-        for (final linha in _naFila(harness)) linha.scope,
-      ], isNot(contains(KeptScope.parte(5))));
-      expect(harness.recorder.captures, 0);
-      closeTheRoom(container);
-    },
-  );
-
-  testWidgets(
-    'with the scene list still on its way, the circle never records past the '
-    'parts the room holds',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      await _retomarNoEnsaio(
-        tester,
-        numeros: [1, 2, 3, 4],
-        harness: harness,
-        antes: (harness) => harness.room.holdNextScenes(),
-      );
-
-      await _tocar(tester, _circulo);
-      await _tocar(tester, _circulo);
-      await _confirmarAParte(tester);
-
-      expect([
-        for (final linha in _naFila(harness)) linha.scope,
-      ], isNot(contains(KeptScope.parte(5))));
-      expect(harness.recorder.captures, 0);
-    },
-  );
-
-  testWidgets(
-    'a tap on the circle asks again for a scene list that ran out of retries',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _retomarNoEnsaio(
-        tester,
-        numeros: [1, 2, 3, 4],
-        harness: harness,
-        antes: (harness) =>
-            harness.room.failScenesWith = const NetworkFailed('sem rede'),
-      );
-      await tester.pump(const Duration(seconds: 12));
-      harness.room.failScenesWith = null;
-
-      await _tocar(tester, _circulo);
-      await tester.pump(const Duration(milliseconds: 400));
-
-      for (var n = 1; n <= 4; n++) {
-        expect(_linha(n), findsOneWidget);
-      }
-      expect(_discoAceso(tester), isTrue);
-      await _tocar(tester, inTheHome(_irParaATraducao));
-      expect(_estado(container).stage, SalaStage.retro);
-      closeTheRoom(container);
-    },
-  );
-
-  testWidgets('with every scene recorded a tap on the circle records nothing', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _naCasaDoEnsaio(tester, harness: harness);
-    for (var n = 1; n <= 4; n++) {
-      await _gravarNaLinha(tester, n);
-    }
-    final gravacoes = harness.recorder.captures;
-
-    await _tocar(tester, _circulo);
-
-    expect(_estado(container).ensaio, EnsaioStatus.idle);
-    expect(harness.recorder.captures, gravacoes);
-  });
-
   testWidgets(
     'a part beyond the last scene has no row and is still kept and played',
     (tester) async {
@@ -1101,23 +987,6 @@ void main() {
       closeTheRoom(container);
     },
   );
-
-  testWidgets('the circle records the first scene that has no part', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    await _naCasaDoEnsaio(tester, harness: harness);
-    await _gravarNaLinha(tester, 1);
-    await _gravarNaLinha(tester, 3);
-
-    await _tocar(tester, _circulo);
-    await _tocar(tester, _circulo);
-    await _confirmarAParte(tester);
-
-    final enviada = _naFila(harness).last;
-    expect((enviada.scope, enviada.chunkIndex), (KeptScope.parte(2), 2));
-  });
-
   testWidgets(
     'a scene list from an earlier passage never draws this passage\'s rows',
     (tester) async {
@@ -1312,12 +1181,12 @@ void main() {
       it.sala.recordSceneByScene();
       await waitFor('as cenas', () => it.estado.sceneRows.length == 2);
       expect(it.harness.room.grainSwitches.single.grain, Grain.scene);
-      it.sala.ensaioTap();
+      it.sala.gravarACena(1);
       await waitFor(
         'o círculo gravar',
         () => it.estado.ensaio == EnsaioStatus.recording,
       );
-      it.sala.ensaioTap();
+      it.sala.gravarACena(1);
       await waitFor(
         'ficar pendente',
         () => it.estado.ensaio == EnsaioStatus.recorded,

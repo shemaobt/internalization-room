@@ -216,6 +216,22 @@ void main() {
     expect(antiga.grain, isNull);
   });
 
+  test('a row written with or without the part being recorded again reopens '
+      'alike, with no part marked', () {
+    const semAMarca =
+        '{"session_id":"sessao-antiga","stage":"ensaio","takes":[]}';
+    const comAMarca =
+        '{"session_id":"sessao-antiga","stage":"ensaio","takes":[],'
+        '"part_being_recorded_again":1}';
+
+    ResumePoint linha(String bruto) => ResumePoint.fromJson(
+      jsonDecode(bruto) as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+
+    expect(linha(comAMarca).toJson(), linha(semAMarca).toJson());
+  });
+
   test('uma linha escrita com lugares abre igual a uma sem', () async {
     const semLugares =
         '{"session_id":"sessao-antiga","stage":"retro","pass":2,'

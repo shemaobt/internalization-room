@@ -423,8 +423,8 @@ Future<ProviderContainer> pumpUpToTheEndOfTheTelling(
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);

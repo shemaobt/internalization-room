@@ -14,8 +14,7 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'um_ensaio_de_tres_partes.dart';
 import 'scenario_helpers.dart';
 
-const _gravarOEnsaio = 'Gravar';
-const _gravarAProxima = 'Gravar';
+const _gravar = 'Gravar';
 const _terminar = 'Parar';
 const _confirmar = 'Enviar a gravação';
 
@@ -25,14 +24,24 @@ Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
+Future<void> _tocarNaLinha(WidgetTester tester, int cena, String label) async {
+  final controle = find.descendant(
+    of: linhaDoEnsaio(cena),
+    matching: byLabel(label),
+  );
+  await tester.ensureVisible(controle);
+  await tester.tap(controle);
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
 Future<void> _gravarEConfirmar(
   WidgetTester tester,
   ProviderContainer container,
   SalaHarness harness,
-  String circulo,
+  int cena,
 ) async {
-  await _tocar(tester, circulo);
-  await _tocar(tester, _terminar);
+  await _tocarNaLinha(tester, cena, _gravar);
+  await _tocarNaLinha(tester, cena, _terminar);
   await _tocar(tester, _confirmar);
   final parts = container.read(salaSessionProvider).partes.length;
   if (harness.room.refuseTake == null) {
@@ -77,9 +86,9 @@ Future<ProviderContainer> _ensaioDeTresPartes(
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 400));
-  await _gravarEConfirmar(tester, container, room, _gravarOEnsaio);
-  await _gravarEConfirmar(tester, container, room, _gravarAProxima);
-  await _gravarEConfirmar(tester, container, room, _gravarAProxima);
+  await _gravarEConfirmar(tester, container, room, 1);
+  await _gravarEConfirmar(tester, container, room, 2);
+  await _gravarEConfirmar(tester, container, room, 3);
   return container;
 }
 
@@ -149,7 +158,7 @@ Future<ProviderContainer> _achadoNaParteDoisNaTela(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, container);
+    await gravarUmaParte(tester, container, parte + 1);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
@@ -205,79 +214,80 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a batida no segundo bead acende o anel, toca só a parte 2 e para no '
-    'fim dela',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _ensaioDeTresPartes(tester, harness: harness);
-      final partes = container.read(salaSessionProvider).partes;
-
-      await tester.tap(
-        find.descendant(of: linhaDoEnsaio(2), matching: byLabel('Ouvir')),
-      );
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        [for (final linha in _linhas(tester)) linha.selected == true],
-        [false, true, false, false],
-      );
-      expect(harness.playback.played, [partes[1].path]);
-      expect(harness.playback.playedFrom, [Duration.zero]);
-
-      harness.playback.finishPlayback();
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(
-        harness.playback.played,
-        [partes[1].path],
-        reason: 'a parte 2 termina sem carregar para a parte 3',
-      );
-      expect(
-        [for (final linha in _linhas(tester)) linha.selected == true],
-        [false, false, false, false],
-        reason: 'nada mais soa; o anel se apaga',
-      );
-    },
-  );
-
-  testWidgets('o anel segue a parte que soa enquanto o ensaio inteiro toca', (
+  testWidgets('a batida no segundo bead toca só a parte 2 e para no fim dela', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _ensaioDeTresPartes(tester, harness: harness);
-    final notifier = container.read(salaSessionProvider.notifier);
+    final partes = container.read(salaSessionProvider).partes;
 
-    notifier.playTheRehearsal();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      [for (final linha in _linhas(tester)) linha.selected == true],
-      [true, false, false, false],
+    await tester.tap(
+      find.descendant(of: linhaDoEnsaio(2), matching: byLabel('Ouvir')),
     );
-
-    harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      [for (final linha in _linhas(tester)) linha.selected == true],
-      [false, true, false, false],
-      reason: 'o anel atravessa a fronteira para a parte 2',
-    );
 
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      [for (final linha in _linhas(tester)) linha.selected == true],
-      [false, false, true, false],
-    );
-
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 200));
     expect(
       [for (final linha in _linhas(tester)) linha.selected == true],
       [false, false, false, false],
-      reason: 'o ensaio acabou; nenhum bead soa',
+    );
+    expect(harness.playback.played, [partes[1].path]);
+    expect(harness.playback.playedFrom, [Duration.zero]);
+
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      harness.playback.played,
+      [partes[1].path],
+      reason: 'a parte 2 termina sem carregar para a parte 3',
+    );
+    expect(
+      [for (final linha in _linhas(tester)) linha.selected == true],
+      [false, false, false, false],
+      reason: 'nada mais soa; nenhuma linha fica selecionada',
     );
   });
+
+  testWidgets(
+    'o ensaio inteiro toca uma parte de cada vez, sem selecionar linha',
+    (tester) async {
+      final harness = SalaHarness(
+        filaEmMemoria: true,
+        takesHome: aTempHome('sala-1872'),
+      );
+      final container = await _ensaioDeTresPartes(tester, harness: harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final semLinhaSelecionada = [false, false, false, false];
+
+      notifier.playTheRehearsal();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(container.read(salaSessionProvider).parteDoEnsaioTocando, 0);
+      expect([
+        for (final linha in _linhas(tester)) linha.selected == true,
+      ], semLinhaSelecionada);
+
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(container.read(salaSessionProvider).parteDoEnsaioTocando, 1);
+      expect([
+        for (final linha in _linhas(tester)) linha.selected == true,
+      ], semLinhaSelecionada);
+
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(container.read(salaSessionProvider).parteDoEnsaioTocando, 2);
+      expect([
+        for (final linha in _linhas(tester)) linha.selected == true,
+      ], semLinhaSelecionada);
+
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(container.read(salaSessionProvider).parteDoEnsaioTocando, isNull);
+      expect([
+        for (final linha in _linhas(tester)) linha.selected == true,
+      ], semLinhaSelecionada);
+    },
+  );
 
   testWidgets('a linha de uma parte que falhou ao subir diz isso, e a marca '
       'some ao ser entregue', (tester) async {
@@ -364,38 +374,35 @@ void main() {
     expect(harness.playback.sounding, isTrue);
     expect(
       [for (final linha in _linhas(tester)) linha.selected == true],
-      [false, false, true, false],
+      [false, false, false, false],
     );
   });
 
   testWidgets(
-    'o bead aberto de uma parte nova não acende sozinho enquanto o play '
-    'está numa parte anterior, mesmo com uma gravação pendente',
+    'o play começa na parte 1 mesmo com uma gravação pendente na parte nova',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _ensaioDeTresPartes(tester, harness: harness);
       final notifier = container.read(salaSessionProvider.notifier);
 
-      notifier.ensaioTap();
+      notifier.gravarACena(4);
       await _ateEnsaio(tester, container, EnsaioStatus.recording);
-      notifier.ensaioTap();
+      notifier.gravarACena(4);
       await _ateEnsaio(tester, container, EnsaioStatus.recorded);
 
       notifier.playTheRehearsal();
       await tester.pump(const Duration(milliseconds: 200));
 
+      expect(container.read(salaSessionProvider).parteDoEnsaioTocando, 0);
       expect(
         [for (final linha in _linhas(tester)) linha.selected == true],
-        [true, false, false, false],
-        reason:
-            'o play começa na parte 1; o quarto bead (a gravação pendente '
-            'da parte nova) não fica com o anel só porque está aberto',
+        [false, false, false, false],
       );
     },
   );
 
-  test('o anel segue a parte pendente que ficou no lugar da regravação, só '
-      'quando o play chega nela', () async {
+  test('a parte pendente que ficou no lugar da regravação soa quando o play '
+      'chega nela', () async {
     final it = await _achadoNaParteDois();
 
     await _regravarAParteSemConfirmar(it);
@@ -441,8 +448,8 @@ void main() {
   });
 
   testWidgets(
-    'na tela, o anel não dobra numa regravação pendente: acende na parte 1 '
-    'e só troca para a parte 2 quando o play chega nela',
+    'na tela, o play de uma regravação pendente começa na parte 1 e só '
+    'troca para a parte 2 quando chega nela',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _achadoNaParteDoisNaTela(tester, harness);
@@ -452,19 +459,25 @@ void main() {
       notifier.playTheRehearsal();
       await tester.pump(const Duration(milliseconds: 200));
       expect(
+        container.read(salaSessionProvider).parteDoEnsaioTocando,
+        0,
+        reason: 'o play começa na parte 1, não na 2 pendente',
+      );
+      expect(
         [for (final linha in _linhas(tester)) linha.selected == true],
-        [true, false, false, false],
-        reason:
-            'o play começa na parte 1; a tela não acende a parte 2 '
-            'pendente ao mesmo tempo',
+        [false, false, false, false],
       );
 
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 200));
       expect(
+        container.read(salaSessionProvider).parteDoEnsaioTocando,
+        1,
+        reason: 'o play alcança a parte pendente',
+      );
+      expect(
         [for (final linha in _linhas(tester)) linha.selected == true],
-        [false, true, false, false],
-        reason: 'o play alcança a parte pendente; só ela fica com o anel',
+        [false, false, false, false],
       );
 
       notifier.playTheRehearsal();
@@ -472,7 +485,7 @@ void main() {
     },
   );
 
-  testWidgets('gravar de novo depois de pausar um bead apaga o anel', (
+  testWidgets('gravar de novo depois de pausar um bead não seleciona linha', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -489,7 +502,7 @@ void main() {
       reason: 'pausado, o bead da parte 2 ainda guarda o anel',
     );
 
-    notifier.ensaioTap();
+    notifier.gravarACena(4);
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(

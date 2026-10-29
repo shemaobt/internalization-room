@@ -53,7 +53,7 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await waitFor('o microfone abrir', () => harness.recorder.captures == 1);
 
       notifier.haltForABrokenBuild();

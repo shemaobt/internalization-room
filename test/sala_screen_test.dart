@@ -34,7 +34,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
 import 'scenario_helpers.dart'
-    show byLabel, offTheRows, onTheCircle, stateReads, inTheHome;
+    show byLabel, offTheRows, onTheCircle, onTheRows, stateReads, inTheHome;
 import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
 Set<Color> paintedBy(WidgetTester tester, Finder corner) {
@@ -154,8 +154,8 @@ Future<ProviderContainer> pumpToFindings(
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
   notifier.startRetro();
@@ -472,7 +472,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
-    expect(onTheCircle('Gravar'), findsOneWidget);
+    expect(onTheRows('Gravar'), findsOneWidget);
     expect(
       find.text('DEV'),
       findsOneWidget,
@@ -753,8 +753,8 @@ void main() {
       expect(find.byType(PartStrips), findsNothing);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await tester.pump(const Duration(milliseconds: 200));
       notifier.takeKeep();
       notifier.startRetro();
@@ -782,7 +782,7 @@ void main() {
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(onTheCircle('Gravar'), findsOneWidget);
+    expect(onTheRows('Gravar'), findsOneWidget);
     expect(
       find.byType(ColarOverlay),
       findsNothing,
@@ -807,8 +807,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);
@@ -918,12 +918,14 @@ void main() {
     bool? tocavel() =>
         tester.widget<Semantics>(offTheRows('Ouvir')).properties.enabled;
 
+    await notifier.goConversa(book: 'Ruth');
+    await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 100));
     expect(tocavel(), isFalse);
 
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 800));
@@ -941,8 +943,8 @@ void main() {
     await notifier.goConversa(book: 'Ruth');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 200));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);
@@ -1018,8 +1020,8 @@ void main() {
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(seconds: 2));
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 300));
     notifier.takeKeep();
     await tester.pump(const Duration(milliseconds: 300));

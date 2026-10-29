@@ -90,7 +90,7 @@ _ensaioWithAWarningArmed(SalaHarness harness) async {
   SalaSessionState read() => container.read(salaSessionProvider);
 
   await waitFor('o aviso chegar', () => read().warning);
-  notifier.ensaioTap();
+  notifier.gravarACena(2);
   await waitFor(
     'o ensaio começar a gravar',
     () => read().ensaio == EnsaioStatus.recording,

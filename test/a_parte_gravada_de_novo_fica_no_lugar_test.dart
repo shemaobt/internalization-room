@@ -163,17 +163,18 @@ Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
-/// Part 2's row records it again, the circle stops it, and the check confirms it: every
-/// gesture a gesture the team has on the rehearsal screen.
+/// Part 2's row records it again and stops it, and the check confirms it: every gesture a
+/// gesture the team has on the rehearsal screen.
 Future<void> _gravarAParteDoisPorCimaEConfirmar(WidgetTester tester) async {
-  final daLinhaDois = find.descendant(
-    of: linhaDoEnsaio(2),
-    matching: byLabel('Gravar de novo'),
-  );
-  await tester.ensureVisible(daLinhaDois);
-  await tester.tap(daLinhaDois);
-  await tester.pump(const Duration(milliseconds: 200));
-  await _tocar(tester, 'Parar');
+  for (final controle in ['Gravar de novo', 'Parar']) {
+    final daLinhaDois = find.descendant(
+      of: linhaDoEnsaio(2),
+      matching: byLabel(controle),
+    );
+    await tester.ensureVisible(daLinhaDois);
+    await tester.tap(daLinhaDois);
+    await tester.pump(const Duration(milliseconds: 200));
+  }
   await _tocar(tester, 'Enviar a gravação');
   await letTheRehearsalReachTheRoom(tester);
 }
@@ -295,7 +296,7 @@ void main() {
         reason: 'a conta é da parte, e segue de onde a parte 2 parou',
       );
 
-      await gravarUmaParteDoEnsaio(it);
+      await gravarUmaParteDoEnsaio(it, 4);
 
       expect(it.harness.room.takesKept.last, 'ensaio/${KeptScope.parte(4)}');
       expect(
@@ -667,12 +668,12 @@ void main() {
 
     it.sala.leaveTheBackTranslation();
     await _gravarPorCima(it);
-    it.sala.ensaioTap();
+    it.sala.gravarACena(2);
     await waitFor(
       'a segunda gravação por cima começar',
       () => it.estado.ensaio == EnsaioStatus.recording,
     );
-    it.sala.ensaioTap();
+    it.sala.gravarACena(2);
     await waitFor(
       'a segunda gravação por cima ficar pendente',
       () => it.estado.ensaio == EnsaioStatus.recorded,
@@ -706,7 +707,7 @@ void main() {
 
     it.sala.leaveTheBackTranslation();
     await regravarAParte(it, 1);
-    await gravarUmaParteDoEnsaio(it);
+    await gravarUmaParteDoEnsaio(it, 4);
 
     expect(
       it.partes,
@@ -818,11 +819,6 @@ void main() {
       reason:
           'a parte 2 confirmada, nenhuma linha fica presa a ela, e a '
           'próxima gravação da equipe não vem tomar o lugar dela outra vez',
-    );
-    expect(
-      onTheCircle('Gravar'),
-      findsOneWidget,
-      reason: 'e o círculo volta a ser o da parte nova',
     );
     expect(
       container.read(salaSessionProvider).partes[1].pass,
@@ -1114,7 +1110,7 @@ Future<_Conferida> _ateAConferida(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
-  await gravarUmaParte(tester, container);
+  await gravarUmaParte(tester, container, 1);
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.at = umaParteInteira;

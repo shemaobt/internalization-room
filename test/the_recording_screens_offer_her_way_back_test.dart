@@ -139,9 +139,9 @@ Future<(SalaHarness, ProviderContainer)> _onTheFirstListen(
   final notifier = container.read(salaSessionProvider.notifier);
   notifier.chooseTheGrain(Grain.whole);
   await _settles(tester);
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
   await _settles(tester);
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
   await _settles(tester);
   notifier.takeKeep();
   await _settles(tester);
@@ -409,9 +409,9 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.chooseTheGrain(Grain.whole);
       await _settles(tester);
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await _settles(tester);
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await _settles(tester);
       notifier.takeKeep();
       await _settles(tester);

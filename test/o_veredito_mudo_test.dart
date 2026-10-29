@@ -22,8 +22,8 @@ Future<void> _toTheVerdict(
   SalaSessionNotifier notifier,
 ) async {
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   notifier.startRetro();
