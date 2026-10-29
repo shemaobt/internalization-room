@@ -282,18 +282,10 @@ void main() {
     final [panorama, passage] = harness.room.sessionIds;
     expect(
       harness.room.sessionsSpokenTo,
-      [panorama, passage, panorama],
+      [panorama, passage],
       reason:
           'voltar ao Panorama não cunha uma segunda sessão de panorama, '
-          'mas cada entrada ainda pede o turno de abertura de novo',
-    );
-    expect(
-      harness.room.turnIdsAsked.last,
-      isNot(harness.room.turnIdsAsked.first),
-      reason:
-          'o primeiro toque já foi falado por inteiro; reaproveitar o '
-          'id dele no segundo faria o servidor devolver aquela abertura '
-          'em vez de abrir a de novo pedida',
+          'e a sessão que a sala diz aberta não pede a abertura de novo',
     );
   });
 

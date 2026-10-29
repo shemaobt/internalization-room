@@ -1327,7 +1327,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// asked for its last one, under a turn id of its own: nothing is written, and a lost or
   /// slow answer is looked at once (ADR 0097).
   Future<void> _askTheRoomToSayItAgain() async {
-    final sessionId = state.sessionId;
+    final sessionId = state.stationSessionId;
     if (sessionId == null) return;
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
@@ -2264,7 +2264,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
       _arriveAt(ThePanoramaChosen(entry.pericope));
-      _handOff(_openedFromTheChoice(() => _entrarNoPanorama(entry.pericope)));
+      _handOff(
+        _openedFromTheChoice(() => _entrarNoPanoramaEscolhido(entry.pericope)),
+      );
       return;
     }
     _handOff(
@@ -2349,6 +2351,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       play: _voicePanorama,
       failed: failed,
     );
+  }
+
+  Future<void> _entrarNoPanoramaEscolhido(String id) async {
+    _dispatch(ThePanoramaAsked(id, _lingua));
+    _letGoOfTheCurrentSession();
+    final generation = _waitOnTheGeneration;
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+    final held = state.panoramaSessionId;
+    final sent = ++_readsSent;
+    final found = held == null
+        ? await _room.createSession(pericope: id, language: _lingua)
+        : await _room.fetchState(held);
+    if (_abandoned(generation)) return;
+    switch (found) {
+      case Answered(value: final session):
+        _applyTheSessionRead(session, sent);
+        _dispatch(
+          ThePanoramaFound(
+            session.sessionId,
+            opened: session.opened,
+            generation: generation,
+          ),
+        );
+      case final RoomFailure failure:
+        _decideTheFailure(failure);
+    }
   }
 
   /// Leave a passage part-way and go pick another one.
@@ -11511,6 +11540,10 @@ class _NotifierHost implements StationHost {
         _notifier._handOff(_notifier._entrarNoPanorama(id, language));
       case ReturnToThePanorama():
         _notifier._returnToThePanorama();
+      case RestOnThePanorama():
+        _notifier._landWhereTheyStopped(done: false);
+        _notifier._returnToThePanorama();
+        _notifier._warmHerLines();
       case EnterThePassageLeft(:final left):
         _notifier._handOff(_notifier._enterThePassageLeft(left));
     }
