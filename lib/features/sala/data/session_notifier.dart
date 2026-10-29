@@ -9755,7 +9755,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int generation,
   ) async {
-    _leaveThinking();
+    state = state.copyWith(btPhase: BtPhase.playing, awaitingTheGuide: false);
     final pendente = state.btTraducaoPendente;
     final SessionSnapshot snapshot;
     final sent = ++_readsSent;

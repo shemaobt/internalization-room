@@ -3430,6 +3430,63 @@ void main() {
     },
   );
 
+  testWidgets('a telling the team began while the room was read back after a '
+      'lost one outlives the wait the read left behind', (tester) async {
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      busyCeiling: const Duration(seconds: 1),
+    );
+    final container = await _voltaATraducao(tester, harness);
+    await _passo(tester);
+    await _passo(tester);
+    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 2');
+    await _passo(tester);
+    await _traduzirDeNovo(tester);
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+    harness.room
+      ..retroSoFar = BackTranslationProgress(
+        segments: [
+          _daSala.first,
+          const SegmentView(
+            segmentId: 'trecho-2-v1',
+            takeId: 'gravacao-1',
+            startsMs: 4000,
+            endsMs: 10000,
+            frase: 2,
+          ),
+          ..._daSala.skip(2),
+        ],
+      )
+      ..holdTheNextRead();
+    await _tocarOCirculo(tester);
+    await waitFor(
+      'a leitura da recusa sair e ficar presa',
+      () => harness.room.heldReads.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _tocarOCirculo(tester);
+    harness.room.answerHeldRead(0);
+    await _passo(tester);
+    await _passo(tester);
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btPhase, BtPhase.capturing);
+    final geracao = aqui.machine.generation;
+
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    expect(
+      container.read(salaSessionProvider).machine.generation,
+      geracao,
+      reason:
+          'a sala seguia esperando depois da leitura e, no teto, desistia no '
+          'meio da gravação da equipe: os relógios e as respostas no ar caíam',
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    closeTheRoom(container);
+  });
+
   testWidgets('back on the home, the scene whose only open frase awaits its '
       'new sentence says «regravada — traduzam esta frase»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
