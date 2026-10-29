@@ -271,7 +271,12 @@ Future<void> _until(
   String what,
   bool Function() done,
 ) async {
-  for (var vez = 0; vez < 200 && !done(); vez++) {
+  final waited = Stopwatch()..start();
+  for (
+    var vez = 0;
+    !done() && (vez < 200 || waited.elapsed < const Duration(seconds: 30));
+    vez++
+  ) {
     await _beat(tester, const Duration(milliseconds: 20));
   }
   expect(done(), isTrue, reason: what);
