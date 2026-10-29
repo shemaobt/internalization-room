@@ -10258,6 +10258,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (sent) {
       case Answered(:final value):
         if (_abandoned(generation)) return;
+        unawaited(_relatarASala(sessionId, const []));
         frase = value.frase;
         nome = value.segmentId;
       case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:
