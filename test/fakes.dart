@@ -2720,6 +2720,7 @@ class FakeRoom implements RoomRepository {
   }
 
   final List<({String sentenceId, String segmentId})> sentencesSent = [];
+  final List<String> sentenceSessions = [];
   final List<String> sentencesSentReopening = [];
   final List<String> sentencesLaid = [];
   final List<RoomFailure> sentenceAnswersFirst = [];
@@ -2737,6 +2738,7 @@ class FakeRoom implements RoomRepository {
   }) async {
     if (_guard('reRecordTheSentence') case final failure?) return failure;
     sentencesSent.add((sentenceId: sentenceId, segmentId: segmentId));
+    sentenceSessions.add(sessionId);
     if (reopensTheApprovedDraft) sentencesSentReopening.add(sentenceId);
     await holdTheSentence?.future;
     if (sentenceAnswersFirst.isNotEmpty) {
@@ -3936,6 +3938,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       id: '${_minted++}',
       path: audio.path,
       sessionId: sessionId,
+      passage: passage,
       kind: kind,
       scope: scope,
       passNumber: passNumber,

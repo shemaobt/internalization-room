@@ -2470,12 +2470,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String? sessionId, {
     List<String> kept = const [],
     String? passage,
+    ({String path, String scope, int pass, int? number})? unchecked,
   }) {
     final life = _thisLife;
     if (sessionId != null) {
       _goneSessions.add(sessionId);
       _frases.letGoOfTheSession(sessionId);
       _dispatch(TheSessionLetGo(sessionId));
+    }
+    if (unchecked case (
+      :final path,
+      :final scope,
+      :final pass,
+      :final number,
+    )) {
+      unawaited(
+        _guard(
+          path,
+          life,
+          kind: partTakeKind,
+          scope: scope,
+          passNumber: pass,
+          chunkIndex: number,
+          recordedIn: passage,
+        ),
+      );
     }
     if (sessionId != null && state.leftEntry?.session == sessionId) {
       state = state.copyWith(clearLeftEntry: true);
@@ -2518,6 +2537,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _discardTheSession() {
     final sessionId = _sessionId;
     final passage = _thePassage;
+    final unchecked = _theTakeAwaitingItsCheck;
+    if (unchecked != null) _pendingTakePath = null;
     final unsent = {
       for (final take in (_notQueued[sessionId] ?? const {}).values) take.path,
     };
@@ -2528,7 +2549,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _dropThePendingTake();
     _forgetThePassage();
-    _letGoOf(sessionId, kept: kept, passage: passage);
+    _letGoOf(sessionId, kept: kept, passage: passage, unchecked: unchecked);
+  }
+
+  ({String path, String scope, int pass, int? number})?
+  get _theTakeAwaitingItsCheck {
+    final path = _pendingTakePath;
+    final numero = state.cenaDaGravacao ?? state.sceneForTheCircle;
+    if (path == null || numero == null) return null;
+    if (state.partIndexOf(numero) case final parte?) {
+      final escopo = state.partes[parte].scopeId;
+      return (
+        path: path,
+        scope: escopo,
+        pass: state.partes[parte].pass + 1,
+        number: KeptScope.numberOf(escopo),
+      );
+    }
+    if (state.recordsTheWhole) {
+      return (path: path, scope: KeptScope.whole, pass: 1, number: null);
+    }
+    return (
+      path: path,
+      scope: KeptScope.parte(numero),
+      pass: (_passadasDaSala?[numero] ?? 0) + 1,
+      number: numero,
+    );
   }
 
   /// The passage the team is on, as the Outbox names it.
@@ -7412,13 +7458,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required String scope,
     int? passNumber,
     int? chunkIndex,
+    String? recordedIn,
   }) => _apart(() async {
     if (_endedSince(life)) return null;
     final queue = _takes;
     final sessionId = _goneSessions.contains(state.sessionId)
         ? null
         : state.sessionId;
-    final passage = _thePassage;
+    final passage = recordedIn ?? _thePassage;
     final PartOfASession? keeping = switch (sessionId) {
       final session? when kind == partTakeKind => (
         session: session,

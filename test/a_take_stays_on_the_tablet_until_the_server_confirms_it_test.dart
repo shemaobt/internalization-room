@@ -443,6 +443,54 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a take still waiting for its check when its session goes is kept with no '
+    "session under its passage, listed in the passage's next session, and its "
+    'tap sends it there',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      final perdida = casa.estado.sessionId!;
+      late String esperando;
+      await casa.emTempoReal(() async {
+        casa.sala.gravarACena(2);
+        await waitFor(
+          'a cena 2 gravar',
+          () => casa.estado.ensaio == EnsaioStatus.recording,
+        );
+        casa.sala.gravarACena(2);
+        await waitFor(
+          'a gravação da cena 2 esperar o visto',
+          () => casa.estado.ensaio == EnsaioStatus.recorded,
+        );
+        esperando = casa.harness.recorder.lastPath!;
+        await casa.harness.takes.enqueue(
+          casa.harness.recorder.aFile('parte-que-acusa'),
+          sessionId: perdida,
+          kind: 'ensaio',
+          scope: 'parte-1',
+          passNumber: 1,
+          chunkIndex: 1,
+        );
+        casa.room.forgetTheSession(perdida);
+        await casa.harness.takes.flush();
+        await waitFor(
+          'a sala levar a equipe para a Escolha',
+          () => casa.estado.stage == SalaStage.escolha,
+        );
+        await settle(const Duration(milliseconds: 500));
+      });
+
+      expect(casa.harness.recorder.deleted, isNot(contains(esperando)));
+      await casa.entrarDeNovoNaPassagem(perdida);
+
+      final atual = casa.estado.sessionId!;
+      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+
+      expect(casa.room.takeSessions.last, atual);
+      expect(casa.room.takesKept, contains('ensaio/parte-2'));
+    },
+  );
+
   testWidgets('a session start sends nothing of a take waiting for it', (
     tester,
   ) async {
