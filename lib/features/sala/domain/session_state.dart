@@ -810,16 +810,23 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part and every Part is on the tablet,
-  /// with nothing recorded and waiting and no finding's mark standing.
+  /// The advance disc lights: every Scene has its Part, every Part is on the tablet and
+  /// none waits in the Outbox, with nothing recorded and waiting and no finding's mark
+  /// standing.
   bool get ensaioDone =>
       ensaio == EnsaioStatus.idle &&
       parteARegravar == null &&
       everySceneHasItsPart &&
-      everyPartIsHere;
+      everyPartIsHere &&
+      everyPartIsSent;
 
   /// Whether no Part on its way is still to come down.
   bool get everyPartIsHere => partsAway.isEmpty;
+
+  bool get everyPartIsSent => !partes.any(_waitsToGoUp);
+
+  bool _waitsToGoUp(KeptTake take) =>
+      take.takeId == null && unsentParts.containsKey(rowOf(take.scopeId));
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
@@ -838,7 +845,10 @@ class SalaSessionState {
   /// Whether at least one Scene has its Part and another has none.
   bool get someScenesWaitForTheirPart {
     final count = scenes.scenes.length;
-    final had = partNumbers.where((n) => n <= count).length;
+    final had = {
+      for (final take in partes)
+        if (!_waitsToGoUp(take)) ?KeptScope.numberOf(take.scopeId),
+    }.where((n) => n <= count).length;
     return had > 0 && had < count;
   }
 
