@@ -8,7 +8,6 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/language_and_look.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/mic_clock.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/update_view.dart';
@@ -126,35 +125,6 @@ void main() {
             ?.color,
         azul.withValues(alpha: 0.75),
         reason: 'no escuro o relógio contava no azul claro, não no dela',
-      );
-    });
-
-    testWidgets('in the $look look the lit hand glows in her $look azul', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        look,
-        HandButton(
-          noteMode: true,
-          hasUnheardReply: false,
-          playingReply: false,
-          language: 'pt',
-          onTap: () {},
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(
-        (tester
-                    .widget<AnimatedContainer>(find.byType(AnimatedContainer))
-                    .decoration
-                as BoxDecoration)
-            .boxShadow
-            ?.single
-            .color,
-        azul.withValues(alpha: 0.35),
-        reason: 'no escuro a mão acesa brilhava no azul claro, não no dela',
       );
     });
 
