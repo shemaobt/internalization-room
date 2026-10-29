@@ -22,6 +22,8 @@ import 'package:internalization_room/main.dart';
 import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, relaunch, settle;
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 const _falhou = 'falhou — toque para tentar de novo';
@@ -410,6 +412,13 @@ Future<_Casa> _naCasa(
     await settle();
     if (relaunched != null) {
       casa.sala.openTheEnsaioFinal();
+      await _esperar(
+        'o ponto laranja decidir a tela',
+        () =>
+            casa.estado.ensaioFinalPlan is PlanRead ||
+            casa.estado.station == const Ensaio(),
+      );
+      casa.sala.recordSceneByScene();
     } else if (casa.estado.stage != SalaStage.ensaio) {
       casa.sala.goEnsaio();
     }

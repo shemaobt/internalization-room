@@ -3925,8 +3925,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void openTheEnsaioFinal() => _gesture(() => _openTheEnsaioFinal());
 
-  /// The orange dot: the recording home over a passage with a take that came from no
-  /// join, otherwise the Ensaio Final plan while the room is read.
+  /// The orange dot: the recording home over a passage with a take the room received
+  /// that came from no join, otherwise the Ensaio Final plan while the room is read.
   void _openTheEnsaioFinal() {
     final sessionId = state.sessionId;
     if (sessionId == null ||
@@ -3939,7 +3939,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             !state.noteMode)) {
       return;
     }
-    if (state.partes.any((part) => part.origin == null)) {
+    if (state.partes.any(
+      (part) => part.takeId != null && part.origin == null,
+    )) {
       return _openTheRecordingHome(sessionId);
     }
     _openThePlan(sessionId);
