@@ -3640,8 +3640,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _startListening('conversa_${_stamp()}');
       case TapDecision.stop:
         _handOff(_finishListening());
-      case TapDecision.cancel:
-        _dispatch(const MicDiscarded());
+      case TapDecision.ignore:
+        break;
     }
   }
 
