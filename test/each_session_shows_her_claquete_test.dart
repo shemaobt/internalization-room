@@ -94,8 +94,9 @@ Future<void> _seconds(WidgetTester tester, int seconds) =>
 Future<(SalaHarness, ProviderContainer)> _openP05(
   WidgetTester tester, {
   String? pericope = 'P05',
+  bool filaEmMemoria = false,
 }) async {
-  final harness = SalaHarness()
+  final harness = SalaHarness(filaEmMemoria: filaEmMemoria)
     ..room.passages = const [Passagem(pericope: 'P05', audioUrl: '/voice/p05')]
     ..room.nextSessionId = _sessionId;
   final container = await pumpSala(tester, harness);
@@ -303,12 +304,12 @@ void main() {
   testWidgets(
     'a relaunch into the same session shows the claquete again with the same session characters',
     (tester) => withClock(Clock.fixed(_noon), () async {
-      final (harness, container) = await _openP05(tester);
+      final (harness, container) = await _openP05(tester, filaEmMemoria: true);
       await _seconds(tester, 21);
       expect(_claquete, findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
-      final (_, next) = await relaunch(harness, container);
+      final (_, next) = await relaunch(harness, container, filaEmMemoria: true);
       addTearDown(() => closeTheRoom(next));
       await tester.pumpWidget(
         UncontrolledProviderScope(container: next, child: const SalaApp()),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fake_async/fake_async.dart';
@@ -368,6 +369,40 @@ class _AnAppClosedBeforeTheSend extends TakeUploadQueue {
   Future<int> flush() async => 0;
 }
 
+class _StagedSlowly implements File {
+  _StagedSlowly(String path, this._began)
+    : _real = Zone.root.run(() => File(path));
+
+  final File _real;
+  final Completer<void> _began;
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<File> writeAsString(
+    String contents, {
+    FileMode mode = FileMode.write,
+    Encoding encoding = utf8,
+    bool flush = false,
+  }) async {
+    if (!_began.isCompleted) _began.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    return _real.writeAsString(
+      contents,
+      mode: mode,
+      encoding: encoding,
+      flush: flush,
+    );
+  }
+
+  @override
+  Future<File> rename(String newPath) => _real.rename(newPath);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   testWidgets(
     'a take recorded then the app closed before any send is offered on the '
@@ -398,6 +433,66 @@ void main() {
       expect(depois.room.takesKept, ['ensaio/parte-2']);
     },
   );
+
+  test('a relaunch opens the next life only after the old Outbox finished '
+      'the manifest it was writing', () async {
+    final harness = SalaHarness();
+    await harness.takes.enqueue(
+      harness.recorder.aFile('parte-1'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'parte-1',
+      passNumber: 1,
+      chunkIndex: 1,
+    );
+    final began = Completer<void>();
+    final flushing = IOOverrides.runZoned(
+      harness.takes.flush,
+      createFile: (path) => path.endsWith('.novo')
+          ? _StagedSlowly(path, began)
+          : Zone.root.run(() => File(path)),
+    );
+    await began.future;
+
+    final (again, _) = await relaunch(harness, harness.container());
+
+    expect(
+      await again.takes.pending(),
+      isEmpty,
+      reason:
+          'a nova vida abria com a antiga ainda escrevendo a fila, e as duas '
+          'gravavam o mesmo fila.json.novo',
+    );
+    await flushing;
+  });
+
+  test('an upload of the old life answered after the relaunch writes nothing '
+      'into the next life\'s Outbox', () async {
+    final harness = SalaHarness();
+    await harness.takes.enqueue(
+      harness.recorder.aFile('parte-1'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'parte-1',
+      passNumber: 1,
+      chunkIndex: 1,
+    );
+    harness.room.holdNextTake('parte-1');
+    final flushing = harness.takes.flush();
+    await harness.room.untilTakeHeld();
+
+    final (again, _) = await relaunch(harness, harness.container());
+    harness.room.finishHeldTake();
+    await flushing;
+
+    expect(
+      await again.takes.pending(),
+      hasLength(1),
+      reason:
+          'a vida encerrada escrevia a resposta na fila da nova, e as duas '
+          'gravavam o mesmo fila.json.novo',
+    );
+  });
 
   test('a failed take left fifteen minutes with the network back is still '
       'unsent, and no request leaves the tablet', () {

@@ -4379,6 +4379,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  Future<void> writingEnds() async {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -4562,10 +4565,15 @@ class SalaHarness {
           ? FakeTakeQueue(room: room, recordings: recorder)
           : TakeUploadQueue(
               room: room,
-              home: () async => takesHome,
+              home: () async => _lifeOver ?? takesHome,
               recordings: () => recorder,
               spacing: takeSpacing,
             ));
+
+  Directory? _lifeOver;
+
+  void endTheLifeOnTheDisk() =>
+      _lifeOver = Directory.systemTemp.createTempSync('sala-vida-encerrada');
 
   List<Duration> takeSpacing = const [];
 

@@ -284,6 +284,8 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   bool filaEmMemoria = false,
 }) async {
   container.dispose();
+  await harness.takes.writingEnds();
+  harness.endTheLifeOnTheDisk();
   final again = SalaHarness(
     filaEmMemoria: filaEmMemoria,
     room: harness.room,

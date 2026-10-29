@@ -760,6 +760,18 @@ class TakeUploadQueue {
     return done;
   }
 
+  Future<void> writingEnds() async {
+    while (true) {
+      if (_copiesBeingMade.isNotEmpty) {
+        await Future.wait(_copiesBeingMade.values);
+        continue;
+      }
+      final writes = _writes;
+      await writes;
+      if (identical(writes, _writes) && _copiesBeingMade.isEmpty) return;
+    }
+  }
+
   /// The [recordings] whose copy a row of the Outbox holds, once every keep in flight has
   /// written its row or failed to.
   Future<Set<String>> recordingsItHolds(Iterable<String> recordings) async {
