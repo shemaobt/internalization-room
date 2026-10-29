@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -314,11 +315,7 @@ void main() {
     expect(it.estado.btTrechos.first.bridgeTakeId, 'retro-1');
   });
 
-  test('uma frase regravada contada numa visita anterior toca a sua tradução, '
-      'buscada pela gravação que a sala nomeia', () async {
-    final harness = SalaHarness();
-    harness.room.takeAudio['retro-velho-1'] = _aTraducao;
-
+  Future<_Retomada> umaRegravadaContadaNaRetro(SalaHarness harness) async {
     final it = await _reabrir(
       harness,
       parouEm: SalaStage.retro,
@@ -351,6 +348,15 @@ void main() {
           it.estado.everyPartIsHere &&
           it.estado.btTrechosRegravados.length == 1,
     );
+    return it;
+  }
+
+  test('uma frase regravada contada numa visita anterior toca a sua tradução, '
+      'buscada pela gravação que a sala nomeia', () async {
+    final harness = SalaHarness();
+    harness.room.takeAudio['retro-velho-1'] = _aTraducao;
+    final it = await umaRegravadaContadaNaRetro(harness);
+
     it.sala.ouvirAFraseRegravada(0);
     await waitFor('a tradução tocar', () => it.estado.btRetroTocando);
 
@@ -362,6 +368,32 @@ void main() {
           'alto-falante dela ficava apagado',
     );
     expect(File(harness.playback.played.last).readAsBytesSync(), _aTraducao);
+  });
+
+  test('a frase regravada guarda a gravação da sua tradução quando a sala '
+      'relê as frases', () async {
+    final harness = SalaHarness();
+    final it = await umaRegravadaContadaNaRetro(harness);
+    harness.playback.finishPlayback();
+    await settle();
+    harness.playback.finishPlayback();
+    await waitFor('o ensaio chegar ao fim', () => it.estado.btClipEnded);
+    expect(it.estado.canFinishBackTranslation, isTrue);
+    harness.room.verdictRefusal = CheckRefusal.fraseAwaiting;
+    int lidas() => harness.room.calls.where((c) => c == 'fetchState').length;
+    final antes = lidas();
+
+    await it.sala.finishBackTranslation();
+    await waitFor('a sala reler as frases', () => lidas() > antes);
+    await settle();
+
+    expect(
+      it.estado.btTrechosRegravados.single.bridgeTakeId,
+      'retro-velho-1',
+      reason:
+          'a releitura refazia a frase regravada sem a gravação da tradução, '
+          'e o alto-falante dela apagava',
+    );
   });
 
   test(
@@ -822,7 +854,10 @@ void main() {
     return it;
   }
 
-  Future<_Retomada> semAParteDoisComRegravadas(SalaHarness harness) async {
+  Future<_Retomada> semAParteDoisComRegravadas(
+    SalaHarness harness, {
+    bool comATraducao = false,
+  }) async {
     harness.room
       ..passageScenes = tresCenas
       ..refuseClipOf.add('gravacao-2')
@@ -848,6 +883,7 @@ void main() {
               takeId: 'gravacao-velha-$n',
               startsMs: 0,
               endsMs: 4000,
+              bridgeTakeId: comATraducao ? 'retro-velho-$n' : null,
             ),
         ],
       ),
@@ -899,6 +935,24 @@ void main() {
       reason:
           'a parte 2 entrava antes da 3 e a frase regravada da parte 3 passava '
           'a ler «parte 2»',
+    );
+  });
+
+  test('gravar a parte 2 depois das partes 1 e 3 deixa cada frase regravada '
+      'com a gravação da sua tradução', () async {
+    final it = await semAParteDoisComRegravadas(
+      SalaHarness(),
+      comATraducao: true,
+    );
+
+    await gravarACena(it, 2);
+
+    expect(
+      [for (final trecho in it.estado.btTrechosRegravados) trecho.bridgeTakeId],
+      ['retro-velho-1', 'retro-velho-3'],
+      reason:
+          'a frase regravada que mudava de parte perdia a gravação da '
+          'tradução, e o alto-falante dela apagava',
     );
   });
 

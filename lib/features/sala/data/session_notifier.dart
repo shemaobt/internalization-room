@@ -3579,6 +3579,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     lugarFrom: trecho.lugarFrom,
     lugarTo: trecho.lugarTo,
     frase: trecho.frase,
+    bridgeTakeId: trecho.bridgeTakeId,
   );
 
   /// How long each part turned out to be, so the room knows where each part ends.
@@ -11188,6 +11189,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                   lugarTo: trecho.lugarTo,
                   contado: trecho.contado,
                   frase: numeros[trecho.segmentId],
+                  bridgeTakeId: trecho.bridgeTakeId,
                 ),
             ],
           );
