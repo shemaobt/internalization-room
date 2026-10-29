@@ -511,6 +511,27 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the room is stopped for a person it is dimmed and a tap '
+      'does not arm it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    expect(_aberto(tester, _wholeAtOnce), isTrue);
+
+    container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+
+    expect(
+      _aberto(tester, _wholeAtOnce),
+      isFalse,
+      reason: 'com a sala parada esperando uma pessoa a troca ainda armava',
+    );
+    await _tap(tester, _wholeAtOnce);
+    expect(find.text(_wholeArmed), findsNothing);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+  });
+
   test('a switch to the whole from the check reports what was heard before '
       'the room\'s grain door, never after it', () async {
     final it = await umEnsaioDeTresPartesGravado();

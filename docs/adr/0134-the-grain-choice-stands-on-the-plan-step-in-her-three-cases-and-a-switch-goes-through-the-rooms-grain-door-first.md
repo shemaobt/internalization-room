@@ -43,7 +43,8 @@ aside from a current one.
   regravar uma parte» through the whole telling step, never on the first listen and never over
   a recording no join touched. It is dimmed and takes no tap while a part or a line sounds,
   while the telling is recorded, sent or checked, while a sentence re-record is open, while an
-  approval or an open of the Checagem externa is in the air, and while a switch is. Its second
+  approval or an open of the Checagem externa is in the air, while a switch is, and while the
+  room is stopped for a person. Its second
   tap first reports what was heard on the check, then goes through the grain door, and opens
   the whole-passage home once the door answered.
 - **«Gravar cena por cena»** is always offered, on the plan and on the whole-passage home, one
