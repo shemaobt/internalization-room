@@ -587,6 +587,50 @@ void main() {
     );
   }
 
+  for (final (look, verde, verdeClaro) in [
+    ('light', const Color(0xFF3F3E20), const Color(0xFF777D45)),
+    ('dark', const Color(0xFFECEADC), const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets(
+      'in the $look look the sheet is headed in her verde and her quieter '
+      'verde-claro, not in ink and grey',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        TextStyle styleOf(String said) =>
+            tester.widget<Text>(find.text(said)).style!;
+        final heading = styleOf('Cena 1');
+        expect(
+          heading.fontSize,
+          24,
+          reason: 'o título da folha tinha 22 em tinta',
+        );
+        expect(heading.fontWeight, FontWeight.w500);
+        expect(heading.color, verde);
+        final scene = styleOf(_threeScenes[0].title);
+        expect(
+          scene.fontSize,
+          closeTo(15.2, 0.001),
+          reason: 'o nome da cena vinha no cinza do texto',
+        );
+        expect(scene.fontWeight, FontWeight.w400);
+        expect(scene.color, verdeClaro);
+        final sub = styleOf(_swap);
+        expect(
+          sub.fontSize,
+          closeTo(14.72, 0.001),
+          reason: 'a linha de baixo tinha 14 em cinza',
+        );
+        expect(sub.color, verdeClaro);
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '4. an unsent rehearsal is listed «não enviado» with «usar este», and once '
     'used it holds the row and opens «juntar»',

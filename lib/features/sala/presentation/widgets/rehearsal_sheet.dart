@@ -8,6 +8,8 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
 
+const _rem = 16.0;
+
 /// Her `EnsaioFinalSheet`: one scene's rehearsals, newest first, the one the row holds
 /// «✓ em uso» and «usar este» on the others its row offers; over the plan or over the
 /// recording home, where «usar este» is the Rehearsal swap.
@@ -63,23 +65,30 @@ class RehearsalSheet extends ConsumerWidget {
                 recordingHomeLabelFor('scene', language, n: number),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 22,
+                  color: colors.verde,
+                  fontSize: 1.5 * _rem,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.mut, fontSize: 15),
+                style: TextStyle(
+                  color: colors.verdeClaro,
+                  fontSize: 0.95 * _rem,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 1.1 * _rem),
               Text(
                 sub,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.mut, fontSize: 14),
+                style: TextStyle(
+                  color: colors.verdeClaro,
+                  fontSize: 0.92 * _rem,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 1.7 * _rem),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 470),
                 child: Column(
