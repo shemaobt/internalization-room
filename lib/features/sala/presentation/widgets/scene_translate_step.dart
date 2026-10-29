@@ -59,7 +59,6 @@ class SceneTranslateStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(salaSessionProvider.notifier);
-    final colors = SalaColors.of(context);
     String said(String control, [int? n]) =>
         sceneRehearsalLabelFor(control, language, n: n);
     final take = switch (channel) {
@@ -146,25 +145,10 @@ class SceneTranslateStep extends ConsumerWidget {
             bare: true,
           ),
         ],
-        if (message != null) ...[
-          const SizedBox(height: 12),
-          Semantics(
-            liveRegion: true,
-            child: _Written(
-              message,
-              style: TextStyle(color: colors.mut, fontSize: 16),
-            ),
-          ),
-        ],
+        if (message != null) ...[const SizedBox(height: 12), _HerLine(message)],
         if (restartLine != null) ...[
           const SizedBox(height: 8),
-          Semantics(
-            liveRegion: true,
-            child: _Written(
-              restartLine,
-              style: TextStyle(color: colors.mut, fontSize: 16),
-            ),
-          ),
+          _HerLine(restartLine),
         ],
         if (frases.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -195,10 +179,8 @@ class SceneTranslateStep extends ConsumerWidget {
         if (restartShown) ...[
           const SizedBox(height: 12),
           SceneRestartControl(
-            shown: restartShown,
             armed: restart,
             n: scene.rehearsal?.translatedFrases ?? 0,
-            line: null,
             live: idle,
             language: language,
           ),
@@ -285,60 +267,47 @@ class SceneTranslateStep extends ConsumerWidget {
   }
 }
 
-/// «recomeçar a tradução» while it applies, armed by its first tap with the count it
-/// discards, and her line once the room answered it or failed to, written only where
-/// the step may carry words.
+/// «recomeçar a tradução», armed by its first tap with the count it discards.
 class SceneRestartControl extends ConsumerWidget {
-  final bool shown;
   final BtRecomeco? armed;
   final int n;
-  final SceneLine? line;
   final bool live;
   final String language;
 
   const SceneRestartControl({
     super.key,
-    required this.shown,
     required this.armed,
     required this.n,
-    required this.line,
     required this.live,
     required this.language,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SalaColors.of(context);
-    final words = _restartLineOf(line, language);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (shown)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _WrittenButton(
-              armed == null
-                  ? sceneRehearsalLabelFor('restart', language)
-                  : retroLabelFor('restartArmed', language, n: n),
-              live: live && armed != BtRecomeco.armado,
-              onTap: ref
-                  .read(salaSessionProvider.notifier)
-                  .restartTheSceneTranslation,
-            ),
-          ),
-        if (words != null) ...[
-          const SizedBox(height: 8),
-          Semantics(
-            liveRegion: true,
-            child: _Written(
-              words,
-              style: TextStyle(color: colors.mut, fontSize: 16),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: _WrittenButton(
+      armed == null
+          ? sceneRehearsalLabelFor('restart', language)
+          : retroLabelFor('restartArmed', language, n: n),
+      live: live && armed != BtRecomeco.armado,
+      onTap: ref.read(salaSessionProvider.notifier).restartTheSceneTranslation,
+    ),
+  );
+}
+
+class _HerLine extends StatelessWidget {
+  final String words;
+
+  const _HerLine(this.words);
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: _Written(
+      words,
+      style: TextStyle(color: SalaColors.of(context).mut, fontSize: 16),
+    ),
+  );
 }
 
 String? _restartLineOf(SceneLine? line, String language) => switch (line) {
@@ -377,6 +346,7 @@ class ScenePlacesUnknown extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     String said(String control) => sceneRehearsalLabelFor(control, language);
+    final restartLine = _restartLineOf(line, language);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -409,16 +379,19 @@ class ScenePlacesUnknown extends ConsumerWidget {
             style: TextStyle(color: colors.mut, fontSize: 16),
           ),
         ),
-        if (restartShown || line != null) ...[
+        if (restartShown || restartLine != null) ...[
           const SizedBox(height: 16),
-          SceneRestartControl(
-            shown: restartShown,
-            armed: restart,
-            n: scene.rehearsal?.translatedFrases ?? 0,
-            line: line,
-            live: !sending && !scene.waiting,
-            language: language,
-          ),
+          if (restartShown)
+            SceneRestartControl(
+              armed: restart,
+              n: scene.rehearsal?.translatedFrases ?? 0,
+              live: !sending && !scene.waiting,
+              language: language,
+            ),
+          if (restartLine != null) ...[
+            const SizedBox(height: 8),
+            _HerLine(restartLine),
+          ],
         ],
         const SizedBox(height: 16),
         _WrittenButton(
