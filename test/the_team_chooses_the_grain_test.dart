@@ -829,6 +829,50 @@ void main() {
   );
 
   testWidgets(
+    'on the choice over an approved draft, a tap on the grain the room already '
+    'holds keeps the approval and the parts',
+    (tester) async {
+      final (harness, container) = await _onTheJoinedHome(
+        tester,
+        before: (harness) =>
+            harness.room.approvedDraft = const ApprovedDraft(version: 1),
+      );
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(find.text(_how), findsOneWidget);
+      harness.room.failTakesWith = null;
+      final switches = harness.room.grainSwitches.length;
+
+      await _tap(tester, _sceneByScene);
+      await _settles(tester);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches.skip(switches), [
+        (grain: Grain.scene, reopens: true),
+      ]);
+      expect(
+        harness.room.approvedDraft,
+        isNotNull,
+        reason:
+            'o toque no grão que a sala já tinha levava o reabrir e desfazia a '
+            'aprovação',
+      );
+      expect(
+        container.read(salaSessionProvider).overAnApprovedDraft,
+        isTrue,
+        reason:
+            'a sessão lida depois do toque já não trazia a aprovação, num toque '
+            'que não mudou nada',
+      );
+      expect(byLabel(_recordAgain), findsNWidgets(3));
+      expect(find.text(_how), findsNothing);
+    },
+  );
+
+  testWidgets(
     '11. on the choice over a draft the tablet did not know was approved, the '
     'one tap re-opens it and opens the home, not a refusal',
     (tester) async {
