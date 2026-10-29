@@ -43,6 +43,13 @@ class SceneRehearsalView extends ConsumerWidget {
             fontSize: 26,
             fontWeight: FontWeight.w500,
           ),
+          top:
+              MediaQuery.viewPaddingOf(context).top +
+              MediaQuery.sizeOf(context).height * 0.09,
+          corner:
+              MediaQuery.viewPaddingOf(context).top +
+              MediaQuery.sizeOf(context).height * 0.05 +
+              42,
         ),
         Expanded(
           child: Center(
@@ -106,14 +113,16 @@ class SceneRehearsalView extends ConsumerWidget {
                 restart: session.sceneRestart,
                 stoppedAt: session.sceneStoppedAt,
               ),
-              SceneStep.placesUnknown => ScenePlacesUnknown(
-                scene: scene,
-                language: language,
-                sending: sending,
-                sendable: sendable,
-                line: session.sceneLine,
-                restartShown: session.sceneRestartShown,
-                restart: session.sceneRestart,
+              SceneStep.placesUnknown => SingleChildScrollView(
+                child: ScenePlacesUnknown(
+                  scene: scene,
+                  language: language,
+                  sending: sending,
+                  sendable: sendable,
+                  line: session.sceneLine,
+                  restartShown: session.sceneRestartShown,
+                  restart: session.sceneRestart,
+                ),
               ),
               SceneStep.sent => SceneListenMode(
                 scene: scene,
@@ -129,7 +138,7 @@ class SceneRehearsalView extends ConsumerWidget {
         ),
         if (session.sceneRehearsals.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 32),
+            padding: const EdgeInsets.only(top: 25.6, bottom: 32),
             child: SceneRehearsalList(
               rows: session.sceneRehearsals,
               onScreen: scene.rehearsal?.rehearsalId,
