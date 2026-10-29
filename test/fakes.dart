@@ -522,7 +522,8 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> discard() async {
     sounds.add('recorder:discard');
-    await _stopping;
+    final stopping = _stopping;
+    if (stopping != null) await stopping;
     if (!_recording) return;
     final path = await stop();
     if (path != null) deleted.add(path);
