@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -6,6 +7,8 @@ import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aceso,
+        aprovar,
         cabeca,
         conferir,
         contarAteOFimDaParte,
@@ -14,25 +17,60 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocar,
         tocarNoCirculo;
 
+Future<ProviderContainer> _ateAConferida(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await entrarNaTraducao(tester, harness, partes: 1);
+  harness.playback.at = cabeca;
+  await tocarNoCirculo(tester);
+  await gravarATraducao(tester);
+  await contarAteOFimDaParte(tester, harness);
+  await tocar(tester, conferir);
+  await tester.pump(const Duration(milliseconds: 600));
+  expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+  return container;
+}
+
 void main() {
   testWidgets('after a clean verdict the terminei stays on the check instead '
       'of leaving it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await entrarNaTraducao(tester, harness, partes: 1);
+    final container = await _ateAConferida(tester, harness);
 
-    harness.playback.at = cabeca;
-    await tocarNoCirculo(tester);
-    await gravarATraducao(tester);
-    await contarAteOFimDaParte(tester, harness);
-    await tocar(tester, conferir);
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
     expect(
       byLabel(conferir),
       findsOneWidget,
       reason: 'o veredito limpo tirava o terminei da tela; o dela fica',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on the terminei of a checked telling checks it again, '
+      'as hers does, and lands back on the approval', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason: 'na conferida o terminei ficava sem toque nenhum',
+    );
+    harness.room.holdNextVerdict();
+    await tocar(tester, conferir);
+
+    expect(byLabel('conferindo…'), findsOneWidget);
+    harness.room.finishHeldVerdict();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(2),
+      reason: 'o segundo terminei não pedia a conferência de novo',
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    expect(byLabel(aprovar), findsOneWidget);
+    expect(byLabel(conferir), findsOneWidget);
     closeTheRoom(container);
   });
 }

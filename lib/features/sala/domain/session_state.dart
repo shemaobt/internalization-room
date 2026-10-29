@@ -1405,7 +1405,7 @@ class SalaSessionState {
 
   bool get canFinishBackTranslation =>
       stage == SalaStage.retro &&
-      btPhase == BtPhase.playing &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       btClipEnded &&
       !btSoOuvir;
 
