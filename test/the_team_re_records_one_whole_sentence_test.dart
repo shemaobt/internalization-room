@@ -831,6 +831,33 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the sentence\'s microphone records, its «regravar» rests '
+      'and a tap on it does not drop the recording', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.gravando,
+    );
+
+    expect(
+      _acesa(tester, 'regravar a frase 3'),
+      isFalse,
+      reason: 'regravar seguia aceso com o microfone da frase aberto',
+    );
+    await tocar(tester, 'regravar a frase 3');
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.gravando,
+      reason: 'um toque em regravar largava a gravação da frase no meio',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence held from a gone session is offered in the '
       "passage's next session and sent into that session at its tap", (
     tester,
@@ -2901,9 +2928,9 @@ void main() {
     ('a recording', true),
     ('no recording', false),
   ]) {
-    testWidgets('a re-record closed while its microphone still closes, then '
-        'an approval: the late close with $fala lands nothing and queues '
-        'nothing', (tester) async {
+    testWidgets('a re-record whose microphone still closes takes no tap on '
+        'its «regravar», and the late close with $fala finds the sentence '
+        'still open', (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await conferidaComANuanceNaFrase3(tester, harness);
       await regravarAte(tester, harness, 3);
@@ -2917,21 +2944,15 @@ void main() {
       await _tocarOCirculo(tester);
       await tocar(tester, 'regravar a frase 3');
 
-      harness.room.approvedDraft = const ApprovedDraft(version: 1);
-      harness.voice.holdNextLine();
-      await tocar(tester, aprovar);
       harness.recorder.finishStop();
       await _passo(tester);
       await _passo(tester);
 
       expect(
-        container.read(salaSessionProvider).btRegravacao,
-        isNull,
-        reason: 'o fecho atrasado reabria uma regravação já largada',
+        container.read(salaSessionProvider).btRegravacao?.frase,
+        3,
+        reason: 'o toque em regravar com o microfone fechando largava a frase',
       );
-      expect(guardada(harness), isFalse);
-      harness.voice.finishHeldLine();
-      await _passo(tester);
       closeTheRoom(container);
     });
   }
