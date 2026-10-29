@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
-import '../../domain/facilitator_script.dart';
 import 'shema_mark.dart';
 
 class PersonSign extends ConsumerStatefulWidget {
@@ -30,7 +29,9 @@ class _PersonSignState extends ConsumerState<PersonSign>
   }
 
   void _tapped() {
-    if (_fade.isCompleted) ref.read(salaSessionProvider.notifier).teamTapped();
+    if (_fade.status.isForwardOrCompleted) {
+      ref.read(salaSessionProvider.notifier).teamTapped();
+    }
   }
 
   @override
@@ -47,34 +48,28 @@ class _PersonSignState extends ConsumerState<PersonSign>
       child: AnimatedBuilder(
         animation: _fade,
         builder: (context, sign) =>
-            IgnorePointer(ignoring: _fade.isDismissed, child: sign),
+            IgnorePointer(ignoring: !shown && _fade.isDismissed, child: sign),
         child: FadeTransition(
           opacity: _opacity,
-          child: Semantics(
-            button: shown,
-            label: shown
-                ? circleLabelFor('needsPerson', ref.watch(roomLanguageProvider))
-                : null,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _tapped,
-              child: ColoredBox(
-                color: colors.personSignWash,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const ShemaMark(size: 76, opacity: 0.8),
-                    const SizedBox(height: 26),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _Figure(colors.shemaMark),
-                        const SizedBox(width: 14),
-                        _Figure(colors.shemaMark),
-                      ],
-                    ),
-                  ],
-                ),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _tapped,
+            child: ColoredBox(
+              color: colors.personSignWash,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const ShemaMark(size: 76, opacity: 0.8),
+                  const SizedBox(height: 26),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _Figure(colors.shemaMark),
+                      const SizedBox(width: 14),
+                      _Figure(colors.shemaMark),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

@@ -145,8 +145,8 @@ void main() {
     });
   }
 
-  testWidgets('on the iPhone SE the first listen\'s line and its pause button '
-      'start below the check circle\'s ring, not on it', (tester) async {
+  testWidgets('on the iPhone SE the first listen draws no circle, and its line '
+      'stands above its pause button, not on it', (tester) async {
     tester.view
       ..physicalSize = _se
       ..devicePixelRatio = 1;
@@ -176,20 +176,27 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    final ring = _theRing(tester);
     expect(
-      tester
-          .getRect(
-            find.textContaining('ouvindo a gravação de vocês… — parte 1 · '),
-          )
-          .top,
-      greaterThanOrEqualTo(ring.bottom),
-      reason: 'a linha da escuta encostava no anel do círculo',
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.byType(FacilitatorCircle),
+      ),
+      findsNothing,
+      reason: 'o primeiro ouvir desenhava o círculo e o seu anel',
+    );
+    final linha = tester.getRect(
+      find.textContaining('ouvindo a gravação de vocês… — parte 1 · '),
+    );
+    final pausar = tester.getRect(byLabel(_tocarOuPausar));
+    expect(
+      pausar.top,
+      greaterThanOrEqualTo(linha.bottom),
+      reason: 'a linha da escuta encostava no botão de pausar',
     );
     expect(
-      tester.getRect(byLabel(_tocarOuPausar)).top,
-      greaterThanOrEqualTo(ring.bottom),
-      reason: 'o botão de pausar ficava dentro do anel do círculo',
+      pausar.bottom,
+      lessThanOrEqualTo(_se.height),
+      reason: 'o botão de pausar saía da tela do SE',
     );
     closeTheRoom(it.container);
   });
