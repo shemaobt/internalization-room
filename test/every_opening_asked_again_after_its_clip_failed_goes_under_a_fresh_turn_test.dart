@@ -26,7 +26,7 @@ void _expectAFreshTurnId(SalaHarness harness) {
 }
 
 void main() {
-  test('the Panorama\'s opening asked again from the Choice after its clip '
+  test('the Panorama\'s line asked again by «ouvir de novo» after its clip '
       'could not be fetched goes under a fresh turn id', () async {
     final harness = SalaHarness()..room.passages = const [_panorama, _p01];
     harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
@@ -42,6 +42,8 @@ void main() {
     );
     harness.voice.roomFailsWith = null;
     await enterThePanorama(notifier, read);
+    await waitFor('o Panorama descansar', () => read().canHearAgain);
+    await notifier.hearAgain();
     await settle();
 
     _expectAFreshTurnId(harness);

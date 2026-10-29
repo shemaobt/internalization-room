@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1972 (2026-10-28: the one body of the corner buttons is superseded; every way back is her bare chevron)
+status: accepted, amended by 0149, amended by ENG-1972 (2026-10-28: the one body of the corner buttons is superseded; every way back is her bare chevron)
 date: 2026-10-22
 amends: 0062
 ---

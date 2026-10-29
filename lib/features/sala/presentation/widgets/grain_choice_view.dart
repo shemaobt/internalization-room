@@ -146,8 +146,8 @@ class _GrainButton extends StatelessWidget {
   }
 }
 
-/// One of her `grain-change` controls: her text, dimmed while a switch is in the air or
-/// while its own arm has not woken yet.
+/// One of her `grain-change` controls: her text, dimmed and taking no tap while nothing
+/// may start on the home (`nothingStartsNow`) or while its own arm has not woken yet.
 class GrainChange extends StatelessWidget {
   final String label;
   final bool open;
@@ -171,7 +171,7 @@ class GrainChange extends StatelessWidget {
       child: Opacity(
         opacity: open ? 1 : 0.4,
         child: GestureDetector(
-          onTap: onTap,
+          onTap: open ? onTap : null,
           behavior: HitTestBehavior.opaque,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -226,7 +226,8 @@ GrainChange _armed(
   final mine = arm?.control == control;
   return GrainChange(
     label: mine ? armed : label,
-    open: !session.grainSwitching && !(mine && arm?.phase == BtRecomeco.armado),
+    open:
+        !session.nothingStartsNow && !(mine && arm?.phase == BtRecomeco.armado),
     onTap: onTap,
   );
 }
@@ -240,8 +241,7 @@ class GrainControls extends ConsumerWidget {
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
-    if (session.sceneRows.isEmpty) return const SizedBox.shrink();
-    final open = !session.grainSwitching;
+    final open = !session.nothingStartsNow;
     return Column(
       children: [
         if (!session.recordsTheWhole)
