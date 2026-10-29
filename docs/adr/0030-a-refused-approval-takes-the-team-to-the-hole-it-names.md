@@ -28,6 +28,15 @@ the check's door opens on a complete telling; a refusal that still comes back is
 and where it leaves the team is ENG-1852's. Wherever this record says *terminei* comes
 back, read that it comes back under that gate.
 
+Amended by ENG-2028 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4 wins): a refused
+approval no longer leaves the check before *terminei*. Hers writes the reason and returns to
+idle on the same tell step (`Drafting.tsx` `approve` :1607): the phase, *terminei*, the
+approve button, lit, and the approved badge stay as they were, and the next press asks the
+room again. Wherever this record or its amendments say a refusal leaves the team before
+*terminei*, read that the check stays where it was. At conferida the end of a last listening
+the press cut is given back, so *terminei* stands as it did before the press; at any other
+phase nothing is given back. The recording home's refusal is not changed here.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal

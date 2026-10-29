@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0107, 0108, 0125, 0152
+status: accepted, amended by 0107, 0108, 0125, 0152, ENG-2028
 date: 2026-10-20
 supersedes: 0050 (in part), 0073 (in part)
 amends: 0053, 0074, 0097
@@ -13,6 +13,9 @@ reach stand, and its empty look decides by this policy). It adds "superseded in 
 0093" to the status lines of 0050 and 0073 and "amended by 0093" to those of 0053, 0074 and
 0097, and edits none of their Decisions. Settled on the ticket (ENG-1355),
 19 and 20 October.
+
+Amended by ENG-2028 (2026-10-29): a refused approval on the Back-translation leaves the
+check where it stood, not as it stood before «terminei» (ADR 0030 as amended).
 
 ## Context
 
