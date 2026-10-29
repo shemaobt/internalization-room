@@ -2022,7 +2022,7 @@ void main() {
     },
   );
   testWidgets(
-    'a long list of the session\'s scene rehearsals scrolls in a third of the screen instead of pushing the step off it',
+    'a long list of the session\'s scene rehearsals takes its whole height in the page, not a third of the screen',
     (tester) async {
       await _onTheSceneScreen(
         tester,
@@ -2042,7 +2042,8 @@ void main() {
       );
       expect(
         tester.getSize(byLabel('ensaios da cena desta sessão')).height,
-        lessThanOrEqualTo(700 / 3),
+        greaterThan(700 / 3),
+        reason: 'a lista ficava presa num terço da tela e rolava sozinha',
       );
     },
   );
@@ -2964,4 +2965,286 @@ void main() {
       },
     );
   }
+
+  for (final (language, play, terminei, sending) in [
+    (
+      'pt',
+      'Tocar ou pausar a gravação',
+      'terminei',
+      'enviando a tradução do ensaio da cena para a voz…',
+    ),
+    (
+      'en',
+      'Play or pause your recording',
+      'done',
+      'sending the translation of the scene rehearsal to the voice…',
+    ),
+  ]) {
+    testWidgets(
+      '$language: while terminei is in the air the line beside play reads her sending words, not only the button',
+      (tester) async {
+        final (harness, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+        harness.room.holdNextTurn();
+
+        await tester.tap(byLabel(terminei));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).theSceneIsSending,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          _besidePlay(play, sending),
+          findsOneWidget,
+          reason:
+              'só o botão dizia que a tradução ia para a voz; a linha ao lado do play ficava calada',
+        );
+
+        harness.room.finishHeldTurn();
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+        );
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+  }
+
+  testWidgets(
+    'a terminei the room answered gives the line beside play back to the step\'s hint while her went-to-the-voice line shows, not «enviando…»',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      harness.room.holdNextTurn();
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).theSceneIsSending,
+      );
+
+      harness.room.finishHeldTurn();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.wentToTheVoice,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(container.read(salaSessionProvider).scene.wentToTheVoice, isTrue);
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', paused),
+        findsOneWidget,
+        reason:
+            'a tradução já tinha ido para a voz e a linha ao lado do play seguia dizendo «enviando…»',
+      );
+      expect(find.textContaining('enviando'), findsNothing);
+
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'a terminei the room refused gives the line beside play back to the step\'s hint, not «enviando…»',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      harness.room.holdSceneSends = true;
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(container.read(salaSessionProvider).theSceneIsSending, isTrue);
+
+      harness.room.heldSceneSends.single.complete(
+        Refused(RefusalCode.unnamed(422)),
+      );
+      await pumpUntil(
+        tester,
+        () => !container.read(salaSessionProvider).theSceneIsSending,
+      );
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(container.read(salaSessionProvider).sceneLine, SceneLine.notSent);
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', paused),
+        findsOneWidget,
+        reason:
+            'o envio recusado deixava a linha ao lado do play dizendo «enviando…»',
+      );
+      expect(find.textContaining('enviando'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a terminei tapped over the playing take writes her sending words with the clock where the take stopped',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending =
+          'enviando a tradução do ensaio da cena para a voz… — 0:07 / 0:10';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason: 'o envio apagava o relógio de onde o take tinha parado',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'a terminei after the take was heard to its end writes her sending words alone, not a clock at the end',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending = 'enviando a tradução do ensaio da cena para a voz…';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 10);
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason:
+            'o take ouvido até o fim mostrava o relógio no fim, que o dela não mostra',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'a terminei over a take told to its end, heard again and paused at 0:02, keeps her clock where it stopped, not the words alone',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 10000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending =
+          'enviando a tradução do ensaio da cena para a voz… — 0:02 / 0:10';
+      final play = byLabel('Tocar ou pausar a gravação');
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 2);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(container.read(salaSessionProvider).scene.moreToTell, isFalse);
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason:
+            'o take todo traduzido e parado em 0:02 perdia o relógio no envio; o dela só o tira com o take no fim',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 }
+
+Finder _besidePlay(String play, String words) => find.descendant(
+  of: find.ancestor(of: byLabel(play), matching: find.byType(Row)).first,
+  matching: find.text(words),
+);

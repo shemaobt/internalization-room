@@ -709,6 +709,65 @@ void main() {
   );
 
   testWidgets(
+    'an empty whole recording with no scene rehearsal of the session opens the '
+    'whole-passage home, not the plan',
+    (tester) async {
+      final (harness, _) = await _atRest(tester);
+      harness.room.grain = Grain.whole;
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'o ponto abria o plano vazio sobre a passagem inteira, onde o dela '
+            'abre a tela de gravar a passagem inteira',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
+      expect(harness.room.grainSwitches, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'an empty whole recording with only an unsent scene rehearsal of the session '
+    'still opens the plan',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [
+          SceneRehearsalRecord(
+            rehearsalId: '$session-ensaio-1',
+            sessionId: session,
+            n: 1,
+            scene: 'S1',
+            recordedAt: DateTime.utc(2026, 10, 22, 13, 7),
+            durationMs: 7000,
+            frases: const [
+              SceneFrase(fraseId: 'frase-0', startsMs: 0, endsMs: 3500),
+            ],
+            contentType: 'audio/wav',
+            verified: true,
+          ),
+        ],
+      );
+      harness.room.grain = Grain.whole;
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'um ensaio da cena ainda não enviado não contava como ensaio',
+      );
+      expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
     '10. over an approved draft the whole switch arms with «toquem de novo: isto '
     'abre de novo o rascunho aprovado» and goes up with the re-open',
     (tester) async {
@@ -870,7 +929,10 @@ void main() {
     'a join row of the earlier grain still in the Outbox is no scene\'s join on '
     'the plan over an empty whole recording',
     (tester) async {
-      final (harness, container) = await _atRest(tester);
+      final (harness, container) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+      );
       harness.room
         ..grain = Grain.whole
         ..unreachableTake = 'ensaio/${KeptScope.parte(1)}';
@@ -890,7 +952,42 @@ void main() {
       await _settles(tester);
 
       expect(find.text(_planLine), findsOneWidget);
-      expect(find.text(_missing), findsNWidgets(3));
+      expect(find.text(_missing), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'a join row of the earlier grain still in the Outbox does not hold the plan '
+    'over an empty whole recording with no scene rehearsal',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.room
+        ..grain = Grain.whole
+        ..unreachableTake = 'ensaio/${KeptScope.parte(1)}';
+      (harness.takes as FakeTakeQueue).rows.add(
+        PendingTake(
+          id: 'juntada-1',
+          path: '/nao/existe/parte-1.m4a',
+          sessionId: container.read(salaSessionProvider).sessionId!,
+          kind: 'ensaio',
+          scope: KeptScope.parte(1),
+          passNumber: 1,
+          origin: 'cena-1',
+        ),
+      );
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'a linha da junta do grão anterior deixava o plano vazio de pé sobre '
+            'a passagem inteira',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_whole), findsOneWidget);
     },
   );
 

@@ -222,7 +222,6 @@ Future<ProviderContainer> _voltaAUmaTraducao(
   return container;
 }
 
-const _conferida = '✓ traduzida e conferida';
 const _aprovar = 'Aprovar como rascunho final';
 
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
@@ -436,7 +435,6 @@ void main() {
       'conferida, until a new clean check', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _seteFrasesConferidas(tester, harness);
-    expect(find.text(_conferida), findsOneWidget);
 
     await tocar(tester, _barra(2));
     expect(
@@ -447,15 +445,14 @@ void main() {
     await _traduzirDeNovo(tester, container);
 
     expect(
-      find.text(_conferida),
-      findsNothing,
+      container.read(salaSessionProvider).btPhase,
+      isNot(BtPhase.conferida),
       reason: 'a tela seguia dizendo conferida com a frase 2 traduzida de novo',
     );
     expect(byLabel(_aprovar), findsNothing);
 
     await _terminei(tester, container, BtPhase.conferida);
 
-    expect(find.text(_conferida), findsOneWidget);
     expect(byLabel(_aprovar), findsOneWidget);
     closeTheRoom(container);
   });
@@ -466,13 +463,16 @@ void main() {
     final container = await _seteFrasesConferidas(tester, harness);
 
     await tocar(tester, _barra(5));
-    expect(find.text(_conferida), findsNothing);
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      isNot(BtPhase.conferida),
+    );
     await tocar(tester, 'manter a tradução de antes');
     await _passo(tester);
 
     expect(
-      find.text(_conferida),
-      findsOneWidget,
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
       reason: 'desistir de traduzir de novo tirava a tradução de conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);
@@ -1020,8 +1020,8 @@ void main() {
     await _passo(tester);
 
     expect(
-      find.text(_conferida),
-      findsOneWidget,
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
       reason: 'a segunda frase tocada apagava o caminho de volta à conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);

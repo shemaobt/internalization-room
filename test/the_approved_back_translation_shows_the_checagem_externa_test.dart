@@ -30,7 +30,8 @@ Future<void> _tocarNaChecagem(WidgetTester tester) async {
 
 void main() {
   testWidgets('after approval with two listeners, the Back-translation shows '
-      'both ticks, (v1), the listeners and «Checagem externa»', (tester) async {
+      'the (v1) badge, the listeners and «Checagem externa», never the '
+      'conferida line', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaConferida(
       tester,
@@ -38,7 +39,11 @@ void main() {
       approved: const ApprovedDraft(version: 1, listeners: 2),
     );
 
-    expect(find.text(_conferida), findsOneWidget);
+    expect(
+      find.text(_conferida),
+      findsNothing,
+      reason: 'a tela da checagem aprovada escrevia a linha que é só da casa',
+    );
     expect(find.text(_badge), findsOneWidget);
     expect(find.text('checagem externa: 2 ouvintes'), findsOneWidget);
     expect(byLabel(_checagem), findsOneWidget);
