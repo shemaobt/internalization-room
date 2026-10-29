@@ -14,8 +14,8 @@ sealed class MachineEvent {
 
 /// An event that answers work the machine asked for. [generation] is the generation the
 /// answer was stamped with: the one a flow captured, where it checked it just before; the
-/// current one everywhere else; and, for the Watch and the retry, the one at the moment
-/// they fire, so that both survive a generation move. Null is read as the current one.
+/// current one everywhere else; and, for the Watch, the one at the moment it fires, so
+/// that it survives a generation move. Null is read as the current one.
 sealed class AnsweringEvent extends MachineEvent {
   final int? generation;
 
@@ -1129,8 +1129,6 @@ final class Machine {
 
   String? get stationSession =>
       station is Panorama ? panorama?.session : session;
-
-  bool get somethingPending => parts.values.contains(PartFact.pending);
 
   Machine withTheOutboxOf(Machine before) => copyWith(
     parts: before.parts,

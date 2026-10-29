@@ -10,7 +10,7 @@ import 'the_translation_is_recorded_over_until_the_check_test.dart'
         entrarNaTraducao,
         gravarATraducao,
         ouvir,
-        ouvirNaGravacao,
+        ouvirUmTrechoContado,
         parte,
         pausar,
         tocar;
@@ -33,7 +33,7 @@ void main() {
 
       final sala = container.read(salaSessionProvider.notifier);
       sala.state = sala.state.copyWith(btOuvidoMs: 0);
-      await ouvirNaGravacao(tester, container, 0);
+      await ouvirUmTrechoContado(tester, container, 0);
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
       await tocar(tester, ouvir);
@@ -65,7 +65,7 @@ void main() {
 
       final sala = container.read(salaSessionProvider.notifier);
       sala.state = sala.state.copyWith(btOuvidoMs: 25000);
-      await ouvirNaGravacao(tester, container, 0);
+      await ouvirUmTrechoContado(tester, container, 0);
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
       await tocar(tester, ouvir);
