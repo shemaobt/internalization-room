@@ -18,7 +18,6 @@ const _reply = TurnResult(
   fixedLine: '',
   transcript: 'a equipe falou',
   peerCue: false,
-  usedFailSafe: false,
   degraded: false,
   coverage: null,
   done: false,

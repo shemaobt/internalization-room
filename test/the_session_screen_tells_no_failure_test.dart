@@ -99,9 +99,7 @@ void main() {
     'a turn answered with her fail-safe line says it and shows nothing more',
     (tester) async {
       final sala = await _atRestInTheConversation(tester);
-      sala.harness.room
-        ..turnsAreCanned = true
-        ..turnsAreDegraded = true;
+      sala.harness.room.turnsAreDegraded = true;
       final played = sala.harness.voice.played.length;
       final texts = find.byType(Text).evaluate().length;
 
