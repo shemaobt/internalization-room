@@ -3967,6 +3967,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btTrechos: _trechosFrom(told.segments),
           clearBringBackFailed: true,
         );
+        unawaited(_relatarASala(sessionId, const []));
       }
     }
   }

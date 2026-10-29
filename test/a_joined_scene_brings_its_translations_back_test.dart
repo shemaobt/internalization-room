@@ -510,6 +510,75 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a bring-back the room made whose answer was lost still asks the room what '
+    'is left, so a return out of its reach says the stretch it names now',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _inTheBackTranslation(tester);
+      final laid = [
+        for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
+      ];
+      it.room.segments
+        ..clear()
+        ..addAll(laid);
+      it.room.retroSoFar = BackTranslationProgress(
+        segments: laid,
+        bringBack: const [2],
+      );
+      it.notifier.goEnsaio();
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+      it.room
+        ..listeningUnheardTakeIds = const []
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = const [
+          UntranslatedPart(
+            takeId: 'gravacao-junta-2',
+            scene: 2,
+            from: Duration(milliseconds: 3000),
+          ),
+        ];
+      it.room.failBringBackWith = const NetworkFailed('a resposta se perdeu');
+
+      await it.tapThe(it.control(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      it.room.retroSoFar = BackTranslationProgress(segments: laid);
+      await it.tapThe(it.control(2, _bringBackArmed));
+      await it.settle();
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      expect(it.control(2, _bringBack), findsNothing);
+      it.room.reachable = false;
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await it.tapThe(byLabel(_conferir));
+      await it.until(
+        'a tradução abrir',
+        () => it.container.read(salaSessionProvider).stage == SalaStage.retro,
+      );
+      await it.settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', 'pt')],
+        reason:
+            'a cena que a sala trouxe de volta com a resposta perdida não '
+            'perguntava nada à sala, e a volta sem rede ficava calada sobre o '
+            'trecho que ela contava sem tradução',
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.container.read(salaSessionProvider).partes[1].path,
+      );
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
   testWidgets('two taps bring the rehearsal\'s translations back', (
     tester,
   ) async {
