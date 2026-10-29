@@ -421,6 +421,26 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the frase after a pausa is recorded her three controls '
+      'stay on the screen, dimmed, not gone', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, umaLacunaAos3);
+    await pausarAos(tester, harness, s(4.2));
+
+    await tocarOCirculo(tester);
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+    for (final controle in [antes, ouvirAPausa, depois]) {
+      expect(
+        aceso(tester, controle),
+        isFalse,
+        reason:
+            'a linha sumia enquanto a frase era gravada; a dela fica, desativada',
+      );
+    }
+    closeTheRoom(container);
+  });
+
   test('no label the team reads says corte, cortar or cut', () {
     final rotulos = <Map<String, String>>[
       ...circleLabels.values,
