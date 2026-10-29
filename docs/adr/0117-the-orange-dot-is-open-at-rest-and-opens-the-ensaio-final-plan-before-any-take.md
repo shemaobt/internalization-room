@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force)
+status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home)
 date: 2026-10-22
 amends: 0014
 ---
@@ -62,3 +62,13 @@ and a new recording of it went up at a pass already used.
   its rows. The plan over joined parts with a scene still left to join, as the Ensaio Final
   plan entry reads, arrives with ENG-1385; until then any take opens the recording home.
 - Golden images of the Conversation now show the faint dot at rest.
+
+## Amendment · 2026-10-29 (ENG-1828)
+
+Her frozen app is the rule (João, 2026-10-26). With no take hers opens the plan only when the
+session holds a scene rehearsal, sent or not, or when the draft's grain is not `whole`, the
+passage has scenes and no rehearsal sits elsewhere (`efScreen`, ensaioFinal.ts:79-80 at
+18fa7c4); an empty whole draft with no rehearsal of the session falls to the whole-passage
+record screen. «No take and known scenes keep the plan» changes: **with the whole passage in
+force, no take and no scene rehearsal of the session open the whole-passage home.** A scene
+rehearsal of the session, or no grain in force, still keeps the plan.
