@@ -372,6 +372,30 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a sentence is being recorded again another row\'s '
+      '«regravar» offers VoiceOver no tap that does nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      tester.getSemantics(_naLista('regravar a frase 1')),
+      isSemantics(
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: false,
+        hasTapAction: false,
+      ),
+      reason: 'o VoiceOver oferecia um toque que não fazia nada',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
   Future<void> regravarAte(
     WidgetTester tester,
     SalaHarness harness,
@@ -533,7 +557,7 @@ void main() {
       findsOneWidget,
       reason: 'a frase ia para a sala sem a equipe ver que estava indo',
     );
-    for (var n = 1; n <= 4; n++) {
+    for (final n in [1, 2, 4]) {
       expect(
         _naLista('regravar a frase $n'),
         findsNothing,
@@ -543,6 +567,44 @@ void main() {
     harness.room.holdTheSentence!.complete();
     await _passo(tester);
     closeTheRoom(container);
+  });
+
+  testWidgets('while its sentence is sent «regravar a frase N» stays on the '
+      'row, pressed, and takes no tap', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.holdTheSentence = Completer<void>();
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(naLinha('enviando…'), findsOneWidget);
+    expect(
+      _naLista('regravar a frase 3'),
+      findsOneWidget,
+      reason: 'o botão da frase sumia da linha enquanto ela ia para a sala',
+    );
+    expect(
+      tester.getSemantics(_naLista('regravar a frase 3')),
+      isSemantics(
+        isButton: true,
+        hasToggledState: true,
+        isToggled: true,
+        hasEnabledState: true,
+        isEnabled: false,
+        hasTapAction: false,
+      ),
+      reason:
+          'o VoiceOver não ouvia a frase apertada e desligada enquanto ela '
+          'era enviada',
+    );
+    harness.room.holdTheSentence!.complete();
+    await _passo(tester);
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   bool guardada(SalaHarness harness) =>
@@ -1855,6 +1917,33 @@ void main() {
     await _passo(tester);
     await _passo(tester);
     expect(naLinha('enviando…'), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('while the new part is fetched again no row offers «regravar», '
+      'not even the row it is fetched for', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(naLinha('enviando…'), findsOneWidget);
+    for (var n = 1; n <= 4; n++) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason:
+            'a frase $n oferecia regravar enquanto a parte nova era buscada '
+            'de novo',
+      );
+    }
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
     closeTheRoom(container);
   });
 
