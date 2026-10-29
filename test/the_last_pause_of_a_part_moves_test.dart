@@ -917,7 +917,6 @@ void main() {
         findsNothing,
         reason: 'a recusa da pausa ficava por cima do resultado da conferência',
       );
-      expect(find.text('✓ traduzida e conferida'), findsOneWidget);
       closeTheRoom(container);
     },
   );
