@@ -461,6 +461,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Map<String, int> _tamanhoDaParteMs;
   late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
+  late Map<String, Future<Envelope?>> _sceneLoudnessReads;
   late EscutaDasPartes _escuta;
   late int _desdeMs;
 
@@ -572,6 +573,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tamanhoDaParteMs = {};
     _partLoudnessReads = Future<void>.value();
     _envelopes = {};
+    _sceneLoudnessReads = {};
     _frases = _FraseKeep(_recorder.delete);
     _escuta = EscutaDasPartes();
     _desdeMs = 0;
@@ -1323,7 +1325,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// asked for its last one, under a turn id of its own: nothing is written, and a lost or
   /// slow answer is looked at once (ADR 0097).
   Future<void> _askTheRoomToSayItAgain() async {
-    final sessionId = state.sessionId;
+    final sessionId = state.stationSessionId;
     if (sessionId == null) return;
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
@@ -2260,7 +2262,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
       _arriveAt(ThePanoramaChosen(entry.pericope));
-      _handOff(_openedFromTheChoice(() => _entrarNoPanorama(entry.pericope)));
+      _handOff(
+        _openedFromTheChoice(() => _entrarNoPanoramaEscolhido(entry.pericope)),
+      );
       return;
     }
     _handOff(
@@ -2345,6 +2349,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       play: _voicePanorama,
       failed: failed,
     );
+  }
+
+  Future<void> _entrarNoPanoramaEscolhido(String id) async {
+    _dispatch(ThePanoramaAsked(id, _lingua));
+    _letGoOfTheCurrentSession();
+    final generation = _waitOnTheGeneration;
+    state = state.copyWith(awaitingTheGuide: true);
+    _watchBusyState();
+    final held = state.panoramaSessionId;
+    final sent = ++_readsSent;
+    final found = held == null
+        ? await _room.createSession(pericope: id, language: _lingua)
+        : await _room.fetchState(held);
+    if (_abandoned(generation)) return;
+    switch (found) {
+      case Answered(value: final session):
+        _applyTheSessionRead(session, sent);
+        _dispatch(
+          ThePanoramaFound(
+            session.sessionId,
+            opened: session.opened,
+            generation: generation,
+          ),
+        );
+      case final RoomFailure failure:
+        _decideTheFailure(failure);
+    }
   }
 
   /// Leave a passage part-way and go pick another one.
@@ -3498,9 +3529,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       unawaited(_lembrarDaFraseGuardada(sessionId));
     }
-    if (told.checked) return;
-    void toTheFloor() =>
-        unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
+    void toTheFloor() {
+      if (told.checked) {
+        final generation = _generation;
+        unawaited(
+          _medirAsPartes(state.partes, generation).then((_) {
+            if (_abandoned(generation)) return;
+            state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+          }),
+        );
+        return;
+      }
+      unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
+    }
 
     if (state.everyPartIsHere) return toTheFloor();
     _whenThePartsAreHere = toTheFloor;
@@ -3597,8 +3638,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _startListening('conversa_${_stamp()}');
       case TapDecision.stop:
         _handOff(_finishListening());
-      case TapDecision.cancel:
-        _dispatch(const MicDiscarded());
+      case TapDecision.ignore:
+        break;
     }
   }
 
@@ -5579,7 +5620,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _readTheLoudness(String take) async {
     if (state.sceneLoudness.any((loudness) => loudness.take == take)) return;
     final life = _thisLife;
-    final envelope = await ref.read(sceneEnvelopeReaderProvider)(take);
+    final reads = _sceneLoudnessReads;
+    final envelope = await reads.putIfAbsent(
+      take,
+      () => ref.read(sceneEnvelopeReaderProvider)(take).whenComplete(() {
+        reads.remove(take);
+      }),
+    );
     if (_endedSince(life) || state.scene.take != take) return;
     state = state.copyWith(
       sceneLoudness: [
@@ -6540,10 +6587,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       on: const {SceneStep.sent, SceneStep.translate},
     );
     if (frase == null) return;
-    final waiting = shown.asWaiting;
+    final asked = shown.step == SceneStep.sent
+        ? shown.copyWith()
+        : shown.asWaiting;
     _silenceTheRoom();
-    state = state.copyWith(scene: waiting);
-    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, waiting));
+    state = state.copyWith(scene: asked);
+    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
   }
 
   Future<void> _hearTheFrase(
@@ -9176,13 +9225,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (segurada != null) return segurada;
     final parte = _parteNoAr;
     if (parte == null) return null;
+    final ondeParou = state.btOuvidoMs - _inicioDaParteMs(_parteTocando);
+    final tamanho = _oTamanhoDa(parte)?.inMilliseconds ?? ondeParou;
     return Paused(
       PartSound(
         _parteTocando,
         parte.path,
-        from: Duration(
-          milliseconds: state.btOuvidoMs - _inicioDaParteMs(_parteTocando),
-        ),
+        from: Duration(milliseconds: max(0, min(ondeParou, tamanho))),
       ),
       started: false,
     );
@@ -11496,6 +11545,10 @@ class _NotifierHost implements StationHost {
         _notifier._handOff(_notifier._entrarNoPanorama(id, language));
       case ReturnToThePanorama():
         _notifier._returnToThePanorama();
+      case RestOnThePanorama():
+        _notifier._landWhereTheyStopped(done: false);
+        _notifier._returnToThePanorama();
+        _notifier._warmHerLines();
       case EnterThePassageLeft(:final left):
         _notifier._handOff(_notifier._enterThePassageLeft(left));
     }
