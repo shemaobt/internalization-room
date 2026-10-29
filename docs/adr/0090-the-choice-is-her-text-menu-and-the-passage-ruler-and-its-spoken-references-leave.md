@@ -1,10 +1,17 @@
 ---
-status: accepted
+status: accepted, amended by ENG-2034 (2026-10-29: the entry left is tinted in either language)
 date: 2026-10-16
 amends: 0014, 0061
 ---
 
 # The Choice is her text menu, and the passage ruler and its spoken references leave
+
+Amended by ENG-2034 (2026-10-29): the third bullet of the Decision. As in her app, the
+entry left is tinted whichever language the list is shown in, the Panorama included: her
+pill is current whenever it is the session's passage, and «PT» and «EN» only rename the
+pills. The tint and the way back now agree in both languages. A tap on the tinted pill in
+the other language still opens that passage in the Room language, as hers does; only the
+way back returns to the session left, in the language it was opened in.
 
 This amends ADRs 0014 and 0061 without editing their decisions; it adds a paragraph at the
 top of 0014 and "amended by 0090" to 0061's status line. The Definer settled it on
@@ -31,8 +38,10 @@ therefore decides: her menu ships. The teams learned the ruler, so this changes 
 - **The Reference comes from the room,** as the Meaning Map's heading writes it. The tablet
   renames only the book, from her own table, in the Room language (ADR 0077). A book she
   never named keeps the room's name.
-- **The entry left is tinted** when its Session language is the Room language, the Panorama
-  included. Nothing else is tinted, so nothing on the menu marks a passage as started.
+- **The entry left is tinted** whichever language the list is shown in, the Panorama
+  included (amended 29 October, ENG-2034; it used to be tinted only when its Session
+  language was the Room language). Nothing else is tinted, so nothing on the menu marks a
+  passage as started.
 - **One tap opens an entry.** There is no confirmation step and no «opening» state on the
   pill: the tap leaves the Choice at once.
 - **While no entry can be opened, the circle stands where the books were** and answers as it
