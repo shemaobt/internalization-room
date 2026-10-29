@@ -260,7 +260,9 @@ void main() {
 
   test('returning to the same Panorama in the same language reuses its '
       'session', () async {
-    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
+    final harness = SalaHarness()
+      ..room.passages = const [_panorama, _p01]
+      ..room.resumesTheLatest = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -278,7 +280,7 @@ void main() {
     notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
     await settle();
 
-    expect(harness.room.pericopesAsked, ['OV-Ruth', 'P01']);
+    expect(harness.room.pericopesAsked, ['OV-Ruth', 'P01', 'OV-Ruth']);
     final [panorama, passage] = harness.room.sessionIds;
     expect(
       harness.room.sessionsSpokenTo,

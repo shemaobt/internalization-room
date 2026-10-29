@@ -314,7 +314,7 @@ class EnsaioView extends ConsumerWidget {
       language: language,
       busy: session.homeBusy,
       offersToUse: (rehearsal) => offersToSwapIn(home, rehearsal),
-      noteOf: (rehearsal) => switch (session.swapLine) {
+      answerOf: (rehearsal) => switch (session.swapLine) {
         (:final rehearsalId, :final cannotEnter)
             when rehearsalId == rehearsal.rehearsalId =>
           said(cannotEnter ? 'cannotEnter' : 'joinRetry'),
@@ -323,6 +323,7 @@ class EnsaioView extends ConsumerWidget {
       useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
           ? retroLabelFor('reopenArmed', language)
           : said('useThis'),
+      armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
       onRecordAgain: notifier.rehearseThisSceneAgain,

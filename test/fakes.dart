@@ -1512,6 +1512,10 @@ class FakeRoom implements RoomRepository {
   /// the way another tablet or a lost row leaves it.
   bool createdOpened = false;
 
+  bool resumesTheLatest = false;
+
+  final Map<String, String> latestSessions = {};
+
   final List<String> turnIdsSent = [];
 
   /// Where each turn sent said the Guide was cut, one entry per turn: null for a turn
@@ -2453,8 +2457,14 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    final sessionId = nextSessionId ?? 'sessao-${sessionIds.length + 1}';
-    sessionIds.add(sessionId);
+    final key = '$pericope/$language';
+    final latest = resumesTheLatest ? latestSessions[key] : null;
+    final resumed = latest != null && !forgottenSessions.contains(latest);
+    final sessionId = resumed
+        ? latest
+        : nextSessionId ?? 'sessao-${sessionIds.length + 1}';
+    if (!resumed) sessionIds.add(sessionId);
+    if (resumesTheLatest) latestSessions[key] = sessionId;
     return Answered(
       SessionSnapshot(
         sessionId: sessionId,
@@ -2463,7 +2473,8 @@ class FakeRoom implements RoomRepository {
         coverage: nextCoverage,
         done: false,
         halt: serverHalt,
-        opened: createdOpened,
+        opened:
+            createdOpened || (resumed && openedSessions.contains(sessionId)),
         moment: nextMoment,
         backTranslation: retroSoFar ?? const BackTranslationProgress(),
         approved: approvedDraft,
@@ -2985,6 +2996,8 @@ class FakeRoom implements RoomRepository {
 
   /// Waits until the held scope's sendTake is the one actually blocking, not just asked.
   Future<void> untilTakeHeld() async => _reachedTakeHold?.future;
+
+  bool get takeHeld => _reachedTakeHold?.isCompleted ?? false;
 
   void finishHeldTake() {
     _holdingTake?.complete();
