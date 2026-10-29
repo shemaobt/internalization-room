@@ -267,14 +267,13 @@ class RetroView extends ConsumerWidget {
                 ),
               ),
             ],
-            if (avanca && session.btVeredito) ...[
+            if (!session.btSoOuvir) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
                 findingLabelFor('recordThePart', language),
                 colors,
-                session.btFindingTrecho != null &&
-                        session.btPhase == BtPhase.playing
-                    ? notifier.gravarAParteDeNovo
+                session.canGoBackToRecordAPart
+                    ? notifier.leaveTheBackTranslation
                     : null,
               ),
             ],

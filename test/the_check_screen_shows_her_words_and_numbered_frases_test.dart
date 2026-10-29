@@ -20,7 +20,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show contrastOf;
-import 'scenario_helpers.dart' show byLabel, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart'
+    show byLabel, linhaDoEnsaio, traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
@@ -344,6 +345,19 @@ Future<void> _traduzirAFraseApontadaDeNovo(
   await _passo(tester);
 }
 
+Future<void> _gravarDeNovoNaLinhaUm(WidgetTester tester) async {
+  final daLinhaUm = find.descendant(
+    of: linhaDoEnsaio(1),
+    matching: byLabel('Gravar de novo'),
+  );
+  await tester.ensureVisible(daLinhaUm);
+  await tester.tap(daLinhaUm);
+  await tester.pump(const Duration(milliseconds: 300));
+  for (final gesto in ['Parar', 'Enviar a gravação']) {
+    await tocar(tester, gesto);
+  }
+}
+
 Future<void> _aVozNoCanal(
   WidgetTester tester,
   ProviderContainer container,
@@ -365,13 +379,11 @@ Future<ProviderContainer> _aParteUmRegravada(
   ]);
   await tocar(tester, 'voltar e regravar uma parte');
   await waitFor(
-    'o ensaio abrir na parte 1',
+    'a casa abrir',
     () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
     step: () => _passo(tester),
   );
-  for (final gesto in ['Gravar de novo', 'Parar', 'Enviar a gravação']) {
-    await tocar(tester, gesto);
-  }
+  await _gravarDeNovoNaLinhaUm(tester);
   await waitFor(
     'a parte 1 regravada ficar no lugar',
     () => container
@@ -1850,13 +1862,11 @@ void main() {
 
     await tocar(tester, 'voltar e regravar uma parte');
     await waitFor(
-      'o ensaio abrir na parte 1',
+      'a casa abrir',
       () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
       step: () => _passo(tester),
     );
-    for (final gesto in ['Gravar de novo', 'Parar', 'Enviar a gravação']) {
-      await tocar(tester, gesto);
-    }
+    await _gravarDeNovoNaLinhaUm(tester);
     await waitFor(
       'a parte 1 regravada ficar no lugar',
       () => container
