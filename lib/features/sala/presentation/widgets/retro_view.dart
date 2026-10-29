@@ -483,6 +483,7 @@ class RetroView extends ConsumerWidget {
       BtAviso.pausaNaoFica => 'pauseCannotStandThere',
       BtAviso.checagemFalhou => 'externalCheckFailed',
       BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
+      BtAviso.tocarFalhou => 'checkFailed',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);
