@@ -10565,6 +10565,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
 
     final generation = _waitOnTheGeneration;
+    final pressedFrom = state.btPhase;
     state = state.copyWith(
       btPhase: BtPhase.thinking,
       awaitingTheGuide: true,
@@ -10587,15 +10588,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (failure case NetworkFailed()) {
           state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
           _decideAt(failure, door: Door.verdict);
+          state = state.copyWith(btPhase: pressedFrom);
           return;
         }
+        state = state.copyWith(btPhase: pressedFrom);
         _decideTheFailure(failure);
         return;
     }
     if (verdict.refusal
         case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
       state = state.copyWith(
-        btPhase: BtPhase.playing,
+        btPhase: pressedFrom,
         awaitingTheGuide: false,
         btRecusa: verdict.refusal,
       );
@@ -10638,7 +10641,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // `thinking` takes no tap and holds the finish button down — the team would be left
       // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
-        _leaveThinking();
+        state = state.copyWith(btPhase: pressedFrom);
         return _registerUnplayableTurn();
       }
 
