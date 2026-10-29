@@ -14,6 +14,10 @@ class ListenGlyphPainter extends CustomPainter {
     ..lineTo(8, 18)
     ..close();
 
+  static final _pause = Path()
+    ..addRRect(RRect.fromLTRBR(6, 5, 10, 19, const Radius.circular(1)))
+    ..addRRect(RRect.fromLTRBR(14, 5, 18, 19, const Radius.circular(1)));
+
   static final _stop = Path()
     ..addRRect(RRect.fromLTRBR(6, 6, 18, 18, const Radius.circular(2)));
 
@@ -21,15 +25,13 @@ class ListenGlyphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas
       ..save()
-      ..scale(size.width / 24, size.height / 24);
-    switch (glyph) {
-      case ListenGlyph.play:
-        canvas.drawPath(_play, Paint()..color = ink);
-      case ListenGlyph.stop:
-        canvas.drawPath(_stop, Paint()..color = ink);
-      case ListenGlyph.pause:
-    }
-    canvas.restore();
+      ..scale(size.width / 24, size.height / 24)
+      ..drawPath(switch (glyph) {
+        ListenGlyph.play => _play,
+        ListenGlyph.pause => _pause,
+        ListenGlyph.stop => _stop,
+      }, Paint()..color = ink)
+      ..restore();
   }
 
   @override
