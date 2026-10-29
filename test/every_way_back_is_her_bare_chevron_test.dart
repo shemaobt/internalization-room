@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,4 +219,22 @@ void main() {
       _isHerChevron(tester, _backToRecording, const Color(0xFF777D45));
     },
   );
+
+  test('no code under lib/ keeps the disc the ways back used to wear', () {
+    final keeping = [
+      for (final file
+          in Directory('lib')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart')))
+        if (file.readAsStringSync().contains('CornerDisc')) file.path,
+    ];
+
+    expect(
+      keeping,
+      isEmpty,
+      reason:
+          'every way back is her bare chevron; the disc has no one to wear it',
+    );
+  });
 }
