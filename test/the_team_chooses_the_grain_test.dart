@@ -503,6 +503,29 @@ void main() {
   );
 
   testWidgets(
+    'with a grain only in memory, a listing that fails shows the choice, not '
+    'that grain\'s home',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'a listagem que falhou abria a casa do grão lembrado, e o dela, sem '
+            'o rascunho lido, mostra a escolha',
+      );
+      expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
     '6. after a join, «gravar a passagem inteira de uma vez» arms with her text '
     'and a second tap 2 s later calls the grain door; the parts are no longer '
     'shown',
