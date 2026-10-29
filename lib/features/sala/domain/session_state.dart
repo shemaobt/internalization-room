@@ -553,6 +553,8 @@ class SalaSessionState {
   /// new translation of that frase is kept.
   final Map<String, String> sceneTranslationsUnseen;
 
+  final Set<String> sceneFrasesHeld;
+
   /// The loudness of a scene take, once it was read off the UI thread; null for a take
   /// with none to read.
   final List<({String take, Envelope? envelope})> sceneLoudness;
@@ -719,6 +721,7 @@ class SalaSessionState {
     this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
+    this.sceneFrasesHeld = const {},
     this.sceneLoudness = const [],
     this.partLoudness = const {},
     this.scenes = const ScenesAwaited(),
@@ -1143,6 +1146,9 @@ class SalaSessionState {
   /// on the scene screen.
   bool get sceneTranslationUnseen =>
       sceneTranslationsUnseen.containsKey(scene.rehearsal?.rehearsalId);
+
+  bool get sceneFraseHeld =>
+      sceneFrasesHeld.contains(scene.rehearsal?.rehearsalId);
 
   bool get theSceneIsSending =>
       sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
@@ -1645,8 +1651,8 @@ class SalaSessionState {
   bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
-  /// Warning mark, or under the button while the approval is still open: only while nothing
-  /// of this session waits in the Outbox (ADR 0106, 0150).
+  /// Warning mark, with its listeners and the Checagem externa: only while nothing of this
+  /// session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
           btPhase == BtPhase.conferida &&
@@ -1678,6 +1684,26 @@ class SalaSessionState {
   /// Whether an approval may still be won over what the room holds: no approved version,
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).
   bool get approvalStillOpen => btRascunhoAprovado?.forced ?? true;
+
+  ApprovedDraft? get approvedOnTheTell =>
+      stage == SalaStage.retro &&
+          !btSoOuvir &&
+          nothingWaitsInTheOutbox &&
+          btFraseGuardada == null
+      ? btRascunhoAprovado
+      : null;
+
+  bool get approveOnTheCheck =>
+      stage == SalaStage.retro &&
+      !btSoOuvir &&
+      (btChecked || btPhase == BtPhase.conferida) &&
+      (approvedOnTheTell == null || approvalStillOpen);
+
+  bool get approveActsOnTheCheck =>
+      approveOnTheCheck &&
+      canApprove &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! GuideSpeaking;
 
   /// Whether the recording home offers the approval: the room calls the passage checked
   /// and the approval is still open, and nothing is being recorded or sent.
@@ -1856,6 +1882,7 @@ class SalaSessionState {
     ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
+    Set<String>? sceneFrasesHeld,
     List<({String take, Envelope? envelope})>? sceneLoudness,
     Map<String, ({Duration length, Envelope? envelope})>? partLoudness,
     SceneList? scenes,
@@ -2006,6 +2033,7 @@ class SalaSessionState {
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
       sceneTranslationsUnseen:
           sceneTranslationsUnseen ?? this.sceneTranslationsUnseen,
+      sceneFrasesHeld: sceneFrasesHeld ?? this.sceneFrasesHeld,
       sceneLoudness: sceneLoudness ?? this.sceneLoudness,
       partLoudness: partLoudness ?? this.partLoudness,
       scenes: scenes ?? this.scenes,
