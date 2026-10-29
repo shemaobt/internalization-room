@@ -13,7 +13,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart' show SalaHarness, closeTheRoom, waitFor;
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, voiceOverTap;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show contarAteOFimDaParte, entrarNaTraducao;
 import 'the_team_re_records_one_whole_sentence_test.dart'
@@ -121,6 +121,41 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(_aceso(tester), isTrue);
     closeTheRoom(container);
+  });
+
+  testWidgets('a VoiceOver double-tap on «voltar e regravar uma parte» goes '
+      'back to the home, and the resting button offers no tap', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _contadaEConferida(
+      tester,
+      harness,
+      BtPhase.conferida,
+    );
+
+    harness.voice.holdNextLine();
+    await tester.tap(_naTraducao('ouvir a resposta de novo'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      tester.getSemantics(_naTraducao(_voltar)),
+      isSemantics(hasTapAction: false),
+      reason: 'com a resposta soando o botão apagado ainda aceitava o toque',
+    );
+    harness.voice.finishHeldLine();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    voiceOverTap(tester, _voltar);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.ensaio,
+      reason:
+          'o VoiceOver anunciava o botão e o toque duplo não voltava para a '
+          'casa',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   test('a fixed line of the room leaves «voltar e regravar uma parte» live, '
