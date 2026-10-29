@@ -258,7 +258,7 @@ class _FraseTile extends StatelessWidget {
     final tom = row.traduzindoDeNovo
         ? colors.telha
         : azul
-        ? ShemaBrand.azul
+        ? colors.azul
         : mark == null
         ? colors.cord
         : colors.telha;
@@ -273,7 +273,7 @@ class _FraseTile extends StatelessWidget {
             color: row.regravando
                 ? colors.telha
                 : azul
-                ? ShemaBrand.azul
+                ? colors.azul
                 : row.traduzindoDeNovo
                 ? colors.telha
                 : mark == null
@@ -336,13 +336,13 @@ class _FraseTile extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: azul ? ShemaBrand.azul : colors.telha,
+                              color: azul ? colors.azul : colors.telha,
                             ),
                           ),
                           child: Text(
                             mark,
                             style: TextStyle(
-                              color: azul ? ShemaBrand.azul : colors.telha,
+                              color: azul ? colors.azul : colors.telha,
                               fontSize: 14,
                             ),
                           ),
