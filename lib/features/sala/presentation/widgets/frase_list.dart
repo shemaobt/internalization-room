@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../domain/bt_finding.dart';
 import '../../domain/facilitator_script.dart';
 import 'bead_styles.dart';
+import 'dashed_edge.dart';
 import 'listen_glyph.dart';
 
 class FraseRow {
@@ -15,6 +16,8 @@ class FraseRow {
   final VoidCallback? onRetell;
   final String? mark;
   final BtFindingKind? achado;
+  final bool aguardando;
+  final bool regravada;
   final bool traduzindoDeNovo;
   final bool regravando;
   final String? regravar;
@@ -33,6 +36,8 @@ class FraseRow {
     this.onRetell,
     this.mark,
     this.achado,
+    this.aguardando = false,
+    this.regravada = false,
     this.traduzindoDeNovo = false,
     this.regravando = false,
     this.regravar,
@@ -266,27 +271,31 @@ class _FraseTile extends StatelessWidget {
         : azul
         ? colors.azul
         : mark == null
-        ? colors.cord
+        ? colors.verdeClaro.withValues(alpha: .85)
+        : colors.telha;
+    final borda = row.regravando
+        ? colors.telha
+        : azul
+        ? colors.azul
+        : row.traduzindoDeNovo
+        ? colors.telha
+        : mark == null || row.regravada && row.achado == null
+        ? colors.areia
         : colors.telha;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 460),
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         decoration: BoxDecoration(
-          color: colors.card,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color.fromRGBO(236, 234, 220, .05)
+              : const Color.fromRGBO(255, 255, 255, .4),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: row.regravando
-                ? colors.telha
-                : azul
-                ? colors.azul
-                : row.traduzindoDeNovo
-                ? colors.telha
-                : mark == null
-                ? colors.line
-                : colors.telha,
-          ),
+          border: row.regravada ? null : Border.all(color: borda),
         ),
+        foregroundDecoration: row.regravada
+            ? DashedEdge(color: borda, radius: 16)
+            : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -296,15 +305,26 @@ class _FraseTile extends StatelessWidget {
               child: n == null
                   ? null
                   : DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.mut,
-                      ),
+                      decoration: row.regravada
+                          ? DashedEdge(color: colors.areia, radius: 14)
+                          : BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: row.aguardando
+                                  ? colors.telha
+                                  : colors.areia,
+                            ),
                       child: Center(
                         child: Text(
                           '$n',
                           style: TextStyle(
-                            color: colors.paper,
+                            color: row.regravada
+                                ? colors.verdeClaro
+                                : !row.aguardando
+                                ? colors.ink
+                                : Theme.of(context).brightness ==
+                                      Brightness.dark
+                                ? const Color(0xFF1E1B15)
+                                : ShemaBrand.branco,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -321,7 +341,13 @@ class _FraseTile extends StatelessWidget {
                     height: 28,
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _Bar(share: row.share, fill: tom),
+                      child: _Bar(
+                        share: row.share,
+                        fill: tom,
+                        listras: row.regravada && row.achado == null
+                            ? colors.areia.withValues(alpha: .9)
+                            : null,
+                      ),
                     ),
                   ),
                   Wrap(
@@ -331,9 +357,17 @@ class _FraseTile extends StatelessWidget {
                       if (parte != null)
                         Text(
                           '${retroLabelFor('part', language)} $parte',
-                          style: TextStyle(color: colors.mut, fontSize: 14),
+                          style: TextStyle(
+                            color: colors.verdeClaro,
+                            fontSize: 14,
+                          ),
                         ),
-                      if (mark != null)
+                      if (mark != null && row.regravada)
+                        Text(
+                          mark,
+                          style: TextStyle(color: colors.telha, fontSize: 14),
+                        )
+                      else if (mark != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -375,28 +409,50 @@ class _FraseTile extends StatelessWidget {
 class _Bar extends StatelessWidget {
   final double share;
   final Color fill;
+  final Color? listras;
 
-  const _Bar({required this.share, required this.fill});
+  const _Bar({required this.share, required this.fill, this.listras});
 
   @override
   Widget build(BuildContext context) {
-    final colors = SalaColors.of(context);
+    final listras = this.listras;
     return Container(
       height: 10,
       decoration: BoxDecoration(
-        color: colors.line,
+        color: const Color.fromRGBO(199, 194, 159, .28),
         borderRadius: BorderRadius.circular(5),
       ),
       alignment: Alignment.centerLeft,
       child: FractionallySizedBox(
         widthFactor: share,
         child: Container(
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
-            color: fill,
+            color: listras == null ? fill : null,
             borderRadius: BorderRadius.circular(5),
           ),
+          child: listras == null
+              ? null
+              : CustomPaint(painter: _Listras(listras), size: Size.infinite),
         ),
       ),
     );
   }
+}
+
+class _Listras extends CustomPainter {
+  final Color color;
+
+  const _Listras(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ink = Paint()..color = color;
+    for (var at = 0.0; at < size.width; at += 6) {
+      canvas.drawRect(Rect.fromLTWH(at, 0, 3, size.height), ink);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Listras oldDelegate) => oldDelegate.color != color;
 }

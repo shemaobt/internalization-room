@@ -344,6 +344,8 @@ class RetroView extends ConsumerWidget {
           ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
           : null,
       mark: retroLabelFor('stale', language),
+      achado: _achadoNoTrecho(trecho.segmentId, session),
+      regravada: true,
     );
     FraseRow atual(int onde, Trecho trecho, int n) => FraseRow(
       n: n,
@@ -373,6 +375,7 @@ class RetroView extends ConsumerWidget {
               final kind => retroLabelFor(kind.name, language),
             },
       achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
+      aguardando: aguarda(trecho),
       traduzindoDeNovo:
           trecho.segmentId != null &&
           trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
@@ -604,6 +607,14 @@ class RetroView extends ConsumerWidget {
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida && !session.needsPerson;
+
+  BtFindingKind? _achadoNoTrecho(String? segmentId, SalaSessionState session) {
+    if (segmentId == null) return null;
+    for (final finding in session.btFindings) {
+      if (finding.segmentId == segmentId) return finding.kind;
+    }
+    return null;
+  }
 
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;

@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/dashed_edge.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
@@ -404,8 +405,10 @@ Future<ProviderContainer> _aParteUmRegravada(
 
 Future<ProviderContainer> _comUmaFraseRegravada(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  int fresca = 2,
+  List<BtFinding> achados = const [],
+}) async {
   harness.room.takes.add(
     const TakeView(
       takeId: 'gravacao-velha-1',
@@ -417,26 +420,7 @@ Future<ProviderContainer> _comUmaFraseRegravada(
   final container = await _voltaATraducao(
     tester,
     harness,
-    const BackTranslationProgress(
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-3',
-          takeId: 'gravacao-2',
-          startsMs: 0,
-          endsMs: 6000,
-          frase: 2,
-        ),
-      ],
-      stale: [
-        SegmentView(
-          segmentId: 'trecho-1',
-          takeId: 'gravacao-velha-1',
-          startsMs: 0,
-          endsMs: 4000,
-          frase: 1,
-        ),
-      ],
-    ),
+    _umaParteRegravada(fresca: fresca, regravada: 1, achados: achados),
   );
   await waitFor(
     'a frase regravada achar a sua parte',
@@ -523,6 +507,32 @@ Future<ProviderContainer> _relidaPelaSala(
   );
   await _passo(tester);
   return container;
+}
+
+List<Rect> _tracos(
+  WidgetTester tester,
+  Finder onde,
+  Color cor, {
+  Symbol como = #drawPath,
+}) {
+  final tracos = <Rect>[];
+  expect(
+    tester.renderObject(onde),
+    paints..everything((metodo, argumentos) {
+      if (metodo != como) return true;
+      final tinta = (argumentos.last as Paint).color.toARGB32();
+      if (tinta & 0xFFFFFF == cor.toARGB32() & 0xFFFFFF &&
+          ((tinta >> 24) - (cor.toARGB32() >> 24)).abs() <= 1) {
+        tracos.add(switch (argumentos[0]) {
+          final Path path => path.getBounds(),
+          final Rect rect => rect,
+          _ => Rect.zero,
+        });
+      }
+      return true;
+    }),
+  );
+  return tracos;
 }
 
 Finder _oCartao(Finder dentro) => find.ancestor(
@@ -2886,4 +2896,217 @@ void main() {
       },
     );
   }
+
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets('in the ${look.name} look a «regravada» card is edged in '
+        'dashed sand, not a solid terracotta line', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final cartao = _oCartao(find.text('regravada — traduzam de novo')).first;
+
+      expect(
+        (tester.widget<Container>(cartao).decoration as BoxDecoration).border,
+        isNull,
+        reason: 'o cartão regravado tinha a borda cheia em telha',
+      );
+      expect(
+        (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+            ?.color,
+        areia,
+        reason: 'a borda tracejada dela é de areia',
+      );
+      final emCima =
+          _tracos(
+              tester,
+              cartao,
+              areia,
+            ).where((traco) => traco.bottom < 1).toList()
+            ..sort((um, outro) => um.left.compareTo(outro.left));
+      expect(emCima.length, greaterThan(1));
+      expect(
+        emCima[1].left - emCima[0].right,
+        greaterThanOrEqualTo(2),
+        reason: 'a borda era uma linha só, não tracejada',
+      );
+      closeTheRoom(container);
+    });
+  }
+
+  for (final (look, areia, verdeClaro) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    testWidgets('in the ${look.name} look a «regravada» frase numbers itself '
+        'in a hollow dashed ring, not on a filled disc', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final cartao = _oCartao(find.text('regravada — traduzam de novo')).first;
+      final numero = find.descendant(of: cartao, matching: find.text('1'));
+      final disco = tester.widget<DecoratedBox>(
+        find.ancestor(of: numero, matching: find.byType(DecoratedBox)).first,
+      );
+
+      expect(
+        disco.decoration,
+        isA<DashedEdge>().having((anel) => anel.color, 'color', areia),
+        reason: 'o disco regravado era cheio, não o anel tracejado de areia',
+      );
+      expect(
+        tester.widget<Text>(numero).style?.color,
+        verdeClaro,
+        reason: 'no anel vazio o número dela é verde-claro',
+      );
+      closeTheRoom(container);
+    });
+  }
+
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets('in the ${look.name} look a «regravada» bar is striped in '
+        'sand, not filled terracotta', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final barra = find
+          .descendant(
+            of: _oCartao(find.text('regravada — traduzam de novo')).first,
+            matching: find.byType(FractionallySizedBox),
+          )
+          .first;
+
+      expect(
+        _tracos(
+          tester,
+          barra,
+          areia.withValues(alpha: .9),
+          como: #drawRect,
+        ).take(2),
+        [const Rect.fromLTWH(0, 0, 3, 10), const Rect.fromLTWH(6, 0, 3, 10)],
+        reason: 'a barra regravada enchia de telha, não das listras de areia',
+      );
+      closeTheRoom(container);
+    });
+  }
+
+  for (final (look, telha) in [
+    (Brightness.light, const Color(0xFFBE4A01)),
+    (Brightness.dark, const Color(0xFFD6612A)),
+  ]) {
+    testWidgets('in the ${look.name} look «regravada — traduzam de novo» is '
+        'written in terracotta, not boxed in a terracotta pill', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final palavra = find.text('regravada — traduzam de novo');
+
+      expect(tester.widget<Text>(palavra).style?.color, telha);
+      expect(
+        (tester
+                    .widget<Container>(
+                      find
+                          .ancestor(
+                            of: palavra,
+                            matching: find.byType(Container),
+                          )
+                          .first,
+                    )
+                    .decoration
+                as BoxDecoration?)
+            ?.borderRadius,
+        BorderRadius.circular(16),
+        reason: 'a palavra regravada vinha numa pílula com borda telha',
+      );
+      closeTheRoom(container);
+    });
+  }
+
+  for (final (look, azul, telha) in [
+    (Brightness.light, const Color(0xFF89AAA3), const Color(0xFFBE4A01)),
+    (Brightness.dark, const Color(0xFF8FB1A9), const Color(0xFFD6612A)),
+  ]) {
+    for (final (kind, cor) in [
+      (BtFindingKind.unclear, azul),
+      (BtFindingKind.addition, telha),
+    ]) {
+      testWidgets('in the ${look.name} look a «regravada» frase the last '
+          'check found ${kind.name} keeps its finding colour, dashed', (
+        tester,
+      ) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _comUmaFraseRegravada(
+          tester,
+          harness,
+          achados: [BtFinding(kind: kind, frase: 1, segmentId: 'trecho-1')],
+        );
+        final palavra = find.text('regravada — traduzam de novo');
+        final cartao = _oCartao(palavra).first;
+        final barra = find
+            .descendant(
+              of: find
+                  .descendant(
+                    of: cartao,
+                    matching: find.byType(FractionallySizedBox),
+                  )
+                  .first,
+              matching: find.byType(Container),
+            )
+            .first;
+
+        expect(
+          (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+              ?.color,
+          cor,
+          reason:
+              'a frase regravada perdia a classe do achado, e a borda ficava '
+              'de areia',
+        );
+        expect(
+          (tester.widget<Container>(barra).decoration as BoxDecoration).color,
+          cor,
+          reason: 'a barra do achado virava listras de areia',
+        );
+        expect(tester.widget<Text>(palavra).style?.color, telha);
+        closeTheRoom(container);
+      });
+    }
+  }
+
+  testWidgets('a finding on the fresh frase that took the stale one\'s number '
+      'leaves the «regravada» card in sand', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _comUmaFraseRegravada(
+      tester,
+      harness,
+      fresca: 1,
+      achados: const [
+        BtFinding(kind: BtFindingKind.unclear, frase: 1, segmentId: 'trecho-3'),
+      ],
+    );
+    final cartao = _oCartao(find.text('regravada — traduzam de novo')).first;
+
+    expect(
+      (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+          ?.color,
+      const Color(0xFFC5C29F),
+      reason:
+          'o número da frase muda quando a parte é regravada; achar o achado '
+          'pelo número pintava a regravada com o achado da frase nova',
+    );
+    closeTheRoom(container);
+  });
 }
