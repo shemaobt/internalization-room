@@ -1651,8 +1651,8 @@ class SalaSessionState {
   bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
-  /// Warning mark, or under the button while the approval is still open: only while nothing
-  /// of this session waits in the Outbox (ADR 0106, 0150).
+  /// Warning mark, with its listeners and the Checagem externa: only while nothing of this
+  /// session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
           btPhase == BtPhase.conferida &&
@@ -1684,6 +1684,26 @@ class SalaSessionState {
   /// Whether an approval may still be won over what the room holds: no approved version,
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).
   bool get approvalStillOpen => btRascunhoAprovado?.forced ?? true;
+
+  ApprovedDraft? get approvedOnTheTell =>
+      stage == SalaStage.retro &&
+          !btSoOuvir &&
+          nothingWaitsInTheOutbox &&
+          btFraseGuardada == null
+      ? btRascunhoAprovado
+      : null;
+
+  bool get approveOnTheCheck =>
+      stage == SalaStage.retro &&
+      !btSoOuvir &&
+      (btChecked || btPhase == BtPhase.conferida) &&
+      (approvedOnTheTell == null || approvalStillOpen);
+
+  bool get approveActsOnTheCheck =>
+      approveOnTheCheck &&
+      canApprove &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! GuideSpeaking;
 
   /// Whether the recording home offers the approval: the room calls the passage checked
   /// and the approval is still open, and nothing is being recorded or sent.

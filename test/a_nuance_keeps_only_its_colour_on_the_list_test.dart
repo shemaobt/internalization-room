@@ -191,9 +191,8 @@ void main() {
   });
 
   testWidgets(
-    'a refused approval that sends the team back to the telling keeps '
-    'the nuance\'s colour, and «regravar» stands on every frase as outside '
-    'any conferida',
+    'a refused approval keeps the check as it was: the nuance\'s colour, '
+    'and «regravar» only on the frase the verdict named',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _quatroFrasesComUmaNuance(
@@ -205,20 +204,28 @@ void main() {
 
       await tocar(tester, 'Aprovar como rascunho final');
       await waitFor(
-        'a recusa devolver a equipe à tradução',
-        () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
+        'a recusa chegar',
+        () => container.read(salaSessionProvider).btRecusa != null,
         step: () => _passo(tester),
       );
       await _passo(tester);
 
+      expect(
+        container.read(salaSessionProvider).btPhase,
+        BtPhase.conferida,
+        reason:
+            'a recusa devolvia a tradução para antes do terminei; a dela só '
+            'escreve o motivo',
+      );
       expect(_borda(tester, 4), ShemaBrand.azul);
-      for (var n = 1; n <= 4; n++) {
+      expect(byLabel('regravar a frase 4'), findsOneWidget);
+      for (final outra in [1, 2, 3]) {
         expect(
-          byLabel('regravar a frase $n'),
-          findsOneWidget,
+          byLabel('regravar a frase $outra'),
+          findsNothing,
           reason:
-              'fora da tradução conferida regravar a frase segue a regra de '
-              'todas as frases',
+              'a recusa tirava a tradução da conferida e o regravar aparecia '
+              'em todas as frases',
         );
       }
       closeTheRoom(container);
