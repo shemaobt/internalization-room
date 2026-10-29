@@ -6081,7 +6081,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_theListFirst(_playTheSceneRehearsal)) return;
     if (translatingAgain != null && pausa != null) {
       _silenceTheRoom();
-      _play(PartSound(0, take, from: pausa));
+      if (!playing) _play(PartSound(0, take, from: pausa));
       return;
     }
     _theRefusalLineGoes();

@@ -450,6 +450,27 @@ void main() {
     );
 
     testWidgets(
+      'play while the last frase plays on the move only pauses it, and the move and its line stay',
+      (tester) async {
+        final screen = await _theLastBarTapped(tester);
+        final plays = screen.playback.playedFrom.length;
+
+        await screen.tap(_playPause);
+
+        expect(
+          screen.playback.sounding,
+          isFalse,
+          reason: 'o play tocava de novo em vez de só pausar',
+        );
+        expect(screen.playback.playedFrom, hasLength(plays));
+        expect(screen.state.scene.pausa, _s(9.0));
+        expect(screen.shows(_earlier), isTrue);
+        expect(screen.shows(_lastFraseLine(2)), isTrue);
+        expect(screen.shows(_keepTheEarlier), isTrue);
+      },
+    );
+
+    testWidgets(
       'a moved pause waiting to be sent again cannot be moved or heard, and the circle sends it at its end',
       (tester) async {
         final screen = await _theLastBarTapped(tester);
