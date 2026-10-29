@@ -82,7 +82,7 @@ class SceneTranslateStep extends ConsumerWidget {
         SceneSub(said('subTranslate')),
         const SizedBox(height: 12),
         _PlayRow(
-          mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
+          mood: idle ? ButtonMood.lit : ButtonMood.dimmed,
           take: take,
           label: said('playPause'),
           hint: (at) => _hintOf(playing: playing, at: at),

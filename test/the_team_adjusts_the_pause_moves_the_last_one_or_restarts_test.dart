@@ -752,4 +752,23 @@ void main() {
       expect(screen.shows(_restart), isFalse);
     });
   });
+
+  group('before the team listens', () {
+    testWidgets(
+      'play is lit and plays the take from where the translation stopped, not only «traduzir»',
+      (tester) async {
+        final screen = await _onScreen(tester, rehearsal: _twoFrases);
+
+        expect(
+          screen.lit(_playPause),
+          isTrue,
+          reason: 'o play ficava apagado até «traduzir o ensaio da cena»',
+        );
+        await screen.tap(_playPause);
+
+        expect(screen.state.channel, isA<PartPlaying>());
+        expect(screen.playback.playedFrom.last, _s(9.0));
+      },
+    );
+  });
 }
