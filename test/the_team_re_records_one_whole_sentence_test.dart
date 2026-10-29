@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -20,6 +21,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
@@ -123,6 +125,7 @@ Future<ProviderContainer> _voltaATraducao(
   SalaHarness harness, {
   String? aguardando,
   List<SegmentView> regravadas = const [],
+  Grain? grao,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -144,8 +147,10 @@ Future<ProviderContainer> _voltaATraducao(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: partes,
+    grain: grao,
   );
   harness.room
+    ..grain = grao
     ..segments.addAll(_daSala)
     ..takes.addAll([
       for (final n in [1, 2])
@@ -824,6 +829,82 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a relaunch with a frase awaiting and another take unheard plays '
+      'the listen first, not the frase', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const ['gravacao-1'];
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.voice.fixedLines,
+      [('P0', 'pt')],
+      reason:
+          'a retomada abria a frase que espera sem ouvir a parte que '
+          'ninguém ouviu',
+    );
+    final aqui = container.read(salaSessionProvider);
+    expect(harness.playback.played, [aqui.partes[0].path]);
+    expect(aqui.btSoOuvir, isTrue);
+    expect(aqui.btTrechoTraduzidoDeNovo, isNull);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a relaunch where only the awaiting frase\'s take is unheard '
+      'says the frase awaits and plays the sentence with what surrounds it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const ['gravacao-2'];
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(harness.voice.fixedLines, [('N5', 'pt')]);
+    expect(
+      harness.playback.ranges.last,
+      '0-5500',
+      reason:
+          'a retomada tocava só a frase, sem o que vem em volta, e a sala '
+          'não a contava como ouvida',
+    );
+    final aqui = container.read(salaSessionProvider);
+    expect(aqui.btSoOuvir, isFalse);
+    expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-3');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a relaunch with a frase awaiting and no part of the rehearsal '
+      'on the tablet says nothing, not a frase it cannot open', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const [];
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+      grao: Grain.whole,
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(container.read(salaSessionProvider).partes, isEmpty);
+    expect(
+      harness.voice.fixedLines,
+      isEmpty,
+      reason: 'a voz pedia a frase que espera sem nada para abrir',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('picking a telling back up with every part heard and nothing '
       'awaiting plays nothing and says nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -1160,6 +1241,75 @@ void main() {
       0,
       reason: 'a gravação que a equipe largou voltava como frase guardada',
     );
+    closeTheRoom(container);
+  });
+
+  Finder oGlifo(IconData glifo) =>
+      find.descendant(of: _naLista('Ouvir — 3'), matching: find.byIcon(glifo));
+
+  bool apertado(WidgetTester tester) => isSemantics(
+    hasToggledState: true,
+    isToggled: true,
+  ).matches(tester.getSemantics(_naLista('Ouvir — 3')), {});
+
+  testWidgets('the sentence just recorded shows a stop and is pressed while '
+      'it plays, still named «Ouvir — N»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(apertado(tester), isFalse);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(
+      oGlifo(LucideIcons.square),
+      findsOneWidget,
+      reason: 'o botão desenhava o play com a frase tocando',
+    );
+    expect(
+      apertado(tester),
+      isTrue,
+      reason: 'o VoiceOver não sabia que a frase estava tocando',
+    );
+    expect(oGlifo(LucideIcons.play), findsNothing);
+
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(apertado(tester), isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap on the sentence while it plays stops it, and the next '
+      'tap plays it from the start instead of going on', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final gravada = harness.recorder.lastPath;
+    await tocar(tester, 'Ouvir — 3');
+    final tocadas = harness.playback.played.length;
+    final paradas = harness.playback.stops;
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(
+      harness.playback.played.length,
+      tocadas,
+      reason: 'o segundo toque recomeçava a frase em vez de parar',
+    );
+    expect(harness.playback.stops, greaterThan(paradas));
+    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(apertado(tester), isFalse);
+
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(harness.playback.played.length, tocadas + 1);
+    expect(harness.playback.played.last, gravada);
+    expect(harness.playback.playedFrom.last, Duration.zero);
+    expect(oGlifo(LucideIcons.square), findsOneWidget);
     closeTheRoom(container);
   });
 

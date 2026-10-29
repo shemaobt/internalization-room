@@ -42,8 +42,14 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
 - Every resume onto an approved draft lands first the same way, whichever row it comes from: a
   row on the Back-translation with files missing reads the Session read first, and when it says
   approved the draft lands at once over the room's parts; a listing that fails there goes back
-  to the Choice with the row untouched, as before. A Back-translation resume that is not
-  an approved draft, and the refusal re-read, still fetch every part before they land.
+  to the Choice with the row untouched, as before.
+- A Back-translation resume that is not an approved draft lands the same way (ENG-1788): as soon
+  as the takes list answers, its frases drawn from the Session read, each dimmed and silent over a
+  part on its way and lit as that part lands. Nothing plays and the circle stays dark until every
+  part is here; the last part landing starts the uncounted floor. A part the room lost, or one
+  that could not be fetched, holds the floor for the visit with its frases dark: the team is
+  never sent to record it again from the Back-translation, and leaves by the menu. The refusal
+  re-read still fetches every part before it lands.
 - An approved draft the room reads after a Rehearsal landing lands at once (ADR 0106); the parts
   on their way keep coming down behind it in the same order, and a frase over a part not yet
   here stays silent and dimmed until that part lands; a tap on the frase of a part that could not
@@ -60,10 +66,12 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
   point written meanwhile would forget it.
 - Darken «Gravar de novo» on a part on its way. Rejected: the rule holds back play, send and
   join only, and on a silent server the team could never record that scene again.
-- Let a Back-translation resume land first too. Rejected for now: the Back-translation plays a
-  part on landing, and landing before its bytes needs its own rule.
+- Let a Back-translation resume land first too. Rejected at first because it plays a part on
+  landing; accepted by ENG-1788 with the floor held until every part is here.
+- Play what the tablet holds and step over the parts on their way. Rejected: it rewrites the
+  ruler.
 
 ## Consequences
 
 - A fetch failure on a Rehearsal resume no longer sends the team to the Choice.
-- A Back-translation resume still waits for its parts, up to the long timeout per part.
+- A Back-translation resume no longer waits for its parts; only the refusal re-read does.

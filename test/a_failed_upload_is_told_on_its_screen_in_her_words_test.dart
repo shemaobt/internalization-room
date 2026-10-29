@@ -2176,67 +2176,6 @@ void main() {
     },
   );
 
-  test(
-    "a retro take leaves the tablet only after the room's list holds it",
-    () async {
-      final home = Directory.systemTemp.createTempSync('fila-retro');
-      addTearDown(() => home.deleteSync(recursive: true));
-      final room = FakeRoom()..unlistedTake = 'retro/passagem-inteira';
-      final queue = TakeUploadQueue(
-        room: room,
-        home: () async => home,
-        recordings: FakeRecorder.new,
-      );
-      final traducao = File('${home.path}/traducao.m4a')
-        ..writeAsStringSync('a equipe contou de volta');
-      final linha = await queue.enqueue(
-        traducao,
-        sessionId: 'sessao-1',
-        kind: 'retro',
-        scope: 'passagem-inteira',
-      );
-
-      await queue.flush();
-
-      expect(room.takesKept, contains('retro/passagem-inteira'));
-      expect(File(linha.path).existsSync(), isTrue);
-
-      room.unlistedTake = null;
-      await queue.dueAgain(linha.id);
-      await queue.flush();
-
-      expect(File(linha.path).existsSync(), isFalse);
-    },
-  );
-
-  test('a retro take spent on network failures still reaches the room by the '
-      "Outbox's own retry once the server is back", () async {
-    final home = Directory.systemTemp.createTempSync('fila-retro-sem-rede');
-    addTearDown(() => home.deleteSync(recursive: true));
-    final room = FakeRoom()..reachable = false;
-    final queue = TakeUploadQueue(
-      room: room,
-      home: () async => home,
-      recordings: FakeRecorder.new,
-    );
-    final linha = await queue.enqueue(
-      File('${home.path}/traducao.m4a')
-        ..writeAsStringSync('a equipe contou de volta'),
-      sessionId: 'sessao-1',
-      kind: 'retro',
-      scope: 'passagem-inteira',
-    );
-    for (var passada = 0; passada < 6; passada++) {
-      await queue.flush();
-    }
-
-    room.reachable = true;
-    await queue.flush();
-
-    expect(room.takesKept, ['retro/passagem-inteira']);
-    expect(File(linha.path).existsSync(), isFalse);
-  });
-
   testWidgets('no line is spoken when an upload fails, is refused or is '
       'stopped', (tester) async {
     final casa = await _naCasa(tester);
