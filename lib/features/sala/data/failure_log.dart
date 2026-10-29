@@ -58,4 +58,7 @@ String _whatFailed(TabletFailure failure) => switch (failure) {
   TheTabletCannotRecord() => 'o tablet não grava',
   TheDiskFailed() => 'o disco falhou',
   TheBuildCannotReachTheRoom() => 'o build não alcança a sala',
+  TheStretchHasNoPartYet() =>
+    'o trecho é de uma parte que a sala ainda não nomeou',
+  TheStretchCannotBeRead() => 'a gravação do trecho não pôde ser lida',
 };
