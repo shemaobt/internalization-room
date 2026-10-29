@@ -326,7 +326,10 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear: quieta && session.canHearAFrase && trecho.retroPath != null
+      onHear:
+          quieta &&
+              session.canHearAFrase &&
+              (trecho.retroPath ?? trecho.bridgeTakeId) != null
           ? () => notifier.ouvirAFraseRegravada(onde)
           : null,
       onRetell:

@@ -20,6 +20,7 @@ class SegmentView {
   /// a stretch waiting to be told from one already told.
   final bool told;
   final int? frase;
+  final String? bridgeTakeId;
 
   const SegmentView({
     required this.segmentId,
@@ -28,6 +29,7 @@ class SegmentView {
     required this.endsMs,
     this.told = true,
     this.frase,
+    this.bridgeTakeId,
   });
 
   static List<SegmentView> listFrom(Map<String, dynamic> json) =>
@@ -52,6 +54,7 @@ class SegmentView {
     endsMs: json['ends_ms'] as int? ?? 0,
     told: json['told'] as bool? ?? true,
     frase: json['frase'] as int?,
+    bridgeTakeId: json['bridge_take_id'] as String?,
   );
 }
 
