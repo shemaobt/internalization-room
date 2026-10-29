@@ -15,6 +15,7 @@ import 'scenario_helpers.dart' show byLabel;
 const _translate = 'traduzir o ensaio da cena';
 const _tell = 'Toque para traduzir esta frase do ensaio da cena';
 const _keepTheEarlier = 'manter a tradução de antes';
+const _restart = 'recomeçar a tradução';
 const _pauseRow = ['um pouco antes', 'ouvir a pausa', 'um pouco depois'];
 
 String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
@@ -193,6 +194,56 @@ void main() {
           reason:
               'com uma frase guardada para enviar de novo, «$words» ficava '
               'aceso e o toque não fazia nada',
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'the circle is drawn out while the screen waits, while «terminei» is in the air and under the person sign',
+    (tester) async {
+      final (_, container) = await _theLastFraseTranslatedAgain(tester);
+      expect(_lit(tester, _tell), isTrue);
+
+      for (final refusal in [
+        _Refusal.waiting,
+        _Refusal.sending,
+        _Refusal.person,
+      ]) {
+        await _under(
+          tester,
+          container,
+          refusal,
+          () => expect(
+            _lit(tester, _tell),
+            isFalse,
+            reason:
+                'com ${refusal.name}, o círculo ficava aceso e o toque não '
+                'fazia nada',
+          ),
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    '«recomeçar a tradução» is drawn out while the screen waits, while «terminei» is in the air, with the microphone open and under the person sign',
+    (tester) async {
+      final (_, container) = await _theLastFraseTranslatedAgain(tester);
+      expect(_lit(tester, _restart), isTrue);
+
+      for (final refusal in _Refusal.values) {
+        await _under(
+          tester,
+          container,
+          refusal,
+          () => expect(
+            _lit(tester, _restart),
+            isFalse,
+            reason:
+                'com ${refusal.name}, o recomeçar ficava aceso e o toque não '
+                'fazia nada',
+          ),
         );
       }
     },

@@ -135,7 +135,7 @@ class SceneTranslateStep extends ConsumerWidget {
               ? ButtonMood.beckoning
               : scene.waiting
               ? ButtonMood.waiting
-              : sending
+              : sending || person
               ? ButtonMood.dimmed
               : ButtonMood.lit,
           label: said('tell'),
@@ -185,7 +185,7 @@ class SceneTranslateStep extends ConsumerWidget {
           SceneRestartControl(
             armed: restart,
             n: scene.rehearsal?.translatedFrases ?? 0,
-            live: idle,
+            live: idle && !person,
             language: language,
           ),
         ],
