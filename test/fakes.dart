@@ -2839,7 +2839,7 @@ class FakeRoom implements RoomRepository {
           '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
         );
         replacesComArquivo.add(audio.path);
-        _tellAgain(segmentId, to);
+        _tellAgain(segmentId, to, takeId: takeId, from: from);
       };
       return later;
     }
@@ -2856,7 +2856,7 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    _tellAgain(segmentId, to);
+    _tellAgain(segmentId, to, takeId: takeId, from: from);
     final told = Answered(
       TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
@@ -2871,9 +2871,41 @@ class FakeRoom implements RoomRepository {
 
   Answered<TellingAgain>? _answerLost;
 
-  void _tellAgain(String segmentId, Duration to) {
+  void _tellAgain(
+    String segmentId,
+    Duration to, {
+    required String takeId,
+    required Duration from,
+  }) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
+    final lida = retroSoFar;
+    final regravada = (lida?.stale ?? const <SegmentView>[]).any(
+      (one) => one.segmentId == segmentId,
+    );
+    if (lida != null && antes == null && regravada) {
+      final sucessora = SegmentView(
+        segmentId: '$segmentId-v${++_versoes}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+        told: true,
+      );
+      segments.add(sucessora);
+      _retired.add(segmentId);
+      retroSoFar = BackTranslationProgress(
+        segments: [...lida.segments, sucessora],
+        checked: lida.checked,
+        findingSegmentId: lida.findingSegmentId,
+        findings: lida.findings,
+        awaitingSegmentId: lida.awaitingSegmentId,
+        stale: [
+          for (final one in lida.stale)
+            if (one.segmentId != segmentId) one,
+        ],
+        bringBack: lida.bringBack,
+      );
+    }
     if (antes != null) {
       // The explanation was redone over a recording that did not move, so the stretch
       // keeps its take and its slice and is told again.

@@ -6,7 +6,7 @@ amends: 0131 (the red microphone's take state)
 
 # The red microphone writes her instruction and her hint, with the take's clock
 
-This amends ADR 0131 without editing its decision; it adds "amended by 0149" to its status
+This amends ADR 0131 without editing its decision; it adds "amended by 0155" to its status
 line. João's rule of 26 October settles it: Marcia's app at 18fa7c4 wins over our ADRs and
 tickets (ENG-1834).
 
