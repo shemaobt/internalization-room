@@ -412,6 +412,62 @@ void main() {
   );
 
   testWidgets(
+    'a frase told on a recording this tablet does not hold draws its band to the moved pause on the ruler of its place',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+      final antigas = [...harness.room.segments];
+      harness.room
+        ..failReplaceWith = const Refused('PAUSE_CANNOT_STAND_THERE')
+        ..segments.clear()
+        ..segments.addAll([
+          for (final one in antigas)
+            SegmentView(
+              segmentId: one.segmentId,
+              takeId: 'gravacao-9',
+              startsMs: one.startsMs + 1000,
+              endsMs: one.endsMs + 1000,
+              frase: one.frase,
+            ),
+        ]);
+      await tocar(tester, 'ouvindo a gravação de vocês…');
+      await tocar(tester, 'Tocar ao terminar');
+      await waitFor(
+        'as frases voltarem na gravação que este aparelho não tem',
+        () =>
+            container.read(salaSessionProvider).btTrechoTraduzidoDeNovo ==
+                null &&
+            container
+                .read(salaSessionProvider)
+                .btTrechos
+                .every((trecho) => trecho.takeId == 'gravacao-9'),
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      harness.room.failReplaceWith = null;
+      await tocar(tester, _barra(2));
+
+      await tocar(tester, depois);
+
+      final movida = container.read(salaSessionProvider).btCorte;
+      expect(movida, greaterThan(s(7.2)));
+      expect(
+        _bandas(tester).single.last,
+        (3200, movida.inMilliseconds - 1000),
+        reason:
+            'a faixa ia até a pausa na régua do arquivo, um segundo além do lugar da frase',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     '«manter a tradução de antes» drops the pause the team moved, and the bar after it starts from the old end',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)

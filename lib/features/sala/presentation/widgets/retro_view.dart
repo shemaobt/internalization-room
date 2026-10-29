@@ -727,7 +727,7 @@ class RetroView extends ConsumerWidget {
   Duration? _aPausaQueAnda(SalaSessionState session, Trecho trecho) =>
       switch (session.btTrechoTraduzidoDeNovo?.segmentId) {
         final contadaDeNovo? when contadaDeNovo == trecho.segmentId =>
-          session.btCorte,
+          trecho.lugarFrom + session.btCorte - trecho.from,
         _ => null,
       };
 
