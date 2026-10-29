@@ -184,7 +184,7 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
             const HearAgainButton(),
             const ClaqueteLayer(),
             const LeavePassageButton(),
-            const BackToPassageButton(),
+            if (!session.sceneRehearsalIsOpen) const BackToPassageButton(),
             const LanguageAndLook(),
             const PersonSign(),
             const DevSkipBar(),

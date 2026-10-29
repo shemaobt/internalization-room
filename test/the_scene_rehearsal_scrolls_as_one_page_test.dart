@@ -10,7 +10,10 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/back_to_passage_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
 import 'a_scene_room.dart' show articulation, pumpUntil;
 import 'a_wav_take.dart';
@@ -261,5 +264,42 @@ void main() {
         );
       },
     );
+  }
+
+  for (final shown in [_steps[0], _steps[2], _steps[4]]) {
+    testWidgets('on the iPhone SE the way back leaves with the page on the '
+        '${shown.name} step, so no line scrolls under it', (tester) async {
+      await _onTheStep(
+        tester,
+        screen: _se.size,
+        bar: _se.bar,
+        step: shown.step,
+      );
+      tester
+          .state<ScrollableState>(_inTheScreen(_vertical))
+          .position
+          .jumpTo(200);
+      await tester.pump(const Duration(milliseconds: 100));
+      final wayBack = tester.getRect(find.byType(BackToPassageButton));
+      final covered = [
+        for (final type in [Text, RoundActionButton, SceneStrip])
+          for (final element in _inTheScreen(find.byType(type)).evaluate())
+            if (tester
+                .getRect(find.byElementPredicate((e) => e == element))
+                .overlaps(wayBack))
+              type,
+      ];
+
+      expect(
+        wayBack.top,
+        closeTo(_se.bar + _se.size.height * 0.05 - 2 - 200, 0.01),
+        reason: 'a volta ficava parada no canto enquanto a página rolava',
+      );
+      expect(
+        covered,
+        isEmpty,
+        reason: 'o círculo e as linhas passavam por baixo da volta',
+      );
+    });
   }
 }
