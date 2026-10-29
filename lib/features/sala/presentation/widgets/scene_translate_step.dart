@@ -105,6 +105,7 @@ class SceneTranslateStep extends ConsumerWidget {
             ],
             pausa: scene.pausa,
             playing: channel is PartPlaying,
+            stoppedAt: stoppedAt,
           ),
           if (adjusts) ...[
             const SizedBox(height: 12),
@@ -469,6 +470,7 @@ class SceneListenMode extends ConsumerWidget {
             frases: frases,
             pausa: null,
             playing: channel is PartPlaying,
+            stoppedAt: stoppedAt,
           ),
           const SizedBox(height: 16),
           if (frases.isNotEmpty) ...[

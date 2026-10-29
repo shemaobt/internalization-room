@@ -84,6 +84,19 @@ Future<(SalaHarness, ProviderContainer)> _onTheSceneScreen(
   return (harness, container);
 }
 
+double? _playhead(WidgetTester tester) =>
+    (tester
+                .widget<CustomPaint>(
+                  find.descendant(
+                    of: find.byType(SceneStrip),
+                    matching: find.byType(CustomPaint),
+                  ),
+                )
+                .painter!
+            as SceneStripPainter)
+        .drawing
+        .playhead;
+
 void _titled(WidgetTester tester, String title) {
   expect(find.text(title), findsOneWidget, reason: 'o título não está escrito');
   expect(byLabel(title), findsOneWidget);
@@ -950,6 +963,34 @@ void main() {
         findsOneWidget,
         reason:
             'a tradução da equipe tocada sobre a escuta não dizia onde o take parou',
+      );
+    },
+  );
+
+  testWidgets(
+    'a sent scene rehearsal stopped mid-take keeps the strip\'s playhead where the take stopped, and draws none before it plays',
+    (tester) async {
+      final (harness, container) = await _inListenMode(tester);
+      final play = byLabel('Tocar ou pausar a gravação');
+
+      expect(_playhead(tester), isNull);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _playhead(tester),
+        closeTo(204.4, 0.01),
+        reason: 'o take parado apagava o marcador da faixa',
       );
     },
   );
