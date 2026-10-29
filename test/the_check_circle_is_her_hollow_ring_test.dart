@@ -234,7 +234,7 @@ void main() {
         ripples(),
         hasLength(1),
         reason:
-            'o r2 dela espera 1,5 s em opacidade 0 (globals.css:376,382); o '
+            'o r2 dela espera 1,5 s em opacidade 0 (globals.css:378,382); o '
             'nosso já nascia junto com o r1, no meio do caminho',
       );
       final (born, side) = ripples().first;

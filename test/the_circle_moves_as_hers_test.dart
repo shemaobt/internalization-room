@@ -131,7 +131,7 @@ void main() {
         [closeTo(1.035, 1e-6), closeTo(1.035, 1e-6)],
         reason:
             'o glifo dela mora dentro do .target (page.tsx:1026-1036) e '
-            'respira com ele até 1.035 (globals.css:192,197,230); em $name '
+            'respira com ele até 1.035 (globals.css:192,195,230); em $name '
             'o nosso alto-falante ficava parado enquanto o anel respirava',
       );
     }
@@ -149,7 +149,7 @@ void main() {
       [closeTo(1, 1e-6), closeTo(1, 1e-6)],
       reason:
           'com um recado no convite o .target dela tem animation:none '
-          '(globals.css:166): a mão e o anel ficam parados',
+          '(globals.css:168): a mão e o anel ficam parados',
     );
   });
 
@@ -170,7 +170,7 @@ void main() {
       ],
       everyElement(closeTo(1.035, 1e-3)),
       reason:
-          'o done dela usa a mesma animação invite (globals.css:197,230) e o '
+          'o done dela usa a mesma animação invite (globals.css:192,230) e o '
           'navegador segue no mesmo ponto; o nosso anel do fim renascia em 1 '
           'enquanto o do convite ainda respirava ao lado',
     );
