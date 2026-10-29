@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -428,17 +429,20 @@ void main() {
       () async {
         final cena = await _prontoParaTerminei();
         final gravacao = _estado(cena).partes.first.takeId!;
-        cena.harness.room.verdictUnheardTakeIds = [gravacao];
+        cena.harness.room
+          ..verdictRefusal = CheckRefusal.partUnheard
+          ..verdictFixedLine = 'P2'
+          ..verdictUnheardTakeIds = [gravacao];
         return cena;
       },
       (cena) async {
         await cena.sala.finishBackTranslation();
         await waitFor(
-          'a parte entrar no ar',
-          () => _estado(cena).btClipRodando,
+          'a P2 ser dita',
+          () => cena.harness.voice.fixedLines.contains(('P2', testLanguage)),
         );
       },
-      somProprio: 'playback:play',
+      somProprio: 'voice:fixed',
     ),
     _linha(
       'o trecho não contado',
