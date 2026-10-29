@@ -3968,6 +3968,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btTrechos: _trechosFrom(told.segments),
           clearBringBackFailed: true,
         );
+        unawaited(_relatarASala(sessionId, const []));
       }
     }
   }
@@ -4013,6 +4014,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           btTrechos: _trechosFrom(segmentos),
           toBringBack: [...state.toBringBack]..remove(cena),
         );
+        unawaited(_relatarASala(sessionId, const []));
       case final SessionGone gone:
         _decideAt(gone, door: Door.stretches);
       case final RoomFailure failure:
@@ -9446,6 +9448,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final segmentos):
         _clearAll();
         _theTellingStartsOver(_trechosFrom(segmentos));
+        unawaited(_relatarASala(sessionId, const []));
         state = state.copyWith(btRecomecada: true, btChecked: false);
         _dispatch(const TheTranslationStartedOver());
 
@@ -9711,6 +9714,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       path: path,
       needsPerson: told.needsPerson,
     );
+    unawaited(_relatarASala(sessionId, const []));
   }
 
   void _theCorrectionFailed(RoomFailure failure) {
@@ -10184,6 +10188,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_abandoned(generation)) return;
       }
     }
+    unawaited(_relatarASala(sessionId, const []));
     final trechos = _trechosFrom(segments);
     state = state.copyWith(
       clearBtRegravacao: true,

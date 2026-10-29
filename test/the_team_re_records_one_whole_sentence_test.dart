@@ -1197,6 +1197,38 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a sentence laid in asks the room what is left, so a return out '
+      'of its reach plays the sentence with what surrounds it, as the room '
+      'counts it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    final nova = 'gravacao-${harness.room.takeIds.length + 1}';
+    harness.room.listeningUnheardTakeIds = [nova];
+
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    expect(harness.room.takes.last.takeId, nova);
+    harness.room.reachable = false;
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    harness.voice.fixedLines.clear();
+
+    await deVoltaDoEnsaio(tester, container);
+
+    expect(harness.voice.fixedLines, [('N5', 'pt')]);
+    expect(
+      harness.playback.ranges.last,
+      '2500-8700',
+      reason:
+          'a frase regravada não perguntava nada à sala, e a volta sem rede '
+          'abria só a frase, sem o que vem em volta',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('the new sentence played in its place counts as heard on the '
       'new take, and the check is told so', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
