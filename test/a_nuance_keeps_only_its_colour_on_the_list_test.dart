@@ -236,7 +236,7 @@ void main() {
     final sessao = container.read(salaSessionProvider).sessionId;
 
     expect(
-      find.text('✓ traduzida e conferida'),
+      byLabel('Aprovar como rascunho final'),
       findsOneWidget,
       reason: 'uma nuance segurava a passagem como se fosse um achado',
     );
