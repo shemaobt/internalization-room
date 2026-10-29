@@ -3910,9 +3910,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final SessionGone gone:
         _decideAt(gone, door: Door.stretches);
       case final RoomFailure failure:
-        final cannotEnter =
-            failure is Refused &&
-            failure.code == RefusalCode.nothingToBringBack;
+        final cannotEnter = switch (failure) {
+          Refused(code: RefusalCode.nothingToBringBack) => true,
+          _ => false,
+        };
         state = state.copyWith(
           bringBackFailed: (cena: cena, cannotEnter: cannotEnter),
         );
