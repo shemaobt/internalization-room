@@ -2802,6 +2802,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           unawaited(_countUnsent());
         } else {
           _keepTheStretchesAlreadyTold(snapshot.backTranslation);
+          unawaited(_relatarASala(sessionId, const []));
         }
         // The snapshot was fetched here and its halt never read, so a team reopening
         // into a room the server had already stopped met every gesture wide open.
@@ -10304,6 +10305,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (sent) {
       case Answered(:final value):
         if (_abandoned(generation)) return;
+        unawaited(_relatarASala(sessionId, const []));
         frase = value.frase;
         nome = value.segmentId;
       case Refused(code: RefusalCode.stretchNoLongerCounts) && final refused:
