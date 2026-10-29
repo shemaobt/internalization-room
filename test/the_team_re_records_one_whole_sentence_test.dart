@@ -16,7 +16,6 @@ import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
@@ -25,7 +24,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
@@ -1965,16 +1964,12 @@ void main() {
     expect(naLinha('usar esta'), findsOneWidget);
 
     expect(
-      tester
-          .widget<RoundActionButton>(
-            find.ancestor(
-              of: byLabel(aprovar),
-              matching: find.byType(RoundActionButton),
-            ),
-          )
-          .mood,
-      ButtonMood.dimmed,
+      tester.widget<Semantics>(byLabel(aprovar)).properties.enabled,
+      isFalse,
     );
+    await pressTheApproval(tester, aprovar);
+    await _passo(tester);
+    expect(harness.room.releasesAsked, isEmpty);
     await container.read(salaSessionProvider.notifier).aprovarRascunhoFinal();
     await _passo(tester);
     expect(harness.room.releasesAsked, isEmpty);
