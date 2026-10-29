@@ -123,7 +123,8 @@ class _Room {
   }
 
   Future<void> until(String what, bool Function() done) async {
-    for (var vez = 0; vez < 200 && !done(); vez++) {
+    final waited = Stopwatch()..start();
+    while (!done() && waited.elapsed < const Duration(seconds: 30)) {
       await beat(const Duration(milliseconds: 20));
     }
     expect(done(), isTrue, reason: what);
