@@ -421,6 +421,11 @@ class _Room {
   }
 
   Future<void> relaunchOnTheConversation() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+    var stopped = false;
+    unawaited(harness.takes.writingEnds().then((_) => stopped = true));
+    await until('a vida antiga parar de escrever', () => stopped);
     late SalaHarness again;
     late ProviderContainer next;
     await tester.runAsync(() async {
@@ -429,7 +434,6 @@ class _Room {
     });
     harness = again;
     container = next;
-    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       UncontrolledProviderScope(container: next, child: const SalaApp()),
     );
