@@ -638,7 +638,7 @@ class _ListedRow extends StatelessWidget {
       fontSize: 0.8 * _rem,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 0.15 * _rem),
       child: Semantics(
         button: true,
         enabled: live,

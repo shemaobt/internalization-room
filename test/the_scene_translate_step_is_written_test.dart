@@ -1791,6 +1791,41 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'two listed scene rehearsals stand her .3rem apart, not 6 points',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-15T14:20:00+00:00',
+            frases: [_frase('f1', 0, 3000)],
+          ),
+          _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+        ],
+        until: (state) => state.scene.rehearsal?.n == 2,
+      );
+
+      expect(
+        tester
+                .getRect(
+                  byLabel(
+                    'Ensaio da cena 2, 1 · frases traduzidas, não enviado',
+                  ),
+                )
+                .top -
+            tester
+                .getRect(
+                  byLabel(
+                    'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado',
+                  ),
+                )
+                .bottom,
+        closeTo(4.8, 1e-9),
+        reason: 'as linhas da lista ficavam a 6 pontos; as dela a .3rem',
+      );
+    },
+  );
   testWidgets('two frases told stand her .3rem apart, not 6 points', (
     tester,
   ) async {
