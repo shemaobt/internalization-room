@@ -1177,6 +1177,27 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    testWidgets('a VoiceOver double-tap on «$_pronto» leaves the saved screen '
+        'for the conversation, as a finger does', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+
+      voiceOverTap(tester, _pronto);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        it.container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'o VoiceOver anunciava o «Pronto» e o toque duplo deixava a '
+            'equipe na tela salva',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
     testWidgets('back by the dot after «$_pronto», the home shows its approved '
         'badge and «Checagem externa»', (tester) async {
       final it = await aCasaConferida(tester);
