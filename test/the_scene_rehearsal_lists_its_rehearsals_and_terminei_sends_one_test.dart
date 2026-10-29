@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -13,6 +14,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_translate_step.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -655,6 +657,101 @@ void main() {
       room.harness.playback.playedFrom.last,
       Duration.zero,
       reason: 'o play depois do fim tocava do fim e calava na hora',
+    );
+  });
+
+  test('«gravar de novo» in listen mode while another row opens leaves the '
+      'row to open, not a record step', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    room.harness.playback.holdNextMeasurement();
+    room.sala.openTheListedSceneRehearsal('ensaio-da-cena-2');
+    await waitFor('a linha começar a abrir', () => room.state.scene.waiting);
+
+    room.sala.recordTheSceneAgain();
+    await settle();
+    room.harness.playback.finishHeldMeasurement();
+    await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+
+    expect(
+      _showing(2, SceneStep.translate)(room.state.scene),
+      isTrue,
+      reason: 'o gravar de novo passava e a linha tocada nunca abria',
+    );
+  });
+
+  testWidgets('«gravar de novo» in listen mode is drawn off while another row '
+      'opens, not lit', (tester) async {
+    final (harness, container) = await _theScreenShows(tester, [
+      _sentOne,
+      _unsentTwo,
+    ], when: (state) => state.scene.rehearsal?.n == 2);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.openTheListedSceneRehearsal('ensaio-da-cena-1');
+    await _pumpUntil(
+      tester,
+      () => _showing(1, SceneStep.sent)(
+        container.read(salaSessionProvider).scene,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.playback.holdNextMeasurement();
+
+    notifier.openTheListedSceneRehearsal('ensaio-da-cena-2');
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).scene.waiting,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      _enabled(tester, byLabel('gravar o ensaio da cena de novo')),
+      isFalse,
+      reason: 'o gravar de novo ficava aceso enquanto a linha abria',
+    );
+    harness.playback.finishHeldMeasurement();
+    await _pumpUntil(
+      tester,
+      () => !container.read(salaSessionProvider).scene.waiting,
+    );
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('«gravar de novo» in listen mode is drawn off while a frase '
+      'microphone is open, not lit', (tester) async {
+    final container = SalaHarness().container();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SceneListenMode(
+                scene: SceneScreen(
+                  step: SceneStep.sent,
+                  rehearsal: _sentOne,
+                  take: 'cena-ensaio-da-cena-1.m4a',
+                  length: const Duration(seconds: 15),
+                ),
+                envelope: null,
+                channel: const Microphone(MicOwner.frase),
+                language: 'pt',
+                sending: false,
+                line: null,
+                stoppedAt: null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      _enabled(tester, byLabel('gravar o ensaio da cena de novo')),
+      isFalse,
+      reason: 'o gravar de novo ficava aceso com o microfone da frase aberto',
     );
   });
 

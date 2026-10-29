@@ -506,7 +506,7 @@ class SceneListenMode extends ConsumerWidget {
         const SizedBox(height: 16),
         _WrittenButton(
           said('again'),
-          live: !sending,
+          live: !sending && !scene.waiting && channel is! Microphone,
           onTap: notifier.recordTheSceneAgain,
           bare: true,
         ),
