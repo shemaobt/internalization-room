@@ -818,6 +818,9 @@ class _WrittenButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
+    final outline = bare
+        ? null
+        : Border.all(color: colors.vermelhoMic, width: 1.5);
     return Semantics(
       button: true,
       enabled: live,
@@ -826,30 +829,41 @@ class _WrittenButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: live ? onTap : null,
         child: ExcludeSemantics(
-          child: Opacity(
-            opacity: live ? 1 : 0.35,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: large ? 32 : 20,
-                vertical: large ? 14 : 10,
-              ),
-              decoration: bare
-                  ? null
-                  : BoxDecoration(
-                      color: large ? colors.vermelhoMic : null,
-                      border: Border.all(color: colors.vermelhoMic, width: 1.5),
-                      borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (outline != null)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: live ? 1 : 0.35,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: large ? colors.vermelhoMic : null,
+                        border: outline,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
-              child: Text(
-                words,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: large ? colors.paper : colors.ink,
-                  fontSize: large ? 18 : 14,
-                  decoration: bare ? TextDecoration.underline : null,
+                  ),
+                ),
+              Opacity(
+                opacity: live || large ? 1 : 0.35,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: large ? 32 : 20,
+                    vertical: large ? 14 : 10,
+                  ).add(outline?.dimensions ?? EdgeInsets.zero),
+                  child: Text(
+                    words,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: large && live ? colors.paper : colors.ink,
+                      fontSize: large ? 18 : 14,
+                      decoration: bare ? TextDecoration.underline : null,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
