@@ -6180,9 +6180,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
-        final from = state.scene.heard == SceneHeard.toTheEnd
+        final stopped = state.sceneStoppedAt ?? Duration.zero;
+        final end = state.scene.takeEnd;
+        final from =
+            state.scene.heard == SceneHeard.toTheEnd ||
+                (end != null && stopped >= end)
             ? Duration.zero
-            : state.sceneStoppedAt ?? Duration.zero;
+            : stopped;
         state = state.copyWith(
           scene: state.scene.copyWith(heard: SceneHeard.partly),
         );
