@@ -254,8 +254,6 @@ void _partOneWaitsInTheOutbox(SalaHarness harness) {
   );
 }
 
-/// A whole-passage take an earlier visit left in the Outbox, for a room that cannot take
-/// it.
 void _theWholeWaitsInTheOutbox(SalaHarness harness) {
   final waiting = Directory.systemTemp.createTempSync('sala-2078-inteira');
   addTearDown(() => waiting.deleteSync(recursive: true));

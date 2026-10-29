@@ -313,7 +313,6 @@ File _anAudioFile(String scope) {
   return File('${folder.path}/$scope.m4a')..writeAsBytesSync([1, 2, 3, 4]);
 }
 
-/// A take of [scope] an earlier visit left in the Outbox, for a room that cannot take it.
 void _waitsInTheOutbox(SalaHarness harness, String scope, File audio) {
   harness.room.unreachableTake = 'ensaio/$scope';
   (harness.takes as FakeTakeQueue).rows.add(
