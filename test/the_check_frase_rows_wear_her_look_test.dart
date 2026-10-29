@@ -173,4 +173,36 @@ void main() {
       );
     });
   }
+
+  testWidgets('a held sentence that rests keeps its words at full strength, '
+      'a button that is off, as hers', (tester) async {
+    const held = 'não deu para guardar a frase — tentar de novo';
+    await _pump(tester, 'light', [
+      const FraseRow(n: 1, parte: 1, share: 1, onHear: null, estado: held),
+    ]);
+
+    final linha = find.ancestor(
+      of: find.text(held),
+      matching: find.byType(Semantics),
+    );
+    expect(
+      tester
+          .widgetList<Semantics>(linha)
+          .any(
+            (semantics) =>
+                semantics.properties.label == held &&
+                semantics.properties.enabled == false,
+          ),
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.ancestor(of: find.text(held), matching: find.byType(Opacity)),
+          )
+          .opacity,
+      1,
+      reason: 'a frase guardada em repouso sumia num cinza que não se lia',
+    );
+  });
 }
