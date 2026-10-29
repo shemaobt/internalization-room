@@ -1979,6 +1979,31 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the owed part is fetched again the way back to the '
+      'recording is not taken, so the fetch is not dropped', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    await tester.tap(byLabel('Voltar para a gravação'));
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).stage,
+      SalaStage.retro,
+      reason:
+          'a volta para a gravação largava a busca e a frase perdia a '
+          'linha que a guardava',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
   testWidgets('while a new part is owed no row offers «regravar», not even '
       'the row of the sentence that waits for it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

@@ -7090,7 +7090,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveTheBackTranslation() => _gesture(() => _leaveTheBackTranslation());
 
   void _leaveTheBackTranslation() {
-    if (state.station is! Retro) return;
+    if (state.station is! Retro || state.aFraseDevidaEmBusca) return;
     _voltarAoEnsaio();
     _descartarATraducaoPendente();
     _asPartesPerdidasSaem();
