@@ -185,9 +185,9 @@ class FraseList extends StatelessWidget {
           if (row.estado case final estado?)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: row.onEstado == null
+              child: row.regravando
                   ? Semantics(
-                      liveRegion: row.regravando,
+                      liveRegion: true,
                       child: Text(
                         estado,
                         style: TextStyle(color: colors.mut, fontSize: 14),

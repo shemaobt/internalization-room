@@ -9687,6 +9687,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     int generation,
   ) async {
+    _leaveThinking();
     final SessionSnapshot snapshot;
     final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {

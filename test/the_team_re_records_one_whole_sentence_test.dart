@@ -714,6 +714,45 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a telling is being recorded, the held sentence rests: '
+      'its line is a button that is off, and a tap on it sends nothing', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-2067');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-1',
+    );
+    await _tocarOCirculo(tester);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      _acesa(tester, falhou),
+      isFalse,
+      reason: 'a linha da frase guardada seguia acesa com a gravação aberta',
+    );
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent,
+      isEmpty,
+      reason: 'um toque na frase guardada a enviava no meio de uma gravação',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence held from a gone session is offered in the '
       "passage's next session and sent into that session at its tap", (
     tester,
@@ -2749,7 +2788,7 @@ void main() {
     harness.room.approvedDraft = const ApprovedDraft(version: 1);
     harness.voice.holdNextLine();
     await tocar(tester, aprovar);
-    expect(_naLista(falhou), findsNothing);
+    expect(_acesa(tester, falhou), isFalse);
     container.read(salaSessionProvider.notifier).tentarAFraseDeNovo();
     await _passo(tester);
 
@@ -2873,6 +2912,50 @@ void main() {
     return container;
   }
 
+  testWidgets('while the room is read back after a telling whose answer was '
+      'lost, the list rests no more and the held sentence can be sent', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-2067');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: '3',
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-1',
+    );
+    await _passo(tester);
+    await _passo(tester);
+    harness.room.loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
+    await _traduzirDeNovo(tester);
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+    harness.room.holdTheNextRead();
+    await _tocarOCirculo(tester);
+    await waitFor(
+      'a leitura da recusa sair e ficar presa',
+      () => harness.room.heldReads.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      _acesa(tester, 'não deu para guardar a frase — tentar de novo'),
+      isTrue,
+      reason: 'a leitura da sala depois da resposta perdida prendia a lista',
+    );
+    harness.room.answerHeldRead(0);
+    await _passo(tester);
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
   final successor = BackTranslationProgress(
     segments: [
       const SegmentView(
@@ -2970,8 +3053,6 @@ void main() {
     );
     await _passo(tester);
     await _passo(tester);
-    harness.room.holdNextReplace();
-    await _traduzirDeNovo(tester);
     harness.room
       ..holdTheNextRead()
       ..sentenceAnswersFirst.add(const Refused('ANOTHER_SENTENCE_AWAITS'));
@@ -2981,6 +3062,8 @@ void main() {
       () => harness.room.heldReads.isNotEmpty,
       step: () => _passo(tester),
     );
+    harness.room.holdNextReplace();
+    await _traduzirDeNovo(tester);
     harness.room.finishHeldReplace();
     await _passo(tester);
     await _passo(tester);

@@ -423,7 +423,7 @@ class RetroView extends ConsumerWidget {
       estadoDormindo: _dormindo('resend:${trecho.frase}', session),
       onEstado:
           atua &&
-              session.channel is! GuideSpeaking &&
+              quieta &&
               session.btRegravacao == null &&
               trecho.frase != null &&
               session.btFraseGuardada == trecho.frase
