@@ -1911,7 +1911,7 @@ void main() {
         'a primeira parte voltar ao ar',
         () => it.harness.playback.sounding,
       );
-      it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!];
+      it.harness.room.failListeningWith = const NetworkFailed('sem rede');
       await traduzirUmTrecho(it, const Duration(seconds: 4));
       it.harness.room.reachable = false;
       it.sala.goEnsaio();
@@ -1987,6 +1987,66 @@ void main() {
         it.harness.playback.playedFrom.last,
         const Duration(milliseconds: 3000),
       );
+    },
+  );
+
+  test(
+    'a stretch left untranslated by the frase the room just kept is said and '
+    'played on a return it can no longer answer, not left quiet',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a primeira parte voltar ao ar',
+        () => it.harness.playback.sounding,
+      );
+      final antes = it.estado.btTrechos.length;
+      await theClipOpens(it.harness);
+      it.harness.playback.at = const Duration(seconds: 4);
+      it.sala.retroTap();
+      it.sala.retroTap();
+      await waitFor(
+        'o microfone abrir no trecho',
+        () => it.estado.btPhase == BtPhase.capturing,
+      );
+      it.harness.room
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[0].takeId!,
+            scene: 1,
+            from: const Duration(seconds: 4),
+          ),
+        ];
+      await confirmarATraducao(it.container);
+      await waitFor(
+        'o trecho contado entrar no colar',
+        () => it.estado.btTrechos.length == antes + 1,
+      );
+      await settle();
+      it.harness.room.reachable = false;
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      await settle();
+      final linhas = it.harness.voice.fixedLines.length;
+
+      it.sala.startRetro();
+      await settle();
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', testLanguage)],
+        reason:
+            'a sala só era lembrada pelo último relato, de antes da frase, e a '
+            'volta sem rede ficava calada sobre o trecho que faltava traduzir',
+      );
+      expect(it.harness.playback.played.last, it.partes[0].path);
+      expect(it.harness.playback.playedFrom.last, const Duration(seconds: 4));
     },
   );
 

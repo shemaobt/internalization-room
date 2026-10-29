@@ -16,16 +16,15 @@ import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
@@ -1244,8 +1243,15 @@ void main() {
     closeTheRoom(container);
   });
 
-  Finder oGlifo(IconData glifo) =>
-      find.descendant(of: _naLista('Ouvir — 3'), matching: find.byIcon(glifo));
+  Finder oGlifo(ListenGlyph glifo) => find.descendant(
+    of: _naLista('Ouvir — 3'),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is CustomPaint &&
+          widget.painter is ListenGlyphPainter &&
+          (widget.painter! as ListenGlyphPainter).glyph == glifo,
+    ),
+  );
 
   bool apertado(WidgetTester tester) => isSemantics(
     hasToggledState: true,
@@ -1258,13 +1264,13 @@ void main() {
     final container = await quatroFrasesEmWav(tester, harness);
     await gravarAFrase(tester, harness, 3);
 
-    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(oGlifo(ListenGlyph.play), findsOneWidget);
     expect(apertado(tester), isFalse);
 
     await tocar(tester, 'Ouvir — 3');
 
     expect(
-      oGlifo(LucideIcons.square),
+      oGlifo(ListenGlyph.stop),
       findsOneWidget,
       reason: 'o botão desenhava o play com a frase tocando',
     );
@@ -1273,12 +1279,12 @@ void main() {
       isTrue,
       reason: 'o VoiceOver não sabia que a frase estava tocando',
     );
-    expect(oGlifo(LucideIcons.play), findsNothing);
+    expect(oGlifo(ListenGlyph.play), findsNothing);
 
     harness.playback.finishPlayback();
     await _passo(tester);
 
-    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(oGlifo(ListenGlyph.play), findsOneWidget);
     expect(apertado(tester), isFalse);
     closeTheRoom(container);
   });
@@ -1301,7 +1307,7 @@ void main() {
       reason: 'o segundo toque recomeçava a frase em vez de parar',
     );
     expect(harness.playback.stops, greaterThan(paradas));
-    expect(oGlifo(LucideIcons.play), findsOneWidget);
+    expect(oGlifo(ListenGlyph.play), findsOneWidget);
     expect(apertado(tester), isFalse);
 
     await tocar(tester, 'Ouvir — 3');
@@ -1309,8 +1315,104 @@ void main() {
     expect(harness.playback.played.length, tocadas + 1);
     expect(harness.playback.played.last, gravada);
     expect(harness.playback.playedFrom.last, Duration.zero);
-    expect(oGlifo(LucideIcons.square), findsOneWidget);
+    expect(oGlifo(ListenGlyph.stop), findsOneWidget);
     closeTheRoom(container);
+  });
+
+  testWidgets('the sentence just recorded is offered as her filled triangle, '
+      'not a lucide outline', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    expect(
+      find.descendant(of: _naLista('Ouvir — 3'), matching: find.byType(Icon)),
+      findsNothing,
+      reason: 'o botão desenhava o play vazado do Lucide',
+    );
+    expect(
+      oGlifo(ListenGlyph.play),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [Offset(10, 12), Offset(9, 7), Offset(9, 17)],
+        excludes: const [Offset(7, 12), Offset(16, 8), Offset(16, 16)],
+      ),
+      reason:
+          'o play dela é «M8 6l10 6-10 6z» cheio na caixa de 24 '
+          '(SentenceRerecord.tsx:21)',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the sentence playing is stopped by her filled square with its '
+      'rounded corners, not a lucide outline', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    await tocar(tester, 'Ouvir — 3');
+
+    expect(
+      oGlifo(ListenGlyph.stop),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [Offset(12, 12), Offset(7, 7), Offset(17, 17)],
+        excludes: const [
+          Offset(5, 12),
+          Offset(19, 12),
+          Offset(6.3, 6.3),
+          Offset(17.7, 17.7),
+        ],
+      ),
+      reason:
+          'o stop dela é um quadrado cheio de 6 a 18 com rx 2 na caixa de 24 '
+          '(SentenceRerecord.tsx:22)',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('the review glyph is drawn in her verde, in the light and in '
+      'the dark, not in the cord that fades into its card', (tester) async {
+    for (final (theme, verde) in [
+      (AppTheme.light, const Color(0xFF3F3E20)),
+      (AppTheme.dark, const Color(0xFFECEADC)),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(theme.brightness),
+          theme: theme,
+          home: Scaffold(
+            body: FraseList(
+              language: 'pt',
+              rows: [
+                FraseRow(
+                  n: 3,
+                  parte: 1,
+                  share: 0.5,
+                  onHear: null,
+                  revisao: FraseRevisao(
+                    ouvir: 'Ouvir — 3',
+                    tocando: false,
+                    onOuvir: () {},
+                    gravarDeNovo: 'gravar de novo',
+                    onGravarDeNovo: () {},
+                    usarEsta: 'usar esta',
+                    onUsarEsta: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        oGlifo(ListenGlyph.play),
+        paints..path(color: verde),
+        reason:
+            '${theme.brightness.name}: o glifo dela é --verde no .ctl '
+            '(globals.css:331); o nosso era o cord, quase da cor do cartão',
+      );
+    }
   });
 
   testWidgets(
@@ -1853,16 +1955,12 @@ void main() {
     expect(naLinha('usar esta'), findsOneWidget);
 
     expect(
-      tester
-          .widget<RoundActionButton>(
-            find.ancestor(
-              of: byLabel(aprovar),
-              matching: find.byType(RoundActionButton),
-            ),
-          )
-          .mood,
-      ButtonMood.dimmed,
+      tester.widget<Semantics>(byLabel(aprovar)).properties.enabled,
+      isFalse,
     );
+    await pressTheApproval(tester, aprovar);
+    await _passo(tester);
+    expect(harness.room.releasesAsked, isEmpty);
     await container.read(salaSessionProvider.notifier).aprovarRascunhoFinal();
     await _passo(tester);
     expect(harness.room.releasesAsked, isEmpty);
