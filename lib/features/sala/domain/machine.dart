@@ -1914,15 +1914,16 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
   _ => null,
 };
 
-/// The team's tap while the Guide speaks on the Canvas: her line ends cut, and the
-/// conversation's microphone opens in the same step, after the stop. Over the
+/// The team's tap while the Guide speaks on the Canvas or the Panorama: her line ends
+/// cut, and the conversation's microphone opens in the same step, after the stop. Over the
 /// acknowledgement, the reply waiting behind it is the line cut, at its very start.
 (Machine, List<Effect>) _interrupt(
   Machine machine,
   String take,
   CutPoint measured,
 ) {
-  if (machine.station is! Canvas || machine.halt is Blocking) {
+  if ((machine.station is! Canvas && machine.station is! Panorama) ||
+      machine.halt is Blocking) {
     return (machine, const []);
   }
   final (reply, held, cut) = switch (machine.channel) {
