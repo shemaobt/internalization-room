@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
+import 'listen_glyph.dart';
+import 'way_back_chevron.dart';
 
 /// Her `EnsaioFinalSheet`: one scene's rehearsals, newest first, the one the row holds
 /// «✓ em uso» and «usar este» on the others its row offers; over the plan or over the
@@ -128,15 +129,9 @@ class RehearsalSheet extends ConsumerWidget {
               child: SizedBox(
                 width: 44,
                 height: 44,
-                child: Opacity(
+                child: const Opacity(
                   opacity: 0.6,
-                  child: Center(
-                    child: Icon(
-                      LucideIcons.chevronLeft,
-                      size: 22,
-                      color: colors.claquete,
-                    ),
-                  ),
+                  child: Center(child: WayBackChevron()),
                 ),
               ),
             ),
@@ -205,10 +200,12 @@ class _SheetLine extends StatelessWidget {
                 mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
                 semanticLabel: '${said('listen')} — $line',
                 onTap: onPlay,
-                child: Icon(
-                  playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 18,
-                  color: ShemaBrand.branco,
+                child: CustomPaint(
+                  size: const Size.square(18),
+                  painter: ListenGlyphPainter(
+                    glyph: playing ? ListenGlyph.pause : ListenGlyph.play,
+                    ink: ShemaBrand.branco,
+                  ),
                 ),
               ),
             ),
