@@ -54,7 +54,7 @@ void main() {
     expect(it.estado.canFinishBackTranslation, isFalse);
 
     it.harness.room.listeningUnheardTakeIds = const [];
-    await settle(const Duration(milliseconds: 1700));
+    await settle(const Duration(milliseconds: 400));
 
     expect(
       it.estado.btRecusa,
