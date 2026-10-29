@@ -204,11 +204,13 @@ class _Pill extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final bool dormindo;
+  final bool? toggled;
 
   const _Pill({
     required this.label,
     required this.onTap,
     this.dormindo = false,
+    this.toggled,
   });
 
   @override
@@ -217,6 +219,7 @@ class _Pill extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: onTap != null && !dormindo,
+      toggled: toggled,
       label: label,
       child: Opacity(
         opacity: onTap == null
@@ -355,6 +358,7 @@ class _FraseTile extends StatelessWidget {
                           label: regravar,
                           onTap: row.onRegravar,
                           dormindo: row.regravarDormindo,
+                          toggled: row.regravando,
                         ),
                     ],
                   ),

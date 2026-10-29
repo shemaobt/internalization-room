@@ -218,6 +218,40 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('«regravar a frase N» is pressed while its sentence is being '
+      'recorded again, and not pressed when it is only offered', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    bool apertada(String label) => isSemantics(
+      hasToggledState: true,
+      isToggled: true,
+    ).matches(tester.getSemantics(_naLista(label)), {});
+    bool solta(String label) => isSemantics(
+      hasToggledState: true,
+      isToggled: false,
+    ).matches(tester.getSemantics(_naLista(label)), {});
+
+    expect(
+      solta('regravar a frase 3'),
+      isTrue,
+      reason: 'o VoiceOver não dizia que regravar estava solto',
+    );
+
+    await tocar(tester, 'regravar a frase 3');
+    harness.playback.finishPlayback();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      apertada('regravar a frase 3'),
+      isTrue,
+      reason: 'o VoiceOver não sabia que a frase 3 estava sendo regravada',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a recording not in wav offers no sentence on any row', (
     tester,
   ) async {
