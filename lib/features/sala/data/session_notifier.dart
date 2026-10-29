@@ -2154,11 +2154,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishPanoramaListening() async {
     final generation = _waitOnTheGeneration;
+    final listenedFor = _listenedFor;
     final closed = await _closeTheMicrophone();
     final path = closed.take;
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId!;
-    if (path == null || !_hasAudio(path)) {
+    if (path == null || !_theGuardKeeps(path, listenedFor)) {
       state = state.copyWith(awaitingTheGuide: false);
       if (path != null) unawaited(_recorder.delete(path));
       return;

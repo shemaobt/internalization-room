@@ -164,4 +164,33 @@ void main() {
       expect(room.harness.room.turnsSent, turns);
     });
   });
+
+  test('a ghost take on the Panorama is thrown away with nothing sent, and '
+      'the circle goes back to rest, as on the conversation', () async {
+    await _onAClock((later) async {
+      final room = await _onThePanorama(
+        SalaHarness(
+          captureGuard: const CaptureGuard(
+            minDuration: Duration(milliseconds: 700),
+            minBytes: 800,
+          ),
+        ),
+      );
+      final turns = room.harness.room.turnsSent;
+
+      await room.tap();
+      later(const Duration(milliseconds: 800));
+      await room.tap();
+      await settle();
+
+      expect(
+        room.harness.room.turnsSent,
+        turns,
+        reason: 'no Panorama uma vez sem nada para dizer ia para a sala',
+      );
+      expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
+      expect(room.state.voice, VoiceState.invite);
+      expect(room.state.awaitingTheGuide, isFalse);
+    });
+  });
 }
