@@ -605,6 +605,30 @@ void main() {
     },
   );
 
+  test('play in listen mode while the team\'s translation sounds plays the '
+      'take, not only a silence', () async {
+    final room = await _inListenModeOf(_sentOne, _unsentTwo);
+    final take = room.state.scene.take;
+    room.sala.hearTheFraseTranslation('f2');
+    await waitFor(
+      'a tradução da frase tocar',
+      () => room.harness.playback.played.isNotEmpty,
+    );
+
+    room.sala.playTheSceneRehearsal();
+    await settle();
+
+    expect(
+      room.harness.playback.played.last,
+      take,
+      reason: 'o play só calava a tradução e o ensaio não tocava',
+    );
+    expect(
+      room.state.channel,
+      isA<PartPlaying>().having((playing) => playing.part.path, 'path', take),
+    );
+  });
+
   group('a scene rehearsed again keeps the sent one and records the next '
       'number', () {
     test('from the red microphone after a sent rehearsal', () async {

@@ -1761,4 +1761,33 @@ void main() {
       expect(byLabel('$_pausaHint — 0:04 / 0:10'), findsOneWidget);
     });
   });
+
+  test(
+    'play while the team\'s translation sounds plays the take on from '
+    'where the translation stopped, never a pausa in the translation',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      await _listening(room);
+      final take = room.state.scene.take;
+      room.sala.hearTheFraseTranslation('f1');
+      await waitFor(
+        'a tradução da frase tocar',
+        () => room.harness.playback.played.last != take,
+      );
+      room.harness.playback.at = _s(6.0);
+
+      room.sala.playTheSceneRehearsal();
+      await settle();
+
+      expect(
+        room.state.scene.pausa,
+        isNull,
+        reason: 'o play marcava a pausa na posição da tradução',
+      );
+      expect(room.harness.playback.played.last, take);
+      expect(room.harness.playback.playedFrom.last, _s(4.0));
+    },
+  );
 }

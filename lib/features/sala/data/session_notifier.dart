@@ -6063,7 +6063,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal == null) {
       return;
     }
-    final playing = state.channel is PartPlaying;
+    final playing = _theSceneTakeThatSounds(state.machine) != null;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
