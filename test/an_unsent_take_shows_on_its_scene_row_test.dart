@@ -820,7 +820,11 @@ void main() {
       await casa.gravar(2);
       await casa.emTempoReal(() async {
         casa.sala.takeKeep();
-        await settle(const Duration(milliseconds: 600));
+        await waitFor(
+          'a cena 2 falhar',
+          () => casa.falhou(2),
+          limit: const Duration(seconds: 30),
+        );
       });
       final falhou = casa.naLinha(2, find.text(_falhou));
 
@@ -833,6 +837,7 @@ void main() {
           () => casa.room.takesReceived.any((take) => take.scope == 'parte-2'),
           limit: const Duration(seconds: 30),
         );
+        await settle(const Duration(milliseconds: 800));
       });
 
       expect(
