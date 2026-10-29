@@ -4139,20 +4139,25 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_onThePlan) _openTheRecordingHome(state.sessionId!);
   }
 
-  /// «gravar a passagem inteira de uma vez», on the plan and on a scene home over a
-  /// joined recording.
+  /// «gravar a passagem inteira de uma vez», on the plan, on a scene home over a joined
+  /// recording, and on the check of one.
   void recordTheWholePassage() => _gesture(() {
-    if (!_aGrainControlActs || (state.recordsTheWhole && !_onThePlan)) return;
+    if (!(state.station is Retro
+            ? state.wholeSwitchActsOnTheCheck
+            : _aGrainControlActs) ||
+        (state.recordsTheWhole && !_onThePlan)) {
+      return;
+    }
     _armedTap(
       'whole',
       needs: state.wholeSwitchArms,
-      then: () => _handOff(
-        _switchTheGrain(
-          Grain.whole,
-          reopens: state.overAnApprovedDraft,
-          then: _toItsHome,
-        ),
-      ),
+      then: () {
+        final reopens = state.overAnApprovedDraft;
+        if (state.station is Retro) _goEnsaio();
+        _handOff(
+          _switchTheGrain(Grain.whole, reopens: reopens, then: _toItsHome),
+        );
+      },
     );
   });
 

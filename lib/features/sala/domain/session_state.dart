@@ -1685,6 +1685,16 @@ class SalaSessionState {
       btFraseQueAguarda == null &&
       (btPhase == BtPhase.conferida || btPhase == BtPhase.playing);
 
+  bool get wholeSwitchActsOnTheCheck =>
+      joined &&
+      !btSoOuvir &&
+      (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
+      channel is! Playing &&
+      channel is! GuideSpeaking &&
+      btRegravacao == null &&
+      aBackTranslationGestureActs &&
+      !needsPerson;
+
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
       !btSoOuvir &&
