@@ -2136,7 +2136,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case VoiceState.invite:
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
-          _handOff(_finishPanoramaListening());
+          if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
+              TapDecision.stop) {
+            _handOff(_finishPanoramaListening());
+          }
         case VoiceState.thinking:
         case VoiceState.speaking:
         case VoiceState.done:
@@ -2152,11 +2155,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> _finishPanoramaListening() async {
     final generation = _waitOnTheGeneration;
+    final listenedFor = _listenedFor;
     final closed = await _closeTheMicrophone();
     final path = closed.take;
     if (_abandoned(generation)) return;
     final panorama = state.panoramaSessionId!;
-    if (path == null || !_hasAudio(path)) {
+    if (path == null || !_theGuardKeeps(path, listenedFor)) {
       state = state.copyWith(awaitingTheGuide: false);
       if (path != null) unawaited(_recorder.delete(path));
       return;
@@ -3755,9 +3759,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _keepTheConnectionWarm();
   }
 
-  Duration get _listenedFor => _listeningSince == null
-      ? Duration.zero
-      : clock.now().difference(_listeningSince!);
+  Duration get _listenedFor => switch (state.recorderStartedAt) {
+    final started? => clock.now().difference(started),
+    null => Duration.zero,
+  };
 
   bool _theGuardKeeps(String path, Duration listenedFor) =>
       _captureGuard.accepts(duration: listenedFor, bytes: _bytesAt(path));
@@ -8301,12 +8306,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(btRecusa: CheckRefusal.partUnheard);
       return;
     }
-    state = state.copyWith(clearBtRecusa: true);
+    state = state.copyWith(
+      clearBtRecusa: true,
+      btSoOuvir: false,
+      btPhase: BtPhase.thinking,
+    );
     bool deixou() => _abandoned(generation) || _endedSince(life);
     if (state.btFraseQueAguarda case final aguardando?) {
-      await _voltarAFraseQueAguarda(aguardando, generation);
-      if (!deixou()) _deixarDeSoOuvir();
-      return;
+      return _voltarAFraseQueAguarda(aguardando, generation);
     }
     if (ouvida.stretchUntranslated) {
       return _levarAoTrechoSemTraducao(
@@ -8318,13 +8325,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (ouvida.automaticCheck) {
       await _dizer(ouvida.fixedLine);
       if (deixou()) return;
-      _deixarDeSoOuvir();
+      state = state.copyWith(btPhase: BtPhase.playing);
       return _finishBackTranslation();
     }
     if (!state.joined || !state.btTrechos.any((trecho) => trecho.contado)) {
       return _dizerComoTraduzir(deixou);
     }
-    _deixarDeSoOuvir();
+    state = state.copyWith(btPhase: BtPhase.playing);
   }
 
   Future<void> _dizerComoTraduzir(bool Function() deixou) async {
@@ -11303,10 +11310,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (trecho.parte >= 0 || naParte.containsKey(trecho.takeId)) trecho,
       ],
     );
+    if (faltando.isEmpty) return;
+    if (!identical(state.btTrechos, eram)) {
+      state = state.copyWith(
+        btTrechos: [
+          for (final trecho in state.btTrechos)
+            if (naParte[trecho.takeId] case final parte?)
+              _naParte(trecho, parte)
+            else
+              trecho,
+        ],
+      );
+      return;
+    }
     // Only over a row nothing else has touched. This reading is built out of the answer
     // the resume came in with, so writing it over a row that moved meanwhile would take
     // the stretch the team just told back off the screen.
-    if (faltando.isEmpty || !identical(state.btTrechos, eram)) return;
     state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
@@ -11657,7 +11676,10 @@ class _HandHost implements HandHost {
   int get waitOnTheGeneration => _notifier._waitOnTheGeneration;
 
   @override
-  Duration get listenedFor => _notifier._listenedFor;
+  Duration get listenedFor => switch (_notifier._listeningSince) {
+    final since? => clock.now().difference(since),
+    null => Duration.zero,
+  };
 
   @override
   String stamp() => _notifier._stamp();
