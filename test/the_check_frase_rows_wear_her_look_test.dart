@@ -1,0 +1,73 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
+
+import 'sala_screen_test.dart' show contrastOf;
+
+Future<void> _pump(WidgetTester tester, String look, List<FraseRow> rows) =>
+    tester.pumpWidget(
+      MaterialApp(
+        key: ValueKey(look),
+        theme: look == 'dark' ? AppTheme.dark : AppTheme.light,
+        home: Scaffold(
+          body: FraseList(language: 'pt', rows: rows),
+        ),
+      ),
+    );
+
+FraseRow _aFrase({int n = 1, int? parte, double share = 1}) =>
+    FraseRow(n: n, parte: parte, share: share, onHear: () {});
+
+Finder _aBarra(int n) => find.descendant(
+  of: _oCartao(n),
+  matching: find.byType(FractionallySizedBox),
+);
+
+Finder _oCartao(int n) => find
+    .ancestor(
+      of: find.descendant(
+        of: find.byType(FraseList),
+        matching: find.text('$n'),
+      ),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Container &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).borderRadius ==
+                BorderRadius.circular(16),
+      ),
+    )
+    .first;
+
+BoxDecoration _pintura(WidgetTester tester, Finder box) =>
+    tester.widget<Container>(box).decoration! as BoxDecoration;
+
+Color _oTrilho(WidgetTester tester, int n) => _pintura(
+  tester,
+  find.ancestor(of: _aBarra(n), matching: find.byType(Container)).first,
+).color!;
+
+Color _oPreenchimento(WidgetTester tester, int n) => _pintura(
+  tester,
+  find.descendant(of: _aBarra(n), matching: find.byType(Container)).first,
+).color!;
+
+void main() {
+  testWidgets('in the dark look a frase bar reads against its track, not '
+      'one brown on another', (tester) async {
+    await _pump(tester, 'dark', [_aFrase(share: .5)]);
+    final chao = AppTheme.dark.scaffoldBackgroundColor;
+    final cartao = Color.alphaBlend(_pintura(tester, _oCartao(1)).color!, chao);
+    final trilho = Color.alphaBlend(_oTrilho(tester, 1), cartao);
+    final barra = Color.alphaBlend(_oPreenchimento(tester, 1), trilho);
+
+    expect(
+      contrastOf(barra, trilho),
+      greaterThanOrEqualTo(3),
+      reason:
+          'no escuro o cord 4A4336 ficava sobre um trilho de 453E34, 1,08:1, '
+          'e a barra sumia',
+    );
+  });
+}

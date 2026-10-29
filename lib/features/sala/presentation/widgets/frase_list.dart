@@ -260,7 +260,7 @@ class _FraseTile extends StatelessWidget {
         : azul
         ? colors.azul
         : mark == null
-        ? colors.cord
+        ? colors.verdeClaro.withValues(alpha: .85)
         : colors.telha;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 460),
