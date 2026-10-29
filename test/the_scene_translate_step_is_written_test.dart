@@ -1759,6 +1759,38 @@ void main() {
       },
     );
   }
+  for (final (device, width, wide) in [
+    ('an iPhone SE', 375.0, 375.0 - 2 * 16),
+    ('an iPad', 820.0, 470.0),
+  ]) {
+    testWidgets(
+      'on $device a listed scene rehearsal is as wide as the frase told above it, not narrower',
+      (tester) async {
+        await _onTheSceneScreen(
+          tester,
+          view: Size(width, 2400),
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        final frase =
+            tester.getRect(byLabel('ouvir a minha tradução da frase 1')).right -
+            tester.getRect(byLabel(_bar(1))).left;
+
+        expect(frase, wide);
+        expect(
+          tester
+              .getSize(
+                byLabel('Ensaio da cena 1, 1 · frases traduzidas, não enviado'),
+              )
+              .width,
+          wide,
+          reason: 'no iPad a lista tinha 438 pontos e as frases 470',
+        );
+      },
+    );
+  }
   for (final (look, verdeClaro) in [
     (Brightness.light, const Color(0xFF777D45)),
     (Brightness.dark, const Color(0xFFAAB07E)),

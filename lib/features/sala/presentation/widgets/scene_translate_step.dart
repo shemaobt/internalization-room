@@ -579,14 +579,14 @@ class SceneRehearsalList extends ConsumerWidget {
         sceneRehearsalLabelFor(control, language, n: n);
     return Semantics(
       label: said('list'),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 470,
-          maxHeight: MediaQuery.sizeOf(context).height / 3,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 470,
+            maxHeight: MediaQuery.sizeOf(context).height / 3,
+          ),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
