@@ -108,7 +108,7 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 20),
             PartStrips(rows: _faixas(session, language)),
             const SizedBox(height: 16),
-            if (avanca)
+            if (avanca && session.thePauseCanMove)
               PauseAdjustRow(
                 lit: session.canAdjustThePause,
                 language: language,

@@ -384,15 +384,19 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the three controls stay in the row, dimmed, while no pausa '
-      'stands', (tester) async {
+  testWidgets('no control of the pause is on the screen while no pausa '
+      'stands, not even dimmed', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, umaLacunaAos3);
     harness.playback.at = s(4.2);
     await tester.pump(passaDoCursor);
 
     for (final controle in [antes, ouvirAPausa, depois]) {
-      expect(aceso(tester, controle), isFalse, reason: 'antes da pausa');
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'antes da pausa a linha ficava desenhada, apagada',
+      );
     }
 
     await tocarOCirculo(tester);
@@ -400,7 +404,11 @@ void main() {
     await tocarOCirculo(tester);
 
     for (final controle in [antes, ouvirAPausa, depois]) {
-      expect(aceso(tester, controle), isFalse, reason: 'a tradução já gravada');
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'com a tradução já gravada a linha ficava desenhada, apagada',
+      );
     }
     closeTheRoom(container);
   });

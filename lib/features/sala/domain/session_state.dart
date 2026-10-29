@@ -1462,6 +1462,8 @@ class SalaSessionState {
       btTrechoTraduzidoDeNovo == null &&
       btContaEscolhida == null;
 
+  bool get thePauseCanMove => btCortado || btTrechoTraduzidoDeNovo != null;
+
   bool get canAdjustThePause =>
       btPausaAjustavel &&
       btFraseQueAguarda == null &&

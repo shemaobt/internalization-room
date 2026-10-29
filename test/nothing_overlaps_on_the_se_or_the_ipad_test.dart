@@ -14,7 +14,9 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, onAScreen, settle, withRealLetters;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, entrarNaTraducao, passaDoCursor, pausar;
+    show cabeca, passaDoCursor, pausar;
+import 'the_pause_snaps_to_silence_test.dart'
+    show entrarComAFala, pausarAos, s, umaLacunaAos3;
 import 'um_ensaio_de_tres_partes.dart';
 
 final _aLongBook = [
@@ -126,20 +128,22 @@ void main() {
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await entrarNaTraducao(tester, harness);
+      final container = await entrarComAFala(tester, harness, umaLacunaAos3);
       harness.playback.at = cabeca;
       await tester.pump(passaDoCursor);
 
-      final ring = _theRing(tester);
-      expect(
-        tester.getRect(find.byType(PauseAdjustRow)).bottom,
-        lessThanOrEqualTo(ring.top),
-        reason: 'os três controles da pausa tocavam o anel do círculo',
-      );
       expect(
         tester.getRect(byLabel(pausar)).top,
-        greaterThanOrEqualTo(ring.bottom),
+        greaterThanOrEqualTo(_theRing(tester).bottom),
         reason: 'o botão de pausar ficava dentro do anel do círculo',
+      );
+
+      await pausarAos(tester, harness, s(4.2));
+
+      expect(
+        tester.getRect(find.byType(PauseAdjustRow)).bottom,
+        lessThanOrEqualTo(_theRing(tester).top),
+        reason: 'os três controles da pausa tocavam o anel do círculo',
       );
       closeTheRoom(container);
     });

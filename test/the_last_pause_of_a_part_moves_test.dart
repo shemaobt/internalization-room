@@ -15,7 +15,8 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show stateReads, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart'
+    show byLabel, stateReads, traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -643,8 +644,8 @@ void main() {
       expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
       for (final controle in [antes, ouvirAPausa, depois]) {
         expect(
-          aceso(tester, controle),
-          isFalse,
+          byLabel(controle),
+          findsNothing,
           reason:
               'a pausa seguia aberta depois de manter a tradução: $controle',
         );
