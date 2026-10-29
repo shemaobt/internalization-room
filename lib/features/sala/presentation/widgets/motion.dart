@@ -140,7 +140,6 @@ class _LoopState extends State<Loop> {
 
 class Ripple extends StatefulWidget {
   final Duration period;
-  final double phase;
   final Duration delay;
   final Curve curve;
   final Widget Function(BuildContext context, double t) builder;
@@ -149,7 +148,6 @@ class Ripple extends StatefulWidget {
     super.key,
     required this.period,
     required this.builder,
-    this.phase = 0,
     this.delay = Duration.zero,
     this.curve = Curves.easeOut,
   });
@@ -160,7 +158,6 @@ class Ripple extends StatefulWidget {
 
 class _RippleState extends State<Ripple> {
   late Duration _period;
-  late double _phase;
   bool _joined = false;
   Duration? _start;
 
@@ -168,15 +165,13 @@ class _RippleState extends State<Ripple> {
   void initState() {
     super.initState();
     _period = widget.period;
-    _phase = widget.phase;
   }
 
   @override
   void didUpdateWidget(Ripple oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.period == _period && widget.phase == _phase) return;
+    if (widget.period == _period && widget.delay == oldWidget.delay) return;
     _period = widget.period;
-    _phase = widget.phase;
     _start = null;
   }
 
@@ -212,7 +207,7 @@ class _RippleState extends State<Ripple> {
     final start = _start ??= now;
     final waited = now - start - widget.delay;
     if (waited.isNegative) return const SizedBox.shrink();
-    final sweep = (_phase + waited.inMicroseconds / _period.inMicroseconds) % 1;
+    final sweep = waited.inMicroseconds / _period.inMicroseconds % 1;
     return widget.builder(context, widget.curve.transform(sweep));
   }
 }

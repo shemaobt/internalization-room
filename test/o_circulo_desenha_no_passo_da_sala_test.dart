@@ -162,10 +162,10 @@ void main() {
     'a ring whose pace changes answers to the new pace, not the one it woke up with',
     (tester) async {
       double? drawn;
-      Future<void> ring(int period, double phase) => tester.pumpWidget(
+      Future<void> ring(int period, int wait) => tester.pumpWidget(
         Ripple(
           period: Duration(milliseconds: period),
-          phase: phase,
+          delay: Duration(milliseconds: wait),
           curve: Curves.linear,
           builder: (context, t) {
             drawn = t;
@@ -174,17 +174,17 @@ void main() {
         ),
       );
 
-      await ring(3200, 0.5);
-      await ring(3400, 0.65);
-      await tester.pump(const Duration(milliseconds: 1190));
+      await ring(3200, 0);
+      await ring(3400, 500);
+      await tester.pump(const Duration(milliseconds: 3900));
 
       expect(
         drawn,
         closeTo(0, 1e-9),
         reason:
-            'o anel ainda estava na fase 0,5 dos 3200 ms de quando nasceu — '
-            '1190 ms depois da troca ele devia ter voltado ao começo do '
-            'laço novo (3400 ms, fase 0,65), não seguir a 0,87 do laço velho',
+            'o anel ainda corria nos 3200 ms de quando nasceu — 3,9 s depois '
+            'da troca ele devia ter esperado os 500 ms e voltado ao começo do '
+            'laço novo de 3400 ms, não seguir a 0,22 do laço velho',
       );
     },
   );
