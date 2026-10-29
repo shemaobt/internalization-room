@@ -15,7 +15,6 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/dashed_edge.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/pause_adjust_row.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -2830,11 +2829,6 @@ void main() {
           tester.getTopLeft(_cabecalho('Traduzir a gravação')).dy,
           greaterThanOrEqualTo(barra),
           reason: 'o título ficava debaixo da barra de estado',
-        );
-        expect(
-          tester.getTopLeft(find.byType(PauseAdjustRow)).dy,
-          greaterThanOrEqualTo(barra),
-          reason: 'a linha dos controles da pausa ficava sobre o relógio',
         );
         closeTheRoom(container);
       },

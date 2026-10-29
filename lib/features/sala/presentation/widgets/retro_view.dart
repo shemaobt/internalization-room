@@ -115,18 +115,14 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 20),
             PartStrips(rows: _faixas(session, language)),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 48,
-              child: avanca
-                  ? PauseAdjustRow(
-                      lit: session.canAdjustThePause,
-                      language: language,
-                      onEarlier: notifier.pausaUmPoucoAntes,
-                      onHear: notifier.ouvirAPausa,
-                      onLater: notifier.pausaUmPoucoDepois,
-                    )
-                  : null,
-            ),
+            if (avanca && session.thePauseCanMove)
+              PauseAdjustRow(
+                lit: session.canAdjustThePause,
+                language: language,
+                onEarlier: notifier.pausaUmPoucoAntes,
+                onHear: notifier.ouvirAPausa,
+                onLater: notifier.pausaUmPoucoDepois,
+              ),
             if (!session.btSoOuvir) ...[
               SizedBox(height: 24 + anel),
               FacilitatorCircle(
