@@ -225,78 +225,91 @@ class _SheetLine extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 0.75 * _rem,
           children: [
-            Semantics(
-              selected: playing,
-              child: RoundActionButton(
-                size: 44,
-                gradient: BeadStyles.wood,
-                mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
-                semanticLabel: '${said('listen')} — $line',
-                onTap: onPlay,
-                child: Icon(
-                  playing ? LucideIcons.pause : LucideIcons.play,
-                  size: 18,
-                  color: ShemaBrand.branco,
+            Row(
+              children: [
+                Semantics(
+                  selected: playing,
+                  child: RoundActionButton(
+                    size: 44,
+                    gradient: BeadStyles.wood,
+                    mood: busy ? ButtonMood.dimmed : ButtonMood.lit,
+                    semanticLabel: '${said('listen')} — $line',
+                    onTap: onPlay,
+                    child: Icon(
+                      playing ? LucideIcons.pause : LucideIcons.play,
+                      size: 18,
+                      color: ShemaBrand.branco,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 0.75 * _rem),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ExcludeSemantics(
+                        child: Text(
+                          line,
+                          style: TextStyle(
+                            color: colors.verdeClaro,
+                            fontSize: 0.78 * _rem,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                      if (note != null)
+                        Semantics(
+                          liveRegion: true,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 0.1 * _rem),
+                            child: Text(
+                              note,
+                              style: TextStyle(
+                                color: colors.telha,
+                                fontSize: 0.76 * _rem,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ExcludeSemantics(
-                    child: Text(
-                      line,
-                      style: TextStyle(
-                        color: colors.verdeClaro,
-                        fontSize: 0.78 * _rem,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+            Wrap(
+              spacing: 0.8 * _rem,
+              runSpacing: 0.4 * _rem,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (inUse)
+                  Text(
+                    '✓ ${said('inUse')}',
+                    style: TextStyle(color: colors.mut, fontSize: 15),
+                  )
+                else if (offersToUse)
+                  Semantics(
+                    button: true,
+                    enabled: usable,
+                    label: '$useLabel — $line',
+                    onTap: usable ? onUse : null,
+                    excludeSemantics: true,
+                    child: Opacity(
+                      opacity: waking ? 0.5 : 1,
+                      child: TextButton(
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        onPressed: usable ? onUse : null,
+                        child: Text(
+                          useLabel,
+                          style: TextStyle(color: colors.telha, fontSize: 15),
+                        ),
                       ),
                     ),
                   ),
-                  if (note != null)
-                    Semantics(
-                      liveRegion: true,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 0.1 * _rem),
-                        child: Text(
-                          note,
-                          style: TextStyle(
-                            color: colors.telha,
-                            fontSize: 0.76 * _rem,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (inUse)
-                    Text(
-                      '✓ ${said('inUse')}',
-                      style: TextStyle(color: colors.mut, fontSize: 15),
-                    )
-                  else if (offersToUse)
-                    Semantics(
-                      button: true,
-                      enabled: usable,
-                      label: '$useLabel — $line',
-                      onTap: usable ? onUse : null,
-                      excludeSemantics: true,
-                      child: Opacity(
-                        opacity: waking ? 0.5 : 1,
-                        child: TextButton(
-                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                          onPressed: usable ? onUse : null,
-                          child: Text(
-                            useLabel,
-                            style: TextStyle(color: colors.telha, fontSize: 15),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
           ],
         ),

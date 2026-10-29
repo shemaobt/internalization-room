@@ -518,7 +518,7 @@ void main() {
   ]) {
     testWidgets(
       'on $device «✓ em uso» and every «usar este» sit on their own line '
-      'under the facts, starting where the facts start',
+      'under the play, starting where the card starts, not where the facts do',
       (tester) async {
         _on(tester, screen, bar: 20);
         final semantics = tester.ensureSemantics();
@@ -526,21 +526,27 @@ void main() {
         await _openThePlan(tester);
         await _openTheSheetOf(tester, 1);
 
-        for (final (n, action) in [(3, _useThis), (2, _inUse), (1, _useThis)]) {
+        for (final (n, action) in [
+          (3, byLabel('$_useThis — ${_sent(3)}')),
+          (2, _onLine(_sent(2), find.text(_inUse))),
+          (1, byLabel('$_useThis — ${_sent(1)}')),
+        ]) {
           final facts = tester.getRect(find.text(_sent(n)));
-          final said = tester.getRect(_onLine(_sent(n), find.text(action)));
+          final play = tester.getRect(byLabel('Ouvir — ${_sent(n)}'));
+          final said = tester.getRect(action);
           expect(
             said.left,
-            closeTo(facts.left, 0.01),
+            closeTo(play.left, 0.01),
             reason:
-                'no iPad «usar este» ficava no meio da linha e «✓ em uso» na '
-                'borda direita: $action do ensaio $n',
+                'a linha das ações começava sob os fatos, não no começo do '
+                'cartão como a dela: ensaio $n',
           );
           expect(
             said.top,
             greaterThanOrEqualTo(facts.bottom),
-            reason: '$action do ensaio $n dividia a linha com os fatos',
+            reason: 'a ação do ensaio $n dividia a linha com os fatos',
           );
+          expect(said.top, greaterThanOrEqualTo(play.bottom));
         }
         semantics.dispose();
       },
