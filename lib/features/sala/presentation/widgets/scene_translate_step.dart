@@ -250,8 +250,9 @@ class SceneTranslateStep extends ConsumerWidget {
     _ => null,
   };
 
-  /// Her hint: the pausa waiting, the take playing with her clock, the end of the take,
-  /// or the take paused; nothing before the team listens.
+  /// Her hint: a frase translated again, listening or her clock alone; else the pausa
+  /// waiting, the take playing with her clock, the end of the take, or the take paused;
+  /// nothing before the team listens.
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;

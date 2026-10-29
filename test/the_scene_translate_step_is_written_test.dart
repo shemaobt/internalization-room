@@ -1429,6 +1429,52 @@ void main() {
     );
   }
 
+  testWidgets(
+    'the last frase translated again up to the take\'s end, once stopped, reads only her clock, not «fim do ensaio da cena»',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 10000)],
+          ),
+        ],
+        until: (state) =>
+            state.scene.step == SceneStep.translate &&
+            state.sceneEnvelope != null,
+      );
+
+      await tester.tap(byLabel(_bar(2)));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      expect(harness.playback.ranges.last, '4000-10000');
+      expect(
+        container.read(salaSessionProvider).scene.pausa,
+        const Duration(seconds: 10),
+      );
+      harness.playback.at = const Duration(seconds: 6);
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text('0:10 / 0:10'),
+        findsOneWidget,
+        reason:
+            'a frase traduzida de novo até o fim do take dizia «fim do ensaio da cena»',
+      );
+      expect(find.text('fim do ensaio da cena'), findsNothing);
+    },
+  );
+
   testWidgets('a sent scene rehearsal draws her strip', (tester) async {
     await _inListenMode(tester);
 
