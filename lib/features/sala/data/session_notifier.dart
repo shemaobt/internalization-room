@@ -3196,6 +3196,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     unawaited(_countUnsent());
+    unawaited(_adoptTheNames(_takes, _thisLife));
     return _Resume.landed;
   }
 
@@ -7555,9 +7556,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// nameless sends every stretch told over it up as a telling of the whole passage.
   ///
   /// The name goes to the file it was given for, never to every take of the scope: a part
-  /// recorded again shares its scope with the recording it replaced, and the row is what
-  /// tells the two apart.
+  /// recorded again shares its scope with the recording it replaced. This visit's rows tell
+  /// the two apart by row; a row an earlier visit wrote, by its pass and the file it was
+  /// copied from.
   Future<void> _adoptTheNames(TakeUploadQueue queue, int? life) async {
+    if (state.sessionId case final sessionId? when !_endedSince(life)) {
+      for (final take in state.keptTakes) {
+        if (take.takeId != null) continue;
+        final id = queue.takeIdOfThePart(sessionId, take);
+        if (id == null) continue;
+        state = state.copyWith(
+          keptTakes: [
+            for (final kept in state.keptTakes)
+              if (kept.path == take.path) kept.withTakeId(id) else kept,
+          ],
+        );
+      }
+    }
     for (final linha in _semNome.keys.toList()) {
       final id = await queue.takeIdOf(linha);
       if (_endedSince(life)) return;
