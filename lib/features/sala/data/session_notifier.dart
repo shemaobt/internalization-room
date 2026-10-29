@@ -11095,7 +11095,29 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (sent > _stretchesAt) {
           _stretchesAt = sent;
           final trechos = _trechosFrom(snapshot.backTranslation.segments);
-          if (trechos.isNotEmpty) state = state.copyWith(btTrechos: trechos);
+          if (trechos.isNotEmpty) {
+            final nomes = {
+              for (final trecho in state.btTrechos)
+                ?trecho.frase: ?trecho.segmentId,
+            };
+            final frases = {
+              for (final trecho in trechos) ?trecho.segmentId: trecho.frase,
+            };
+            state = state.copyWith(
+              btTrechos: trechos,
+              btFindings: [
+                for (final finding in state.btFindings)
+                  switch (nomes[finding.frase]) {
+                    null => finding,
+                    final nome => BtFinding(
+                      kind: finding.kind,
+                      frase: frases[nome],
+                      segmentId: finding.segmentId,
+                    ),
+                  },
+              ],
+            );
+          }
           final numeros = {
             for (final regravada in snapshot.backTranslation.stale)
               regravada.segmentId: regravada.frase,

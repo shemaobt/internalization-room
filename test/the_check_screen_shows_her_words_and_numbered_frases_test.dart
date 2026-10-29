@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -502,6 +504,83 @@ Future<ProviderContainer> _relidaPelaSala(
             depois.fresca &&
         container.read(salaSessionProvider).btTrechosRegravados.single.frase ==
             depois.regravada,
+    step: () => _passo(tester),
+  );
+  await _passo(tester);
+  return container;
+}
+
+BackTranslationProgress _frescasAposARegravada(
+  List<(String, int)> frescas, {
+  required int? regravada,
+  List<BtFinding> achados = const [],
+}) => BackTranslationProgress(
+  findings: achados,
+  segments: [
+    for (final (onde, (nome, frase)) in frescas.indexed)
+      SegmentView(
+        segmentId: nome,
+        takeId: 'gravacao-2',
+        startsMs: onde * 3000,
+        endsMs: (onde + 1) * 3000,
+        frase: frase,
+      ),
+  ],
+  stale: [
+    SegmentView(
+      segmentId: 'trecho-1',
+      takeId: 'gravacao-velha-1',
+      startsMs: 0,
+      endsMs: 4000,
+      frase: regravada,
+    ),
+  ],
+);
+
+Future<ProviderContainer> _renumeradaPelaSala(
+  WidgetTester tester,
+  SalaHarness harness, {
+  required BackTranslationProgress antes,
+  required BackTranslationProgress depois,
+}) async {
+  harness.room.takes.add(
+    const TakeView(
+      takeId: 'gravacao-velha-1',
+      scope: 'parte-1',
+      kind: 'ensaio',
+      ordinal: 1,
+    ),
+  );
+  final container = await _voltaATraducao(
+    tester,
+    harness,
+    juntada: true,
+    antes,
+  );
+  await waitFor(
+    'a frase regravada achar a sua parte',
+    () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+    step: () => _passo(tester),
+  );
+  harness.room.retroSoFar = depois;
+  final sala = container.read(salaSessionProvider.notifier);
+  sala.goEnsaio();
+  await tester.pump(const Duration(milliseconds: 300));
+  sala.startRetro();
+  await waitFor(
+    'a sala renumerar as frases',
+    () =>
+        container.read(salaSessionProvider).stage == SalaStage.retro &&
+        listEquals(
+          [
+            for (final trecho in container.read(salaSessionProvider).btTrechos)
+              (trecho.segmentId, trecho.frase),
+          ],
+          [
+            for (final segment in depois.segments)
+              (segment.segmentId, segment.frase),
+          ],
+        ),
     step: () => _passo(tester),
   );
   await _passo(tester);
@@ -2203,6 +2282,150 @@ void main() {
     );
     closeTheRoom(container);
   });
+
+  testWidgets('after the room renumbers frases 2 and 3 as 1 and 2, each '
+      'finding stays on its own frase, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _renumeradaPelaSala(
+      tester,
+      harness,
+      antes: _frescasAposARegravada(
+        [('trecho-3', 2), ('trecho-4', 3)],
+        regravada: 1,
+        achados: const [
+          BtFinding(
+            kind: BtFindingKind.addition,
+            frase: 2,
+            segmentId: 'trecho-3',
+          ),
+          BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: 3,
+            segmentId: 'trecho-4',
+          ),
+        ],
+      ),
+      depois: _frescasAposARegravada([
+        ('trecho-3', 1),
+        ('trecho-4', 2),
+      ], regravada: null),
+    );
+
+    expect(
+      _naLista(tester),
+      [
+        'FRASES TRADUZIDAS',
+        '1',
+        'parte 1',
+        'regravada — traduzam de novo',
+        '2',
+        'parte 2',
+        'acrescentado',
+        '3',
+        'parte 2',
+        'não ficou claro',
+      ],
+      reason:
+          'renumeradas as frases, os achados ficavam com os números velhos: o '
+          'da frase 2 caía na frase seguinte e o da frase 3 sumia',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('after the room renumbers the frases, the nuance the verdict '
+      'named keeps its colour on its own frase, not on none', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _renumeradaPelaSala(
+      tester,
+      harness,
+      antes: _frescasAposARegravada(
+        [('trecho-3', 2), ('trecho-4', 3)],
+        regravada: 1,
+        achados: const [
+          BtFinding(
+            kind: BtFindingKind.nuance,
+            frase: 3,
+            segmentId: 'trecho-4',
+          ),
+        ],
+      ),
+      depois: _frescasAposARegravada([
+        ('trecho-3', 1),
+        ('trecho-4', 2),
+      ], regravada: null),
+    );
+    Color borda(int n) =>
+        ((tester
+                            .widget<Container>(
+                              _oCartao(
+                                find.descendant(
+                                  of: find.byType(FraseList),
+                                  matching: find.text('$n'),
+                                ),
+                              ).first,
+                            )
+                            .decoration
+                        as BoxDecoration)
+                    .border!
+                as Border)
+            .top
+            .color;
+
+    expect(
+      borda(3),
+      ShemaBrand.azul,
+      reason:
+          'renumeradas as frases, a nuance ficava no número velho e nenhuma '
+          'frase levava a cor dela',
+    );
+    expect(borda(2), isNot(ShemaBrand.azul));
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a finding on a stretch the room no longer counts marks no frase, '
+    'never the one that took its number',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _renumeradaPelaSala(
+        tester,
+        harness,
+        antes: _frescasAposARegravada(
+          [('trecho-3', 2), ('trecho-4', 3)],
+          regravada: 1,
+          achados: const [
+            BtFinding(
+              kind: BtFindingKind.unclear,
+              frase: 3,
+              segmentId: 'trecho-4',
+            ),
+          ],
+        ),
+        depois: _frescasAposARegravada([
+          ('trecho-3', 2),
+          ('trecho-5', 3),
+        ], regravada: 1),
+      );
+
+      expect(
+        _naLista(tester),
+        [
+          'FRASES TRADUZIDAS',
+          '1',
+          'parte 1',
+          'regravada — traduzam de novo',
+          '2',
+          'parte 2',
+          '3',
+          'parte 2',
+        ],
+        reason:
+            'o achado de um trecho que a sala já não conta caía na frase que '
+            'ficou com o número dele, uma frase que a conferência nunca ouviu',
+      );
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets('a «regravada» frase is not offered to be told again where a '
       'frase of the new recording already stands, only beside one', (
