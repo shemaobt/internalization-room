@@ -1120,6 +1120,40 @@ void main() {
     );
   });
 
+  test('an automatic check the room refuses leaves her «não deu para '
+      'conferir» on the telling, not a silent screen', () async {
+    final it = await _juntadaNaCasa();
+    _frasesTrazidas(it);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    var conferiu = false;
+    it.harness.room
+      ..listeningAutomaticCheck = true
+      ..listeningFixedLine = 'N1'
+      ..failFinishWith = const Refused('BAD_REQUEST')
+      ..duranteOVeredito = () => conferiu = true;
+
+    await _ouvirAte(it, desde: 2);
+    await waitFor(
+      'a conferência sozinha voltar',
+      () =>
+          conferiu &&
+          !it.estado.btConferindo &&
+          it.estado.btPhase != BtPhase.thinking,
+    );
+    await settle();
+
+    expect(
+      it.estado.btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason: 'a conferência sozinha que a sala recusava não deixava linha',
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
+    expect(it.estado.needsPerson, isFalse);
+  });
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();
