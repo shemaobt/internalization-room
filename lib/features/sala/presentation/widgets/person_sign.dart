@@ -28,11 +28,7 @@ class _PersonSignState extends ConsumerState<PersonSign>
     super.dispose();
   }
 
-  void _tapped() {
-    if (_fade.status.isForwardOrCompleted) {
-      ref.read(salaSessionProvider.notifier).teamTapped();
-    }
-  }
+  void _tapped() => ref.read(salaSessionProvider.notifier).teamTapped();
 
   @override
   Widget build(BuildContext context) {
