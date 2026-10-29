@@ -102,16 +102,13 @@ double _piorContraste(WidgetTester tester, String rotulo) {
   final disco = find.descendant(
     of: botao,
     matching: find.byWidgetPredicate(
-      (widget) =>
-          widget is Container &&
-          (widget.decoration as BoxDecoration?)?.gradient != null,
+      (widget) => widget is Container && widget.decoration is BoxDecoration,
     ),
   );
   final papel = Theme.of(tester.element(botao)).scaffoldBackgroundColor;
   final tinta = tester.widget<Text>(texto).style!.color!;
-  final paradas = (tester.widget<Container>(disco).decoration! as BoxDecoration)
-      .gradient!
-      .colors;
+  final pintura = tester.widget<Container>(disco).decoration! as BoxDecoration;
+  final paradas = pintura.gradient?.colors ?? [pintura.color!];
   final veuDoDisco = _veu(tester, disco);
   final veuDaTinta = _veu(tester, texto);
   return paradas
@@ -127,6 +124,65 @@ double _piorContraste(WidgetTester tester, String rotulo) {
         return contrastOf(letra, fundo);
       })
       .reduce((um, outro) => um < outro ? um : outro);
+}
+
+const _rem = 16.0;
+
+Future<ProviderContainer> _comOTermineiAceso(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  final container = await entrarNaTraducao(tester, harness, partes: 1);
+  harness.playback.at = cabeca;
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
+  await contarAteOFimDaParte(tester, harness);
+  await waitFor(
+    'o terminei acender',
+    () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+    step: () => _passo(tester),
+  );
+  await tester.pump(const Duration(seconds: 1));
+  return container;
+}
+
+void _pilulaTelha(
+  WidgetTester tester,
+  String rotulo,
+  Color telha, {
+  required double veu,
+}) {
+  final botao = byLabel(rotulo);
+  final fundo = find.descendant(
+    of: botao,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is Container && widget.decoration is BoxDecoration,
+    ),
+  );
+  final decoracao =
+      tester.widget<Container>(fundo).decoration! as BoxDecoration;
+  expect(
+    decoracao.color,
+    telha,
+    reason: 'o terminei era um disco de madeira, não a pílula telha dela',
+  );
+  expect(decoracao.borderRadius, BorderRadius.circular(999));
+  expect(decoracao.boxShadow, isNull, reason: 'a pílula dela não tem sombra');
+  final pilula = tester.getRect(botao);
+  final letra = tester.getRect(
+    find.descendant(of: botao, matching: find.text(rotulo)),
+  );
+  expect(letra.left - pilula.left, closeTo(2.2 * _rem, 0.01));
+  expect(pilula.right - letra.right, closeTo(2.2 * _rem, 0.01));
+  expect(letra.top - pilula.top, closeTo(0.8 * _rem, 0.01));
+  expect(pilula.bottom - letra.bottom, closeTo(0.8 * _rem, 0.01));
+  final estilo = tester
+      .widget<Text>(find.descendant(of: botao, matching: find.text(rotulo)))
+      .style!;
+  expect(estilo.fontSize, 1 * _rem);
+  expect(estilo.fontWeight, FontWeight.w600);
+  expect(_veu(tester, fundo), closeTo(veu, 0.001));
 }
 
 void _telaAlta(WidgetTester tester) {
@@ -2493,6 +2549,46 @@ void main() {
         );
         harness.room.finishHeldVerdict();
         await _passo(tester);
+        closeTheRoom(container);
+      },
+    );
+  }
+
+  for (final (look, telha) in [
+    (Brightness.light, const Color(0xFFBE4A01)),
+    (Brightness.dark, const Color(0xFFD6612A)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a dimmed «terminei» is her telha pill faded to '
+      'a third, not a wood disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await entrarNaTraducao(tester, harness, partes: 1);
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(aceso(tester, 'terminei'), isFalse);
+        _pilulaTelha(tester, 'terminei', telha, veu: 0.35);
+        closeTheRoom(container);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» is her telha pill at full '
+      'strength, still and without a halo, not a beckoning wood disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await _comOTermineiAceso(tester, harness);
+
+        expect(aceso(tester, 'terminei'), isTrue);
+        for (var quadro = 0; quadro < 4; quadro++) {
+          _pilulaTelha(tester, 'terminei', telha, veu: 1);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
         closeTheRoom(container);
       },
     );
