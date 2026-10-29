@@ -500,7 +500,10 @@ class RetroView extends ConsumerWidget {
                 session.btTrechosRegravados.length,
           );
     final dormindo =
-        _dormindo('restart', session) || !session.aBackTranslationGestureActs;
+        _dormindo('restart', session) ||
+        !session.aBackTranslationGestureActs ||
+        !session.theFraseListIsIdle ||
+        session.btRegravacao != null;
     return Semantics(
       button: true,
       enabled: !dormindo,
@@ -510,7 +513,7 @@ class RetroView extends ConsumerWidget {
         opacity: dormindo ? 0.4 : 1,
         child: ExcludeSemantics(
           child: GestureDetector(
-            onTap: notifier.recomecarATraducao,
+            onTap: dormindo ? null : notifier.recomecarATraducao,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
@@ -731,6 +734,17 @@ class RetroView extends ConsumerWidget {
           PartPlaying(:final part) => part.part == onde,
           _ => false,
         },
+        now: switch (session.channel) {
+          PartPlaying(:final part) ||
+          Paused(what: final PartSound part) ||
+          GuideSpeaking(held: Paused(what: final PartSound part)) ||
+          Microphone(
+            held: Paused(what: final PartSound part),
+          ) => part.part == onde,
+          _ => session.btParteQueTocou == onde,
+        },
+        unheard:
+            parte.takeId == null || session.btNaoOuvidas.contains(parte.takeId),
         paused: switch (_aParteParada(session.channel)) {
           final Paused parada && Paused(what: PartSound(:final part))
               when part == onde =>
