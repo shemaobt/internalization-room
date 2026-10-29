@@ -523,6 +523,47 @@ void main() {
     },
   );
 
+  for (final (lingua, aprovar, pronto, selo) in [
+    ('pt', _aprovar, _pronto, _badge),
+    (
+      'en',
+      'Approve as the final draft',
+      'Done',
+      '✓ approved as the final draft (v1)',
+    ),
+  ]) {
+    testWidgets(
+      'on a phone as narrow as the iPhone SE the $lingua badge wraps beside the '
+      'listen button instead of running off the screen',
+      (tester) async {
+        tester.view
+          ..physicalSize = const Size(375, 667)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final it = await _ateAConferida(
+          tester,
+          lingua: lingua,
+          aprovar: aprovar,
+        );
+        it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+        await _tocar(tester, aprovar);
+        await tester.tap(byLabel(pronto));
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final onde = tester.getRect(find.text(selo));
+        expect(onde.left, greaterThanOrEqualTo(0));
+        expect(
+          onde.right,
+          lessThanOrEqualTo(375),
+          reason:
+              'o selo passava da borda direita do iPhone SE e era cortado '
+              'no «final»',
+        );
+        closeTheRoom(it.container);
+      },
+    );
+  }
+
   testWidgets(
     'the restart pressed twice while the approval line plays does nothing, and '
     '«$_ensaioSalvo» still comes',

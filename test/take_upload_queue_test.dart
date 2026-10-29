@@ -418,8 +418,8 @@ void main() {
       await queue.enqueue(
         aTake('dois'),
         sessionId: 'sessao-1',
-        kind: 'retro',
-        scope: 'inteira',
+        kind: sentenceKind,
+        scope: '2',
       );
       await queue.enqueue(
         aTake('tres'),
@@ -431,7 +431,7 @@ void main() {
       final tally = await queue.tally(sessionId: 'sessao-1');
 
       expect(tally.unsentTakes, 1, reason: 'só a linha ensaio da sessao-1');
-      expect(tally.unsentChunks, 1, reason: 'só a linha retro da sessao-1');
+      expect(tally.unsentChunks, 1, reason: 'só a linha frase da sessao-1');
       expect(tally.unsentParts.keys, ['inteira']);
       expect(tally.unsentParts['inteira'], hasLength(1));
     },
@@ -595,7 +595,7 @@ void main() {
     final segunda = await queue.enqueue(
       aTake('segunda'),
       sessionId: 'sessao-1',
-      kind: 'retro',
+      kind: 'ensaio',
       scope: 'P03',
     );
 
@@ -605,7 +605,7 @@ void main() {
     await queue.dueAgain(segunda.id);
 
     expect(await queue.flush(), 2);
-    expect(room.takesKept, ['ensaio/inteira', 'retro/P03']);
+    expect(room.takesKept, ['ensaio/inteira', 'ensaio/P03']);
   });
 
   test(
@@ -613,19 +613,19 @@ void main() {
     () async {
       final room = FakeRoom()..reachable = false;
       final queue = queueOn(room);
-      final source = aTake('retro_passada1_pedaco1');
+      final source = aTake('ensaio_passada1');
 
       final first = await queue.enqueue(
         source,
         sessionId: 'sessao-1',
-        kind: 'retro',
+        kind: 'ensaio',
         scope: 'inteira',
       );
       source.writeAsStringSync('a equipe contou de novo');
       final second = await queue.enqueue(
         source,
         sessionId: 'sessao-1',
-        kind: 'retro',
+        kind: 'ensaio',
         scope: 'inteira',
       );
 
@@ -639,7 +639,7 @@ void main() {
 
       room.reachable = true;
       expect(await queue.flush(), 2);
-      expect(room.takesKept, ['retro/inteira', 'retro/inteira']);
+      expect(room.takesKept, ['ensaio/inteira', 'ensaio/inteira']);
       expect(await queue.pending(), isEmpty);
     },
   );
@@ -719,7 +719,7 @@ void main() {
     await queue.enqueue(
       aTake('livre'),
       sessionId: 'sessao-1',
-      kind: 'retro',
+      kind: 'ensaio',
       scope: 'P03',
     );
     room.refuseTake = 'ensaio/inteira';
@@ -729,7 +729,7 @@ void main() {
     expect(sent, 1);
     expect(
       room.takesKept,
-      ['retro/P03'],
+      ['ensaio/P03'],
       reason:
           'uma tomada que o servidor recusa não pode prender a fila inteira atrás dela',
     );
@@ -865,30 +865,6 @@ void main() {
       expect(await queue.takeIdOf(sumida.id), isNull);
     },
   );
-
-  test('a stretch is not held by a part that is waiting', () async {
-    final room = FakeRoom()..refuseTake = 'ensaio/parte-2';
-    final queue = queueOn(room);
-    await queue.enqueue(
-      aTake('parte-dois'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'parte-2',
-    );
-    await queue.enqueue(
-      aTake('trecho'),
-      sessionId: 'sessao-1',
-      kind: 'retro',
-      scope: 'parte-2',
-    );
-
-    expect(await queue.flush(), 1);
-    expect(
-      room.takesKept,
-      ['retro/parte-2'],
-      reason: 'a regra é da parte gravada, e um trecho contado não é uma delas',
-    );
-  });
 
   test('a row that gave up holds nothing behind it', () async {
     final room = FakeRoom()..takeAnswersFirst.add(const Refused('BAD_REQUEST'));
@@ -1490,7 +1466,7 @@ void main() {
     final pendente = await queue.enqueue(
       aTake('pendente'),
       sessionId: 'sessao-1',
-      kind: 'retro',
+      kind: 'ensaio',
       scope: 'inteira',
     );
     final copia = File(pendente.path);
@@ -1508,7 +1484,7 @@ void main() {
     final entregue = await queue.enqueue(
       aTake('entregue'),
       sessionId: 'sessao-1',
-      kind: 'retro',
+      kind: 'ensaio',
       scope: 'inteira',
     );
     await queue.flush();
@@ -1534,14 +1510,14 @@ void main() {
     await queue.enqueue(
       aTake('outra'),
       sessionId: 'sessao-1',
-      kind: 'retro',
+      kind: 'ensaio',
       scope: 'inteira',
     );
     const desconhecida = PendingTake(
       id: 'nunca-existiu',
       path: '/nao/existe.m4a',
       sessionId: 'sessao-1',
-      kind: 'retro',
+      kind: 'ensaio',
       scope: 'inteira',
     );
 
@@ -1565,7 +1541,7 @@ void main() {
       final nova = await queue.enqueue(
         aTake('nova'),
         sessionId: 'sessao-2',
-        kind: 'retro',
+        kind: 'ensaio',
         scope: 'inteira',
       );
       await queue.withdraw(nova);
@@ -2607,6 +2583,99 @@ void main() {
 
       expect(room.takesKept, ['ensaio/parte-2']);
       expect(File(copy).existsSync(), isFalse);
+    });
+
+    test('given way to a hand take while its failing request is in the air, '
+        'it never goes up again', () async {
+      final room = FakeRoom()
+        ..holdNextTake('parte-2')
+        ..unreachableTake = 'ensaio/parte-2';
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final flushed = queue.flush();
+      await room.untilTakeHeld();
+
+      await queue.withdrawTheJoinsOf('sessao-1', 'parte-2');
+      room.finishHeldTake();
+      await flushed;
+      room.unreachableTake = null;
+      await queue.flush();
+
+      expect(
+        room.takesReceivedWhole,
+        isEmpty,
+        reason:
+            'a junta no ar escapava da retirada e subia depois por cima da '
+            'gravação à mão',
+      );
+      expect(await queue.pending(), isEmpty);
+      expect(File(row.path).existsSync(), isFalse);
+    });
+
+    test('given way to a hand take while in the air, a room that finds the '
+        'part moved still takes its copy away', () async {
+      final room = FakeRoom()
+        ..holdNextTake('parte-2')
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = RefusalCode.takeMoved;
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final flushed = queue.flush();
+      await room.untilTakeHeld();
+
+      await queue.withdrawTheJoinsOf('sessao-1', 'parte-2');
+      room.finishHeldTake();
+      await flushed;
+
+      expect(await queue.pending(), isEmpty);
+      expect(
+        File(row.path).existsSync(),
+        isFalse,
+        reason: 'a cópia da junta retirada no ar ficava na pasta sem linha',
+      );
+    });
+
+    test('given way to a hand take while in the air, a refusal leaves no row '
+        'behind to stand for the part', () async {
+      final room = FakeRoom()
+        ..holdNextTake('parte-2')
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = 'HTTP_500';
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final flushed = queue.flush();
+      await room.untilTakeHeld();
+
+      await queue.withdrawTheJoinsOf('sessao-1', 'parte-2');
+      room.finishHeldTake();
+      await flushed;
+
+      expect(
+        await queue.pending(),
+        isEmpty,
+        reason:
+            'a junta recusada ficava na Outbox e a sua recusa aparecia na '
+            'cena gravada à mão',
+      );
+      expect(File(row.path).existsSync(), isFalse);
     });
 
     test('withdrawn while its pass is under way is given up, and the newer '
