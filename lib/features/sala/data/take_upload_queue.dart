@@ -95,8 +95,8 @@ class PendingTake {
   /// room's list did not hold, a stop.
   final int attempts;
 
-  /// Times the room turned the tablet away rather than the take; they never spend an
-  /// attempt.
+  /// Times the room turned the tablet away rather than the take, and times a join row
+  /// (one with an origin) fell on the network; neither spends an attempt.
   final int waits;
 
   /// When this row was last tried, written down as UTC. A tap that makes the row due
