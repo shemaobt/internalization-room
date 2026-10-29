@@ -6,6 +6,13 @@ amends: 0014, 0061
 
 # The Choice is her text menu, and the passage ruler and its spoken references leave
 
+Amended by ENG-2034 (2026-10-29): the third bullet of the Decision. As in her app, the
+entry left is tinted whichever language the list is shown in, the Panorama included: her
+pill is current whenever it is the session's passage, and «PT» and «EN» only rename the
+pills. The tint and the way back now agree in both languages. A tap on the tinted pill in
+the other language still opens that passage in the Room language, as hers does; only the
+way back returns to the session left, in the language it was opened in.
+
 This amends ADRs 0014 and 0061 without editing their decisions; it adds a paragraph at the
 top of 0014 and "amended by 0090" to 0061's status line. The Definer settled it on
 16 October (ENG-1297).
