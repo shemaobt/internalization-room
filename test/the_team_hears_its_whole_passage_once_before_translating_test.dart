@@ -2452,7 +2452,7 @@ void main() {
       final microfones = _microfones(it);
 
       it.sala.traduzirAFraseDeNovo(0);
-      it.sala.ouvirAConta(0);
+      it.sala.ouvirOTrechoContado(0);
       await settle();
 
       expect(it.harness.playback.played.length, noAr);

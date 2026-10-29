@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'scenario_helpers.dart' show ouvirOApontado, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'playback_ceiling_test.dart' show gravaParte;
@@ -151,7 +151,7 @@ Future<_Cena> _nosAchados() async {
 /// gesture of the findings is really made in.
 Future<_Cena> _nosAchadosComOTrechoNoAr() async {
   final cena = await _nosAchados();
-  ouvirOApontado(cena.container);
+  traduzirOApontadoDeNovo(cena.container);
   await waitFor(
     'o trecho apontado tocar',
     () => _estado(cena).btTrechoTocando && cena.harness.playback.sounding,

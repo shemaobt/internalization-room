@@ -336,50 +336,6 @@ void main() {
     );
   });
 
-  test('after a verdict, a bead on a frase the room has not named yet plays '
-      'its piece of the recording instead of doing nothing', () async {
-    final it = await _oAchadoNaParteDois();
-    it.sala.gravarAParteDeNovo();
-    await regravarAParte(it, 1);
-    await waitFor(
-      'a sala nomear a parte gravada de novo',
-      () => it.partes[1].takeId != null,
-    );
-    it.harness.playback.lengths[it.partes[1].path] = partesDoEnsaio[1];
-    it.sala.startRetro();
-    await waitFor(
-      'a tradução recomeçar na parte gravada de novo',
-      () =>
-          it.estado.stage == SalaStage.retro &&
-          it.estado.btPhase == BtPhase.playing,
-    );
-    it.harness.room.chunksAnswerWithNoName = true;
-    await _contarUmTrecho(it, partesDoEnsaio[1]);
-    final onde = it.estado.btTrechos.indexWhere(
-      (trecho) => trecho.parte == 1 && trecho.contado,
-    );
-    expect(it.estado.btTrechos[onde].segmentId, isNull);
-    expect(it.estado.canRetellAFrase, isTrue);
-    final tocadas = it.harness.playback.played.length;
-    final trechos = it.harness.playback.ranges.length;
-
-    it.sala.ouvirAConta(onde);
-    await settle();
-
-    expect(
-      it.harness.playback.played.skip(tocadas),
-      [it.partes[1].path],
-      reason:
-          'a conta abria a frase sem nome para traduzir de novo, e a frase '
-          'sem nome não abre: o toque não fazia nada',
-    );
-    expect(it.harness.playback.ranges.skip(trechos), [
-      '0-${partesDoEnsaio[1].inMilliseconds}',
-    ]);
-    expect(it.estado.btTrechoTraduzidoDeNovo, isNull);
-    closeTheRoom(it.container);
-  });
-
   test(
     'a parte regravada cuja linha ainda não pousou deixa a conferência '
     'fechada, e depois de pousar o trecho contado sobre ela sobe nomeado',

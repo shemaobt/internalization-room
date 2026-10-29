@@ -129,7 +129,7 @@ void main() {
       'de vocês…», not the invitation to record', (tester) async {
     final (harness, container) = await reopenedInto(tester, toldUpTo: 5000);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);
@@ -152,7 +152,7 @@ void main() {
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(rotuloDoCirculo(tester), fimDaGravacao);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     final state = container.read(salaSessionProvider);
@@ -195,7 +195,7 @@ void main() {
       isNotNull,
     );
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
@@ -218,7 +218,7 @@ void main() {
     await tester.pump(passaDoCursor);
     expect(rotuloDoCirculo(tester), ouvindo);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -240,7 +240,7 @@ void main() {
     await tester.pump(passaDoCursor);
     expect(rotuloDoCirculo(tester), ouvindo);
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -276,7 +276,7 @@ void main() {
     );
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
 
-    notifier.ouvirAConta(0);
+    notifier.traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(

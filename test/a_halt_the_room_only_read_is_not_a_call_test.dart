@@ -28,7 +28,7 @@ void main() {
 
       harness.playback.failPlayback();
       await settle();
-      notifier.ouvirOTrechoPendente();
+      notifier.ouvirGravacao();
       await settle();
       harness.playback.failPlayback();
       await settle();

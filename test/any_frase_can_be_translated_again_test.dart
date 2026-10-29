@@ -1031,7 +1031,9 @@ void main() {
 
     container
         .read(salaSessionProvider.notifier)
-        .ouvirAConta(aqui.btTrechos.indexWhere((trecho) => trecho.frase == 5));
+        .traduzirAFraseDeNovo(
+          aqui.btTrechos.indexWhere((trecho) => trecho.frase == 5),
+        );
     await _passo(tester);
 
     expect(

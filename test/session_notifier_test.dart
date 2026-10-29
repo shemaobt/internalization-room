@@ -28,7 +28,6 @@ import 'scenario_helpers.dart'
         settle,
         stateReads,
         withDiskThatAnswersAtOnce,
-        ouvirOApontado,
         traduzirOApontadoDeNovo;
 
 Future<void> _intoFindings(
@@ -4626,7 +4625,7 @@ void main() {
           'o nome vem do servidor; derivá-lo da posição na lista '
           'desalinha assim que uma resposta se perde depois de persistir',
     );
-    ouvirOApontado(container);
+    traduzirOApontadoDeNovo(container);
     await waitFor(
       'o trecho apontado estar tocando',
       () => container.read(salaSessionProvider).btTrechoTocando,
@@ -5040,7 +5039,7 @@ void main() {
           'precisa falar de novo, e ouvir é um gesto da equipe',
     );
 
-    ouvirOApontado(container);
+    traduzirOApontadoDeNovo(container);
     await waitFor(
       'o trecho apontado ser tocado',
       () => harness.playback.ranges.isNotEmpty,
@@ -6333,7 +6332,7 @@ void main() {
       );
 
       harness.playback.length = const Duration(seconds: 12);
-      ouvirOApontado(container);
+      traduzirOApontadoDeNovo(container);
       await settle();
 
       expect(
@@ -6631,7 +6630,7 @@ void main() {
       from: const Duration(seconds: 4),
       to: const Duration(seconds: 9),
     );
-    ouvirOApontado(container);
+    traduzirOApontadoDeNovo(container);
     await settle();
 
     expect(harness.playback.ranges, isNotEmpty);
