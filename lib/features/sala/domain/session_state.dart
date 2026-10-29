@@ -1474,7 +1474,7 @@ class SalaSessionState {
   bool get btAindaFaltaOuvir =>
       _btDebaixoDoTerminei &&
       btRecusa != CheckRefusal.stretchUntranslated &&
-      !(btClipEnded && _btParteContada);
+      !(btOuvidaInteira ?? (btClipEnded && _btParteContada));
 
   bool get btFaltaTraduzirUmTrecho =>
       _btDebaixoDoTerminei && btRecusa == CheckRefusal.stretchUntranslated;

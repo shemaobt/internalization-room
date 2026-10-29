@@ -25,9 +25,13 @@ Finder _naTela(String linha) =>
 
 Future<ProviderContainer> _umaFraseEPausada(
   WidgetTester tester,
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  bool ouvidaPelaSala = false,
+}) async {
   final container = await entrarNaTraducao(tester, harness, partes: 1);
+  harness.room.listeningUnheardTakeIds = ouvidaPelaSala
+      ? const []
+      : [container.read(salaSessionProvider).partes.single.takeId!];
   harness.playback.at = cabeca;
   await tocarNoCirculo(tester);
   await tocarNoCirculo(tester);
@@ -44,10 +48,9 @@ Future<ProviderContainer> _umaFraseEPausada(
 }
 
 void main() {
-  testWidgets('a frase told and the telling paused writes «ainda falta ouvir '
-      'um trecho da gravação» under the dark terminei, before any tap', (
-    tester,
-  ) async {
+  testWidgets('a frase told while the room counts a part unheard writes «ainda '
+      'falta ouvir um trecho da gravação» under the dark terminei, before any '
+      'tap', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _umaFraseEPausada(tester, harness);
     final estado = container.read(salaSessionProvider);
@@ -69,7 +72,8 @@ void main() {
   });
 
   testWidgets('in English the dark terminei carries «there is still a part of '
-      'the recording to listen to» under it', (tester) async {
+      'the recording to listen to» under it while the room counts a part '
+      'unheard', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await _umaFraseEPausada(tester, harness);
 
@@ -77,6 +81,28 @@ void main() {
       _naTela(_stillToHear),
       findsOneWidget,
       reason: 'a linha em inglês não aparecia antes do toque',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase told and the telling paused in the middle of the part '
+      'writes nothing under a lit terminei when the room counts every part '
+      'heard', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _umaFraseEPausada(
+      tester,
+      harness,
+      ouvidaPelaSala: true,
+    );
+
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
+    expect(aceso(tester, conferir), isTrue);
+    expect(
+      _naTela(_faltaOuvir),
+      findsNothing,
+      reason:
+          'a linha de que falta ouvir vinha da tradução parada no meio da '
+          'parte, com a sala já contando tudo ouvido',
     );
     closeTheRoom(container);
   });
@@ -118,15 +144,19 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('the line under terminei goes as soon as the telling reaches the '
-      'end and terminei lights', (tester) async {
+  testWidgets('the line under terminei goes as soon as the room counts every '
+      'part heard and terminei lights', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
+    harness.room.listeningUnheardTakeIds = [
+      container.read(salaSessionProvider).partes.single.takeId!,
+    ];
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
     await gravarATraducao(tester);
     expect(_naTela(_faltaOuvir), findsOneWidget);
 
+    harness.room.listeningUnheardTakeIds = const [];
     await contarAteOFimDaParte(tester, harness);
     await waitFor(
       'o terminei acender',
