@@ -34,26 +34,27 @@ class SceneRehearsalView extends ConsumerWidget {
     final sending = session.theSceneIsSending;
     final sendable = scene.sendable && !session.needsPerson;
 
-    return Column(
-      children: [
-        StageHeading(
-          text: said('title'),
-          style: TextStyle(
-            color: colors.ink,
-            fontSize: 26,
-            fontWeight: FontWeight.w500,
-          ),
-          top:
-              MediaQuery.viewPaddingOf(context).top +
-              MediaQuery.sizeOf(context).height * 0.09,
-          corner:
-              MediaQuery.viewPaddingOf(context).top +
-              MediaQuery.sizeOf(context).height * 0.05 +
-              42,
-        ),
-        Expanded(
-          child: Center(
-            child: switch (scene.step) {
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            StageHeading(
+              text: said('title'),
+              style: TextStyle(
+                color: colors.ink,
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
+              ),
+              top:
+                  MediaQuery.viewPaddingOf(context).top +
+                  MediaQuery.sizeOf(context).height * 0.09,
+              corner:
+                  MediaQuery.viewPaddingOf(context).top +
+                  MediaQuery.sizeOf(context).height * 0.05 +
+                  42,
+            ),
+            const SizedBox(height: 12.8),
+            switch (scene.step) {
               SceneStep.record => switch (session.scenes) {
                 ScenesAwaited() => const SizedBox.shrink(),
                 final scenes => _TheRecordStep(
@@ -113,16 +114,14 @@ class SceneRehearsalView extends ConsumerWidget {
                 restart: session.sceneRestart,
                 stoppedAt: session.sceneStoppedAt,
               ),
-              SceneStep.placesUnknown => SingleChildScrollView(
-                child: ScenePlacesUnknown(
-                  scene: scene,
-                  language: language,
-                  sending: sending,
-                  sendable: sendable,
-                  line: session.sceneLine,
-                  restartShown: session.sceneRestartShown,
-                  restart: session.sceneRestart,
-                ),
+              SceneStep.placesUnknown => ScenePlacesUnknown(
+                scene: scene,
+                language: language,
+                sending: sending,
+                sendable: sendable,
+                line: session.sceneLine,
+                restartShown: session.sceneRestartShown,
+                restart: session.sceneRestart,
               ),
               SceneStep.sent => SceneListenMode(
                 scene: scene,
@@ -134,19 +133,20 @@ class SceneRehearsalView extends ConsumerWidget {
                 stoppedAt: session.sceneStoppedAt,
               ),
             },
-          ),
+            if (session.sceneRehearsals.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 25.6, bottom: 32),
+                child: SceneRehearsalList(
+                  rows: session.sceneRehearsals,
+                  onScreen: scene.rehearsal?.rehearsalId,
+                  still:
+                      sending || scene.waiting || session.channel is Microphone,
+                  language: language,
+                ),
+              ),
+          ],
         ),
-        if (session.sceneRehearsals.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 25.6, bottom: 32),
-            child: SceneRehearsalList(
-              rows: session.sceneRehearsals,
-              onScreen: scene.rehearsal?.rehearsalId,
-              still: sending || scene.waiting || session.channel is Microphone,
-              language: language,
-            ),
-          ),
-      ],
+      ),
     );
   }
 }
@@ -179,10 +179,7 @@ class _TheRecordStep extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) =>
-      SingleChildScrollView(child: _theStep());
-
-  Widget _theStep() {
+  Widget build(BuildContext context) {
     final chip = this.chip;
     final circle =
         question ??

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -207,14 +208,18 @@ void main() {
       'session list, not flush on its heading',
       (tester) async {
         await _onTheStep(tester, screen: _se.size, bar: _se.bar, step: step);
-        final area = tester.getRect(
-          find
-              .descendant(
-                of: find.byType(SceneRehearsalView),
-                matching: find.byType(Expanded),
-              )
-              .first,
-        );
+        final page = tester
+            .renderObject<RenderFlex>(
+              find
+                  .descendant(
+                    of: find.byType(SceneRehearsalView),
+                    matching: find.byType(Column),
+                  )
+                  .first,
+            )
+            .getChildrenAsList();
+        final above = page[page.length - 2];
+        final area = above.localToGlobal(Offset.zero) & above.size;
         final heading = tester.getRect(
           find.text('ENSAIOS DA CENA DESTA SESSÃO'),
         );
