@@ -3,6 +3,17 @@
 Amended by ADR 0112: the landing now shows one of her three texts on the status line, so "the
 approval's landing says nothing" below holds for the voice only, not for the screen.
 
+Amended by ENG-1853 (2026-10-29, João's rule of 26 October: Marcia's frozen app 18fa7c4
+wins): a refused approval no longer takes the team to the hole it names. Hers writes the
+reason and waits; nothing plays, nothing is said and nothing is read again (`Drafting.tsx`
+`finalize` :709-718, `approve` :1598-1612). The room's order now only chooses which of her
+three texts is written (ADR 0112), and every refusal ends where the check's own door
+ended: the Back-translation as it stood before *terminei*, with *terminei* back. The untold
+stretch is not read back by name, and no part or stretch goes in the air on its own.
+Wherever this record says the team is taken to a part or a stretch, read that the team is
+shown the reason and left before *terminei*; the person's remainder, the version race and
+"by the field that is there" stand.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal
