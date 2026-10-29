@@ -2728,7 +2728,7 @@ class FakeRoom implements RoomRepository {
   final List<({String sentenceId, String segmentId})> sentencesSent = [];
   final List<String> sentencesSentReopening = [];
   final List<String> sentencesLaid = [];
-  final List<RoomFailure> sentenceAnswersFirst = [];
+  final List<RoomAnswer<TellingAgain>> sentenceAnswersFirst = [];
   Duration sentenceLaysInAs = const Duration(milliseconds: 3200);
   String? awaitingSegmentId;
   Completer<void>? holdTheSentence;
