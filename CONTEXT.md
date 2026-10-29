@@ -180,7 +180,7 @@ A scene take or a part too short to be anything the team said, or one the record
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
-The short window after a Conversation take opens in which the team's next tap on the circle cancels the take instead of ending it: nothing is sent, the take is discarded on the tablet and the circle rests. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
+The short window after a Conversation take opens in which the team's next tap on the circle is ignored instead of ending the take: the take goes on recording, and nothing is sent or thrown away. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
 
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
@@ -459,7 +459,7 @@ The team's recording of a passage with its frases and telling-back, kept across 
 _Avoid_: rascunho final (the approved version's words on the screen), session (what holds it)
 
 **Approved draft** (*rascunho final aprovado*):
-A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase.
+A **Draft** whose **Session read** says `approved`: a re-entry lands on its **Back-translation**, checked, with «✓ aprovado como rascunho final (v{n})» where the approve button stands, its frases and their parts — never on the **Conversation** and never under the **Warning mark**. The badge goes as soon as a session read says the draft is no longer approved or the team leaves the checked phase. Over a forced version the approve button stands, with the badge under it, once the telling is checked, and a press mints the next version (ADR 0150).
 _Avoid_: approved mark (the «●» on the Choice), finished passage, closed passage
 
 **Approved mark**:
