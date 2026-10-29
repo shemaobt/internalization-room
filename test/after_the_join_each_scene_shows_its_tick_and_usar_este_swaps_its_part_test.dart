@@ -715,9 +715,19 @@ void main() {
 
       expect(it.toldFrase(1), findsOneWidget);
       expect(
-        it.toldFrase(2),
-        findsNothing,
+        [
+          for (final trecho in it.container.read(salaSessionProvider).btTrechos)
+            trecho.segmentId,
+        ],
+        isNot(contains('trecho-2')),
         reason: 'a frase da gravação trocada',
+      );
+      expect(
+        find.text('regravada — traduzam de novo'),
+        findsOneWidget,
+        reason:
+            'a frase da gravação trocada fica na lista marcada como regravada, '
+            'como na dela',
       );
       expect(it.toldFrase(3), findsOneWidget);
       semantics.dispose();
