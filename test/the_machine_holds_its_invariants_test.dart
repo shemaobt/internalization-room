@@ -365,6 +365,19 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
   },
 );
 
+final noHaltIsEnteredOverTheSceneOrTheCheck = Invariant<Machine>(
+  'ADR 0159, no halt is entered over the scene rehearsal or the external '
+  'check; it waits for the Canvas',
+  (before, event, after, effects, world) {
+    if (before.halt is Blocking || after.halt is! Blocking) return null;
+    if (after.station is! SceneRehearsal && after.station is! ChecagemExterna) {
+      return null;
+    }
+    return '${describeEvent(event)} entered the person sign over '
+        '${after.station.stage.name}';
+  },
+);
+
 final everyFailedLoadOfAReplyEndsInOneAnswer = Invariant<Machine>(
   'ADR 0152, every failed load of a reply ends in exactly one answer, a reload '
   'or a let-go',
@@ -627,6 +640,11 @@ void main() {
   test('generator invariant: nothing but her six cases enters the person '
       'sign', () {
     _holds(nothingButHerSixCasesEntersThePersonSign);
+  });
+
+  test('generator invariant: no halt is entered over the scene rehearsal or '
+      'the external check', () {
+    _holds(noHaltIsEnteredOverTheSceneOrTheCheck);
   });
 
   test('generator invariant: only a step left from the Canvas moves the end '
