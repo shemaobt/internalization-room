@@ -1100,7 +1100,12 @@ void main() {
       (tester) async {
         final (screen, saidBefore) = await _sendingTheScene(tester);
 
-        expect(find.text(_sending), findsOneWidget);
+        expect(
+          find.text(_sending),
+          findsNWidgets(2),
+          reason:
+              'o botão e a linha ao lado do play dizem «enviando…», como no dela',
+        );
         expect(
           screen.harness.voice.fixedLines
               .skip(saidBefore)

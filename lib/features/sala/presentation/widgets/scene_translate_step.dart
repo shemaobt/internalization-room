@@ -126,8 +126,7 @@ class SceneTranslateStep extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 12),
-        RoundActionButton(
-          size: 180,
+        _TellCircle(
           mood: telling
               ? ButtonMood.beckoning
               : scene.waiting
@@ -135,16 +134,7 @@ class SceneTranslateStep extends ConsumerWidget {
               : sending || !scene.listened
               ? ButtonMood.dimmed
               : ButtonMood.lit,
-          halo: colors.vermelhoMic,
-          semanticLabel: said('tell'),
-          onTap: notifier.tapTheTranslateCircle,
-          background: colors.vermelhoMic.withValues(alpha: 0.10),
-          border: Border.all(color: colors.vermelhoMic, width: 2),
-          child: Icon(
-            telling ? LucideIcons.square : LucideIcons.mic,
-            size: 56,
-            color: colors.vermelhoMic,
-          ),
+          label: said('tell'),
         ),
         if (message != null) ...[
           const SizedBox(height: 12),
@@ -248,13 +238,19 @@ class SceneTranslateStep extends ConsumerWidget {
     _ => null,
   };
 
-  /// Her hint: a frase translated again, listening or her clock alone; else the pausa
-  /// waiting, the take playing with her clock, the end of the take, or the take paused;
-  /// nothing before the team listens.
+  /// Her hint: «enviando…» while «terminei» is in the air; a frase translated again,
+  /// listening or her clock alone; else the pausa waiting, the take playing with her
+  /// clock, the end of the take, or the take paused; nothing before the team listens.
   String? _hintOf({required bool playing, required Duration at}) {
     final end = scene.takeEnd;
     final pausa = scene.pausa;
     final clock = playing ? at : stoppedAt;
+    if (sending && !scene.wentToTheVoice) {
+      final words = sceneRehearsalLabelFor('sending', language);
+      return clock == null || (end != null && clock >= end)
+          ? words
+          : '$words — ${sceneClockOf(clock, scene.length)}';
+    }
     if (!scene.listened) return null;
     if (scene.translatingAgain != null) {
       if (playing) return sceneListeningLineFor(at, scene.length, language);
@@ -343,6 +339,7 @@ class SceneRestartControl extends ConsumerWidget {
 
 class ScenePlacesUnknown extends ConsumerWidget {
   final SceneScreen scene;
+  final Envelope? envelope;
   final String language;
   final bool sending;
   final bool sendable;
@@ -353,6 +350,7 @@ class ScenePlacesUnknown extends ConsumerWidget {
   const ScenePlacesUnknown({
     super.key,
     required this.scene,
+    required this.envelope,
     required this.language,
     required this.sending,
     required this.sendable,
@@ -369,6 +367,28 @@ class ScenePlacesUnknown extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        SceneSub(said('subTranslate')),
+        const SizedBox(height: 12),
+        _PlayRow(
+          mood: ButtonMood.dimmed,
+          take: null,
+          label: said('playPause'),
+          hint: (_) => null,
+        ),
+        const SizedBox(height: 12),
+        SceneStrip(
+          envelope: envelope,
+          length: scene.length,
+          frases: const [],
+          pausa: null,
+          playing: false,
+        ),
+        const SizedBox(height: 12),
+        _TellCircle(
+          mood: scene.waiting ? ButtonMood.waiting : ButtonMood.dimmed,
+          label: said('tell'),
+        ),
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _Written(
@@ -505,6 +525,32 @@ class SceneListenMode extends ConsumerWidget {
           bare: true,
         ),
       ],
+    );
+  }
+}
+
+class _TellCircle extends ConsumerWidget {
+  final ButtonMood mood;
+  final String label;
+
+  const _TellCircle({required this.mood, required this.label});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = SalaColors.of(context);
+    return RoundActionButton(
+      size: 180,
+      mood: mood,
+      halo: colors.vermelhoMic,
+      semanticLabel: label,
+      onTap: ref.read(salaSessionProvider.notifier).tapTheTranslateCircle,
+      background: colors.vermelhoMic.withValues(alpha: 0.10),
+      border: Border.all(color: colors.vermelhoMic, width: 2),
+      child: Icon(
+        mood == ButtonMood.beckoning ? LucideIcons.square : LucideIcons.mic,
+        size: 56,
+        color: colors.vermelhoMic,
+      ),
     );
   }
 }

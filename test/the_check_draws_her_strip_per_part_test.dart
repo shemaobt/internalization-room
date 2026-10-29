@@ -162,6 +162,40 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a recording of the whole passage writes its place beside play '
+      'as her clock alone, never as a part the team did not make', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      inteira: true,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+      ),
+    );
+    harness.playback.length = const Duration(seconds: 10);
+
+    harness.playback.at = const Duration(seconds: 5);
+    await tester.pump(passaDoCursor);
+
+    expect(
+      find.text('ouvindo a gravação de vocês… — 0:05 / 0:10'),
+      findsOneWidget,
+      reason: 'a gravação inteira tocava como «parte 1»',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('each part strip draws the loudness of its own take, so a '
       'silence reads as a valley', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

@@ -12,8 +12,10 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/back_to_passage_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_translate_step.dart';
 
 import 'a_scene_room.dart' show articulation, pumpUntil;
 import 'a_wav_take.dart';
@@ -497,6 +499,334 @@ void main() {
       },
     );
   }
+
+  for (final (language, instruction, line) in [
+    (
+      'pt',
+      'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+          'acaba, e de novo para traduzir só aquela frase.',
+      'as frases já traduzidas não estão neste computador — toquem em terminei '
+          'para enviar, ou recomecem a tradução',
+    ),
+    (
+      'en',
+      'Listen to the scene rehearsal; tap the circle to pause where the phrase '
+          'ends, and again to translate only that phrase.',
+      'the phrases already translated are not on this computer — tap done to '
+          'send them, or start the translation over',
+    ),
+  ]) {
+    testWidgets(
+      '$language: a scene rehearsal whose frase places cannot be read writes the translate step\'s instruction above her line, not her line alone',
+      (tester) async {
+        final (_, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 12000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.placesUnknown,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          find.text(instruction),
+          findsOneWidget,
+          reason: 'a tela de lugares desconhecidos não dizia o que fazer',
+        );
+        expect(byLabel(instruction), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text(instruction)).dy,
+          lessThan(tester.getTopLeft(find.text(line)).dy),
+        );
+      },
+    );
+  }
+
+  testWidgets(
+    'a scene rehearsal whose frase places cannot be read shows the play control dimmed under the instruction, and a tap on it plays nothing',
+    (tester) async {
+      final (harness, _) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final play = byLabel('Tocar ou pausar a gravação');
+      final played = harness.playback.played.length;
+
+      expect(
+        play,
+        findsOneWidget,
+        reason: 'a tela de lugares desconhecidos não tinha o controle de tocar',
+      );
+      expect(tester.widget<Semantics>(play).properties.enabled, isFalse);
+      expect(
+        tester.getTopLeft(play).dy,
+        greaterThan(
+          tester
+              .getTopLeft(
+                find.textContaining(
+                  'Ouçam o ensaio da cena; toquem no círculo',
+                ),
+              )
+              .dy,
+        ),
+      );
+      expect(
+        tester.getTopLeft(play).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.textContaining('as frases já traduzidas não estão'),
+              )
+              .dy,
+        ),
+      );
+
+      await tester.tap(play);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        harness.playback.played,
+        hasLength(played),
+        reason: 'no dela, com os lugares desconhecidos, nada toca',
+      );
+      expect(find.textContaining(RegExp(r'\d:\d\d')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a scene rehearsal whose frase places cannot be read draws its strip with the take\'s loudness under the play control, with no frase band and no player',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final strip = find.byType(SceneStrip);
+      SceneStripDrawing? drawing() => strip.evaluate().isEmpty
+          ? null
+          : (tester
+                        .widget<CustomPaint>(
+                          find.descendant(
+                            of: strip,
+                            matching: find.byType(CustomPaint),
+                          ),
+                        )
+                        .painter!
+                    as SceneStripPainter)
+                .drawing;
+      await pumpUntil(tester, () => drawing()?.columns.isNotEmpty ?? false);
+
+      expect(
+        strip,
+        findsOneWidget,
+        reason: 'a tela de lugares desconhecidos não desenhava a faixa',
+      );
+      expect(
+        drawing()!.columns,
+        isNotEmpty,
+        reason: 'o dela busca o volume da gravação também nessa retomada',
+      );
+      expect(drawing()!.bands, isEmpty);
+      expect(drawing()!.playhead, isNull);
+      expect(
+        tester.getTopLeft(strip).dy,
+        greaterThan(
+          tester.getTopLeft(byLabel('Tocar ou pausar a gravação')).dy,
+        ),
+      );
+      expect(
+        tester.getTopLeft(strip).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.textContaining('as frases já traduzidas não estão'),
+              )
+              .dy,
+        ),
+      );
+    },
+  );
+
+  testWidgets(
+    'a tap on the strip of a scene rehearsal whose frase places cannot be read plays nothing, as on the translate step',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final played = harness.playback.played.length;
+
+      await tester.tap(find.byType(SceneStrip));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        harness.playback.played,
+        hasLength(played),
+        reason: 'a faixa dela não se toca, e sem os lugares nada toca',
+      );
+      expect(
+        container.read(salaSessionProvider).channel,
+        isNot(isA<PartPlaying>()),
+      );
+    },
+  );
+
+  testWidgets(
+    'a scene rehearsal whose frase places cannot be read shows the circle dimmed between the strip and her line, and a tap on it opens no microphone',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final circle = byLabel(
+        'Toque para traduzir esta frase do ensaio da cena',
+      );
+      final captures = harness.recorder.captures;
+
+      expect(
+        circle,
+        findsOneWidget,
+        reason: 'a tela de lugares desconhecidos não tinha o círculo apagado',
+      );
+      expect(tester.widget<Semantics>(circle).properties.enabled, isFalse);
+      expect(
+        tester.getTopLeft(circle).dy,
+        greaterThan(tester.getBottomLeft(find.byType(SceneStrip)).dy),
+      );
+      expect(
+        tester.getBottomLeft(circle).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.textContaining('as frases já traduzidas não estão'),
+              )
+              .dy,
+        ),
+      );
+
+      await tester.tap(circle);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        container.read(salaSessionProvider).channel,
+        isNot(isA<Microphone>()),
+        reason: 'no dela o círculo fica desabilitado sem os lugares',
+      );
+      expect(harness.recorder.captures, captures);
+    },
+  );
+
+  testWidgets(
+    'while «recomeçar» is in the air on places unknown the circle waits instead of fading, and still takes no tap',
+    (tester) async {
+      final (harness, _) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      final circle = byLabel(
+        'Toque para traduzir esta frase do ensaio da cena',
+      );
+      double opacity() => tester
+          .widget<AnimatedOpacity>(
+            find.descendant(of: circle, matching: find.byType(AnimatedOpacity)),
+          )
+          .opacity;
+      expect(opacity(), 0.35);
+      harness.room.holdNextRestart();
+
+      await tester.tap(byLabel('recomeçar a tradução'));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(
+        byLabel('toque de novo para apagar as 1 frases traduzidas'),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        opacity(),
+        1.0,
+        reason: 'no dela o círculo respira enquanto o recomeço está no ar',
+      );
+      expect(tester.widget<Semantics>(circle).properties.enabled, isFalse);
+      harness.room.finishHeldRestart();
+      await tester.pump(const Duration(seconds: 7));
+    },
+  );
+
+  testWidgets(
+    'on an iPhone SE the places-unknown screen keeps every control whole, apart and on the screen, down to «gravar de novo» above the list',
+    (tester) async {
+      tester.view.padding = const FakeViewPadding(top: 20);
+      addTearDown(tester.view.resetPadding);
+      await _onTheSceneScreen(
+        tester,
+        view: const Size(375, 667),
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      const again = 'gravar o ensaio da cena de novo';
+      final controls = {
+        'instrução': find.textContaining('Ouçam o ensaio da cena'),
+        'tocar': byLabel('Tocar ou pausar a gravação'),
+        'faixa': find.byType(SceneStrip),
+        'círculo': byLabel('Toque para traduzir esta frase do ensaio da cena'),
+        'linha': find.textContaining('as frases já traduzidas não estão'),
+        'recomeçar': byLabel('recomeçar a tradução'),
+        'terminei': byLabel('terminei'),
+        'gravar de novo': byLabel(again),
+        'volta': find.byType(BackToPassageButton),
+      };
+
+      expect(tester.takeException(), isNull);
+      final rects = {
+        for (final MapEntry(:key, :value) in controls.entries)
+          key: tester.getRect(value),
+      };
+      for (final MapEntry(:key, value: rect) in rects.entries) {
+        expect(rect.left, greaterThanOrEqualTo(0), reason: key);
+        expect(rect.right, lessThanOrEqualTo(375), reason: key);
+        for (final MapEntry(key: other, value: beside) in rects.entries) {
+          if (other == key) continue;
+          expect(
+            rect.overlaps(beside),
+            isFalse,
+            reason: '$key cobria $other no iPhone SE',
+          );
+        }
+      }
+
+      await tester.dragUntilVisible(
+        find.text(again),
+        find.byType(ScenePlacesUnknown),
+        const Offset(0, -80),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        tester.getRect(byLabel(again)).bottom,
+        lessThanOrEqualTo(
+          tester.getRect(find.text('ENSAIOS DA CENA DESTA SESSÃO')).top,
+        ),
+        reason: 'o gravar de novo ficava cortado sob a lista',
+      );
+    },
+  );
 
   testWidgets(
     'on a phone her places-unknown line keeps 16 points on each side',
@@ -2965,4 +3295,286 @@ void main() {
       },
     );
   }
+
+  for (final (language, play, terminei, sending) in [
+    (
+      'pt',
+      'Tocar ou pausar a gravação',
+      'terminei',
+      'enviando a tradução do ensaio da cena para a voz…',
+    ),
+    (
+      'en',
+      'Play or pause your recording',
+      'done',
+      'sending the translation of the scene rehearsal to the voice…',
+    ),
+  ]) {
+    testWidgets(
+      '$language: while terminei is in the air the line beside play reads her sending words, not only the button',
+      (tester) async {
+        final (harness, container) = await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        container.read(roomLanguageProvider.notifier).choose(language);
+        await tester.pump(const Duration(milliseconds: 300));
+        harness.room.holdNextTurn();
+
+        await tester.tap(byLabel(terminei));
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).theSceneIsSending,
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          _besidePlay(play, sending),
+          findsOneWidget,
+          reason:
+              'só o botão dizia que a tradução ia para a voz; a linha ao lado do play ficava calada',
+        );
+
+        harness.room.finishHeldTurn();
+        await pumpUntil(
+          tester,
+          () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+        );
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+  }
+
+  testWidgets(
+    'a terminei the room answered gives the line beside play back to the step\'s hint while her went-to-the-voice line shows, not «enviando…»',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      harness.room.holdNextTurn();
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).theSceneIsSending,
+      );
+
+      harness.room.finishHeldTurn();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.wentToTheVoice,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(container.read(salaSessionProvider).scene.wentToTheVoice, isTrue);
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', paused),
+        findsOneWidget,
+        reason:
+            'a tradução já tinha ido para a voz e a linha ao lado do play seguia dizendo «enviando…»',
+      );
+      expect(find.textContaining('enviando'), findsNothing);
+
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'a terminei the room refused gives the line beside play back to the step\'s hint, not «enviando…»',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:07 / 0:10';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      harness.room.holdSceneSends = true;
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(container.read(salaSessionProvider).theSceneIsSending, isTrue);
+
+      harness.room.heldSceneSends.single.complete(
+        Refused(RefusalCode.unnamed(422)),
+      );
+      await pumpUntil(
+        tester,
+        () => !container.read(salaSessionProvider).theSceneIsSending,
+      );
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(container.read(salaSessionProvider).sceneLine, SceneLine.notSent);
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', paused),
+        findsOneWidget,
+        reason:
+            'o envio recusado deixava a linha ao lado do play dizendo «enviando…»',
+      );
+      expect(find.textContaining('enviando'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a terminei tapped over the playing take writes her sending words with the clock where the take stopped',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending =
+          'enviando a tradução do ensaio da cena para a voz… — 0:07 / 0:10';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 7);
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason: 'o envio apagava o relógio de onde o take tinha parado',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'a terminei after the take was heard to its end writes her sending words alone, not a clock at the end',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending = 'enviando a tradução do ensaio da cena para a voz…';
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 10);
+      harness.playback.finishPlayback();
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason:
+            'o take ouvido até o fim mostrava o relógio no fim, que o dela não mostra',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'a terminei over a take told to its end, heard again and paused at 0:02, keeps her clock where it stopped, not the words alone',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 10000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const sending =
+          'enviando a tradução do ensaio da cena para a voz… — 0:02 / 0:10';
+      final play = byLabel('Tocar ou pausar a gravação');
+      await tester.tap(find.text('traduzir o ensaio da cena'));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is PartPlaying,
+      );
+      harness.playback.at = const Duration(seconds: 2);
+      await tester.tap(play);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).channel is! PartPlaying,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(container.read(salaSessionProvider).scene.moreToTell, isFalse);
+      harness.room.holdSceneSends = true;
+
+      await tester.tap(byLabel('terminei'));
+      await pumpUntil(tester, () => harness.room.heldSceneSends.isNotEmpty);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        _besidePlay('Tocar ou pausar a gravação', sending),
+        findsOneWidget,
+        reason:
+            'o take todo traduzido e parado em 0:02 perdia o relógio no envio; o dela só o tira com o take no fim',
+      );
+
+      harness.room.heldSceneSends.single.complete(null);
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 }
+
+Finder _besidePlay(String play, String words) => find.descendant(
+  of: find.ancestor(of: byLabel(play), matching: find.byType(Row)).first,
+  matching: find.text(words),
+);

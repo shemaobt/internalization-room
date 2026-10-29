@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -736,44 +737,35 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  test(
-    'a recusa por parte não contada pousa a equipe nela, sem chamar ninguém',
-    () async {
+  for (final codigo in const [
+    'untold_part',
+    'playback_did_not_cover_the_clip',
+  ]) {
+    test('a recusa por $codigo devolve a equipe à tradução como antes do '
+        'terminei, não a uma parte tocando', () async {
       final it = await _tresPartesAteAConferida();
       final segunda = it.partes[1];
       final falasAntes = it.harness.voice.fixedLines.length;
       it.harness.room
-        ..releaseBlockers = const ['telling_back_not_checked', 'untold_part']
-        ..releaseUntoldTakeIds = [segunda.takeId!];
+        ..releaseBlockers = [codigo]
+        ..releaseUntoldTakeIds = [segunda.takeId!]
+        ..releaseUnheardTakeIds = [segunda.takeId!];
 
       await it.sala.aprovarRascunhoFinal();
 
-      expect(
-        it.estado.needsPerson,
-        isFalse,
-        reason:
-            'há o que a equipe faça daqui: chamar uma pessoa para um '
-            'buraco que a sala sabe tapar é parar a sala por nada',
-      );
+      expect(it.estado.needsPerson, isFalse);
       expect(
         it.estado.btPhase,
         BtPhase.playing,
         reason: 'sair da conferida é o que devolve o toque à equipe',
       );
       expect(
-        it.harness.playback.played.last,
-        segunda.path,
+        it.estado.canFinishBackTranslation,
+        isTrue,
         reason:
-            'a equipe cai na parte que a recusa nomeou, e não na que o '
-            'primeiro código da lista aponta: a ordem das portas é da sala, e '
-            'esta recusa chega com a conferência na frente',
-      );
-      expect(
-        it.harness.playback.playedFrom.last,
-        Duration.zero,
-        reason:
-            'do começo da parte: não há nada contado sobre ela, e começar '
-            'depois de um chão que não existe toca silêncio',
+            'a recusa punha a parte nomeada no ar e o terminei só voltava no '
+            'fim dela; a dela não toca nada, e o caminho para conferir de '
+            'novo fica a um toque',
       );
       expect(
         it.harness.voice.fixedLines.skip(falasAntes),
@@ -793,53 +785,16 @@ void main() {
         it.harness.room.releasesAsked,
         hasLength(pedidos),
         reason:
-            'e o gesto ficou para trás com a fase: daqui a equipe conta a '
-            'parte e confere de novo, não aperta o mesmo botão outra vez',
+            'e o gesto ficou para trás com a fase: daqui a equipe confere de '
+            'novo, não aperta o mesmo botão outra vez',
       );
-    },
-  );
+    });
+  }
 
-  test('a recusa por parte não ouvida pousa numa parte do meio e devolve o '
-      'terminei no fim dela', () async {
-    final it = await _tresPartesAteAConferida();
-    final segunda = it.partes[1];
-    it.harness.room
-      ..releaseBlockers = const ['playback_did_not_cover_the_clip']
-      ..releaseUnheardTakeIds = [segunda.takeId!];
-
-    await it.sala.aprovarRascunhoFinal();
-
-    expect(it.estado.needsPerson, isFalse);
-    expect(it.estado.btPhase, BtPhase.playing);
-    expect(
-      it.harness.playback.played.last,
-      segunda.path,
-      reason: 'a equipe cai na parte que a recusa nomeou',
-    );
-    expect(
-      it.harness.playback.playedFrom.last,
-      Duration.zero,
-      reason:
-          'a recusa é sobre ouvir, não sobre contar: começar depois do '
-          'chão já traduzido tocaria silêncio, o relato diria a parte '
-          'inteira ouvida e a mesma aprovação seria recusada de novo',
-    );
-
-    it.harness.playback.finishPlayback();
-    await waitFor('a parte do meio acabar', () => it.estado.btClipEnded);
-
-    expect(
-      it.estado.canFinishBackTranslation,
-      isTrue,
-      reason:
-          'no fim de uma parte do meio o terminei volta aceso, que é a '
-          'trava do pouso: sem ela a equipe fica numa parte que acabou, '
-          'diante de um botão morto, sem nada para apertar',
-    );
-  });
-
-  testWidgets('a recusa por trecho não contado leva a equipe ao trecho que a '
-      'sala nomeou', (tester) async {
+  testWidgets('a recusa por trecho não contado devolve a equipe à tradução '
+      'como antes do terminei, não ao trecho que a sala nomeou', (
+    tester,
+  ) async {
     final it = await _ateAConferida(tester);
 
     expect(
@@ -857,47 +812,74 @@ void main() {
 
     await _aprovarEEsperar(tester);
 
-    expect(
-      _estado(it.container).needsPerson,
-      isFalse,
-      reason: 'o trecho existe e a sala sabe levar a equipe até ele',
-    );
+    expect(_estado(it.container).needsPerson, isFalse);
     expect(
       _estado(it.container).btTrechoTocando,
-      isTrue,
+      isFalse,
       reason:
-          'a sala toca a voz materna do trecho que falta, para a equipe '
-          'saber qual é antes de contá-lo',
+          'a recusa punha no ar a voz materna do trecho nomeado; a dela não '
+          'toca nada',
     );
-    expect(
-      it.harness.playback.ranges.last,
-      '0-10000',
-      reason:
-          'nos limites do trecho nomeado: o nome só resolve contra a '
-          'lista lida de volta, e sem ela a recusa acabaria numa pessoa',
-    );
+    expect(_estado(it.container).canFinishBackTranslation, isTrue);
+    expect(byLabel('terminei'), findsOneWidget);
 
     closeTheRoom(it.container);
   });
 
-  testWidgets('the read after a refused approval never raises the sign the '
-      'server says', (tester) async {
-    final it = await _ateAConferida(tester);
+  for (final codigo in const [
+    'untold_stretch',
+    'untold_part',
+    'playback_did_not_cover_the_clip',
+    'telling_back_not_checked',
+    'something_new',
+  ]) {
+    test('a refused approval naming $codigo says no line of the room\'s own, '
+        'only writes why', () async {
+      final it = await _tresPartesAteAConferida();
+      final segunda = it.partes[1];
+      it.harness.room
+        ..releaseBlockers = [codigo]
+        ..releaseUntoldTakeIds = [segunda.takeId!]
+        ..releaseUnheardTakeIds = [segunda.takeId!]
+        ..releaseUntoldSegmentId = 'trecho-2';
+      final sons = it.harness.sounds.length;
+
+      await it.sala.aprovarRascunhoFinal();
+      await settle();
+
+      expect(
+        it.harness.sounds
+            .skip(sons)
+            .where((som) => som.startsWith('voice:') && som != 'voice:stop'),
+        isEmpty,
+        reason:
+            'a dela não diz nada numa recusa: só o motivo fica escrito, e uma '
+            'fala da sala ali seria o tablet falando por um servidor que não '
+            'falou',
+      );
+    });
+  }
+
+  test('a refused approval naming a stretch reads nothing back from the room, '
+      'not the names it would lead to', () async {
+    final it = await _tresPartesAteAConferida();
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1'
-      ..serverStatus = 'needs_person'
-      ..serverHalt = HaltKind.blocking;
+      ..releaseUntoldSegmentId = 'trecho-2';
+    final leituras = it.harness.room.calls
+        .where((call) => call == 'fetchState')
+        .length;
 
-    await _aprovarEEsperar(tester);
+    await it.sala.aprovarRascunhoFinal();
 
     expect(
-      _estado(it.container).needsPerson,
-      isFalse,
-      reason: 'uma leitura nunca levanta o sinal da pessoa',
+      it.harness.room.calls.where((call) => call == 'fetchState'),
+      hasLength(leituras),
+      reason:
+          'a recusa lia os nomes dos trechos de volta só para levar a equipe '
+          'ao que nomeava; a dela não lê nada, e uma leitura que falhava '
+          'virava a falha da aprovação',
     );
-    expect(it.harness.room.personsAsked, 0);
-    closeTheRoom(it.container);
   });
 
   for (final codigo in const [
@@ -955,50 +937,6 @@ void main() {
       closeTheRoom(it.container);
     });
   }
-
-  testWidgets('um segundo aperto enquanto a recusa ainda desce não manda outro '
-      'pedido', (tester) async {
-    final it = await _ateAConferida(tester);
-    it.harness.room
-      ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1'
-      ..holdNextState();
-    final trechosNoAr = it.harness.playback.ranges.length;
-
-    await pressTheApproval(tester, _aprovar);
-    await tester.pump(const Duration(milliseconds: 200));
-
-    expect(
-      _estado(it.container).btPhase,
-      BtPhase.conferida,
-      reason:
-          'a fase não se mexe enquanto a sala lê os nomes de volta — é o '
-          'que mantém o botão desenhado, e por isso a trava do aperto tem de '
-          'durar até a porta abrir',
-    );
-
-    await pressTheApproval(tester, _aprovar);
-    await tester.pump(const Duration(milliseconds: 200));
-
-    it.harness.room.finishHeldState();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(
-      it.harness.room.releasesAsked,
-      hasLength(1),
-      reason:
-          'um aperto, um pedido: o segundo manda a sala aprovar de novo '
-          'uma passagem cuja recusa ainda está a caminho, e as duas '
-          'aterragens disputam o clipe debaixo da equipe',
-    );
-    expect(
-      it.harness.playback.ranges,
-      hasLength(trechosNoAr + 1),
-      reason: 'e a porta abre uma vez só',
-    );
-
-    closeTheRoom(it.container);
-  });
 
   testWidgets('um código que este tablet não conhece devolve a equipe à '
       'tradução como antes do terminei, sem chamar ninguém', (tester) async {
@@ -1164,7 +1102,8 @@ void main() {
     });
   }
 
-  test('nomeados três buracos, a equipe entra pela porta do trecho', () async {
+  test('nomeados três buracos, a recusa escreve o motivo do trecho, não o da '
+      'parte não ouvida', () async {
     final it = await _tresPartesAteAConferida();
     final terceira = it.partes[2];
     it.harness.room
@@ -1179,18 +1118,11 @@ void main() {
     await it.sala.aprovarRascunhoFinal();
 
     expect(
-      it.estado.btTrechoTocando,
-      isTrue,
+      it.estado.btRecusa,
+      CheckRefusal.notConferida,
       reason:
           'a ordem das portas é da sala e não a ordem em que o portão '
-          'levantou os códigos: o trecho vem antes de tudo',
-    );
-    expect(
-      it.harness.playback.played.last,
-      it.partes[0].path,
-      reason:
-          'o trecho-1 mora na primeira parte, e é nela que a equipe cai '
-          '— não na terceira, que a recusa por ouvir nomeia',
+          'levantou os códigos: o trecho vem antes da parte não ouvida',
     );
     expect(it.estado.needsPerson, isFalse);
   });
@@ -1245,75 +1177,7 @@ void main() {
     );
   });
 
-  test('nomeados o trecho e a parte não contada, a equipe entra pela porta do '
-      'trecho', () async {
-    final it = await _tresPartesAteAConferida();
-    it.harness.room
-      ..releaseBlockers = const ['untold_stretch', 'untold_part']
-      ..releaseUntoldSegmentId = 'trecho-2'
-      ..releaseUntoldTakeIds = [it.partes[0].takeId!];
-
-    await it.sala.aprovarRascunhoFinal();
-
-    expect(
-      it.estado.btTrechoTocando,
-      isTrue,
-      reason: 'o trecho vem antes da parte na ordem da sala',
-    );
-    expect(
-      it.harness.playback.played.last,
-      it.partes[1].path,
-      reason:
-          'o trecho-2 mora na parte 2; pela porta da parte a equipe '
-          'cairia na parte 1, que é a que a recusa nomeia por gravação',
-    );
-  });
-
-  test(
-    'a conferida whose verdict could not read the names back still leads the '
-    'team to the stretch a refusal names',
-    () async {
-      final it = await umEnsaioContadoInteiro(
-        partesDoEnsaio,
-        numaSala: SalaHarness()..room.chunksAnswerWithNoName = true,
-      );
-      it.harness.room
-        ..verdictChecked = true
-        ..failStateOnceWith = Refused(RefusalCode.unnamed(400));
-      await pedirOVeredito(it);
-
-      expect(it.estado.btPhase, BtPhase.conferida);
-      expect(
-        it.estado.btTrechos.map((trecho) => trecho.segmentId),
-        everyElement(isNull),
-        reason:
-            'o veredito limpo seguiu para a conferida sem os nomes que não '
-            'conseguiu ler, e é este o chão da recusa',
-      );
-
-      it.harness.room
-        ..releaseBlockers = const ['untold_stretch']
-        ..releaseUntoldSegmentId = 'trecho-2';
-
-      await it.sala.aprovarRascunhoFinal();
-
-      expect(it.estado.needsPerson, isFalse);
-      expect(
-        it.estado.btTrechoTocando,
-        isTrue,
-        reason:
-            'a recusa nomeia um trecho que este tablet não conhecia pelo nome, '
-            'e a leitura que ela faz é a única que resolve o nome',
-      );
-      expect(
-        it.harness.playback.played.last,
-        it.partes[1].path,
-        reason: 'o trecho-2 mora na parte 2',
-      );
-    },
-  );
-
-  test('nomeadas a parte não contada e a não ouvida, a equipe entra pela porta '
+  test('nomeadas a parte não contada e a não ouvida, a recusa escreve o motivo '
       'da não contada', () async {
     final it = await _tresPartesAteAConferida();
     it.harness.room
@@ -1326,20 +1190,12 @@ void main() {
 
     await it.sala.aprovarRascunhoFinal();
 
-    expect(it.estado.btTrechoTocando, isFalse);
     expect(
-      it.harness.playback.played.last,
-      it.partes[0].path,
+      it.estado.btRecusa,
+      CheckRefusal.notConferida,
       reason:
-          'a parte que ninguém contou vem antes da que ninguém ouviu: '
-          'pela outra porta a equipe cairia na parte 3',
-    );
-    expect(
-      it.harness.playback.playedFrom.last,
-      Duration.zero,
-      reason:
-          'e do começo dela, que é o que a porta da parte não contada '
-          'faz com o cursor',
+          'a parte que ninguém contou vem antes da que ninguém ouviu: pela '
+          'outra porta a equipe leria que falta ouvir',
     );
   });
 
@@ -1361,51 +1217,15 @@ void main() {
             'porque um dos códigos não tem porta deixa parada uma passagem '
             'que a própria equipe destravaria',
       );
-      expect(it.harness.playback.played.last, it.partes[1].path);
+      expect(
+        it.estado.btRecusa,
+        CheckRefusal.notConferida,
+        reason:
+            'o código sem porta não apaga o que tem: a equipe lê o motivo '
+            'que sabe tapar, e não o de tentar de novo',
+      );
     },
   );
-
-  testWidgets('uma sala que não responde a leitura dos nomes não muda nada, '
-      'e não vira uma parada', (tester) async {
-    final it = await _ateAConferida(
-      tester,
-      comEsta: SalaHarness(
-        filaEmMemoria: true,
-        retryBackoff: const [Duration(seconds: 30)],
-      ),
-    );
-    it.harness.room
-      ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1'
-      ..failStateOnceWith = const NetworkFailed('timeout');
-
-    await _aprovarEEsperar(tester);
-
-    expect(
-      _estado(it.container).needsPerson,
-      isFalse,
-      reason:
-          'uma sala que não respondeu não é um buraco cujo chão não veio, e '
-          'uma leitura que falha não é um dos seis casos do sinal',
-    );
-    expect(it.harness.room.personsAsked, 0);
-    expect(
-      _estado(it.container).btPhase,
-      BtPhase.conferida,
-      reason: 'a fase não se move, que é o que mantém o botão desenhado',
-    );
-    expect(
-      byLabel(_aprovar),
-      findsOneWidget,
-      reason: 'e o gesto continua ali para ser repetido',
-    );
-
-    await tester.pump(const Duration(seconds: 40));
-
-    expect(it.harness.room.releasesAsked, hasLength(1));
-
-    closeTheRoom(it.container);
-  });
 
   testWidgets('a passage the room called checked is announced in english to an '
       'english room', (tester) async {

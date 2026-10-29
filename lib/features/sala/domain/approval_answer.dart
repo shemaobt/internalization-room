@@ -18,7 +18,7 @@ class ApprovalAnswer {
   final int? version;
 
   /// The holes standing between this passage and its release, one code each, in the order
-  /// the gate raised them — which is not the order the room opens its doors in.
+  /// the gate raised them — which is not the order the room reads them in.
   final List<String> blockers;
 
   /// Which current parts carry nobody's words, when `untold_part` is among the blockers;

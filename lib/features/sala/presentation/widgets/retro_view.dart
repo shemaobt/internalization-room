@@ -167,7 +167,11 @@ class RetroView extends ConsumerWidget {
             StatusLines(line: estado, note: nota),
             if (session.btSoOuvir) ...[
               const SizedBox(height: 12),
-              _APosicaoDaEscuta(session: session, language: language),
+              _ALinhaDaEscuta(
+                session: session,
+                language: language,
+                linha: session.btClipRodando ? 'listening' : null,
+              ),
             ],
             if (linha != null) ...[
               const SizedBox(height: 12),
@@ -181,9 +185,12 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
-            SizedBox(
-              height: 60,
-              child: _actions(session, notifier, language, colors),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 60),
+                child: _actions(session, notifier, language, colors),
+              ),
             ),
             if (session.btPhase == BtPhase.conferida &&
                 (session.approvedDraftDrawn == null ||
@@ -781,9 +788,36 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
+          if (_aEscuta(session) case final linha?) ...[
+            const SizedBox(width: 11.2),
+            Flexible(
+              child: _ALinhaDaEscuta(
+                session: session,
+                language: language,
+                linha: linha,
+                textAlign: TextAlign.start,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String? _aEscuta(SalaSessionState session) {
+    if (session.btSoOuvir) return null;
+    if (session.btTrechoTraduzidoDeNovo != null ||
+        session.btRegravacao != null) {
+      return session.btTrechoTocando ? 'listening' : null;
+    }
+    if (session.btClipEnded && !session.btParteFronteira) {
+      return 'endOfTheRecording';
+    }
+    if (session.btCortado) {
+      return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
+    }
+    if (session.btClipRodando || session.btTrechoTocando) return 'listening';
+    return 'paused';
   }
 
   String _circleLabel(SalaSessionState session, String language) {
@@ -841,44 +875,64 @@ class RetroView extends ConsumerWidget {
   }
 }
 
-/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10» while a part sounds, the place
-/// alone while it is held.
-class _APosicaoDaEscuta extends ConsumerWidget {
+/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while
+/// a part sounds or is held; either alone when the other is missing.
+class _ALinhaDaEscuta extends ConsumerWidget {
   final SalaSessionState session;
   final String language;
+  final String? linha;
+  final TextAlign textAlign;
 
-  const _APosicaoDaEscuta({required this.session, required this.language});
+  const _ALinhaDaEscuta({
+    required this.session,
+    required this.language,
+    required this.linha,
+    this.textAlign = TextAlign.center,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (parte, soando) = switch (session.channel) {
-      PartPlaying(:final part) => (part.part, true),
-      Paused(what: final PartSound part) => (part.part, false),
-      _ => (null, false),
-    };
-    if (parte == null) return const SizedBox.shrink();
+    final parte = _parteNoAr(session);
+    if (parte == null && linha == null) return const SizedBox.shrink();
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     return Loop(
       period: const Duration(seconds: 1),
-      animate: soando,
+      animate: session.channel is PartPlaying,
       reducible: false,
       builder: (context, _) {
-        final lugar = firstListenPositionFor(
-          parte + 1,
-          playback.position,
-          playback.playingLength,
-          language,
-        );
+        final lugar = switch (parte) {
+          null => null,
+          final parte
+              when session.partes.elementAtOrNull(parte)?.scopeId ==
+                  KeptScope.whole =>
+            sceneClockOf(playback.position, playback.playingLength),
+          final parte => firstListenPositionFor(
+            parte + 1,
+            playback.position,
+            playback.playingLength,
+            language,
+          ),
+        };
         return Text(
-          soando ? '${retroLabelFor('listening', language)} — $lugar' : lugar,
-          textAlign: TextAlign.center,
+          [
+            if (linha case final linha?) retroLabelFor(linha, language),
+            ?lugar,
+          ].join(' — '),
+          textAlign: textAlign,
           style: TextStyle(color: colors.telha, fontSize: 15),
         );
       },
     );
   }
 }
+
+int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
+  PartPlaying(:final part) => part.part,
+  Paused(what: final PartSound part) ||
+  Microphone(held: Paused(what: final PartSound part)) => part.part,
+  _ => null,
+};
 
 class _ManterADeAntes extends StatelessWidget {
   final String label;
