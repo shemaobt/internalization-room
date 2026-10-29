@@ -1005,14 +1005,15 @@ String _oLugar(
   Duration at,
   Duration? length,
   String language,
-) => session.partes.elementAtOrNull(parte)?.scopeId == KeptScope.whole
-    ? sceneClockOf(at, length)
-    : firstListenPositionFor(
-        KeptScope.numberOf(session.partes[parte].scopeId) ?? parte + 1,
-        at,
-        length,
-        language,
-      );
+) => switch (session.partes.elementAtOrNull(parte)?.scopeId) {
+  KeptScope.whole => sceneClockOf(at, length),
+  final scope => firstListenPositionFor(
+    (scope == null ? null : KeptScope.numberOf(scope)) ?? parte + 1,
+    at,
+    length,
+    language,
+  ),
+};
 
 ({int parte, Duration? ondeFicou})? _parteNoAr(SalaSessionState session) =>
     switch (session.channel) {
