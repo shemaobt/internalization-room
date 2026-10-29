@@ -2929,4 +2929,39 @@ void main() {
       closeTheRoom(container);
     });
   }
+
+  for (final (look, telha) in [
+    (Brightness.light, const Color(0xFFBE4A01)),
+    (Brightness.dark, const Color(0xFFD6612A)),
+  ]) {
+    testWidgets('in the ${look.name} look «regravada — traduzam de novo» is '
+        'written in terracotta, not boxed in a terracotta pill', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = look;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _comUmaFraseRegravada(tester, harness);
+      final palavra = find.text('regravada — traduzam de novo');
+
+      expect(tester.widget<Text>(palavra).style?.color, telha);
+      expect(
+        (tester
+                    .widget<Container>(
+                      find
+                          .ancestor(
+                            of: palavra,
+                            matching: find.byType(Container),
+                          )
+                          .first,
+                    )
+                    .decoration
+                as BoxDecoration?)
+            ?.borderRadius,
+        BorderRadius.circular(16),
+        reason: 'a palavra regravada vinha numa pílula com borda telha',
+      );
+      closeTheRoom(container);
+    });
+  }
 }

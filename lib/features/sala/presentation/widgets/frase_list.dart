@@ -356,7 +356,12 @@ class _FraseTile extends StatelessWidget {
                             fontSize: 14,
                           ),
                         ),
-                      if (mark != null)
+                      if (mark != null && row.regravada)
+                        Text(
+                          mark,
+                          style: TextStyle(color: colors.telha, fontSize: 14),
+                        )
+                      else if (mark != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
