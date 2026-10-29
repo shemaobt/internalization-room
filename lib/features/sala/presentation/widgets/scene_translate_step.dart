@@ -592,14 +592,14 @@ class SceneRehearsalList extends ConsumerWidget {
         sceneRehearsalLabelFor(control, language, n: n);
     return Semantics(
       label: said('list'),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 470,
-          maxHeight: MediaQuery.sizeOf(context).height / 3,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 470,
+            maxHeight: MediaQuery.sizeOf(context).height / 3,
+          ),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -651,7 +651,7 @@ class _ListedRow extends StatelessWidget {
       fontSize: 0.8 * _rem,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 0.15 * _rem),
       child: Semantics(
         button: true,
         enabled: live,
@@ -664,7 +664,7 @@ class _ListedRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: onScreen ? colors.azul : colors.line,
+                  color: onScreen ? colors.azul : colors.areia,
                   width: 1.2,
                 ),
                 borderRadius: BorderRadius.circular(12),
@@ -761,6 +761,7 @@ class SceneSub extends StatelessWidget {
     final style = TextStyle(
       color: SalaColors.of(context).claquete,
       fontSize: 0.92 * _rem,
+      letterSpacing: 0,
     );
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
@@ -818,6 +819,9 @@ class _WrittenButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
+    final outline = bare
+        ? null
+        : Border.all(color: colors.vermelhoMic, width: 1.5);
     return Semantics(
       button: true,
       enabled: live,
@@ -826,30 +830,41 @@ class _WrittenButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: live ? onTap : null,
         child: ExcludeSemantics(
-          child: Opacity(
-            opacity: live ? 1 : 0.35,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: large ? 32 : 20,
-                vertical: large ? 14 : 10,
-              ),
-              decoration: bare
-                  ? null
-                  : BoxDecoration(
-                      color: large ? colors.vermelhoMic : null,
-                      border: Border.all(color: colors.vermelhoMic, width: 1.5),
-                      borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (outline != null)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: live ? 1 : 0.35,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: large ? colors.vermelhoMic : null,
+                        border: outline,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
-              child: Text(
-                words,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: large ? colors.paper : colors.ink,
-                  fontSize: large ? 18 : 14,
-                  decoration: bare ? TextDecoration.underline : null,
+                  ),
+                ),
+              Opacity(
+                opacity: live || large ? 1 : 0.35,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: large ? 32 : 20,
+                    vertical: large ? 14 : 10,
+                  ).add(outline?.dimensions ?? EdgeInsets.zero),
+                  child: Text(
+                    words,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: large && live ? colors.paper : colors.ink,
+                      fontSize: large ? 18 : 14,
+                      decoration: bare ? TextDecoration.underline : null,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -887,7 +902,10 @@ class _FraseBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 0.15 * _rem,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 470),
         child: Row(
@@ -901,92 +919,90 @@ class _FraseBar extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: live ? onTap : null,
                   child: ExcludeSemantics(
-                    child: Opacity(
-                      opacity: live ? 1 : 0.35,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 0.6 * _rem,
-                          vertical: 0.45 * _rem,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 0.6 * _rem,
+                        vertical: 0.45 * _rem,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color.fromRGBO(236, 234, 220, .05)
+                            : const Color.fromRGBO(255, 255, 255, .4),
+                        border: Border.all(
+                          color: again ? colors.telha : colors.areia,
+                          width: 1.2,
                         ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? const Color.fromRGBO(236, 234, 220, .05)
-                              : const Color.fromRGBO(255, 255, 255, .4),
-                          border: Border.all(
-                            color: again ? colors.telha : colors.areia,
-                            width: 1.2,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 0.05 * _rem),
-                              child: SizedBox(
-                                width: 26,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: _Disc(n: n, fill: colors.areia),
-                                ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 0.05 * _rem),
+                            child: SizedBox(
+                              width: 26,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: _Disc(n: n, fill: colors.areia),
                               ),
                             ),
-                            const SizedBox(width: 0.55 * _rem),
-                            Expanded(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 0.3 * _rem),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 10,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: const Color.fromRGBO(
-                                          199,
-                                          194,
-                                          159,
-                                          .28,
-                                        ),
-                                        borderRadius: BorderRadius.circular(5),
+                          ),
+                          const SizedBox(width: 0.55 * _rem),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 0.3 * _rem),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 10,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromRGBO(
+                                        199,
+                                        194,
+                                        159,
+                                        .28,
                                       ),
-                                      child: Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: FractionallySizedBox(
-                                          widthFactor: share > 0
-                                              ? max(0.08, share)
-                                              : 1,
-                                          heightFactor: 1,
-                                          child: DecoratedBox(
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  (again
-                                                          ? colors.telha
-                                                          : colors.claquete)
-                                                      .withValues(alpha: .85),
-                                              borderRadius:
-                                                  BorderRadius.circular(5),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: FractionallySizedBox(
+                                        widthFactor: share > 0
+                                            ? max(0.08, share)
+                                            : 1,
+                                        heightFactor: 1,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (again
+                                                        ? colors.telha
+                                                        : colors.claquete)
+                                                    .withValues(alpha: .85),
+                                            borderRadius: BorderRadius.circular(
+                                              5,
                                             ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 0.15 * _rem),
-                                  Text(
-                                    words,
-                                    style: TextStyle(
-                                      color: colors.claquete,
-                                      fontSize: 0.7 * _rem,
-                                      height: 1.35,
-                                    ),
+                                ),
+                                const SizedBox(height: 0.15 * _rem),
+                                Text(
+                                  words,
+                                  style: TextStyle(
+                                    color: colors.claquete,
+                                    fontSize: 0.7 * _rem,
+                                    height: 1.35,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -995,14 +1011,15 @@ class _FraseBar extends StatelessWidget {
             ),
             const SizedBox(width: 0.4 * _rem),
             RoundActionButton(
-              size: 40,
+              size: 38,
               mood: live ? ButtonMood.lit : ButtonMood.dimmed,
               semanticLabel: hearMine,
               onTap: onHear,
+              border: Border.all(color: colors.areia, width: 1.3),
               child: Icon(
                 LucideIcons.volume2,
                 size: 18,
-                color: colors.vermelhoMic,
+                color: colors.claquete,
               ),
             ),
           ],
