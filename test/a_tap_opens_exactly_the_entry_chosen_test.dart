@@ -224,7 +224,8 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en')
-      ..room.passages = _theBook;
+      ..room.passages = _theBook
+      ..room.resumesTheLatest = true;
     final container = await pumpSala(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
