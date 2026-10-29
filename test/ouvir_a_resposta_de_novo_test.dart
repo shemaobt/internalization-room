@@ -66,9 +66,7 @@ void main() {
     });
 
     test('sem fala guardada, o botão não toca nada', () async {
-      final harness = harnessApontando()
-        ..room.turnsAreCanned = true
-        ..room.verdictUsedFailSafe = true;
+      final harness = harnessApontando()..room.verdictUsedFailSafe = true;
       final container = await pumpAoApontado(harness);
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
@@ -77,7 +75,8 @@ void main() {
         container.read(salaSessionProvider).lastSpoken,
         isNull,
         reason:
-            'nem o turno de abertura nem o veredito de fail-safe são lembrados',
+            'a abertura fica para trás a caminho da Retro, e o veredito de '
+            'fail-safe não é lembrado',
       );
 
       final tocadosAntes = harness.voice.played.length;

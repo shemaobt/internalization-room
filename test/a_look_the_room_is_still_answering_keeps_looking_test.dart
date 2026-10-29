@@ -156,7 +156,6 @@ void main() {
       _anOpeningTheNetworkLoses(
         (room) => room
           ..turnsLandBeforeTheyFail = true
-          ..turnsAreCanned = true
           ..looksStillAnswering = 1,
         (clock, it) {
           clock.elapse(const Duration(seconds: 3));
