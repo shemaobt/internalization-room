@@ -429,7 +429,7 @@ What a plan row's «trocar o ensaio desta cena» opens: one scene's rehearsals o
 _Avoid_: swap sheet (her code's name), picker, modal
 
 **Unlabelled rehearsal**:
-A Scene rehearsal of this session with a translated frase and no Scene label of this passage: recorded while the scene list was missing, or before labels existed. The Ensaio Final plan puts it to the team on the card «De que cena é este ensaio?», one at a time, oldest first; it is never guessed and never joined until the team labels it.
+A Scene rehearsal of this session with a translated frase and no Scene label of this passage: recorded while the scene list was missing, or before labels existed. The Ensaio Final plan puts it to the team on the card «De que cena é este ensaio?», one at a time, oldest first, the team stepping through them with previous and next; it is never guessed and never joined until the team labels it.
 _Avoid_: unassigned (her code's word), orphan
 
 **Joinable**:
