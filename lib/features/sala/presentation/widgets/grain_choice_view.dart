@@ -23,15 +23,11 @@ class GrainChoiceView extends ConsumerWidget {
     final language = ref.watch(roomLanguageProvider);
     final colors = SalaColors.of(context);
     final open = !session.grainSwitching;
-    _GrainButton choice(Grain grain, (String, String) lines) {
-      final arm = session.armedTap;
-      final armed = arm?.control == 'choose:${grain.wire}';
-      return _GrainButton(
-        lines: armed ? (retroLabelFor('reopenArmed', language), '') : lines,
-        open: open && !(armed && arm?.phase == BtRecomeco.armado),
-        onTap: () => notifier.chooseTheGrain(grain),
-      );
-    }
+    _GrainButton choice(Grain grain, (String, String) lines) => _GrainButton(
+      lines: lines,
+      open: open,
+      onTap: () => notifier.chooseTheGrain(grain),
+    );
 
     return SafeArea(
       bottom: false,
