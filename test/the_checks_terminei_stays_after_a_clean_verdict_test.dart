@@ -217,4 +217,23 @@ void main() {
     expect(byLabel(aprovar), findsOneWidget);
     closeTheRoom(container);
   });
+
+  testWidgets('a verdict over a checked telling whose sound will not play '
+      'leaves the team on the approval, not back on the telling', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.voice.refuses.add(falaDoVeredito);
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 900));
+
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
+      reason: 'o veredito que não tocava devolvia a equipe à tradução',
+    );
+    expect(byLabel(aprovar), findsOneWidget);
+    closeTheRoom(container);
+  });
 }

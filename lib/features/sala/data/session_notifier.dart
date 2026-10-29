@@ -10566,7 +10566,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // `thinking` takes no tap and holds the finish button down — the team would be left
       // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
-        _leaveThinking();
+        state = state.copyWith(btPhase: pressedFrom);
         return _registerUnplayableTurn();
       }
 
