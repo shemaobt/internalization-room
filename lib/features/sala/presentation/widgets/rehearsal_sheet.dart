@@ -288,9 +288,13 @@ class _SheetLine extends StatelessWidget {
                 if (inUse)
                   Text(
                     '✓ ${said('inUse')}',
-                    style: TextStyle(color: colors.mut, fontSize: 15),
-                  )
-                else if (offersToUse)
+                    style: TextStyle(
+                      color: colors.verde,
+                      fontSize: 0.8 * _rem,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                if (offersToUse)
                   Semantics(
                     button: true,
                     enabled: usable,

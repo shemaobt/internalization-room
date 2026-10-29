@@ -822,6 +822,35 @@ void main() {
     );
   }
 
+  for (final (look, verde) in [
+    ('light', const Color(0xFF3F3E20)),
+    ('dark', const Color(0xFFECEADC)),
+  ]) {
+    testWidgets(
+      'in the $look look «✓ em uso» is her small bold verde badge, not grey '
+      'body text',
+      (tester) async {
+        if (look == 'dark') _inTheDark(tester);
+        final semantics = tester.ensureSemantics();
+        await _seeded(tester, _threeOnSceneOne);
+        await _openThePlan(tester);
+        await _openTheSheetOf(tester, 1);
+
+        final badge = tester
+            .widget<Text>(_onLine(_sent(2), find.text(_inUse)))
+            .style!;
+        expect(
+          badge.fontSize,
+          closeTo(12.8, 0.001),
+          reason: '«✓ em uso» tinha 15 no cinza do texto',
+        );
+        expect(badge.fontWeight, FontWeight.w600);
+        expect(badge.color, verde);
+        semantics.dispose();
+      },
+    );
+  }
+
   testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
