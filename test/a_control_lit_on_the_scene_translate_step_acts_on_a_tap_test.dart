@@ -16,6 +16,10 @@ const _translate = 'traduzir o ensaio da cena';
 const _tell = 'Toque para traduzir esta frase do ensaio da cena';
 const _keepTheEarlier = 'manter a tradução de antes';
 const _restart = 'recomeçar a tradução';
+const _playPause = 'Tocar ou pausar a gravação';
+const _terminei = 'terminei';
+const _sending = 'enviando a tradução do ensaio da cena para a voz…';
+const _recordAgain = 'gravar o ensaio da cena de novo';
 const _pauseRow = ['um pouco antes', 'ouvir a pausa', 'um pouco depois'];
 
 String _bar(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
@@ -322,6 +326,91 @@ void main() {
           reason:
               'a frase guardada já foi, e a barra da frase $n continuava '
               'apagada',
+        );
+      }
+    },
+  );
+
+  for (final (control, refusals) in [
+    (_playPause, [_Refusal.waiting, _Refusal.sending, _Refusal.microphone]),
+    (_hearMine(1), [_Refusal.waiting, _Refusal.sending, _Refusal.microphone]),
+    (_recordAgain, [_Refusal.waiting, _Refusal.sending]),
+  ]) {
+    testWidgets('«$control» is drawn out under every refusal of its tap', (
+      tester,
+    ) async {
+      final (_, container) = await _theLastFraseTranslatedAgain(tester);
+      expect(_lit(tester, control), isTrue);
+
+      for (final refusal in refusals) {
+        await _under(
+          tester,
+          container,
+          refusal,
+          () => expect(
+            _lit(tester, control),
+            isFalse,
+            reason:
+                'com ${refusal.name}, «$control» ficava aceso e o toque não '
+                'fazia nada',
+          ),
+        );
+      }
+    });
+  }
+
+  testWidgets(
+    '«terminei» is drawn out while it is in the air, with the microphone open and under the person sign',
+    (tester) async {
+      final (_, container) = await _theLastFraseTranslatedAgain(tester);
+      expect(_lit(tester, _terminei), isTrue);
+
+      for (final (refusal, words) in [
+        (_Refusal.sending, _sending),
+        (_Refusal.microphone, _terminei),
+        (_Refusal.person, _terminei),
+      ]) {
+        await _under(
+          tester,
+          container,
+          refusal,
+          () => expect(
+            _lit(tester, words),
+            isFalse,
+            reason:
+                'com ${refusal.name}, «$words» ficava aceso e o toque não '
+                'fazia nada',
+          ),
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    '«traduzir o ensaio da cena» is drawn out while the screen waits, while «terminei» is in the air and with the microphone open',
+    (tester) async {
+      final (_, container) = await translateOnScreen(
+        tester,
+        rehearsal: _twoFrases,
+      );
+      expect(_lit(tester, _translate), isTrue);
+
+      for (final refusal in [
+        _Refusal.waiting,
+        _Refusal.sending,
+        _Refusal.microphone,
+      ]) {
+        await _under(
+          tester,
+          container,
+          refusal,
+          () => expect(
+            _lit(tester, _translate),
+            isFalse,
+            reason:
+                'com ${refusal.name}, o traduzir ficava aceso e o toque não '
+                'fazia nada',
+          ),
         );
       }
     },
