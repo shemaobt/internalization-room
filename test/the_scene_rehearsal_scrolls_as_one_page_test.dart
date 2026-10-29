@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/back_to_passage_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
@@ -228,7 +229,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       final wayBack = tester.getRect(find.byType(BackToPassageButton));
       final covered = [
-        for (final type in [Text, RoundActionButton, SceneStrip])
+        for (final type in [
+          Text,
+          RoundActionButton,
+          FacilitatorCircle,
+          SceneStrip,
+        ])
           for (final element in _inTheScreen(find.byType(type)).evaluate())
             if (tester
                 .getRect(find.byElementPredicate((e) => e == element))

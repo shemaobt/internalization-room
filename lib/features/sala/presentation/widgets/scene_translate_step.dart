@@ -13,6 +13,7 @@ import '../../domain/pausa.dart';
 import '../../domain/scene_rehearsal.dart';
 import '../../domain/session_state.dart';
 import 'bead_styles.dart';
+import 'facilitator_circle.dart';
 import 'motion.dart';
 import 'pause_adjust_row.dart';
 import 'scene_strip.dart';
@@ -131,13 +132,13 @@ class SceneTranslateStep extends ConsumerWidget {
         ],
         const SizedBox(height: 12),
         _TellCircle(
-          mood: telling
-              ? ButtonMood.beckoning
-              : scene.waiting
-              ? ButtonMood.waiting
-              : sending || person
-              ? ButtonMood.dimmed
-              : ButtonMood.lit,
+          voice: telling
+              ? VoiceState.listening
+              : scene.waiting || sending
+              ? VoiceState.thinking
+              : VoiceState.invite,
+          enabled: telling || (!scene.waiting && !sending && !person),
+          edgeWidth: scene.pausa != null ? 2.2 : 1.5,
           label: said('tell'),
         ),
         if (scene.translatingAgain != null && !unseen) ...[
@@ -373,7 +374,10 @@ class ScenePlacesUnknown extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         _TellCircle(
-          mood: scene.waiting ? ButtonMood.waiting : ButtonMood.dimmed,
+          voice: scene.waiting || sending
+              ? VoiceState.thinking
+              : VoiceState.invite,
+          enabled: false,
           label: said('tell'),
         ),
         const SizedBox(height: 12),
@@ -522,27 +526,27 @@ class SceneListenMode extends ConsumerWidget {
 }
 
 class _TellCircle extends ConsumerWidget {
-  final ButtonMood mood;
+  final VoiceState voice;
+  final bool enabled;
+  final double edgeWidth;
   final String label;
 
-  const _TellCircle({required this.mood, required this.label});
+  const _TellCircle({
+    required this.voice,
+    required this.enabled,
+    this.edgeWidth = 1.5,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SalaColors.of(context);
-    return RoundActionButton(
-      size: 180,
-      mood: mood,
-      halo: colors.vermelhoMic,
+    return FacilitatorCircle(
+      size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
+      voice: voice,
       semanticLabel: label,
+      enabled: enabled,
+      edgeWidth: edgeWidth,
       onTap: ref.read(salaSessionProvider.notifier).tapTheTranslateCircle,
-      background: colors.vermelhoMic.withValues(alpha: 0.10),
-      border: Border.all(color: colors.vermelhoMic, width: 2),
-      child: Icon(
-        mood == ButtonMood.beckoning ? LucideIcons.square : LucideIcons.mic,
-        size: 56,
-        color: colors.vermelhoMic,
-      ),
     );
   }
 }
