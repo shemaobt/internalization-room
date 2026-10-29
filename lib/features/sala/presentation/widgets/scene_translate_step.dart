@@ -982,14 +982,15 @@ class _FraseBar extends StatelessWidget {
             ),
             const SizedBox(width: 0.4 * _rem),
             RoundActionButton(
-              size: 40,
+              size: 38,
               mood: live ? ButtonMood.lit : ButtonMood.dimmed,
               semanticLabel: hearMine,
               onTap: onHear,
+              border: Border.all(color: colors.areia, width: 1.3),
               child: Icon(
                 LucideIcons.volume2,
                 size: 18,
-                color: colors.vermelhoMic,
+                color: colors.claquete,
               ),
             ),
           ],

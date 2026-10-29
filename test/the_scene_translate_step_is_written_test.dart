@@ -1791,6 +1791,66 @@ void main() {
       },
     );
   }
+  for (final (look, areia, verdeClaro) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, open) in <(String, Future<void> Function(WidgetTester))>[
+      (
+        'told',
+        (tester) => _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        ),
+      ),
+      ('of a sent scene rehearsal', _inListenMode),
+    ]) {
+      testWidgets(
+        'in the ${look.name} look the speaker beside each frase $step is her 38 point areia ring around a verde-claro speaker, not a bare red one',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final speaker = byLabel('ouvir a minha tradução da frase 1');
+          final ring = find.descendant(
+            of: speaker,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Container &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+            ),
+          );
+          final icon = tester.widget<Icon>(
+            find.descendant(of: speaker, matching: find.byType(Icon)),
+          );
+
+          expect(ring, findsOneWidget);
+          expect(tester.getSize(ring), const Size(38, 38));
+          final decoration =
+              tester.widget<Container>(ring).decoration as BoxDecoration;
+          expect(
+            decoration.border,
+            Border.all(color: areia, width: 1.3),
+            reason: 'o alto-falante não tinha o anel de areia dela',
+          );
+          expect(decoration.color, isNull);
+          expect(icon.icon, LucideIcons.volume2);
+          expect(icon.size, 18);
+          expect(
+            icon.color,
+            verdeClaro,
+            reason: 'o alto-falante era vermelho; o dela é verde-claro',
+          );
+        },
+      );
+    }
+  }
   for (final (look, verdeClaro) in [
     (Brightness.light, const Color(0xFF777D45)),
     (Brightness.dark, const Color(0xFFAAB07E)),
