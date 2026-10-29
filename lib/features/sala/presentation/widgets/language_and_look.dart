@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -21,10 +23,11 @@ class LanguageAndLook extends ConsumerWidget {
     final light = Theme.of(context).brightness == Brightness.light;
     final look = ref.read(lookProvider.notifier);
     final room = ref.read(salaSessionProvider.notifier);
+    final screen = MediaQuery.sizeOf(context);
 
     return Positioned(
-      right: 14,
-      top: 118 + MediaQuery.viewPaddingOf(context).top,
+      right: screen.width * 0.06,
+      top: max(screen.height * 0.05, MediaQuery.viewPaddingOf(context).top),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -44,7 +47,7 @@ class LanguageAndLook extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _Pill(
             children: [
               for (final code in languages)

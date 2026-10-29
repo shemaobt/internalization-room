@@ -131,6 +131,10 @@ abstract interface class StationHost {
   /// over.
   void hearTheDiskFailed();
 
+  void hearThePlayFailed();
+
+  void hearThePlayOpened();
+
   /// The scene's «terminei» could not be sent.
   void hearTheSendFailed();
 
@@ -253,6 +257,8 @@ class EffectRunner {
           host.handOver(effect);
         case ReturnToThePanorama():
           host.handOver(effect);
+        case RestOnThePanorama():
+          host.handOver(effect);
         case EnterThePassageLeft():
           host.handOver(effect);
         case LookAtTheSession(:final turn, :final sounding):
@@ -294,6 +300,10 @@ class EffectRunner {
           host.hearTheFraseNotUnderstood();
         case TellTheDiskFailed():
           host.hearTheDiskFailed();
+        case TellThePlayFailed():
+          host.hearThePlayFailed();
+        case TellThePlayOpened():
+          host.hearThePlayOpened();
         case TellTheSendFailed():
           host.hearTheSendFailed();
         case TellItWentAlready():

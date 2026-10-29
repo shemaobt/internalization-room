@@ -396,6 +396,39 @@ void main() {
   );
 
   testWidgets(
+    'a restart the room refused keeps its words over the recording played after it',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+      harness.room.failRestartWith = const Refused('HTTP_409');
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala recusar o recomeço',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      expect(find.text(_naoDeu), findsOneWidget);
+      final tocadas = harness.playback.played.length;
+
+      await tocar(tester, ouvir);
+      await waitFor(
+        'a gravação tocar',
+        () =>
+            harness.playback.played.length > tocadas &&
+            harness.playback.sounding,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(find.text(_naoDeu), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     'starting over takes the refusal of the last «terminei» off the screen',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
