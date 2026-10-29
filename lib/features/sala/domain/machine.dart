@@ -484,7 +484,7 @@ final class LookEmpty extends AnsweringEvent {
 /// again.
 ///
 /// It carries no generation: it is never stale only because the notifier dispatches it
-/// synchronously, right after checking that the generation was not abandoned (ADR 0140).
+/// synchronously, right after checking that the generation was not abandoned (ADR 0152).
 final class TheReplyFailedToLoad extends MachineEvent {
   final int load;
   final RoomResult? because;
