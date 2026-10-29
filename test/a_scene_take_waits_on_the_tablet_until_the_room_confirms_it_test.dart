@@ -117,10 +117,17 @@ void main() {
               ),
             )
             .map((text) => text.data),
-        ['Ensaio da cena', _saveFailed, _retry],
+        [
+          'Ensaio da cena',
+          'Toquem no círculo para gravar o ensaio da cena; toquem de novo '
+              'para parar.',
+          'gravem o ensaio da cena na língua materna; toquem para parar',
+          _saveFailed,
+          _retry,
+        ],
         reason:
-            'só o título e o estado da gravação são escritos (ADR 0131); o '
-            'resto é só do VoiceOver',
+            'com a gravação parada, a instrução e a dica dela ficavam só no '
+            'VoiceOver ao lado das palavras da falha',
       );
     },
   );

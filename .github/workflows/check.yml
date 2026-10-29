@@ -62,6 +62,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # A shard takes 3–6 minutes. A hung test (each testWidgets waits up to 10 minutes)
+    # once held a shard for 90 minutes and the merge queue with it; 20 minutes fails it fast.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
