@@ -3976,10 +3976,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _readThePlan(String sessionId) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
+    var listingRead = false;
     final reads = (
       _takes.pending(),
       _room.takesListingOf(sessionId).then((listing) {
         if (listing case Answered(:final value) when !_abandoned(generation)) {
+          listingRead = true;
           _theRoomsGrainHeard(value);
           if (value.grain case final grain?
               when state.ensaioFinalPlan is GrainAsked &&
@@ -4005,7 +4007,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     _timers.remove('planRead')?.cancel();
     final read = answered;
-    if (read == null) return _theGrainOrItsHome(sessionId);
+    if (read == null) {
+      return _theGrainOrItsHome(sessionId, unread: !listingRead);
+    }
     final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
@@ -4076,8 +4080,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId, {
     List<TakeView>? listed,
     bool elsewhere = false,
+    bool unread = false,
   }) {
-    if (state.grain != null) {
+    if (state.grain != null && !unread) {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));

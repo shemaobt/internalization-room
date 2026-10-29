@@ -38,6 +38,7 @@ const _failed = 'falhou — toque para tentar de novo';
 const _wholeInstead = 'Gravar a passagem inteira';
 const _theArmLapses = Duration(seconds: 8);
 const _record = 'Gravar';
+const _backToPassage = 'Voltar para a passagem atual';
 
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
@@ -469,6 +470,35 @@ void main() {
       expect(find.text('Cena 1'), findsNothing);
       expect(find.text(_how), findsNothing);
       harness.room.finishHeldSceneList();
+    },
+  );
+
+  testWidgets(
+    'with a grain only in memory, the 6 s cut with no listing read shows the '
+    'choice, not that grain\'s home',
+    (tester) async {
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      harness.room
+        ..holdNextTakesList()
+        ..holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(
+        find.text(_how),
+        findsOneWidget,
+        reason:
+            'sem a listagem da sala, o tablet abria a casa do grão que lembrava, '
+            'e o dela mostra a escolha',
+      );
+      expect(find.text(_homeLine), findsNothing);
+      harness.room
+        ..finishHeldTakesList()
+        ..finishHeldSceneList();
     },
   );
 
