@@ -124,24 +124,6 @@ Future<ProviderContainer> achadoComAvisoAtivo(SalaHarness harness) async {
   return container;
 }
 
-/// A sala parada de vez, dentro da retro, depois de a equipe contar um trecho.
-Future<ProviderContainer> _paradaBloqueante(SalaHarness harness) async {
-  final container = await _inRetro(harness);
-
-  await _traduzTrecho(harness, container, em: const Duration(seconds: 10));
-  await waitFor(
-    'o primeiro trecho chegar à sala',
-    () => harness.room.chunksSent == 1,
-  );
-
-  container.read(salaSessionProvider.notifier).haltForABrokenBuild();
-  await waitFor(
-    'a sala parar de vez',
-    () => container.read(salaSessionProvider).needsPerson,
-  );
-  return container;
-}
-
 void main() {
   test('com o aviso ativo, o microfone azul leva à tradução e o círculo abre '
       'a captura', () async {
@@ -196,34 +178,9 @@ void main() {
     );
   });
 
-  test('a parada bloqueante continua visível; a mesa não a levanta, só o '
-      'toque da equipe', () async {
-    final harness = SalaHarness();
-    final container = await _paradaBloqueante(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    int leituras() =>
-        harness.room.calls.where((call) => call == 'fetchState').length;
-
-    expect(read().needsPerson, isTrue);
-
-    harness.room.theDeskAttended();
-    final antes = leituras();
-    await waitFor('a vigia reler duas vezes', () => leituras() > antes + 1);
-
-    expect(
-      read().needsPerson,
-      isTrue,
-      reason: 'nada que a mesa faz move o tablet (ADR 0107)',
-    );
-
-    notifier.teamTapped();
-
-    expect(read().needsPerson, isFalse);
-  });
-
   test(
-    'uma parada ao abrir a gravação por cima não solta o trecho armado',
+    'uma parada ao abrir a gravação por cima deixa o microfone abrir no trecho '
+    'armado, como o dela',
     () async {
       final harness = SalaHarness();
       final container = await achadoComAvisoAtivo(harness);
@@ -238,25 +195,21 @@ void main() {
       notifier.retroTap();
       await settle();
       notifier.haltForABrokenBuild();
-      await waitFor('a sala parar', () => read().needsPerson);
-      harness.recorder.finishStart();
       await settle();
-      notifier.teamTapped();
-      await waitFor('o círculo voltar ao convite', () => !read().needsPerson);
-
-      expect(
-        read().btTrechoTraduzidoDeNovo?.segmentId,
-        apontado.segmentId,
-        reason:
-            'o trecho armado só é solto por uma tradução que aterra: a parada '
-            'descartou a gravação, não o conserto',
-      );
-
-      notifier.retroTap();
+      harness.recorder.finishStart();
       await waitFor(
-        'o microfone abrir de novo no mesmo trecho',
+        'o microfone abrir no trecho armado',
         () => read().btPhase == BtPhase.capturing,
       );
+
+      expect(read().needsPerson, isFalse);
+      expect(
+        read().btPhase,
+        BtPhase.capturing,
+        reason: 'a parada descartava a gravação que o dela deixa seguir',
+      );
+      expect(read().btTrechoTraduzidoDeNovo?.segmentId, apontado.segmentId);
+
       await fecharACaptura(container);
       await waitFor(
         'a sala sair do pensando',

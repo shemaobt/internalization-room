@@ -1092,8 +1092,8 @@ final class Machine {
 
   final bool wordlessTelling;
 
-  /// A halt met on the scene rehearsal or the external check: the person sign
-  /// shows once the team is back on the Canvas.
+  /// A halt met on the scene rehearsal, the external check or the
+  /// back-translation: the person sign shows once the team is back on the Canvas.
   final bool aHaltWaitsForTheCanvas;
 
   final bool theCanvasEnded;
@@ -1517,7 +1517,8 @@ const _watch = ArmTheWatch();
   },
   RoomRaisedAHalt()
       when machine.station is SceneRehearsal ||
-          machine.station is ChecagemExterna =>
+          machine.station is ChecagemExterna ||
+          machine.station is Retro =>
     (machine.copyWith(aHaltWaitsForTheCanvas: true), const <Effect>[]),
   RoomRaisedAHalt() ||
   TheAnswerWarned() ||

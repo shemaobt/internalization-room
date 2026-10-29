@@ -1246,26 +1246,26 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  testWidgets('the person sign stands over the retro\'s checked screen', (
-    tester,
-  ) async {
+  testWidgets('a halt raised on the retro\'s checked screen draws no sign '
+      'there, as hers', (tester) async {
     final it = await _ateAConferida(tester);
 
     _notifier(it.container).haltForABrokenBuild();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(_circulo(tester).halt, isA<Blocking>());
+    expect(_circulo(tester).halt, isA<NoHalt>());
     expect(
       thePersonSign,
-      findsOneWidget,
-      reason: 'a parada não levantava o sinal sobre a tela conferida',
+      findsNothing,
+      reason:
+          'o sinal cobria a tela conferida, e o Drafting dela nunca o mostra',
     );
 
     closeTheRoom(it.container);
   });
 
   testWidgets(
-    'under the person sign on the retro\'s checked screen the way back is gone too',
+    'a halt raised on the retro\'s checked screen leaves the way back standing',
     (tester) async {
       final it = await _ateAConferida(tester);
       double passageButton() => tester
@@ -1285,7 +1285,11 @@ void main() {
       _notifier(it.container).haltForABrokenBuild();
       await tester.pump(const Duration(milliseconds: 600));
 
-      expect(passageButton(), 0);
+      expect(
+        passageButton(),
+        1,
+        reason: 'a parada escondia a saída da passagem na tela conferida',
+      );
       closeTheRoom(it.container);
     },
   );

@@ -39,6 +39,57 @@ void main() {
     expect(effects, isEmpty);
   });
 
+  test('a halt raised on the back-translation does not stand there and calls '
+      'nobody there', () {
+    final (waiting, effects) = reduce(
+      const Machine(station: Retro()),
+      const RoomRaisedAHalt(),
+    );
+
+    expect(
+      waiting.halt,
+      isA<NoHalt>(),
+      reason: 'a parada cobria a retro, e o Drafting dela nunca mostra o sinal',
+    );
+    expect(waiting.aHaltWaitsForTheCanvas, isTrue);
+    expect(effects, isEmpty);
+  });
+
+  test('a halt waiting from the back-translation rises once «pronto» takes the '
+      'team to the conversation', () {
+    final (waiting, _) = reduce(
+      const Machine(station: Retro()),
+      const RoomRaisedAHalt(),
+    );
+
+    final (onTheCanvas, effects) = reduce(waiting, const TheRecordingLeft());
+
+    expect(onTheCanvas.station, isA<Canvas>());
+    expect(onTheCanvas.halt, isA<Blocking>());
+    expect(effects, contains(const CallForAPerson()));
+  });
+
+  test('a halt waiting from the back-translation is dropped on the way to the '
+      'ensaio or the check, not carried to a later conversation', () {
+    final (waiting, _) = reduce(
+      const Machine(station: Retro()),
+      const RoomRaisedAHalt(),
+    );
+
+    final (onTheEnsaio, _) = reduce(waiting, const TheRehearsalOpened());
+    final (onTheCheck, _) = reduce(waiting, const TheExternalCheckOpened(1));
+    final (laterOnTheCanvas, _) = reduce(onTheEnsaio, const TheRecordingLeft());
+
+    expect(onTheEnsaio.halt, isA<NoHalt>());
+    expect(onTheCheck.halt, isA<NoHalt>());
+    expect(onTheCheck.aHaltWaitsForTheCanvas, isFalse);
+    expect(
+      laterOnTheCanvas.halt,
+      isA<NoHalt>(),
+      reason: 'a parada da retro subia numa conversa muito depois',
+    );
+  });
+
   test('a halt waiting from the external check is dropped when the team goes '
       'back to the back-translation, not carried to a later conversation', () {
     final (waiting, _) = reduce(

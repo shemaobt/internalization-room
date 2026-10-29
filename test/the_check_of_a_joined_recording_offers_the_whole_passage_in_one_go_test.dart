@@ -513,23 +513,23 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('while the room is stopped for a person it is dimmed and a tap '
-      'does not arm it', (tester) async {
+  testWidgets('a halt raised on the back-translation\'s check leaves the '
+      'switch lit and a tap arms it, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _naConferencia(tester, harness);
     expect(_aberto(tester, _wholeAtOnce), isTrue);
 
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
     await _passo(tester);
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
 
     expect(
       _aberto(tester, _wholeAtOnce),
-      isFalse,
-      reason: 'com a sala parada esperando uma pessoa a troca ainda armava',
+      isTrue,
+      reason: 'a parada apagava a troca, e a dela segue acesa',
     );
     await _tap(tester, _wholeAtOnce);
-    expect(find.text(_wholeArmed), findsNothing);
+    expect(find.text(_wholeArmed), findsOneWidget);
     await tester.pump(_theArmLapses);
     closeTheRoom(container);
   });

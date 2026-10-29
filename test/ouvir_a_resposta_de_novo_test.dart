@@ -112,8 +112,8 @@ void main() {
       expect(harness.voice.played.skip(tocadosAntes), [falaDoVeredito]);
     });
 
-    testWidgets('um veredito de fail-safe que não carrega duas vezes chama a '
-        'pessoa e deixa o botão com o veredito de antes dele', (tester) async {
+    testWidgets('um veredito de fail-safe que não carrega duas vezes não cobre '
+        'a retro e deixa o botão com o veredito de antes dele', (tester) async {
       final container = await pumpToPergunta(tester);
       final harness = harnessDaVez!;
       SalaSessionState read() => container.read(salaSessionProvider);
@@ -124,18 +124,24 @@ void main() {
       await traduzirDeNovo(tester, container);
       unawaited(notifier(container).finishBackTranslation());
       await waitFor(
-        'o sinal da pessoa',
-        () => read().needsPerson,
+        'o veredito falhar duas vezes',
+        () =>
+            harness.voice.played
+                .where((url) => url == _oVereditoDeSeguranca)
+                .length ==
+            2,
         step: () => tester.pump(const Duration(milliseconds: 100)),
       );
+      await tester.pump(const Duration(milliseconds: 600));
       expect(
         harness.voice.played.where((url) => url == _oVereditoDeSeguranca),
         hasLength(2),
       );
-
-      notifier(container).teamTapped();
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(read().needsPerson, isFalse);
+      expect(
+        read().needsPerson,
+        isFalse,
+        reason: 'o sinal cobria a retro, e o Drafting dela nunca o mostra',
+      );
       final tocadosAntes = harness.voice.played.length;
       notifier(container).ouvirARespostaDeNovo();
       await tester.pump(const Duration(milliseconds: 600));

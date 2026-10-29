@@ -1523,31 +1523,26 @@ void main() {
   });
 
   testWidgets(
-    'the loudspeaker of a frase plays nothing while a person is called',
+    'the loudspeaker of a frase still plays after a halt raised there, as hers',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _aFraseTresContada(tester, harness);
       harness.room.fraseDaProximaFrase = 4;
       await contarAteOFimDaParte(tester, harness);
       container.read(salaSessionProvider.notifier).haltForABrokenBuild();
-      await waitFor(
-        'a tela chamar uma pessoa',
-        () => container.read(salaSessionProvider).needsPerson,
-        step: () => _passo(tester),
-      );
+      await _passo(tester);
+      expect(container.read(salaSessionProvider).needsPerson, isFalse);
 
       final antes = harness.playback.played.length;
 
       container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
       await _passo(tester);
 
-      expect(container.read(salaSessionProvider).canHearAFrase, isFalse);
+      expect(container.read(salaSessionProvider).canHearAFrase, isTrue);
       expect(
-        harness.playback.played,
-        hasLength(antes),
-        reason:
-            'a tela chamava uma pessoa e o alto-falante da linha ainda tocava '
-            'por cima',
+        harness.playback.played.length,
+        greaterThan(antes),
+        reason: 'a parada calava o alto-falante da linha, e o dela toca',
       );
       closeTheRoom(container);
     },

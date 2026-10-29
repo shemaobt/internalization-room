@@ -4471,8 +4471,8 @@ void main() {
     );
   });
 
-  test('a verdict that lands after the room stopped for a person does not '
-      'restart it', () async {
+  test('a verdict that lands after a halt raised on the retro is still spoken, '
+      'as hers', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -4498,18 +4498,18 @@ void main() {
     unawaited(notifier.finishBackTranslation());
     await settle(const Duration(milliseconds: 200));
     notifier.haltForABrokenBuild();
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    final playedBefore = harness.voice.played.length;
 
     harness.voice.finishHeldFetch();
     await settle(const Duration(seconds: 2));
 
     final after = container.read(salaSessionProvider);
+    expect(after.needsPerson, isFalse);
     expect(
-      after.needsPerson,
-      isTrue,
-      reason:
-          'sem guarda de época, o veredito atrasado saltava a equipe para '
-          'conferida e fechava o colar por cima de quem já tinha parado a sala',
+      harness.voice.played.length,
+      greaterThan(playedBefore),
+      reason: 'a parada calava o veredito, e o Drafting dela o diz',
     );
     expect(after.stage, isNot(SalaStage.fim));
   });
@@ -4645,7 +4645,7 @@ void main() {
     );
   });
 
-  test('the retro ignores taps once it has asked for a person', () async {
+  test('the retro still answers taps after a halt raised there, as hers', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
     addTearDown(container.dispose);
@@ -4672,7 +4672,7 @@ void main() {
       () => container.read(salaSessionProvider).btClipRodando,
     );
     notifier.haltForABrokenBuild();
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
     final capturesBefore = harness.recorder.captures;
     harness.playback.at = const Duration(seconds: 2);
     notifier.retroTap();
@@ -4682,10 +4682,8 @@ void main() {
 
     expect(
       harness.recorder.captures,
-      capturesBefore,
-      reason:
-          'a equipe falava para um buraco enquanto o círculo mostrava '
-          '"chame uma pessoa"',
+      greaterThan(capturesBefore),
+      reason: 'a parada matava o círculo da retro, e o dela segue gravando',
     );
   });
 

@@ -282,8 +282,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a conferida tablet that stopped for a person offers no '
-      '«regravar»', (tester) async {
+  testWidgets('a conferida tablet that meets a halt still offers «regravar» '
+      'on the nuance, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _quatroFrasesComUmaNuance(
       tester,
@@ -292,20 +292,15 @@ void main() {
     );
 
     container.read(salaSessionProvider.notifier).haltForABrokenBuild();
-    await waitFor(
-      'a sala pedir uma pessoa',
-      () => container.read(salaSessionProvider).needsPerson,
-      step: () => _passo(tester),
-    );
+    await _passo(tester);
     await _passo(tester);
 
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
     expect(
       byLabel('regravar a frase 4'),
-      findsNothing,
-      reason:
-          'a tela parada esperando alguém seguia oferecendo um gesto da '
-          'tradução conferida',
+      findsOneWidget,
+      reason: 'a parada tirava da tela conferida o gesto que o dela mantém',
     );
     closeTheRoom(container);
   });
