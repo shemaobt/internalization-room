@@ -19,7 +19,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, thePersonSign;
+import 'scenario_helpers.dart'
+    show byLabel, relaunch, thePersonSign, voiceOverTap;
 
 const _how = 'Como vocês querem gravar?';
 const _whole = 'A passagem inteira';
@@ -1245,6 +1246,65 @@ void main() {
       expect(harness.room.grainSwitches, hasLength(1));
     },
   );
+
+  testWidgets(
+    'a VoiceOver double-tap on «$_sceneInstead» on the home switches the grain, '
+    'as a finger does',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _onTheEmptyWholeHome(tester);
+      final switches = harness.room.grainSwitches.length;
+
+      voiceOverTap(tester, _sceneInstead);
+      await _settles(tester);
+
+      expect(
+        harness.room.grainSwitches,
+        hasLength(switches + 1),
+        reason:
+            'o VoiceOver anunciava o botão e o toque duplo não trocava nada',
+      );
+      expect(find.text('Cena 1'), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a VoiceOver double-tap on «$_wholeChoice» chooses the whole, as '
+      'a finger does', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final (harness, _) = await _onTheChoice(tester);
+
+    voiceOverTap(tester, _wholeChoice);
+    await _settles(tester);
+
+    expect(
+      harness.room.grainSwitches,
+      [(grain: Grain.whole, reopens: true)],
+      reason: 'o VoiceOver anunciava a escolha e o toque duplo não escolhia',
+    );
+    expect(find.text(_homeLine), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('while the switch is in the air the two choices offer VoiceOver '
+      'no tap', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final (harness, _) = await _onTheChoice(tester);
+    harness.room.holdTheGrainSwitch();
+
+    await _tap(tester, _whole);
+
+    for (final choice in [_wholeChoice, _sceneChoice]) {
+      expect(
+        tester.getSemantics(byLabel(choice)),
+        isSemantics(hasTapAction: false),
+        reason: 'a escolha apagada ainda oferecia o toque ao leitor',
+      );
+    }
+    harness.room.finishTheGrainSwitch();
+    await _settles(tester);
+    semantics.dispose();
+  });
 
   group('14. «Ensaio Final: juntar os ensaios das cenas»', () {
     testWidgets('is offered over an empty whole recording and opens the plan', (

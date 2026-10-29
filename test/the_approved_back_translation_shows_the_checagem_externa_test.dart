@@ -8,7 +8,7 @@ import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida, tocarNaLista, tocarOCirculo;
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, thePersonSign;
+import 'scenario_helpers.dart' show byLabel, thePersonSign, voiceOverTap;
 
 const _checagem = 'Checagem externa';
 const _conferida = '✓ traduzida e conferida';
@@ -110,6 +110,47 @@ void main() {
 
     expect(_aberto(tester), isTrue);
     closeTheRoom(container);
+  });
+
+  testWidgets('a VoiceOver double-tap on «$_checagem» opens it, and while '
+      'recording the button offers no tap', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(tester, harness);
+    await tocarNaLista(tester, 'regravar a frase 2');
+    await tester.pump(const Duration(seconds: 2));
+    await tocarNaLista(
+      tester,
+      'toquem de novo: isto abre de novo o rascunho aprovado',
+    );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tocarOCirculo(tester);
+
+    expect(
+      tester.getSemantics(byLabel(_checagem)),
+      isSemantics(hasTapAction: false),
+      reason: 'com o microfone aberto o botão fechado ainda aceitava o toque',
+    );
+
+    harness.recorder.rehearsalSpeaks = aSpokenWav(
+      length: const Duration(milliseconds: 200),
+    );
+    await tocarOCirculo(tester);
+    await tester.pump(const Duration(milliseconds: 100));
+    voiceOverTap(tester, _checagem);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      harness.room.externalChecksOpened,
+      hasLength(1),
+      reason:
+          'o VoiceOver anunciava o botão e o toque duplo não abria a checagem',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   testWidgets('«Checagem externa» needs no facilitator\'s code, and over a '

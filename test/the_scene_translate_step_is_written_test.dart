@@ -24,6 +24,7 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_check_screen_shows_her_words_and_numbered_frases_test.dart'
     show piorContraste;
+import 'the_scene_circles_are_her_check_ring_test.dart' show fadesOn, theEdgeOf;
 
 const _session = 'sessao-1';
 
@@ -681,7 +682,7 @@ void main() {
   );
 
   testWidgets(
-    'a scene rehearsal whose frase places cannot be read shows the circle dimmed between the strip and her line, and a tap on it opens no microphone',
+    'a scene rehearsal whose frase places cannot be read shows her telha ring at full strength between the strip and her line, and a tap on it opens no microphone',
     (tester) async {
       final (harness, container) = await _onTheSceneScreen(
         tester,
@@ -698,9 +699,22 @@ void main() {
       expect(
         circle,
         findsOneWidget,
-        reason: 'a tela de lugares desconhecidos não tinha o círculo apagado',
+        reason: 'a tela de lugares desconhecidos não tinha o círculo',
       );
       expect(tester.widget<Semantics>(circle).properties.enabled, isFalse);
+      expect(
+        theEdgeOf(
+          tester,
+          'Toque para traduzir esta frase do ensaio da cena',
+        ).border!.top.color,
+        const Color(0xFFBE4A01),
+        reason: 'o dela fica em repouso, telha, mesmo desabilitado',
+      );
+      expect(
+        fadesOn(tester, 'Toque para traduzir esta frase do ensaio da cena'),
+        everyElement(1.0),
+        reason: 'o dela não apaga o círculo; o nosso caía para 35%',
+      );
       expect(
         tester.getTopLeft(circle).dy,
         greaterThan(tester.getBottomLeft(find.byType(SceneStrip)).dy),
@@ -729,7 +743,7 @@ void main() {
   );
 
   testWidgets(
-    'while «recomeçar» is in the air on places unknown the circle waits instead of fading, and still takes no tap',
+    'while «recomeçar» is in the air on places unknown the circle breathes her areia thinking ring, and still takes no tap',
     (tester) async {
       final (harness, _) = await _onTheSceneScreen(
         tester,
@@ -738,15 +752,10 @@ void main() {
         ],
         until: (state) => state.scene.step == SceneStep.placesUnknown,
       );
-      final circle = byLabel(
-        'Toque para traduzir esta frase do ensaio da cena',
-      );
-      double opacity() => tester
-          .widget<AnimatedOpacity>(
-            find.descendant(of: circle, matching: find.byType(AnimatedOpacity)),
-          )
-          .opacity;
-      expect(opacity(), 0.35);
+      const tell = 'Toque para traduzir esta frase do ensaio da cena';
+      final circle = byLabel(tell);
+      Color edge() => theEdgeOf(tester, tell).border!.top.color;
+      expect(edge(), const Color(0xFFBE4A01));
       harness.room.holdNextRestart();
 
       await tester.tap(byLabel('recomeçar a tradução'));
@@ -757,9 +766,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
-        opacity(),
-        1.0,
-        reason: 'no dela o círculo respira enquanto o recomeço está no ar',
+        edge(),
+        const Color(0xFFC5C29F),
+        reason: 'no dela o círculo pensa enquanto o recomeço está no ar',
       );
       expect(tester.widget<Semantics>(circle).properties.enabled, isFalse);
       harness.room.finishHeldRestart();
@@ -966,6 +975,71 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'while «terminei» is in the air the translate circle breathes her areia thinking ring at full strength, not a faded red disc',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const tell = 'Toque para traduzir esta frase do ensaio da cena';
+      harness.room.holdNextTurn();
+
+      await tester.tap(find.text('terminei'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(salaSessionProvider).theSceneIsSending, isTrue);
+      expect(
+        theEdgeOf(tester, tell).border!.top.color,
+        const Color(0xFFC5C29F),
+        reason: 'com o terminei no ar o dela pensa, de borda areia',
+      );
+      expect(
+        fadesOn(tester, tell),
+        everyElement(1.0),
+        reason: 'o dela não apaga o círculo; o nosso caía para 35%',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(tell)).properties.enabled,
+        isFalse,
+      );
+      harness.room.finishHeldTurn();
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
+  testWidgets(
+    'while «terminei» is in the air on places unknown the circle breathes her areia thinking ring, not the ring at rest',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 12000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.placesUnknown,
+      );
+      const tell = 'Toque para traduzir esta frase do ensaio da cena';
+      harness.room.holdNextTurn();
+
+      await tester.tap(find.text('terminei'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(salaSessionProvider).theSceneIsSending, isTrue);
+      expect(
+        theEdgeOf(tester, tell).border!.top.color,
+        const Color(0xFFC5C29F),
+        reason:
+            'com o terminei no ar o dela pensa também aqui; o nosso ficava em '
+            'repouso',
+      );
+      harness.room.finishHeldTurn();
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 
   testWidgets(
     'while «terminei» is in the air on places unknown, «enviando…», «recomeçar» and «gravar de novo» are written and dimmed',
