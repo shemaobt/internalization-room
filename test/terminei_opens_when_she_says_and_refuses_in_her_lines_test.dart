@@ -261,6 +261,69 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a stretch the room named untranslated keeps her hint under '
+      'terminei when a failed play takes the status line, never nothing', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.stretchUntranslated
+      ..verdictFixedLine = 'N2'
+      ..verdictUntranslated = [
+        UntranslatedPart(
+          takeId: container.read(salaSessionProvider).partes.single.takeId!,
+          scene: 1,
+          from: cabeca,
+        ),
+      ];
+
+    await _recusado(tester, container);
+    await waitFor(
+      'o trecho voltar ao ar',
+      () => harness.playback.sounding,
+      step: () => _passo(tester),
+    );
+    expect(
+      find.textContaining(
+        "falta traduzir um trecho — ouçam e traduzam, depois toquem em "
+        "'terminei'",
+      ),
+      findsOneWidget,
+      reason: 'com a dica já na linha de estado, ela não a escreve de novo',
+    );
+    harness.playback.failPlayback();
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRecusa,
+      CheckRefusal.stretchUntranslated,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(StatusLines),
+        matching: find.text('não deu para conferir agora — tentem de novo'),
+      ),
+      findsOneWidget,
+    );
+    final dica = find.text(
+      "falta traduzir um trecho — ouçam e traduzam, depois toquem em 'terminei'",
+    );
+    expect(
+      dica,
+      findsOneWidget,
+      reason:
+          'com o aviso no lugar da dica, o terminei apagado não levava linha '
+          'nenhuma, e ela escreve a dica debaixo dele',
+    );
+    expect(
+      tester.getRect(dica).top,
+      greaterThanOrEqualTo(tester.getRect(byLabel(conferir)).bottom),
+    );
+    expect(find.text('ainda falta ouvir um trecho da gravação'), findsNothing);
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase awaiting its words is refused with her N5 by its name, '
       'and that frase opens to be translated', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
