@@ -154,7 +154,7 @@ void main() {
         ))
           texto.data,
       ],
-      ['TRANSLATED SENTENCES', 're-recorded — translate again'],
+      ['TRANSLATED SENTENCES', '1', 're-recorded — translate again'],
       reason:
           'a frase da passagem regravada inteira dizia «part 1», uma parte '
           'que a equipe nunca fez',

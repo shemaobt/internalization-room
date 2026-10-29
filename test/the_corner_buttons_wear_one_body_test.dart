@@ -7,8 +7,8 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'every_way_back_is_her_bare_chevron_test.dart' show expectHerChevron;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
@@ -17,7 +17,7 @@ const _backInPortuguese = 'Voltar para a passagem atual';
 
 List<double> _opacitiesOver(WidgetTester tester, String label) {
   final glyph = find
-      .descendant(of: byLabel(label), matching: find.byType(Icon))
+      .descendant(of: byLabel(label), matching: find.byType(CustomPaint))
       .evaluate()
       .single;
   final labelled = byLabel(label).evaluate().first;
@@ -89,12 +89,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.cena);
-      expect(
+      expectHerChevron(
+        tester,
         find.descendant(
           of: byLabel(_backInPortuguese),
-          matching: find.byIcon(LucideIcons.chevronLeft),
+          matching: find.byType(CustomPaint),
         ),
-        findsOneWidget,
+        const Color(0xFF777D45),
       );
       expect(_opacitiesOver(tester, _backInPortuguese), contains(0.2));
       expect(

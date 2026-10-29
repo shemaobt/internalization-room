@@ -4,7 +4,6 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -18,6 +17,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/rehearsa
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
 
+import 'every_way_back_is_her_bare_chevron_test.dart' show expectHerChevron;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, relaunch;
@@ -466,17 +466,9 @@ void main() {
 
           final chevron = find.descendant(
             of: byLabel(_back),
-            matching: find.byType(Icon),
+            matching: find.byType(CustomPaint),
           );
-          final icon = tester.widget<Icon>(chevron);
-          expect(icon.icon, LucideIcons.chevronLeft);
-          expect(icon.size, 22);
-          expect(
-            icon.color,
-            verdeClaro,
-            reason:
-                'a volta da folha era pintada no cinza do texto, não no verde-claro dela',
-          );
+          expectHerChevron(tester, chevron, verdeClaro);
           expect(
             _seenOpacity(tester, chevron),
             closeTo(0.6, 0.001),
