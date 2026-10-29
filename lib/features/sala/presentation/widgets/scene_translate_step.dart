@@ -258,7 +258,10 @@ class SceneTranslateStep extends ConsumerWidget {
     final pausa = scene.pausa;
     final clock = playing ? at : stoppedAt;
     if (sending && !scene.wentToTheVoice) {
-      return sceneRehearsalLabelFor('sending', language);
+      final words = sceneRehearsalLabelFor('sending', language);
+      return clock == null || (end != null && clock >= end)
+          ? words
+          : '$words — ${sceneClockOf(clock, scene.length)}';
     }
     if (!scene.listened) return null;
     if (scene.translatingAgain != null) {
