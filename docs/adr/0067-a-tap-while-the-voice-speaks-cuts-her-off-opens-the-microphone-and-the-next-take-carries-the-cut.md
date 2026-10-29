@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320) and by ENG-1901
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320), by ENG-1901 and by ENG-2039
 date: 2026-10-07
 amends: 0053, 0013 (in part: the first tap also cuts the voice), 0024 (in part: the interruption's stop is the machine's), 0046 (in part: the invariant)
 ---
@@ -19,6 +19,14 @@ the Canvas, with the same rules: her opening, her reply and «Ouvir de novo» ar
 acknowledgement with the reply queued is cut at its start, and the Panorama's next take
 carries the cut. Wherever this record says the interruption reduces only on the Canvas,
 read the Canvas and the Panorama; the thinking voice and the note still ignore the tap.
+
+Amended by ENG-2039 (2026-10-29, the same rule): the capture guard this record leans on
+is hers, `MIN_TAKE_MS = 700` (`app/page.tsx:24` at 18fa7c4). Its window counts from the
+recorder's start, not from the tap: a stop tap under 700 ms of recorded time is ignored
+and the take goes on (`:896`), and a take shorter than the window, or empty, is a ghost:
+nothing is sent and the circle returns to its rest (`:812`). It holds on every canvas
+take, the Panorama's included, and on the take a cut opens; a tap while the recorder is
+still starting does nothing, because nothing has been recorded yet.
 
 This amends ADRs 0053, 0013, 0024 and 0046 without editing their decisions; it adds
 "amended by 0067" to the status lines of 0053 and 0046 and a note under the titles of 0013
