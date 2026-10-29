@@ -214,7 +214,7 @@ class _Pill extends ConsumerWidget {
               border: Border.all(
                 width: 1.5,
                 color: switch (entry) {
-                  _ when panorama || tinted => ShemaBrand.azul,
+                  _ when panorama || tinted => colors.azul,
                   Passagem(approved: true) => colors.claquete,
                   _ => ShemaBrand.areia,
                 },

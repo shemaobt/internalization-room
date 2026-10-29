@@ -1,8 +1,9 @@
 import 'package:flutter/widgets.dart';
-import 'dart:ui' show Tristate;
+import 'dart:ui' show SemanticsAction, SemanticsActionEvent, Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -192,8 +193,7 @@ void main() {
 
       expect(find.text(_faltaOuvir), findsNothing);
       final tocadas = it.harness.playback.played.length;
-      await tester.ensureVisible(byLabel(_aprovar));
-      await tester.tap(byLabel(_aprovar));
+      await pressTheApproval(tester, _aprovar);
       await tester.runAsync(
         () => waitFor(
           'a parte 2 entrar no ar',
@@ -830,7 +830,10 @@ void main() {
       sala.recomecarATraducao();
       await tester.pump(const Duration(milliseconds: 300));
       expect(it.harness.room.restartsAsked, isEmpty);
-      expect(_humor(tester, _aprovar), ButtonMood.dimmed);
+      expect(
+        tester.widget<Semantics>(byLabel(_aprovar)).properties.enabled,
+        isFalse,
+      );
 
       it.harness.room.finishHeldState();
       await tester.pump(const Duration(milliseconds: 400));
@@ -911,6 +914,72 @@ void main() {
     closeTheRoom(it.container);
   });
 
+  for (final (lingua, aprovar) in [
+    ('pt', 'Aprovar como rascunho final'),
+    ('en', 'Approve as the final draft'),
+  ]) {
+    testWidgets('the check screen writes «$aprovar» on its approve button, '
+        'not a ✓', (tester) async {
+      final it = await _ateAConferida(tester, lingua: lingua, aprovar: aprovar);
+
+      expect(
+        find.text(aprovar),
+        findsOneWidget,
+        reason: 'a tela de conferir só tinha um ✓ verde mudo ao lado do ouvir',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(aprovar)).properties.button,
+        isTrue,
+      );
+      closeTheRoom(it.container);
+    });
+  }
+
+  testWidgets('with approve on its own line, the listen button sits at the '
+      'middle of the check screen', (tester) async {
+    final it = await _ateAConferida(tester);
+
+    expect(
+      tester.getCenter(byLabel(_ouvir)).dx,
+      400,
+      reason: 'o espaço do botão que saiu empurrava o ouvir para a esquerda',
+    );
+    closeTheRoom(it.container);
+  });
+
+  for (final (lingua, aprovar) in [
+    ('pt', 'Aprovar como rascunho final'),
+    ('en', 'Approve as the final draft'),
+  ]) {
+    testWidgets('on a screen as small as the iPhone SE the $lingua approve '
+        'button keeps its margins, on the check screen and on the home', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(375, 667)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final it = await _ateAConferida(tester, lingua: lingua, aprovar: aprovar);
+
+      void nasMargens(String tela) {
+        final pilula = tester.getRect(byLabel(aprovar));
+        expect(
+          pilula.left,
+          greaterThanOrEqualTo(16),
+          reason: 'na $tela a pílula encostava na borda da tela',
+        );
+        expect(pilula.right, lessThanOrEqualTo(359), reason: tela);
+      }
+
+      nasMargens('tela de conferir');
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+      nasMargens('casa');
+      closeTheRoom(it.container);
+    });
+  }
+
   group('the recording home', () {
     Future<_Sala> aCasaConferida(
       WidgetTester tester, {
@@ -963,6 +1032,97 @@ void main() {
 
       expect(find.text('✓ translated and checked'), findsOneWidget);
       closeTheRoom(it.container);
+    });
+
+    for (final (lingua, aprovar) in [
+      ('pt', 'Aprovar como rascunho final'),
+      ('en', 'Approve as the final draft'),
+    ]) {
+      testWidgets('the home writes «$aprovar» on its approve button, not a '
+          'second ✓', (tester) async {
+        final it = await aCasaConferida(tester, lingua: lingua);
+
+        expect(
+          find.text(aprovar),
+          findsOneWidget,
+          reason: 'a casa só tinha um ✓ verde mudo ao lado do ✓ de enviar',
+        );
+        expect(
+          tester.widget<Semantics>(byLabel(aprovar)).properties.button,
+          isTrue,
+        );
+        closeTheRoom(it.container);
+      });
+    }
+
+    testWidgets('the approve button is her pill, her light green under her '
+        'white words', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      final pilula = tester.widget<Container>(
+        find
+            .ancestor(of: find.text(_aprovar), matching: find.byType(Container))
+            .first,
+      );
+      final fundo = pilula.decoration! as BoxDecoration;
+      expect(
+        fundo.color,
+        const Color(0xFF777D45),
+        reason: 'o botão dela é verde-claro; o nosso era o degradê do enviar',
+      );
+      expect(fundo.borderRadius, BorderRadius.circular(999));
+      expect(
+        tester.widget<Text>(find.text(_aprovar)).style?.color,
+        const Color(0xFFF6F5EB),
+      );
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('the keep button keeps its round green ✓, and it is the only ✓ '
+        'on the home', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      expect(
+        find.byIcon(LucideIcons.check),
+        findsOneWidget,
+        reason: 'dois ✓ verdes iguais lado a lado, e a equipe tocava o errado',
+      );
+      final enviar = tester.widget<RoundActionButton>(
+        find.ancestor(
+          of: find.byIcon(LucideIcons.check),
+          matching: find.byType(RoundActionButton),
+        ),
+      );
+      expect(enviar.semanticLabel, 'Enviar a gravação');
+      expect(enviar.gradient, BeadStyles.verde);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a VoiceOver double-tap on the approve button approves, not '
+        'only announces it', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+
+      final node = tester.getSemantics(byLabel(_aprovar));
+      expect(
+        node.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
+        reason: 'o VoiceOver anunciava a pílula e o toque duplo não fazia nada',
+      );
+      tester.binding.performSemanticsAction(
+        SemanticsActionEvent(
+          type: SemanticsAction.tap,
+          viewId: tester.view.viewId,
+          nodeId: node.id,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.harness.room.releasesAsked, hasLength(1));
+      closeTheRoom(it.container);
+      semantics.dispose();
     });
 
     testWidgets('a passage the room has not checked says nothing of it, and a '

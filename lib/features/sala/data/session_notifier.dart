@@ -2252,10 +2252,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
-    if (entry.isPanorama && state.isTheEntryLeft(entry, language: _lingua)) {
-      _returnToTheLeftEntry();
-      return;
-    }
     _silenceTheRoom();
     if (entry.isPanorama) {
       _leaveTheStepFor(Panorama(entry.pericope));
@@ -2309,10 +2305,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
   /// nothing here schedules one: the team leaves it the way it leaves any session.
-  ///
-  /// The session is reused for the same Panorama in the same language rather than asked
-  /// for again on every tap: a retried touch would otherwise mint one abandoned panorama
-  /// session per attempt.
   Future<void> _entrarNoPanorama(String id, [String? language]) async {
     final speaking = language ?? _lingua;
     _dispatch(ThePanoramaAsked(id, speaking));
@@ -2356,11 +2348,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    final held = state.panoramaSessionId;
     final sent = ++_readsSent;
-    final found = held == null
-        ? await _room.createSession(pericope: id, language: _lingua)
-        : await _room.fetchState(held);
+    final found = await _room.createSession(pericope: id, language: _lingua);
     if (_abandoned(generation)) return;
     switch (found) {
       case Answered(value: final session):

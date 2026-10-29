@@ -52,7 +52,9 @@ Future<void> _theTeamChoosesItAgain(
 void main() {
   test('a Panorama chosen again from the Choice after its line was said plays '
       'nothing and rests with «ouvir de novo»', () async {
-    final harness = SalaHarness()..room.passages = _theBook;
+    final harness = SalaHarness()
+      ..room.passages = _theBook
+      ..room.resumesTheLatest = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -83,7 +85,9 @@ void main() {
 
   test('«ouvir de novo» on a Panorama chosen again asks the Panorama for its '
       'last line, not the passage left', () async {
-    final harness = SalaHarness()..room.passages = _theBook;
+    final harness = SalaHarness()
+      ..room.passages = _theBook
+      ..room.resumesTheLatest = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -109,7 +113,9 @@ void main() {
 
   test('a Panorama chosen again whose session the room says was never opened '
       'still asks its opening', () async {
-    final harness = SalaHarness()..room.passages = _theBook;
+    final harness = SalaHarness()
+      ..room.passages = _theBook
+      ..room.resumesTheLatest = true;
     final container = harness.container();
     addTearDown(container.dispose);
     final notifier = container.read(salaSessionProvider.notifier);
