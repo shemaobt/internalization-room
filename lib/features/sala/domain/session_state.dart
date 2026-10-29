@@ -1676,7 +1676,12 @@ class SalaSessionState {
   /// the answer lands on.
   bool get aBackTranslationGestureActs =>
       btAprovando != machine.generation &&
-      btAbrindoAChecagem != machine.generation;
+      btAbrindoAChecagem != machine.generation &&
+      !aFraseDevidaEmBusca;
+
+  bool get aFraseDevidaEmBusca =>
+      btFraseDevida != null &&
+      btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   /// Whether an approval may still be won over what the room holds: no approved version,
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).

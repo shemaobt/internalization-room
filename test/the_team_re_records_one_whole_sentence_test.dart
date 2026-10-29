@@ -1947,6 +1947,38 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the owed part is fetched again «recomeçar a tradução» '
+      'rests, instead of standing lit over the fetch', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+    bool recomecoAceso() =>
+        tester
+            .widget<Semantics>(byLabel('recomeçar a tradução'))
+            .properties
+            .enabled ??
+        false;
+    expect(recomecoAceso(), isTrue);
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.passo,
+      PassoDaRegravacao.enviando,
+    );
+    expect(
+      recomecoAceso(),
+      isFalse,
+      reason: 'o recomeço ficava aceso enquanto a frase ainda era buscada',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
   testWidgets('while a new part is owed no row offers «regravar», not even '
       'the row of the sentence that waits for it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
