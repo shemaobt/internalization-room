@@ -762,9 +762,9 @@ class SalaSessionState {
       !needsPerson &&
       voice == VoiceState.invite;
 
-  bool isTheEntryLeft(Passagem entry, {required String language}) {
+  bool isTheEntryLeft(Passagem entry) {
     final left = leftEntry;
-    if (left == null || left.language != language) return false;
+    if (left == null) return false;
     return entry.isPanorama == left.panorama && entry.pericope == left.pericope;
   }
 
