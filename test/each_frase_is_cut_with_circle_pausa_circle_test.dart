@@ -702,6 +702,45 @@ void main() {
     );
 
     testWidgets(
+      'the circle shows the square only while the frase microphone is open, and the microphone before and after',
+      (tester) async {
+        final (harness, container) = await translateOnScreen(
+          tester,
+          take: aSpokenWav(gaps: [(_s(3.0), _s(3.2))]),
+          rehearsal: _rehearsal(),
+        );
+        IconData? icon() => tester
+            .widget<Icon>(
+              find.descendant(of: byLabel(_tell), matching: find.byType(Icon)),
+            )
+            .icon;
+        await _onScreenPlaying(tester, harness, container);
+        harness.playback.at = _s(3.5);
+        await _tapAndSettle(tester, _tell);
+
+        expect(icon(), LucideIcons.mic);
+
+        await _tapAndSettle(tester, _tell);
+        await pumpUntil(
+          tester,
+          () => _theFraseMicrophoneIsOpen(container.read(salaSessionProvider)),
+        );
+
+        expect(
+          icon(),
+          LucideIcons.square,
+          reason: 'com o microfone aberto o círculo tem de mostrar o parar',
+        );
+
+        await _tapAndSettle(tester, _tell);
+        await pumpUntil(tester, () => byLabel(_bar(1)).evaluate().isNotEmpty);
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(icon(), LucideIcons.mic);
+      },
+    );
+
+    testWidgets(
       'a frase the room refuses leaves the pausa pending and the circle records it again',
       (tester) async {
         final (harness, container) = await translateOnScreen(
