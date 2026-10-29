@@ -75,7 +75,8 @@ void main() {
         container.read(salaSessionProvider).lastSpoken,
         isNull,
         reason:
-            'nem o turno de abertura nem o veredito de fail-safe são lembrados',
+            'a abertura fica para trás a caminho da Retro, e o veredito de '
+            'fail-safe não é lembrado',
       );
 
       final tocadosAntes = harness.voice.played.length;
