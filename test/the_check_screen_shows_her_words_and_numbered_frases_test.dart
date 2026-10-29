@@ -18,6 +18,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'sala_screen_test.dart' show contrastOf;
 import 'scenario_helpers.dart' show byLabel, traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
@@ -64,6 +65,70 @@ const _quatroFrases = [
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
 
+final _apagando = find.byWidgetPredicate(
+  (widget) => switch (widget) {
+    Opacity(:final opacity) || AnimatedOpacity(:final opacity) => opacity < 1,
+    FadeTransition(:final opacity) => opacity.value < 1,
+    _ => false,
+  },
+);
+
+double _veu(WidgetTester tester, Finder alvo) => tester
+    .widgetList(
+      find.ancestor(
+        of: alvo,
+        matching: find.descendant(
+          of: find.byType(RetroView),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Opacity || widget is FadeTransition,
+          ),
+        ),
+      ),
+    )
+    .fold(
+      1.0,
+      (veu, widget) =>
+          veu *
+          switch (widget) {
+            Opacity(:final opacity) => opacity,
+            FadeTransition(:final opacity) => opacity.value,
+            _ => 1.0,
+          },
+    );
+
+double _piorContraste(WidgetTester tester, String rotulo) {
+  final botao = byLabel(rotulo);
+  final texto = find.descendant(of: botao, matching: find.text(rotulo));
+  final disco = find.descendant(
+    of: botao,
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          (widget.decoration as BoxDecoration?)?.gradient != null,
+    ),
+  );
+  final papel = Theme.of(tester.element(botao)).scaffoldBackgroundColor;
+  final tinta = tester.widget<Text>(texto).style!.color!;
+  final paradas = (tester.widget<Container>(disco).decoration! as BoxDecoration)
+      .gradient!
+      .colors;
+  final veuDoDisco = _veu(tester, disco);
+  final veuDaTinta = _veu(tester, texto);
+  return paradas
+      .map((parada) {
+        final fundo = Color.alphaBlend(
+          parada.withValues(alpha: veuDoDisco),
+          papel,
+        );
+        final letra = Color.alphaBlend(
+          tinta.withValues(alpha: veuDaTinta),
+          fundo,
+        );
+        return contrastOf(letra, fundo);
+      })
+      .reduce((um, outro) => um < outro ? um : outro);
+}
+
 void _telaAlta(WidgetTester tester) {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -79,6 +144,7 @@ Future<ProviderContainer> _voltaATraducao(
   String lingua = testLanguage,
   bool juntada = false,
   bool inteira = false,
+  bool comACena1 = false,
 }) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
@@ -102,6 +168,12 @@ Future<ProviderContainer> _voltaATraducao(
           takeId: 'gravacao-$n',
           origin: juntada ? 'ensaio-da-cena-$n' : null,
         ),
+    if (comACena1)
+      KeptTake(
+        scopeId: KeptScope.parte(1),
+        path: (File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+        takeId: 'gravacao-1',
+      ),
   ];
   harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
     sessionId: 'sessao-antiga',
@@ -376,6 +448,159 @@ void main() {
           'mostrava',
     );
     expect(container.read(salaSessionProvider).btTrechos, hasLength(1));
+    closeTheRoom(container);
+  });
+
+  testWidgets('a passage recorded whole and picked back up lists the stale '
+      'frase of its old recording after the current one, under no parte', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-inteira-velha',
+        scope: KeptScope.whole,
+        kind: 'ensaio',
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira-velha',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      inteira: true,
+    );
+    await waitFor(
+      'a frase regravada voltar',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      ['FRASES TRADUZIDAS', '1', 'regravada — traduzam de novo'],
+      reason:
+          'reaberta, a passagem gravada inteira perdia a frase regravada: a '
+          'gravação velha não tinha número e a frase não achava lugar',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a whole set aside behind scene 1 and picked back up lists its '
+      'stale frase first, never under the parte that replaced it', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-inteira-velha',
+        scope: KeptScope.whole,
+        kind: 'ensaio',
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 6000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira-velha',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      inteira: true,
+      comACena1: true,
+    );
+    await waitFor(
+      'a frase regravada voltar',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      _naLista(tester),
+      ['FRASES TRADUZIDAS', 'regravada — traduzam de novo', '1', 'parte 1'],
+      reason:
+          'posto de lado o inteiro, a frase regravada dele sumia, e no índice '
+          'da cena 1 diria «parte 1», uma parte em que nunca foi contada',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a passage recorded whole and picked back up on the rehearsal '
+      'marks its one row as re-recorded', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-inteira-velha',
+        scope: KeptScope.whole,
+        kind: 'ensaio',
+      ),
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira-velha',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+      parouEm: SalaStage.ensaio,
+      inteira: true,
+    );
+    await waitFor(
+      'a frase regravada voltar',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      find.descendant(
+        of: byLabel('A passagem inteira'),
+        matching: find.text('regravada — traduzam de novo'),
+      ),
+      findsOneWidget,
+      reason:
+          'reaberta no ensaio, a passagem gravada inteira não dizia que a '
+          'tradução caducou',
+    );
     closeTheRoom(container);
   });
 
@@ -1629,6 +1854,149 @@ void main() {
     await _passo(tester);
     closeTheRoom(container);
   });
+
+  for (final (look, ink) in [
+    (Brightness.light, const Color(0xFF0A0703)),
+    (Brightness.dark, const Color(0xFFF2EDE1)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a dimmed «terminei» is written in ink at full '
+      'strength, not in white fading with its disc',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await entrarNaTraducao(tester, harness, partes: 1);
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(aceso(tester, 'terminei'), isFalse);
+        final rotulo = find.descendant(
+          of: byLabel('terminei'),
+          matching: find.text('terminei'),
+        );
+        expect(
+          _piorContraste(tester, 'terminei'),
+          greaterThanOrEqualTo(4.5),
+          reason: 'o rótulo apagado ficava abaixo de 4,5:1 no disco apagado',
+        );
+        expect(
+          tester.widget<Text>(rotulo).style!.color,
+          ink,
+          reason: 'o terminei apagado escrevia branco num disco claro',
+        );
+        expect(
+          find.ancestor(
+            of: rotulo,
+            matching: find.descendant(
+              of: find.byType(RetroView),
+              matching: _apagando,
+            ),
+          ),
+          findsNothing,
+          reason: 'a tinta esmaecia junto com o disco, a 35%',
+        );
+        closeTheRoom(container);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look a lit «terminei» keeps its white label on a '
+      'disc at full strength, not the ink of the dimmed one',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await entrarNaTraducao(tester, harness, partes: 1);
+        harness.playback.at = cabeca;
+        await tocarNoCirculo(tester);
+        await tocarNoCirculo(tester);
+        await tocarNoCirculo(tester);
+        await contarAteOFimDaParte(tester, harness);
+        await waitFor(
+          'o terminei acender',
+          () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+          step: () => _passo(tester),
+        );
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(aceso(tester, 'terminei'), isTrue);
+        final rotulo = find.descendant(
+          of: byLabel('terminei'),
+          matching: find.text('terminei'),
+        );
+        expect(
+          tester.widget<Text>(rotulo).style!.color,
+          const Color(0xFFF6F5EB),
+          reason: 'o terminei aceso perdia o branco que tinha',
+        );
+        expect(
+          find.ancestor(
+            of: rotulo,
+            matching: find.descendant(
+              of: find.byType(RetroView),
+              matching: _apagando,
+            ),
+          ),
+          findsNothing,
+        );
+        closeTheRoom(container);
+      },
+    );
+    testWidgets(
+      'in the ${look.name} look «conferindo…» on the dimmed disc is written in '
+      'ink at full strength, as the dimmed «terminei», not in white',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        _telaAlta(tester);
+        final harness = SalaHarness(filaEmMemoria: true);
+        final container = await entrarNaTraducao(tester, harness, partes: 1);
+        harness.playback.at = cabeca;
+        await tocarNoCirculo(tester);
+        await tocarNoCirculo(tester);
+        await tocarNoCirculo(tester);
+        await contarAteOFimDaParte(tester, harness);
+        harness.room.holdNextVerdict();
+        await tocar(tester, 'terminei');
+        await waitFor(
+          'a conferência começar',
+          () => container.read(salaSessionProvider).btConferindo,
+          step: () => _passo(tester),
+        );
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(aceso(tester, 'conferindo…'), isFalse);
+        final rotulo = find.descendant(
+          of: byLabel('conferindo…'),
+          matching: find.text('conferindo…'),
+        );
+        expect(
+          _piorContraste(tester, 'conferindo…'),
+          greaterThanOrEqualTo(4.5),
+          reason: 'o conferindo… ficava abaixo de 4,5:1 no disco apagado',
+        );
+        expect(
+          tester.widget<Text>(rotulo).style!.color,
+          ink,
+          reason: 'o conferindo… escrevia branco no disco apagado',
+        );
+        expect(
+          find.ancestor(
+            of: rotulo,
+            matching: find.descendant(
+              of: find.byType(RetroView),
+              matching: _apagando,
+            ),
+          ),
+          findsNothing,
+        );
+        harness.room.finishHeldVerdict();
+        await _passo(tester);
+        closeTheRoom(container);
+      },
+    );
+  }
 
   testWidgets('a check that cannot run says so in her words, and «terminei» '
       'is there again to try once more', (tester) async {

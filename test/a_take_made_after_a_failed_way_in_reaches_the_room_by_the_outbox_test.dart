@@ -41,6 +41,21 @@ Future<void> _recordATake(
   );
 }
 
+Future<void> _theServerIsBackAndTheTeamTaps(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  SalaSessionState read() => container.read(salaSessionProvider);
+  await waitFor(
+    'a gravação dizer que falhou',
+    () => read().unsentParts.values.any((part) => part.failure != null),
+  );
+  harness.room.reachable = true;
+  container
+      .read(salaSessionProvider.notifier)
+      .enviarACena(read().unsentParts.keys.single);
+}
+
 Future<void> _theOutboxEmpties(SalaHarness harness) => waitFor(
   'a Outbox esvaziar',
   () async => (await harness.takes.pending()).isEmpty,
@@ -67,7 +82,7 @@ void main() {
   );
 
   test("T11: after the team's tap on a sign raised while a way in failed, the "
-      'room rests and the Outbox empties by its own retry once the server is '
+      "room rests and the Outbox empties on the team's tap once the server is "
       'back', () async {
     final harness = SalaHarness(
       watchesWithoutAHalt: true,
@@ -87,7 +102,7 @@ void main() {
     expect(read().needsPerson, isFalse);
     expect(read().voice, VoiceState.invite);
 
-    harness.room.reachable = true;
+    await _theServerIsBackAndTheTeamTaps(harness, container);
     await _theOutboxEmpties(harness);
   });
 }

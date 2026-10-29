@@ -213,7 +213,7 @@ class RetroView extends ConsumerWidget {
             const SizedBox(height: 24),
             SizedBox(
               height: 78,
-              child: _disc(session, notifier, language, avanca),
+              child: _disc(session, colors, notifier, language, avanca),
             ),
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
@@ -351,6 +351,7 @@ class RetroView extends ConsumerWidget {
                     language,
                     n: trecho.frase,
                   ),
+                  tocando: session.btFraseGravadaTocando,
                   onOuvir: notifier.ouvirAFraseGravada,
                   gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
                   onGravarDeNovo: notifier.gravarAFraseDeNovo,
@@ -532,6 +533,7 @@ class RetroView extends ConsumerWidget {
 
   Widget? _disc(
     SalaSessionState session,
+    SalaColors colors,
     SalaSessionNotifier notifier,
     String language,
     bool avanca,
@@ -551,15 +553,17 @@ class RetroView extends ConsumerWidget {
             ? ButtonMood.beckoning
             : ButtonMood.dimmed,
         onTap: () => unawaited(notifier.finishBackTranslation()),
-        child: ExcludeSemantics(
+        label: ExcludeSemantics(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 terminei,
-                style: const TextStyle(
-                  color: ShemaBrand.branco,
+                style: TextStyle(
+                  color: session.canAdvanceToTheVerdict
+                      ? ShemaBrand.branco
+                      : colors.ink,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
