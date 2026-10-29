@@ -496,21 +496,54 @@ void main() {
           reason: 'o título começava no alto da folha, sob a volta',
         );
         expect(
-          tester
-              .getRect(
-                find.descendant(
-                  of: find.byType(RehearsalSheet),
-                  matching: find.byType(Scrollable),
-                ),
-              )
-              .top,
+          tester.getRect(byLabel(_sent(3))).top,
           greaterThanOrEqualTo(back.bottom),
-          reason: 'as linhas rolavam por baixo da volta',
+          reason: 'as linhas começavam sob a volta',
         );
         semantics.dispose();
       },
     );
   }
+
+  testWidgets(
+    'on the SE the way back scrolls away with the sheet, as hers, instead of '
+    'standing in a band of its own',
+    (tester) async {
+      _on(tester, const Size(375, 667), bar: 20);
+      final semantics = tester.ensureSemantics();
+      await _seeded(
+        tester,
+        (s) => [
+          for (var n = 1; n <= 7; n++)
+            _rehearsal(s, n: n, scene: 'S1', sentAt: _sentAt('10:0$n')),
+        ],
+      );
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      final page = find.descendant(
+        of: find.byType(RehearsalSheet),
+        matching: find.byType(Scrollable),
+      );
+      expect(
+        tester.getRect(page).top,
+        0,
+        reason: 'a folha rolava numa faixa abaixo da volta, não a tela toda',
+      );
+      final before = tester.getRect(byLabel(_back)).top;
+      await tester.drag(page, const Offset(0, -120));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final scrolled = tester.state<ScrollableState>(page).position.pixels;
+      expect(scrolled, greaterThan(0));
+      expect(
+        tester.getRect(byLabel(_back)).top,
+        closeTo(before - scrolled, 0.01),
+        reason: 'a volta ficava parada enquanto a folha rolava',
+      );
+      semantics.dispose();
+    },
+  );
 
   for (final (device, screen) in [
     ('the SE', const Size(375, 667)),
