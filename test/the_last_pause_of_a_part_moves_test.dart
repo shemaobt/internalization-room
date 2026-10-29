@@ -459,7 +459,7 @@ void main() {
   });
 
   testWidgets(
-    'the bar of an earlier frase keeps its pause, dims her controls and says why',
+    'the bar of an earlier frase keeps its pause, draws none of her controls and says why',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..recorder.rehearsalSpeaks = _duasLacunas;
@@ -473,14 +473,11 @@ void main() {
 
       for (final controle in [antes, ouvirAPausa, depois]) {
         expect(
-          aceso(tester, controle),
-          isFalse,
-          reason: 'a pausa de uma frase do meio mudava o começo da seguinte',
+          byLabel(controle),
+          findsNothing,
+          reason: 'a pausa de uma frase do meio ficava com a linha, apagada',
         );
       }
-      final corte = container.read(salaSessionProvider).btCorte;
-      await tocar(tester, depois);
-      expect(container.read(salaSessionProvider).btCorte, corte);
       expect(
         find.text(
           'traduzindo de novo a frase 1 — toquem no círculo (a pausa só se move na última frase; para mudar uma pausa anterior, recomeçar a tradução)',
@@ -545,9 +542,9 @@ void main() {
 
       for (final controle in [antes, ouvirAPausa, depois]) {
         expect(
-          aceso(tester, controle),
-          isFalse,
-          reason: 'a pausa se movia numa passagem conferida: $controle',
+          byLabel(controle),
+          findsNothing,
+          reason: 'numa passagem conferida a linha ficava, apagada: $controle',
         );
       }
       expect(
@@ -690,7 +687,7 @@ void main() {
   });
 
   testWidgets(
-    'an earlier frase told again keeps its pause, with her controls dimmed',
+    'an earlier frase told again keeps its pause, with none of her controls drawn',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..recorder.rehearsalSpeaks = _duasLacunas;
@@ -702,14 +699,11 @@ void main() {
 
       for (final controle in [antes, ouvirAPausa, depois]) {
         expect(
-          aceso(tester, controle),
-          isFalse,
-          reason: 'a pausa de uma frase do meio mudava o começo da seguinte',
+          byLabel(controle),
+          findsNothing,
+          reason: 'a pausa de uma frase do meio ficava com a linha, apagada',
         );
       }
-      final corte = container.read(salaSessionProvider).btCorte;
-      await tocar(tester, depois);
-      expect(container.read(salaSessionProvider).btCorte, corte);
       closeTheRoom(container);
     },
   );
@@ -726,9 +720,9 @@ void main() {
 
       for (final controle in [antes, ouvirAPausa, depois]) {
         expect(
-          aceso(tester, controle),
-          isFalse,
-          reason: 'um m4a não se deixa buscar, e a pausa movida caía no escuro',
+          byLabel(controle),
+          findsNothing,
+          reason: 'um m4a não se deixa buscar, e a linha ficava, apagada',
         );
       }
       closeTheRoom(container);

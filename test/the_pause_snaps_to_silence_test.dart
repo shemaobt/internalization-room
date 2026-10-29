@@ -228,7 +228,11 @@ void main() {
     expect(pausa(container), s(4));
     expect(rotuloDoCirculo(tester), dicaNoToque);
     for (final controle in [antes, ouvirAPausa, depois]) {
-      expect(aceso(tester, controle), isFalse, reason: controle);
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'sem envelope a pausa não se move, e a linha ficava apagada',
+      );
     }
     closeTheRoom(container);
   });
@@ -243,7 +247,11 @@ void main() {
     expect(pausa(container), s(4));
     expect(rotuloDoCirculo(tester), hintAtTheTap);
     for (final controle in [earlier, hearThePause, later]) {
-      expect(aceso(tester, controle), isFalse, reason: controle);
+      expect(
+        byLabel(controle),
+        findsNothing,
+        reason: 'sem envelope a pausa não se move, e a linha ficava apagada',
+      );
     }
     closeTheRoom(container);
   });
