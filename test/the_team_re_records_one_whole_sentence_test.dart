@@ -1137,7 +1137,8 @@ void main() {
   }
 
   testWidgets('at conferida the frase whose nuance the verdict named starts '
-      'its re-record, and the circle records it', (tester) async {
+      'its re-record, the circle records it, and the screen still asks for '
+      'the whole sentence', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
     harness.room
@@ -1173,6 +1174,14 @@ void main() {
           'tradução em português',
     );
     expect(circulo.semanticLabel, 'gravem a frase inteira');
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('gravem a frase inteira'),
+      ),
+      findsOneWidget,
+      reason: 'na tradução conferida a regravação perdia a pista escrita',
+    );
     closeTheRoom(container);
   });
 

@@ -2560,8 +2560,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a clean check shows «✓ traduzida e conferida», and the circle '
-      'says it too', (tester) async {
+  testWidgets('a clean check writes no «✓ traduzida e conferida» on the check '
+      'screen, only the circle names it', (tester) async {
     _telaAlta(tester);
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness, partes: 1);
@@ -2581,8 +2581,9 @@ void main() {
 
     expect(
       find.text('✓ traduzida e conferida'),
-      findsOneWidget,
-      reason: 'a passagem conferida não dizia na tela que estava conferida',
+      findsNothing,
+      reason:
+          'a tela da checagem escrevia a linha que a dela só escreve na casa',
     );
     expect(
       tester

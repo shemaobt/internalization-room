@@ -165,7 +165,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text(w.salvo), findsNothing);
-      expect(find.text(w.conferida), findsOneWidget);
+      expect(
+        find.text(w.conferida),
+        findsNothing,
+        reason:
+            'depois do «Pronto» a tela da checagem escrevia a linha da casa',
+      );
       _expectTheButtonStands(tester, w);
       expect(harness.sounds, sonsAntesDoPronto);
       expect(harness.room.releasesAsked, hasLength(1));
@@ -173,7 +178,7 @@ void main() {
 
       await tester.pump(harness.fimLinger + const Duration(seconds: 2));
 
-      expect(find.text(w.conferida), findsOneWidget);
+      expect(find.text(w.conferida), findsNothing);
       _expectTheButtonStands(tester, w);
       closeTheRoom(container);
     },
@@ -200,7 +205,12 @@ void main() {
     await tester.tap(byLabel(w.pronto));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text(w.conferida), findsOneWidget);
+    expect(
+      find.text(w.conferida),
+      findsNothing,
+      reason:
+          'a tela da checagem em inglês escrevia «✓ translated and checked»',
+    );
     _expectTheButtonStands(tester, w);
     expect(harness.voice.fixedLines.skip(antes), [_p3En]);
     closeTheRoom(container);

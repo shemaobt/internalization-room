@@ -236,8 +236,8 @@ void main() {
     final sessao = container.read(salaSessionProvider).sessionId;
 
     expect(
-      find.text('✓ traduzida e conferida'),
-      findsOneWidget,
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
       reason: 'uma nuance segurava a passagem como se fosse um achado',
     );
     await tocar(tester, 'Aprovar como rascunho final');
