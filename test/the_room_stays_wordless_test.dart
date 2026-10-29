@@ -12,6 +12,7 @@ const _screensTheTeamNeverReads = {
 };
 
 const _herWordsTheTeamReads = {
+  'lib/features/sala/presentation/widgets/approve_button.dart',
   'lib/features/sala/presentation/widgets/checagem_externa_view.dart',
   'lib/features/sala/presentation/widgets/ensaio_view.dart',
   'lib/features/sala/presentation/widgets/external_check_button.dart',

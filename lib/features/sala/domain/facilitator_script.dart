@@ -50,10 +50,6 @@ int acknowledgementAfter(int last, Random random) =>
     instantAckLines.length;
 
 const circleLabels = {
-  'needsPerson': {
-    'pt': 'Um momento para uma pessoa',
-    'en': 'A moment for someone',
-  },
   'default': {'pt': 'Toque para falar', 'en': 'Tap to speak'},
 };
 
@@ -388,6 +384,11 @@ const sceneRehearsalLabels = {
   'frases': {'pt': 'frases traduzidas', 'en': 'translated sentences'},
   'listSent': {'pt': 'enviado', 'en': 'sent'},
   'listUnsent': {'pt': 'não enviado', 'en': 'not sent'},
+  'subRecord': {
+    'pt':
+        'Toquem no círculo para gravar o ensaio da cena; toquem de novo para parar.',
+    'en': 'Tap the circle to record the scene rehearsal; tap again to stop.',
+  },
   'subTranslate': {
     'pt':
         'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e de novo para traduzir só aquela frase.',

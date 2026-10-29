@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/person_sign.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
@@ -21,6 +22,42 @@ import 'fakes.dart';
 Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
+
+Finder get thePersonSign => find.descendant(
+  of: find.descendant(
+    of: find.byType(PersonSign),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is IgnorePointer && !widget.ignoring,
+    ),
+  ),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is FadeTransition && widget.opacity.status.isForwardOrCompleted,
+  ),
+);
+
+Future<void> withRealLetters() async {
+  final fonts =
+      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
+  final roboto = FontLoader('Roboto');
+  for (final weight in ['Regular', 'Medium', 'Bold']) {
+    roboto.addFont(
+      File(
+        '$fonts/Roboto-$weight.ttf',
+      ).readAsBytes().then(ByteData.sublistView),
+    );
+  }
+  await roboto.load();
+}
+
+void onAScreen(WidgetTester tester, Size screen, {required double bar}) {
+  tester.view
+    ..physicalSize = screen
+    ..devicePixelRatio = 1
+    ..padding = FakeViewPadding(top: bar)
+    ..viewPadding = FakeViewPadding(top: bar);
+  addTearDown(tester.view.reset);
+}
 
 Finder onTheCircle(String label) => find.descendant(
   of: find.byType(FacilitatorCircle),
@@ -48,6 +85,18 @@ Finder offTheRows(String label) => find.byElementPredicate((element) {
   });
   return !inside;
 });
+
+Future<void> pressTheApproval(WidgetTester tester, String label) async {
+  final approve = byLabel(label);
+  await tester.ensureVisible(approve);
+  final missWas = WidgetController.hitTestWarningShouldBeFatal;
+  WidgetController.hitTestWarningShouldBeFatal = true;
+  try {
+    await tester.tap(approve);
+  } finally {
+    WidgetController.hitTestWarningShouldBeFatal = missWas;
+  }
+}
 
 /// How many times the room has been asked to read the session's state back —
 /// the only witness that a watch actually re-polled, since the watch itself

@@ -28,5 +28,5 @@ waiting to be mended, not wrong.
 
 ## Note of 2026-10-27
 
-The Bead row leaves the check too (ADR 0141): a finding is marked on its frase row, as hers is,
+The Bead row leaves the check too (ADR 0153): a finding is marked on its frase row, as hers is,
 and nothing on the check is drained.

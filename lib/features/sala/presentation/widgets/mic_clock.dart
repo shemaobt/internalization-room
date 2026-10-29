@@ -6,24 +6,18 @@ import 'motion.dart';
 
 const _longTake = Duration(minutes: 4);
 
-class MicClock extends StatefulWidget {
+class MicClock extends StatelessWidget {
   final double circleSize;
+  final DateTime since;
 
-  const MicClock({super.key, required this.circleSize});
-
-  @override
-  State<MicClock> createState() => _MicClockState();
-}
-
-class _MicClockState extends State<MicClock> {
-  final _since = clock.now();
+  const MicClock({super.key, required this.circleSize, required this.since});
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
       left: 0,
       right: 0,
-      top: MediaQuery.sizeOf(context).height / 2 - widget.circleSize / 2 - 38.4,
+      top: MediaQuery.sizeOf(context).height / 2 - circleSize / 2 - 38.4,
       child: IgnorePointer(
         child: ExcludeSemantics(
           child: Center(
@@ -31,7 +25,7 @@ class _MicClockState extends State<MicClock> {
               period: const Duration(seconds: 1),
               reducible: false,
               builder: (context, _) {
-                final elapsed = clock.now().difference(_since);
+                final elapsed = clock.now().difference(since);
                 return Text(
                   '${elapsed.inMinutes}:'
                   '${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}',
