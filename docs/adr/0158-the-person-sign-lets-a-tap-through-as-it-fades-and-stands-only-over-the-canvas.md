@@ -17,13 +17,19 @@ over ADR 0107.
 1. **From the moment the sign starts to fade, a tap reaches what lies beneath.** A second tap
    on the circle as the sign fades out opens the microphone, as hers. ADR 0107's «a second tap
    as it fades never opens the microphone» and ADR 0144's item 3 no longer hold.
-2. **A halt raised on the Scene rehearsal is not drawn there.** It waits for the Canvas, as
-   the scene's own given-up turn already did: the sign rises once the team is back on the
-   Conversation, and the halt is dropped if they arrive anywhere else first. The scene's screen
-   keeps working beneath it, and «terminei» still sends. Hers draws the handoff only on her
-   canvas (`app/page.tsx:944-945`, `:1063`), and a failure on her Rehearsal shows there once
-   the team is back (`:704`). On the Scene rehearsal such a halt comes only from the build
-   guard or an `Error` in a hand-off, and once raised on the Canvas it calls for a person.
+2. **A halt raised on the Scene rehearsal or the Checagem externa is not drawn there.** It
+   waits for the Canvas, as the scene's own given-up turn already did: the sign rises once the
+   team is back on the Conversation, and the halt is dropped if they arrive anywhere else
+   first. The screen keeps working beneath it: «terminei» still sends, and on the check the
+   X lines, the passage and the listener's circle are not cut. Hers draws the handoff only on
+   her canvas (`app/page.tsx:944-945`, `:1063`), and a failure on her Rehearsal shows there
+   once the team is back (`:704`). On these two screens such a halt comes only from the build
+   guard or an `Error` in a hand-off; once raised on the Canvas it calls for a person. The
+   check's ways out lead to the Back-translation or the recording home, so a halt met there
+   is in practice dropped, with no sign and no call.
+3. **The Back-translation keeps the sign for now.** Deferring a halt there overturns what
+   ADRs 0029, 0036 and 0044 and Henok's rulings of 25 September settle about a halt standing
+   on it; that is ENG-2009, after this one. Her frozen app still wins there.
 
 ## Considered Options
 
@@ -39,7 +45,7 @@ the team was on, and hers keeps it.
 ## Amends
 
 - 0093: «a scene rehearsal given up whose look finds nothing, shown once the team is back on
-  the Conversation» now covers any halt raised on the Scene rehearsal.
+  the Conversation» now covers any halt raised on the Scene rehearsal or the Checagem externa.
 - 0107: «While any of the wash is on screen, it takes every tap, fading in or out» now reads:
   while the sign rises or stands, it takes every tap; as it fades out, it takes none.
 - 0144: item 3 is reversed.

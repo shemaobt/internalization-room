@@ -369,14 +369,16 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
   },
 );
 
-final noHaltIsEnteredOverTheSceneRehearsal = Invariant<Machine>(
-  'ADR 0158, no halt is entered over the scene rehearsal; it waits for the '
-  'Canvas',
+final noHaltIsEnteredOverTheSceneOrTheCheck = Invariant<Machine>(
+  'ADR 0158, no halt is entered over the scene rehearsal or the external '
+  'check; it waits for the Canvas',
   (before, event, after, effects, world) {
     if (before.halt is Blocking || after.halt is! Blocking) return null;
-    if (after.station is! SceneRehearsal) return null;
-    return '${describeEvent(event)} entered the person sign over the scene '
-        'rehearsal';
+    if (after.station is! SceneRehearsal && after.station is! ChecagemExterna) {
+      return null;
+    }
+    return '${describeEvent(event)} entered the person sign over '
+        '${after.station.stage.name}';
   },
 );
 
@@ -640,8 +642,9 @@ void main() {
     _holds(nothingButHerSixCasesEntersThePersonSign);
   });
 
-  test('generator invariant: no halt is entered over the scene rehearsal', () {
-    _holds(noHaltIsEnteredOverTheSceneRehearsal);
+  test('generator invariant: no halt is entered over the scene rehearsal or '
+      'the external check', () {
+    _holds(noHaltIsEnteredOverTheSceneOrTheCheck);
   });
 
   test('generator invariant: only a step left from the Canvas moves the end '
