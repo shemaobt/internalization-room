@@ -1686,6 +1686,8 @@ class SalaSessionState {
       (btPhase == BtPhase.conferida || btPhase == BtPhase.playing);
 
   bool get wholeSwitchActsOnTheCheck =>
+      joined &&
+      !btSoOuvir &&
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       channel is! Playing &&
       channel is! GuideSpeaking &&

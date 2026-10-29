@@ -16,8 +16,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle;
-import 'um_ensaio_de_tres_partes.dart';
+import 'scenario_helpers.dart' show byLabel;
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -603,62 +602,69 @@ void main() {
     closeTheRoom(container);
   });
 
-  test('a switch to the whole from the check reports what was heard before '
-      'the room\'s grain door, never after it', () async {
-    final it = await umEnsaioDeTresPartesGravado();
-    it.sala.startRetro();
-    await waitFor(
-      'a tradução começar a tocar a primeira parte',
-      () =>
-          it.estado.stage == SalaStage.retro &&
-          it.estado.btPhase == BtPhase.playing &&
-          it.harness.playback.sounding,
-    );
-    await ouvirAteOFim(it, partesDoEnsaio[0]);
-    await waitFor(
-      'a segunda parte entrar no ar',
-      () => it.estado.btClipRodando,
-    );
-    await theClipOpens(it.harness);
-    it.harness.playback.at = const Duration(seconds: 4);
-    it.sala.ouvirGravacao();
-    await waitFor('a segunda parte parar', () => !it.estado.btClipRodando);
-    final primeira = it.partes[0].takeId!;
-    final segunda = it.partes[1].takeId!;
-    final relatos = it.harness.room.listeningReports.length;
-    it.harness.room.holdTheGrainSwitch();
+  testWidgets('on a joined check, what was heard reaches the room before the '
+      'grain door, through the armed taps', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    final relatos = harness.room.listeningReports.length;
+    harness.room.holdTheGrainSwitch();
 
-    it.sala.recordTheWholePassage();
-    await waitFor(
-      'a porta da sala ser chamada',
-      () => it.harness.room.grainSwitches.isNotEmpty,
-    );
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    await _tap(tester, _wholeArmed);
+    expect(harness.room.grainSwitches, hasLength(1));
 
     expect(
-      it.harness.room.listeningReports.skip(relatos),
       [
-        [
-          {
-            'take_id': primeira,
-            'played_ranges': [
-              [0, 10000],
-            ],
-            'clip_duration_ms': 10000,
-          },
-          {
-            'take_id': segunda,
-            'played_ranges': [
-              [0, 4000],
-            ],
-            'clip_duration_ms': 0,
-          },
-        ],
+        for (final relato in harness.room.listeningReports.skip(relatos))
+          for (final parte in relato)
+            '${parte['take_id']} ${parte['played_ranges']}',
       ],
+      ['gravacao-1 [[0, 5000]]', 'gravacao-2 [[0, 5000]]'],
       reason:
-          'a troca tirava as partes antes do relato, e o que soou da '
-          'segunda parte nunca chegava à sala',
+          'a troca tirava as partes antes do relato, e o que soou na '
+          'conferência nunca chegava à sala',
     );
-    it.harness.room.finishTheGrainSwitch();
-    await settle();
+    harness.room.finishTheGrainSwitch();
+    await _settles(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap that reaches the room on a check no join touched never '
+      'switches the grain', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness, juntada: false);
+
+    container.read(salaSessionProvider.notifier).recordTheWholePassage();
+    await _settles(tester);
+
+    expect(
+      harness.room.grainSwitches,
+      isEmpty,
+      reason: 'a sala aceitava a troca num estado que a tela nunca desenha',
+    );
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a tap that reaches the room during the first listen never arms '
+      'the switch', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(
+      tester,
+      harness,
+      primeiraEscuta: true,
+    );
+
+    container.read(salaSessionProvider.notifier).recordTheWholePassage();
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).armedTap,
+      isNull,
+      reason: 'a troca armava na primeira escuta, onde a tela não a oferece',
+    );
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
   });
 }
