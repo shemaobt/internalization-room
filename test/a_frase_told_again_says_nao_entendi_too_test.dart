@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
@@ -322,126 +321,6 @@ void main() {
     );
     expect(harness.room.replaceKeys.skip(pedidos), hasLength(4));
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
-    closeTheRoom(container);
-  });
-
-  testWidgets('the copy kept of a frase told again whose answer was lost '
-      'leaves the queue once the next telling finds that it landed', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _vereditoNaFraseUm(tester, harness);
-    final fila = harness.takes as FakeTakeQueue;
-    await tocar(tester, _barra(1));
-    await tocar(tester, _ouvindo);
-
-    harness.room
-      ..refuseTake = 'retro/${KeptScope.whole}'
-      ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await tocar(tester, terminar);
-    final perdida = harness.recorder.lastPath!;
-    await _caiNaRede(tester, container);
-    await waitFor(
-      'a cópia da perdida entrar na fila',
-      () => fila.rows.any((linha) => linha.path == perdida),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-
-    await _deNovoNoCirculo(tester);
-    await waitFor(
-      'a segunda pousar',
-      () => container.read(salaSessionProvider).btTraducaoPendente == null,
-      step: () => _passo(tester),
-    );
-    for (var passo = 0; passo < 5; passo++) {
-      await letTheRehearsalReachTheRoom(tester);
-    }
-
-    expect(
-      fila.rows.where((linha) => linha.path == perdida),
-      isEmpty,
-      reason:
-          'a perdida já é a frase no servidor; na fila ela subiria de novo '
-          'como uma tomada da passagem inteira',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('the copy kept of a frase told again whose answer was lost '
-      'leaves the queue too when the next telling finds the frase gone', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _vereditoNaFraseUm(tester, harness);
-    final fila = harness.takes as FakeTakeQueue;
-    await tocar(tester, _barra(1));
-    await tocar(tester, _ouvindo);
-
-    harness.room
-      ..refuseTake = 'retro/${KeptScope.whole}'
-      ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await tocar(tester, terminar);
-    final perdida = harness.recorder.lastPath!;
-    await _caiNaRede(tester, container);
-    await waitFor(
-      'a cópia da perdida entrar na fila',
-      () => fila.rows.any((linha) => linha.path == perdida),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-
-    harness.room.recordThePartAgain(harness.room.takeIds.first);
-    await _deNovoNoCirculo(tester);
-    await waitFor(
-      'a frase sumir da fileira',
-      () => container.read(salaSessionProvider).btTrechos.isEmpty,
-      step: () => _passo(tester),
-    );
-    for (var passo = 0; passo < 5; passo++) {
-      await letTheRehearsalReachTheRoom(tester);
-    }
-
-    expect(
-      fila.rows.where((linha) => linha.path == perdida),
-      isEmpty,
-      reason:
-          'a perdida ficava na fila e subia como uma tomada da passagem '
-          'inteira de uma parte que a equipe gravou de novo',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('the copy kept of a frase told again whose answer was lost '
-      'leaves the queue when the team leaves the passage', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _vereditoNaFraseUm(tester, harness);
-    final fila = harness.takes as FakeTakeQueue;
-    await tocar(tester, _barra(1));
-    await tocar(tester, _ouvindo);
-
-    harness.room
-      ..refuseTake = 'retro/${KeptScope.whole}'
-      ..loseTheNextReplaceAnswerWith = const NetworkFailed('timeout');
-    await tocar(tester, terminar);
-    final perdida = harness.recorder.lastPath!;
-    await _caiNaRede(tester, container);
-    await waitFor(
-      'a cópia da perdida entrar na fila',
-      () => fila.rows.any((linha) => linha.path == perdida),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-
-    container.read(salaSessionProvider.notifier).leaveThePassage();
-    for (var passo = 0; passo < 5; passo++) {
-      await letTheRehearsalReachTheRoom(tester);
-    }
-
-    expect(
-      fila.rows.where((linha) => linha.path == perdida),
-      isEmpty,
-      reason:
-          'a perdida ficava na fila depois da passagem e subia como uma '
-          'tomada da passagem inteira de uma frase que talvez já esteja lá',
-    );
     closeTheRoom(container);
   });
 }

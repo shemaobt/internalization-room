@@ -26,8 +26,6 @@ const partTakeKind = 'ensaio';
 
 const sceneTakeKind = 'cena';
 
-const retroKind = 'retro';
-
 enum SendFailure { failed, tooLarge, refused, gone }
 
 class UnsentPart {

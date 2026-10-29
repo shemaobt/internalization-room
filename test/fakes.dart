@@ -1356,6 +1356,9 @@ class FakeRoom implements RoomRepository {
   /// hears them: the one knob that lets a resend meet a key still in flight.
   final List<RoomFailure> chunkAnswersFirst = [];
 
+  /// The tablet cannot read the stretch's recording as it goes up.
+  FileSystemException? chunkThrows;
+
   /// The `Idempotency-Key` every stretch told back carried, in order, the ones that
   /// never reached the room included.
   final List<String> chunkKeys = [];
@@ -3159,6 +3162,7 @@ class FakeRoom implements RoomRepository {
     required String idempotencyKey,
   }) async {
     chunkKeys.add(idempotencyKey);
+    if (chunkThrows case final thrown?) throw thrown;
     if (_guard('sendChunk') case final failure?) return failure;
     if (_forgot('sendChunk', sessionId) case final gone?) {
       return gone;
@@ -4199,7 +4203,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       unsentChunks: [
         for (final entry in rows)
           if (!entry.stored &&
-              entry.kind == 'retro' &&
+              entry.kind == sentenceKind &&
               entry.sessionId == sessionId)
             entry,
       ].length,
@@ -4269,13 +4273,6 @@ Future<void> theRoomNamesTheParts(
 
 Future<void> theClipOpens(SalaHarness harness) =>
     waitFor('o clipe abrir', () => harness.playback.open);
-
-Future<void> theRoomRefusesTheGuardedCopy(SalaHarness harness) => waitFor(
-  'a sala recusar a cópia de reserva da tradução',
-  () async => (await harness.takes.entries()).any(
-    (entry) => entry.kind == 'retro' && entry.refusal != null,
-  ),
-);
 
 Future<void> confirmarATraducao(ProviderContainer container) =>
     fecharACaptura(container);
@@ -4476,10 +4473,12 @@ class SalaHarness {
 
   void giveTheEnvelope() => _envelopeHeld?.complete();
 
+  final List<String> envelopesRead = [];
   int envelopesBeingRead = 0;
   int mostEnvelopesReadAtOnce = 0;
 
   Future<Envelope?> readTheEnvelope(String path) async {
+    envelopesRead.add(path);
     envelopesBeingRead++;
     mostEnvelopesReadAtOnce = max(mostEnvelopesReadAtOnce, envelopesBeingRead);
     try {
@@ -4668,76 +4667,6 @@ class QueueThatDiscardsLate extends TakeUploadQueue {
     final wait = discardsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     await super.discardTheSession(sessionId);
-  }
-}
-
-class QueueWhoseTranslationLandsLate extends TakeUploadQueue {
-  QueueWhoseTranslationLandsLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? landsAfter;
-  bool translationLanded = false;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final wait = landsAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    if (kind == 'retro') translationLanded = true;
-    return row;
-  }
-}
-
-class QueueThatFinishesLate extends TakeUploadQueue {
-  QueueThatFinishesLate({
-    required super.room,
-    super.home,
-    required super.recordings,
-  });
-
-  Duration? answersAfter;
-
-  @override
-  Future<PendingTake> enqueue(
-    File audio, {
-    required String sessionId,
-    required String kind,
-    required String scope,
-    int? passNumber,
-    int? chunkIndex,
-    String? scene,
-  }) async {
-    final row = await super.enqueue(
-      audio,
-      sessionId: sessionId,
-      kind: kind,
-      scope: scope,
-      passNumber: passNumber,
-      chunkIndex: chunkIndex,
-      scene: scene,
-    );
-    final wait = answersAfter;
-    if (kind == 'retro' && wait != null) await Future<void>.delayed(wait);
-    return row;
   }
 }
 
