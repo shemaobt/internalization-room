@@ -30,3 +30,20 @@ A joined part lands in the room with its scene rehearsal's frases already told. 
 ## Consequences
 
 ENG-1407's «usar este» sits beside the control on the same row, and its swap lands through the room's lay. A team that corrected every laid frase one by one is offered the Bring-back again; taking it keeps their corrections as history. Over an approved draft, a Bring-back makes the draft no longer the approved one, as the Restart does.
+
+## Amendment · 2026-10-28 (ENG-1916)
+
+A failure no longer always says to tap again. Her bring-back tells a rehearsal that can
+never come back apart from a passing failure (`Drafting.tsx:2055` at 18fa7c4).
+
+- **A `NOTHING_TO_BRING_BACK` refusal writes «este ensaio não pode entrar — ensaiem esta
+  cena de novo»** on the row, in English «this rehearsal cannot be used — rehearse this
+  scene again», the plan's own words. It is the door's one refusal that says the part's
+  rehearsal or its frases are no longer there to lay, which is her `not_wav` / `swap`. A
+  404 still means a session the room has forgotten. A lost network and any other refusal
+  keep «não deu para juntar esta cena — toquem para tentar de novo».
+- **That line stays on the row after the session is read again.** The room stops
+  offering a part exactly when it refuses it, so the read takes the control away; it no
+  longer takes the line, as her row note outlives her reload (`Drafting.tsx:2514, 2529`).
+  The note of a passing failure still goes when the read shows the room did lay the
+  frases. There is still no line and no sign.

@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida;
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, thePersonSign;
 
 const _checagem = 'Checagem externa';
 const _novoOuvinte = 'Novo ouvinte';
@@ -385,7 +385,7 @@ void main() {
     await _tocar(tester, _circulo);
 
     expect(find.text(_naoGuardou), findsOneWidget);
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(find.text(_sinal), findsNothing);
     expect(harness.recorder.deleted, contains(harness.recorder.lastPath));
     expect(harness.room.listenerRecordings, isEmpty);
@@ -429,7 +429,7 @@ void main() {
     await _tocar(tester, _novoOuvinte);
 
     expect(find.text(_naoAbriu), findsOneWidget);
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(harness.voice.fixedLines, falas);
     expect(_habilitado(tester, _novoOuvinte), isTrue);
 
@@ -508,7 +508,7 @@ void main() {
 
     await _tocar(tester, _circulo);
 
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(find.text(_naoGuardou), findsNothing);
     expect(find.text(_toque), findsOneWidget);
 
@@ -516,7 +516,7 @@ void main() {
     harness.recorder.startThrows = true;
     await _tocar(tester, _circulo);
 
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(find.text(_naoGuardou), findsNothing);
     expect(find.text(_toque), findsOneWidget);
     closeTheRoom(container);

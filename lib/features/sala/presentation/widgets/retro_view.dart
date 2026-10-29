@@ -14,9 +14,11 @@ import '../../domain/bt_finding.dart';
 import '../../domain/channel.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
+import 'approve_button.dart';
 import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
+import 'grain_choice_view.dart';
 import 'external_check_button.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
@@ -61,6 +63,8 @@ class RetroView extends ConsumerWidget {
         ? _linha(session, language)
         : null;
     final veredito = session.btVeredito || session.btFindings.isNotEmpty;
+    final circulo = herCircleSize(MediaQuery.sizeOf(context), 38, 150);
+    final anel = circulo * facilitatorRippleGrowth / 2;
     final scrolling = SizedBox.expand(
       child: SingleChildScrollView(
         child: Column(
@@ -116,21 +120,24 @@ class RetroView extends ConsumerWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: 24),
-            FacilitatorCircle(
-              size: herCircleSize(MediaQuery.sizeOf(context), 38, 150),
-              halt: session.halt,
-              voice: voz,
-              tongue: lingua,
-              answersATouch:
-                  session.aBackTranslationGestureActs &&
-                  (!conferida || session.btRegravacao != null),
-              notUnderstood: session.wordlessTelling
-                  ? retroLabelFor('notUnderstood', language)
-                  : null,
-              semanticLabel: _circleLabel(session, language),
-              onTap: notifier.retroTap,
-            ),
+            if (!session.btSoOuvir) ...[
+              SizedBox(height: 24 + anel),
+              FacilitatorCircle(
+                size: circulo,
+                halt: session.halt,
+                voice: voz,
+                tongue: lingua,
+                answersATouch:
+                    session.aBackTranslationGestureActs &&
+                    (!conferida || session.btRegravacao != null),
+                notUnderstood: session.wordlessTelling
+                    ? retroLabelFor('notUnderstood', language)
+                    : null,
+                semanticLabel: _circleLabel(session, language),
+                onTap: notifier.retroTap,
+              ),
+              SizedBox(height: anel),
+            ],
             if (_traduzindoDeNovo(session) case final n?) ...[
               const SizedBox(height: 12),
               _ManterADeAntes(
@@ -160,7 +167,11 @@ class RetroView extends ConsumerWidget {
             StatusLines(line: estado, note: nota),
             if (session.btSoOuvir) ...[
               const SizedBox(height: 12),
-              _APosicaoDaEscuta(session: session, language: language),
+              _ALinhaDaEscuta(
+                session: session,
+                language: language,
+                linha: session.btClipRodando ? 'listening' : null,
+              ),
             ],
             if (linha != null) ...[
               const SizedBox(height: 12),
@@ -174,10 +185,38 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
-            SizedBox(
-              height: 60,
-              child: _actions(session, notifier, language, colors),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 60),
+                child: _actions(session, notifier, language, colors),
+              ),
             ),
+            if (session.btPhase == BtPhase.conferida &&
+                (session.approvedDraftDrawn == null ||
+                    session.approvalStillOpen)) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FadeUp(child: ApproveButton(live: session.canApprove)),
+              ),
+            ],
+            if (session.approvedDraftDrawn case final aprovado?
+                when session.approvalStillOpen) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  retroLabelFor('approvedDraft', language, n: aprovado.version),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
             if (session.offersTheVerdictAgain) ...[
               const SizedBox(height: 12),
               _botaoEscrito(
@@ -208,10 +247,7 @@ class RetroView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 24),
-            SizedBox(
-              height: 78,
-              child: _disc(session, colors, notifier, language, avanca),
-            ),
+            if (avanca) _pilula(session, colors, notifier, language),
             if (avanca && session.btVeredito) ...[
               const SizedBox(height: 16),
               _botaoEscrito(
@@ -221,6 +257,15 @@ class RetroView extends ConsumerWidget {
                         session.btPhase == BtPhase.playing
                     ? notifier.gravarAParteDeNovo
                     : null,
+              ),
+            ],
+            if (session.joined && !session.btSoOuvir) ...[
+              const SizedBox(height: 8),
+              wholeAtOnce(
+                session,
+                language,
+                notifier.recordTheWholePassage,
+                open: session.wholeSwitchActsOnTheCheck,
               ),
             ],
             const SizedBox(height: 48),
@@ -261,139 +306,150 @@ class RetroView extends ConsumerWidget {
               ) /
               100
         : 1;
-    int? parteDe(Trecho trecho) => trecho.parte < 0
-        ? null
-        : switch (session.partes.elementAtOrNull(trecho.parte)) {
-            final parte? => KeptScope.numberOf(parte.scopeId),
-            null => trecho.parte + 1,
-          };
+    int? parteDe(Trecho trecho) => _parteNaTela(session, trecho);
     bool aguarda(Trecho trecho) =>
         session.btFraseQueAguarda != null &&
         trecho.segmentId == session.btFraseQueAguarda;
+    FraseRow regravada(int onde, Trecho trecho, int n) => FraseRow(
+      n: n,
+      parte: parteDe(trecho),
+      share: share(trecho),
+      onHear: session.canHearAFrase && trecho.retroPath != null
+          ? () => notifier.ouvirAFraseRegravada(onde)
+          : null,
+      onRetell:
+          session.canRetellAFrase &&
+              trecho.segmentId != null &&
+              session.regravadaTraduzivelDeNovo(trecho)
+          ? () => notifier.traduzirAFraseRegravadaDeNovo(onde)
+          : null,
+      mark: retroLabelFor('stale', language),
+    );
+    FraseRow atual(int onde, Trecho trecho, int n) => FraseRow(
+      n: n,
+      parte: parteDe(trecho),
+      share: share(trecho),
+      onHear:
+          session.canHearAFrase &&
+              switch (session.aParteDoTrecho(trecho)) {
+                null => true,
+                final parte =>
+                  session.partsAway[parte.takeId] == PartAway.missed,
+              }
+          ? () => notifier.ouvirOTrechoContado(onde)
+          : null,
+      onRetell:
+          session.canRetellAFrase &&
+              trecho.segmentId != null &&
+              session.aParteDoTrechoEstaAqui(trecho)
+          ? () => notifier.traduzirAFraseDeNovo(onde)
+          : null,
+      mark: aguarda(trecho)
+          ? sceneRehearsalLabelFor('awaiting', language)
+          : switch (_markOn(trecho.frase, session)) {
+              null || BtFindingKind.nuance => null,
+              final kind => retroLabelFor(kind.name, language),
+            },
+      achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
+      traduzindoDeNovo:
+          trecho.segmentId != null &&
+          trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
+      regravando:
+          trecho.frase != null && session.btRegravacao?.frase == trecho.frase,
+      regravar:
+          session.fraseRegravavel(trecho) &&
+              (session.btPhase != BtPhase.conferida ||
+                  _markOn(trecho.frase, session) == BtFindingKind.nuance ||
+                  session.overAnApprovedDraft)
+          ? session.armedTap?.control == 'rerecord:${trecho.frase}'
+                ? retroLabelFor('reopenArmed', language)
+                : sceneRehearsalLabelFor('rerecordFrase', language, n: n)
+          : null,
+      regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
+      onRegravar:
+          session.btRegravacao == null ||
+              session.btRegravacao?.frase == trecho.frase
+          ? () => notifier.regravarAFrase(trecho)
+          : null,
+      revisao:
+          atua &&
+              session.btRegravacao?.frase == trecho.frase &&
+              session.btRegravacao?.passo == PassoDaRegravacao.revendo
+          ? FraseRevisao(
+              ouvir: sceneRehearsalLabelFor('listenN', language, n: n),
+              tocando: session.btFraseGravadaTocando,
+              onOuvir: notifier.ouvirAFraseGravada,
+              gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
+              onGravarDeNovo: notifier.gravarAFraseDeNovo,
+              usarEsta: sceneRehearsalLabelFor('useTake', language),
+              onUsarEsta: notifier.usarEstaFrase,
+            )
+          : null,
+      estado: switch (session.btRegravacao) {
+        RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.enviando)
+            when frase == trecho.frase =>
+          sceneRehearsalLabelFor('takeSending', language),
+        RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.longaDemais)
+            when frase == trecho.frase =>
+          sceneRehearsalLabelFor('spliceTooLong', language),
+        null
+            when trecho.frase != null &&
+                session.btFraseGuardada == trecho.frase =>
+          session.armedTap?.control == 'resend:${trecho.frase}'
+              ? retroLabelFor('reopenArmed', language)
+              : sceneRehearsalLabelFor('spliceFail', language),
+        _ => null,
+      },
+      estadoDormindo: _dormindo('resend:${trecho.frase}', session),
+      onEstado:
+          atua &&
+              session.btRegravacao == null &&
+              trecho.frase != null &&
+              session.btFraseGuardada == trecho.frase
+          ? notifier.tentarAFraseDeNovo
+          : null,
+    );
+    return [
+      for (final (posicao, (:dela, :onde, :trecho)) in _naOrdem(
+        session,
+      ).indexed)
+        dela
+            ? regravada(onde, trecho, posicao + 1)
+            : atual(onde, trecho, posicao + 1),
+    ];
+  }
+
+  int? _parteNaTela(SalaSessionState session, Trecho trecho) => trecho.parte < 0
+      ? null
+      : switch (session.partes.elementAtOrNull(trecho.parte)) {
+          final parte? => KeptScope.numberOf(parte.scopeId),
+          null => trecho.parte + 1,
+        };
+
+  List<({bool dela, int onde, Trecho trecho})> _naOrdem(
+    SalaSessionState session,
+  ) {
     final regravadas = [
-      for (final (_, trecho)
+      for (final (onde, trecho)
           in [...session.btTrechosRegravados.indexed]..sort(
             (a, b) => a.$2.parte == b.$2.parte
                 ? a.$1.compareTo(b.$1)
                 : a.$2.parte.compareTo(b.$2.parte),
           ))
-        FraseRow(
-          n: null,
-          parte: parteDe(trecho),
-          share: share(trecho),
-          onHear: null,
-          mark: retroLabelFor('stale', language),
-        ),
+        (dela: true, onde: onde, trecho: trecho),
     ];
-    final atuais = [
-      for (final (onde, trecho) in contadas)
-        FraseRow(
-          n: trecho.frase,
-          parte: parteDe(trecho),
-          share: share(trecho),
-          onHear:
-              session.canHearAFrase &&
-                  switch (session.aParteDoTrecho(trecho)) {
-                    null => true,
-                    final parte =>
-                      session.partsAway[parte.takeId] == PartAway.missed,
-                  }
-              ? () => notifier.ouvirOTrechoContado(onde)
-              : null,
-          onRetell:
-              session.canRetellAFrase &&
-                  trecho.segmentId != null &&
-                  session.aParteDoTrechoEstaAqui(trecho)
-              ? () => notifier.traduzirAFraseDeNovo(onde)
-              : null,
-          mark: aguarda(trecho)
-              ? sceneRehearsalLabelFor('awaiting', language)
-              : switch (_markOn(trecho.frase, session)) {
-                  null || BtFindingKind.nuance => null,
-                  final kind => retroLabelFor(kind.name, language),
-                },
-          achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
-          traduzindoDeNovo:
-              trecho.segmentId != null &&
-              trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
-          regravando:
-              trecho.frase != null &&
-              session.btRegravacao?.frase == trecho.frase,
-          regravar:
-              session.fraseRegravavel(trecho) &&
-                  (session.btPhase != BtPhase.conferida ||
-                      _markOn(trecho.frase, session) == BtFindingKind.nuance ||
-                      session.overAnApprovedDraft)
-              ? session.armedTap?.control == 'rerecord:${trecho.frase}'
-                    ? retroLabelFor('reopenArmed', language)
-                    : sceneRehearsalLabelFor(
-                        'rerecordFrase',
-                        language,
-                        n: trecho.frase,
-                      )
-              : null,
-          regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
-          onRegravar:
-              session.btRegravacao == null ||
-                  session.btRegravacao?.frase == trecho.frase
-              ? () => notifier.regravarAFrase(trecho)
-              : null,
-          revisao:
-              atua &&
-                  session.btRegravacao?.frase == trecho.frase &&
-                  session.btRegravacao?.passo == PassoDaRegravacao.revendo
-              ? FraseRevisao(
-                  ouvir: sceneRehearsalLabelFor(
-                    'listenN',
-                    language,
-                    n: trecho.frase,
-                  ),
-                  tocando: session.btFraseGravadaTocando,
-                  onOuvir: notifier.ouvirAFraseGravada,
-                  gravarDeNovo: sceneRehearsalLabelFor('recordAgain', language),
-                  onGravarDeNovo: notifier.gravarAFraseDeNovo,
-                  usarEsta: sceneRehearsalLabelFor('useTake', language),
-                  onUsarEsta: notifier.usarEstaFrase,
-                )
-              : null,
-          estado: switch (session.btRegravacao) {
-            RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.enviando)
-                when frase == trecho.frase =>
-              sceneRehearsalLabelFor('takeSending', language),
-            RegravacaoDaFrase(
-              :final frase,
-              passo: PassoDaRegravacao.longaDemais,
-            )
-                when frase == trecho.frase =>
-              sceneRehearsalLabelFor('spliceTooLong', language),
-            null
-                when trecho.frase != null &&
-                    session.btFraseGuardada == trecho.frase =>
-              session.armedTap?.control == 'resend:${trecho.frase}'
-                  ? retroLabelFor('reopenArmed', language)
-                  : sceneRehearsalLabelFor('spliceFail', language),
-            _ => null,
-          },
-          estadoDormindo: _dormindo('resend:${trecho.frase}', session),
-          onEstado:
-              atua &&
-                  session.btRegravacao == null &&
-                  trecho.frase != null &&
-                  session.btFraseGuardada == trecho.frase
-              ? notifier.tentarAFraseDeNovo
-              : null,
-        ),
-    ];
-    final linhas = <FraseRow>[];
+    final ordem = <({bool dela, int onde, Trecho trecho})>[];
     var antes = 0;
-    for (final linha in atuais) {
+    for (final (onde, trecho) in session.btTrechos.indexed) {
+      if (!trecho.contado) continue;
       while (antes < regravadas.length &&
-          (regravadas[antes].parte ?? 0) < (linha.parte ?? 0)) {
-        linhas.add(regravadas[antes++]);
+          (_parteNaTela(session, regravadas[antes].trecho) ?? 0) <
+              (_parteNaTela(session, trecho) ?? 0)) {
+        ordem.add(regravadas[antes++]);
       }
-      linhas.add(linha);
+      ordem.add((dela: false, onde: onde, trecho: trecho));
     }
-    return [...linhas, ...regravadas.skip(antes)];
+    return [...ordem, ...regravadas.skip(antes)];
   }
 
   Widget _recomeco(
@@ -483,6 +539,7 @@ class RetroView extends ConsumerWidget {
       BtAviso.pausaNaoFica => 'pauseCannotStandThere',
       BtAviso.checagemFalhou => 'externalCheckFailed',
       BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
+      BtAviso.tocarFalhou => 'checkFailed',
       null => null,
     };
     if (aviso != null) return retroLabelFor(aviso, language);
@@ -508,14 +565,17 @@ class RetroView extends ConsumerWidget {
         case PassoDaRegravacao.pronta || PassoDaRegravacao.gravando) {
       return sceneRehearsalLabelFor('respeakHint', language);
     }
-    if (_conferida(session)) {
-      return '✓ ${retroLabelFor('translated', language)}';
-    }
     return null;
   }
 
-  int? _traduzindoDeNovo(SalaSessionState session) =>
-      session.btFraseTraduzidaDeNovo?.frase;
+  int? _traduzindoDeNovo(SalaSessionState session) {
+    final nome = session.btFraseTraduzidaDeNovo?.segmentId;
+    if (nome == null) return null;
+    final posicao = _naOrdem(
+      session,
+    ).indexWhere((linha) => linha.trecho.segmentId == nome);
+    return posicao < 0 ? null : posicao + 1;
+  }
 
   bool _conferida(SalaSessionState session) =>
       session.btPhase == BtPhase.conferida && !session.needsPerson;
@@ -528,43 +588,57 @@ class RetroView extends ConsumerWidget {
     return null;
   }
 
-  Widget? _disc(
+  Widget _pilula(
     SalaSessionState session,
     SalaColors colors,
     SalaSessionNotifier notifier,
     String language,
-    bool avanca,
   ) {
-    if (!avanca) return null;
     final terminei = retroLabelFor(
       session.btConferindo ? 'checking' : 'advance',
       language,
     );
+    final acesa = session.canAdvanceToTheVerdict;
     return FadeUp(
-      child: RoundActionButton(
-        size: 78,
-        semanticLabel: terminei,
-        gradient: BeadStyles.wood,
-        shadows: RoundActionButton.dropShadow,
-        mood: session.canAdvanceToTheVerdict
-            ? ButtonMood.beckoning
-            : ButtonMood.dimmed,
-        onTap: () => unawaited(notifier.finishBackTranslation()),
-        label: ExcludeSemantics(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                terminei,
-                style: TextStyle(
-                  color: session.canAdvanceToTheVerdict
-                      ? ShemaBrand.branco
-                      : colors.ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+      child: Semantics(
+        button: true,
+        enabled: acesa,
+        label: terminei,
+        child: GestureDetector(
+          onTap: acesa
+              ? () => unawaited(notifier.finishBackTranslation())
+              : null,
+          child: ExcludeSemantics(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: acesa ? 1 : 0.35,
+                    duration: const Duration(milliseconds: 200),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colors.telha,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 35.2,
+                    vertical: 12.8,
+                  ),
+                  child: Text(
+                    terminei,
+                    style: TextStyle(
+                      color: acesa ? colors.paper : colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -666,27 +740,19 @@ class RetroView extends ConsumerWidget {
                 color: ShemaBrand.branco,
               ),
             ),
-            const SizedBox(width: 24),
-            if (session.approvedDraftDrawn case final aprovado?)
-              Text(
-                retroLabelFor('approvedDraft', language, n: aprovado.version),
-                style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
-                ),
-              )
-            else
-              RoundActionButton(
-                size: 60,
-                semanticLabel: retroLabelFor('approve', language),
-                gradient: BeadStyles.verde,
-                mood: session.canApprove ? ButtonMood.lit : ButtonMood.dimmed,
-                onTap: notifier.aprovarRascunhoFinal,
-                child: const Icon(
-                  LucideIcons.check,
-                  size: 24,
-                  color: ShemaBrand.branco,
+            if (session.approvedDraftDrawn != null &&
+                !session.approvalStillOpen)
+              const SizedBox(width: 24),
+            if (session.approvedDraftDrawn case final aprovado?
+                when !session.approvalStillOpen)
+              Flexible(
+                child: Text(
+                  retroLabelFor('approvedDraft', language, n: aprovado.version),
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
           ],
@@ -721,18 +787,39 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
+          if (_aEscuta(session) case final linha?) ...[
+            const SizedBox(width: 11.2),
+            Flexible(
+              child: _ALinhaDaEscuta(
+                session: session,
+                language: language,
+                linha: linha,
+                textAlign: TextAlign.start,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  String _circleLabel(SalaSessionState session, String language) {
-    if (session.btSoOuvir) {
-      return retroLabelFor(
-        session.btClipRodando ? 'listening' : 'listenOnly',
-        language,
-      );
+  String? _aEscuta(SalaSessionState session) {
+    if (session.btSoOuvir) return null;
+    if (session.btTrechoTraduzidoDeNovo != null ||
+        session.btRegravacao != null) {
+      return session.btTrechoTocando ? 'listening' : null;
     }
+    if (session.btClipEnded && !session.btParteFronteira) {
+      return 'endOfTheRecording';
+    }
+    if (session.btCortado) {
+      return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
+    }
+    if (session.btClipRodando || session.btTrechoTocando) return 'listening';
+    return 'paused';
+  }
+
+  String _circleLabel(SalaSessionState session, String language) {
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }
@@ -787,44 +874,64 @@ class RetroView extends ConsumerWidget {
   }
 }
 
-/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10» while a part sounds, the place
-/// alone while it is held.
-class _APosicaoDaEscuta extends ConsumerWidget {
+/// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while
+/// a part sounds or is held; either alone when the other is missing.
+class _ALinhaDaEscuta extends ConsumerWidget {
   final SalaSessionState session;
   final String language;
+  final String? linha;
+  final TextAlign textAlign;
 
-  const _APosicaoDaEscuta({required this.session, required this.language});
+  const _ALinhaDaEscuta({
+    required this.session,
+    required this.language,
+    required this.linha,
+    this.textAlign = TextAlign.center,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (parte, soando) = switch (session.channel) {
-      PartPlaying(:final part) => (part.part, true),
-      Paused(what: final PartSound part) => (part.part, false),
-      _ => (null, false),
-    };
-    if (parte == null) return const SizedBox.shrink();
+    final parte = _parteNoAr(session);
+    if (parte == null && linha == null) return const SizedBox.shrink();
     final playback = ref.read(playbackRepositoryProvider);
     final colors = SalaColors.of(context);
     return Loop(
       period: const Duration(seconds: 1),
-      animate: soando,
+      animate: session.channel is PartPlaying,
       reducible: false,
       builder: (context, _) {
-        final lugar = firstListenPositionFor(
-          parte + 1,
-          playback.position,
-          playback.playingLength,
-          language,
-        );
+        final lugar = switch (parte) {
+          null => null,
+          final parte
+              when session.partes.elementAtOrNull(parte)?.scopeId ==
+                  KeptScope.whole =>
+            sceneClockOf(playback.position, playback.playingLength),
+          final parte => firstListenPositionFor(
+            parte + 1,
+            playback.position,
+            playback.playingLength,
+            language,
+          ),
+        };
         return Text(
-          soando ? '${retroLabelFor('listening', language)} — $lugar' : lugar,
-          textAlign: TextAlign.center,
+          [
+            if (linha case final linha?) retroLabelFor(linha, language),
+            ?lugar,
+          ].join(' — '),
+          textAlign: textAlign,
           style: TextStyle(color: colors.telha, fontSize: 15),
         );
       },
     );
   }
 }
+
+int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
+  PartPlaying(:final part) => part.part,
+  Paused(what: final PartSound part) ||
+  Microphone(held: Paused(what: final PartSound part)) => part.part,
+  _ => null,
+};
 
 class _ManterADeAntes extends StatelessWidget {
   final String label;

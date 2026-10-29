@@ -231,7 +231,7 @@ void main() {
         expect(find.text(_notUnderstood), findsOneWidget);
         expect(byLabel(_translateAgainBar(2)), findsNothing);
         expect(screen.currentFrases, 1);
-        expect(byLabel(_pausaAtTheTap), findsOneWidget);
+        expect(byLabel('$_pausaAtTheTap — 0:06 / 0:10'), findsOneWidget);
 
         await screen.theFraseMicrophoneOpens();
         expect(screen.theFraseMicrophoneIsOpen, isTrue);
@@ -279,7 +279,7 @@ void main() {
           await screen.tellsTheFrase();
 
           expect(screen.shows(_notUnderstood), isTrue);
-          expect(byLabel(_pausaHint), findsOneWidget);
+          expect(byLabel('$_pausaHint — 0:06 / 0:10'), findsOneWidget);
         },
       );
     }
@@ -461,8 +461,8 @@ void main() {
       screen.harness.playback.finishPlayback();
       await screen.beat();
 
-      expect(byLabel(_pausaHint), findsNothing);
-      expect(byLabel(_pausaAtTheTap), findsNothing);
+      expect(find.textContaining(_pausaHint), findsNothing);
+      expect(find.textContaining(_pausaAtTheTap), findsNothing);
       expect(byLabel(_endedHint), findsNothing);
       await screen.tellsTheFrase();
       expect(screen.room.frasesKept.single.replaces, 'f3');
@@ -584,7 +584,7 @@ void main() {
           RoomRepository.sceneFraseAudioUrl(_session, _rehearsalId, 'f2'),
         );
         expect(screen.harness.playback.played.last, contains('frase-f2'));
-        expect(byLabel(_pausaHint), findsNothing);
+        expect(find.textContaining(_pausaHint), findsNothing);
       },
     );
   });
@@ -703,7 +703,7 @@ void main() {
 
           expect(screen.room.scenesSent, isEmpty);
           expect(screen.shows(_notUnderstood), isTrue);
-          expect(byLabel(_pausaHint), findsOneWidget);
+          expect(byLabel('$_pausaHint — 0:06 / 0:10'), findsOneWidget);
           await screen.tellsTheFrase();
           expect(byLabel(_translateAgainBar(2)), findsOneWidget);
           await screen.tap(_terminei);
@@ -1100,7 +1100,12 @@ void main() {
       (tester) async {
         final (screen, saidBefore) = await _sendingTheScene(tester);
 
-        expect(find.text(_sending), findsOneWidget);
+        expect(
+          find.text(_sending),
+          findsNWidgets(2),
+          reason:
+              'o botão e a linha ao lado do play dizem «enviando…», como no dela',
+        );
         expect(
           screen.harness.voice.fixedLines
               .skip(saidBefore)

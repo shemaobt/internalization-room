@@ -1,3 +1,5 @@
+import 'session_snapshot.dart';
+
 /// What the server answers the team's approval with: the version it minted, or the holes
 /// standing in the way of one.
 ///
@@ -16,7 +18,7 @@ class ApprovalAnswer {
   final int? version;
 
   /// The holes standing between this passage and its release, one code each, in the order
-  /// the gate raised them — which is not the order the room opens its doors in.
+  /// the gate raised them — which is not the order the room reads them in.
   final List<String> blockers;
 
   /// Which current parts carry nobody's words, when `untold_part` is among the blockers;
@@ -40,6 +42,14 @@ class ApprovalAnswer {
   });
 
   bool get minted => version != null;
+
+  /// This answer to a press over [standing]. A room that answers a press over a forced
+  /// version with that same version kept it because a blocker still stands, and names
+  /// none: a body that says neither, not a new approval (ADR 0150).
+  ApprovalAnswer over(ApprovedDraft? standing) =>
+      standing != null && standing.forced && version == standing.version
+      ? const ApprovalAnswer()
+      : this;
 
   factory ApprovalAnswer.fromJson(Map<String, dynamic> json) => ApprovalAnswer(
     releaseId: json['release_id'] as String?,

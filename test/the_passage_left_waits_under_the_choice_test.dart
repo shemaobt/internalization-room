@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
@@ -117,6 +118,120 @@ void main() {
     expect(read().sessionId, tablet.p01);
     expect(read().pericope, 'P01');
     expect(read().coverage.engaged, 2);
+  });
+
+  test('the pill of the passage left asks the room as any pill, and with no '
+      'network lays that passage back instead of losing it', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
+    final asked = harness.room.calls.length;
+    harness.room.reachable = false;
+
+    tablet.notifier.openTheEntry(p01);
+    await waitFor(
+      'the room to be asked for P01',
+      () => harness.room.calls.skip(asked).contains('fetchState'),
+    );
+    await settle();
+    await settle();
+
+    expect(
+      harness.room.calls.skip(asked),
+      contains('fetchState'),
+      reason: 'a pílula da passagem deixada não perguntava à sala',
+    );
+    expect(
+      read().station,
+      isA<Canvas>(),
+      reason:
+          'sem rede, a pílula da P01 deixada caía na Escolha sem roda e '
+          'sem volta',
+    );
+    expect(read().sessionId, tablet.p01);
+    expect(read().pericope, 'P01');
+    expect(read().coverage.engaged, 2);
+  });
+
+  test('the pill of the passage left whose resume the room refuses lays that '
+      'passage back, never an empty Choice', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
+    final asked = harness.room.calls.length;
+    harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(400));
+
+    tablet.notifier.openTheEntry(p01);
+    await waitFor(
+      'the room to be asked for P01',
+      () => harness.room.calls.skip(asked).contains('fetchState'),
+    );
+    await settle();
+    await settle();
+
+    expect(
+      read().station,
+      isA<Canvas>(),
+      reason:
+          'a retomada recusada da P01 deixada refazia a Escolha e perdia a '
+          'passagem',
+    );
+    expect(read().sessionId, tablet.p01);
+    expect(read().pericope, 'P01');
+    expect(read().coverage.engaged, 2);
+  });
+
+  test('the pill of a passage left with no session that cannot open rests on '
+      'the Choice with the way back still there', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await notifier.abrirEscolha();
+    await waitFor('the Choice to list its entries', () => read().entriesOpen);
+    harness.room.failCreateOnceWith = const NetworkFailed('sem rede');
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'P01 to rest with no session',
+      () =>
+          read().station is Canvas &&
+          read().sessionId == null &&
+          !read().awaitingTheGuide,
+    );
+    notifier.leaveThePassage();
+    await waitFor(
+      'the way back to P01 to be live',
+      () => read().entriesOpen && read().theWayBackIsLive,
+    );
+    final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
+    final asked = harness.room.calls.length;
+    harness.room.failCreateOnceWith = const NetworkFailed('sem rede');
+
+    notifier.openTheEntry(p01);
+    await waitFor(
+      'the room to be asked for P01',
+      () => harness.room.calls.skip(asked).contains('createSession'),
+    );
+    await settle();
+    await settle();
+
+    expect(
+      read().station,
+      isA<Menu>(),
+      reason:
+          'a pílula da P01 deixada sem sessão prendia a equipe num círculo '
+          'sem sessão',
+    );
+    expect(read().sessionId, isNull);
+    expect(
+      read().isTheEntryLeft(p01, language: 'pt'),
+      isTrue,
+      reason: 'a P01 deixada perdia a marca e a volta',
+    );
+    expect(read().theWayBackIsLive, isTrue);
   });
 
   test('a passage left whose session the room lets go is not laid back by a '

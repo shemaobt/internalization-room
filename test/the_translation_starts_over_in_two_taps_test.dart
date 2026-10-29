@@ -396,6 +396,39 @@ void main() {
   );
 
   testWidgets(
+    'a restart the room refused keeps its words over the recording played after it',
+    (tester) async {
+      final harness = SalaHarness();
+      final container = await _voltaATraducao(tester, harness, _quatroFrases);
+      harness.room.failRestartWith = const Refused('HTTP_409');
+      await tester.tap(byLabel(_recomecar));
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.tap(byLabel(_armado));
+      await waitFor(
+        'a sala recusar o recomeço',
+        () => harness.room.restartsAsked.isNotEmpty,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      expect(find.text(_naoDeu), findsOneWidget);
+      final tocadas = harness.playback.played.length;
+
+      await tocar(tester, ouvir);
+      await waitFor(
+        'a gravação tocar',
+        () =>
+            harness.playback.played.length > tocadas &&
+            harness.playback.sounding,
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+
+      expect(find.text(_naoDeu), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     'starting over takes the refusal of the last «terminei» off the screen',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
@@ -600,7 +633,7 @@ void main() {
   );
 
   testWidgets(
-    'an armed restart is idle once «Pronto» leaves the Saved screen, and one tap arms it again',
+    'an armed restart is idle on the way back after «Pronto», and one tap arms it again',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       harness.room.verdictChecked = true;
@@ -624,6 +657,21 @@ void main() {
         step: () => _passo(tester),
       );
       await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 800));
+      harness.room.readsChecked = true;
+      final sala = container.read(salaSessionProvider.notifier);
+      sala.openTheEnsaioFinal();
+      await waitFor(
+        'a casa da gravação abrir pelo ponto',
+        () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+        step: () => _passo(tester),
+      );
+      sala.startRetro();
+      await waitFor(
+        'a retrotradução aprovada voltar conferida',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+        step: () => _passo(tester),
+      );
       await tester.pump(const Duration(milliseconds: 800));
 
       expect(

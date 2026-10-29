@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -19,6 +18,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
+        aceso,
         cabeca,
         contarAteOFimDaParte,
         entrarNaTraducao,
@@ -222,7 +222,6 @@ Future<ProviderContainer> _voltaAUmaTraducao(
   return container;
 }
 
-const _conferida = '✓ traduzida e conferida';
 const _aprovar = 'Aprovar como rascunho final';
 
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
@@ -436,7 +435,6 @@ void main() {
       'conferida, until a new clean check', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _seteFrasesConferidas(tester, harness);
-    expect(find.text(_conferida), findsOneWidget);
 
     await tocar(tester, _barra(2));
     expect(
@@ -447,15 +445,14 @@ void main() {
     await _traduzirDeNovo(tester, container);
 
     expect(
-      find.text(_conferida),
-      findsNothing,
+      container.read(salaSessionProvider).btPhase,
+      isNot(BtPhase.conferida),
       reason: 'a tela seguia dizendo conferida com a frase 2 traduzida de novo',
     );
     expect(byLabel(_aprovar), findsNothing);
 
     await _terminei(tester, container, BtPhase.conferida);
 
-    expect(find.text(_conferida), findsOneWidget);
     expect(byLabel(_aprovar), findsOneWidget);
     closeTheRoom(container);
   });
@@ -466,13 +463,16 @@ void main() {
     final container = await _seteFrasesConferidas(tester, harness);
 
     await tocar(tester, _barra(5));
-    expect(find.text(_conferida), findsNothing);
+    expect(
+      container.read(salaSessionProvider).btPhase,
+      isNot(BtPhase.conferida),
+    );
     await tocar(tester, 'manter a tradução de antes');
     await _passo(tester);
 
     expect(
-      find.text(_conferida),
-      findsOneWidget,
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
       reason: 'desistir de traduzir de novo tirava a tradução de conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);
@@ -576,17 +576,7 @@ void main() {
           'depois de um veredito com achado o terminei sumia até a equipe '
           'contar alguma frase de novo',
     );
-    expect(
-      tester
-          .widget<RoundActionButton>(
-            find.ancestor(
-              of: byLabel('terminei'),
-              matching: find.byType(RoundActionButton),
-            ),
-          )
-          .mood,
-      ButtonMood.beckoning,
-    );
+    expect(aceso(tester, 'terminei'), isTrue);
     await tocar(tester, 'terminei');
     await waitFor(
       'a nova conferência chegar à sala',
@@ -1030,8 +1020,8 @@ void main() {
     await _passo(tester);
 
     expect(
-      find.text(_conferida),
-      findsOneWidget,
+      container.read(salaSessionProvider).btPhase,
+      BtPhase.conferida,
       reason: 'a segunda frase tocada apagava o caminho de volta à conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);

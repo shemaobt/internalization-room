@@ -519,7 +519,8 @@ void main() {
       expect(fetchesOfF2(room), 1);
     });
 
-    test('a double tap before the download lands fetches once', () async {
+    test('a double tap before the download lands plays the translation once, '
+        'not twice', () async {
       final room = await inListenMode();
       room.harness.room.holdNextClip();
 
@@ -534,7 +535,57 @@ void main() {
       );
       await settle();
 
-      expect(fetchesOfF2(room), 1);
+      expect(
+        room.harness.playback.played,
+        hasLength(1),
+        reason: 'as duas descidas tocavam, uma atropelando a outra',
+      );
+    });
+
+    test('another frase\'s speaker during a download plays that frase\'s '
+        'translation, never the first one', () async {
+      final room = await inListenMode();
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f2')
+        ..hearTheFraseTranslation('f1');
+      await settle();
+      room.harness.room.finishHeldClip();
+      await waitFor(
+        'uma tradução tocar',
+        () => room.harness.playback.played.isNotEmpty,
+      );
+      await settle();
+
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        ['cena-ensaio-da-cena-1-frase-f1.m4a'],
+        reason: 'o segundo alto-falante ficava apagado e tocava a frase 2',
+      );
+    });
+
+    test('a row tapped during a download opens, and the translation that '
+        'lands after it never sounds', () async {
+      final room = await inListenMode();
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f2')
+        ..openTheListedSceneRehearsal('ensaio-da-cena-2');
+      await settle();
+      room.harness.room.finishHeldClip();
+      await waitFor(
+        'o ensaio da cena 2 abrir',
+        () => _showing(2, SceneStep.translate)(room.state.scene),
+      );
+      await settle();
+
+      expect(
+        room.harness.playback.played,
+        isEmpty,
+        reason: 'a tradução do ensaio de antes tocava no ensaio aberto',
+      );
     });
   });
 
@@ -702,7 +753,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.cena);
-      expect(_enabled(tester, byLabel(_sending)), isFalse);
+      expect(
+        _enabled(
+          tester,
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics &&
+                widget.properties.label == _sending &&
+                widget.properties.button == true,
+          ),
+        ),
+        isFalse,
+      );
       expect(_terminei, findsNothing);
       expect(
         _enabled(tester, byLabel('Voltar para a passagem atual')),
@@ -1150,25 +1212,53 @@ void main() {
       return room;
     }
 
-    test('on a speaker\'s download, neither play nor a bar sounds', () async {
+    test('play during a speaker\'s download plays the take, and the '
+        'translation that lands after it never sounds', () async {
+      final room = await inListenMode();
+      final take = room.state.scene.take;
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f2')
+        ..playTheSceneRehearsal();
+      await settle();
+      expect(
+        room.harness.playback.played,
+        [take],
+        reason: 'o play ficava apagado enquanto a tradução descia',
+      );
+      room.harness.room.finishHeldClip();
+      await settle();
+
+      expect(
+        room.harness.playback.played,
+        [take],
+        reason: 'a tradução que chegava tarde tocava por cima do ensaio',
+      );
+    });
+
+    test('a bar during a speaker\'s download plays its stretch, and the '
+        'translation that lands after it never sounds', () async {
       final room = await inListenMode();
       room.harness.room.holdNextClip();
 
       room.sala
         ..hearTheFraseTranslation('f2')
-        ..playTheSceneRehearsal()
         ..playTheFrase('f1');
       await settle();
-      expect(room.harness.playback.played, isEmpty);
-      room.harness.room.finishHeldClip();
-      await waitFor(
-        'a tradução da frase tocar',
-        () => room.harness.playback.played.isNotEmpty,
+      expect(
+        room.harness.playback.ranges,
+        ['0-4000'],
+        reason: 'a barra ficava apagada enquanto a tradução descia',
       );
+      room.harness.room.finishHeldClip();
       await settle();
 
-      expect(room.harness.playback.played, hasLength(1));
-      expect(room.harness.playback.ranges, isEmpty);
+      expect(
+        room.harness.playback.played,
+        hasLength(1),
+        reason: 'a tradução que chegava tarde tocava por cima da frase',
+      );
     });
 
     test('on a row opening, no bar sounds', () async {
@@ -1185,7 +1275,8 @@ void main() {
       await settle();
     });
 
-    testWidgets('play and the bars are drawn dimmed', (tester) async {
+    testWidgets('on a speaker\'s download, play and the bars stay lit, not '
+        'dimmed', (tester) async {
       final (harness, container) = await _theScreenShows(tester, [
         _sentOne,
       ], when: (state) => state.sceneRehearsals.isNotEmpty);
@@ -1200,8 +1291,16 @@ void main() {
       await tester.tap(byLabel('ouvir a minha tradução da frase 2'));
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(_enabled(tester, byLabel('Tocar ou pausar a gravação')), isFalse);
-      expect(_enabled(tester, byLabel('frase 1')), isFalse);
+      expect(
+        _enabled(tester, byLabel('Tocar ou pausar a gravação')),
+        isTrue,
+        reason: 'o play se apagava enquanto a tradução descia',
+      );
+      expect(
+        _enabled(tester, byLabel('frase 1')),
+        isTrue,
+        reason: 'as barras se apagavam enquanto a tradução descia',
+      );
       harness.room.finishHeldClip();
       await tester.pump(const Duration(milliseconds: 500));
     });

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320)
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320) and by ENG-1901
 date: 2026-10-07
 amends: 0053, 0013 (in part: the first tap also cuts the voice), 0024 (in part: the interruption's stop is the machine's), 0046 (in part: the invariant)
 ---
@@ -10,6 +10,15 @@ Superseded in part by the one-reply Opening (ENG-1303; shema-api #712, this app'
 Opening is now her single reply, with no two-movement script. The decision below that a cut
 ends "both movements of an Opening" and remembers the Scene with its Panorama reads as a cut
 in the one reply, which ends the line; the rest of this record stands.
+
+Amended by ENG-1901 (2026-10-28, João's rule of 26 October: Marcia's frozen app 18fa7c4
+wins): the Panorama's circle no longer ignores the tap. Hers has one gesture handler for
+every session, the Panorama included, and a tap while she speaks stops her and opens the
+microphone there too (`app/page.tsx:843-874`). `Interrupted` reduces on the Panorama as on
+the Canvas, with the same rules: her opening, her reply and «Ouvir de novo» are cut, the
+acknowledgement with the reply queued is cut at its start, and the Panorama's next take
+carries the cut. Wherever this record says the interruption reduces only on the Canvas,
+read the Canvas and the Panorama; the thinking voice and the note still ignore the tap.
 
 This amends ADRs 0053, 0013, 0024 and 0046 without editing their decisions; it adds
 "amended by 0067" to the status lines of 0053 and 0046 and a note under the titles of 0013

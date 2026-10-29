@@ -644,6 +644,7 @@ class FakePlayback implements PlaybackRepository {
   Timer? _walking;
   Duration _step = Duration.zero;
   bool _sounding = false;
+  Duration? _fimDoClipe;
 
   /// Let the position walk on its own, the way a real player's does.
   ///
@@ -665,7 +666,7 @@ class FakePlayback implements PlaybackRepository {
     stopWalking();
     if (_step == Duration.zero) return;
     _walking = Timer.periodic(_step, (_) {
-      final fim = length;
+      final fim = _fimDoClipe ?? length;
       final proximo = at + _step;
       if (fim != null && proximo >= fim) {
         at = fim;
@@ -758,6 +759,7 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     playedFrom.add(from);
     sounds.add('playback:play');
+    _fimDoClipe = null;
     return _soundUntilItStops(from);
   }
 
@@ -766,6 +768,7 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
     sounds.add('playback:play');
+    _fimDoClipe = to - from;
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
     return _soundUntilItStops(Duration.zero);
@@ -1415,6 +1418,7 @@ class FakeRoom implements RoomRepository {
   bool turnsAreDegraded = false;
   bool silentAboutCoverage = false;
   bool verdictChecked = true;
+  bool readsChecked = false;
 
   /// Whether the verdict itself is a canned line the room could not compose — the wire
   /// twin of [turnsAreCanned] for the turn that closes a telling-back, and the only way a
@@ -1523,6 +1527,10 @@ class FakeRoom implements RoomRepository {
   /// Whether the session `createSession` hands back is one the team already talked in,
   /// the way another tablet or a lost row leaves it.
   bool createdOpened = false;
+
+  bool resumesTheLatest = false;
+
+  final Map<String, String> latestSessions = {};
 
   final List<String> turnIdsSent = [];
 
@@ -1810,6 +1818,8 @@ class FakeRoom implements RoomRepository {
   final List<Completer<void>> _heldTakesLists = [];
 
   void holdNextTakesList() => _holdTheNextTakesList = true;
+
+  bool get aTakesListIsHeld => _heldTakesLists.isNotEmpty;
 
   void finishHeldTakesList() => _heldTakesLists.removeAt(0).complete();
 
@@ -2463,8 +2473,14 @@ class FakeRoom implements RoomRepository {
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
-    final sessionId = nextSessionId ?? 'sessao-${sessionIds.length + 1}';
-    sessionIds.add(sessionId);
+    final key = '$pericope/$language';
+    final latest = resumesTheLatest ? latestSessions[key] : null;
+    final resumed = latest != null && !forgottenSessions.contains(latest);
+    final sessionId = resumed
+        ? latest
+        : nextSessionId ?? 'sessao-${sessionIds.length + 1}';
+    if (!resumed) sessionIds.add(sessionId);
+    if (resumesTheLatest) latestSessions[key] = sessionId;
     return Answered(
       SessionSnapshot(
         sessionId: sessionId,
@@ -2473,7 +2489,8 @@ class FakeRoom implements RoomRepository {
         coverage: nextCoverage,
         done: false,
         halt: serverHalt,
-        opened: createdOpened,
+        opened:
+            createdOpened || (resumed && openedSessions.contains(sessionId)),
         moment: nextMoment,
         backTranslation: retroSoFar ?? const BackTranslationProgress(),
         approved: approvedDraft,
@@ -2567,6 +2584,7 @@ class FakeRoom implements RoomRepository {
             retroSoFar ??
             BackTranslationProgress(
               segments: _numbered,
+              checked: readsChecked,
               awaitingSegmentId: awaitingSegmentId,
             ),
         approved: approvedDraft,
@@ -2851,7 +2869,7 @@ class FakeRoom implements RoomRepository {
           '$segmentId@$takeId:${from.inMilliseconds}-${to.inMilliseconds}',
         );
         replacesComArquivo.add(audio.path);
-        _tellAgain(segmentId, to);
+        _tellAgain(segmentId, to, takeId: takeId, from: from);
       };
       return later;
     }
@@ -2868,7 +2886,7 @@ class FakeRoom implements RoomRepository {
       serverStatus = 'needs_person';
       serverHalt = HaltKind.warning;
     }
-    _tellAgain(segmentId, to);
+    _tellAgain(segmentId, to, takeId: takeId, from: from);
     final told = Answered(
       TellingAgain(segments: _numbered, needsPerson: needsPerson),
     );
@@ -2883,9 +2901,41 @@ class FakeRoom implements RoomRepository {
 
   Answered<TellingAgain>? _answerLost;
 
-  void _tellAgain(String segmentId, Duration to) {
+  void _tellAgain(
+    String segmentId,
+    Duration to, {
+    required String takeId,
+    required Duration from,
+  }) {
     final at = segments.indexWhere((one) => one.segmentId == segmentId);
     final antes = at >= 0 ? segments[at] : null;
+    final lida = retroSoFar;
+    final regravada = (lida?.stale ?? const <SegmentView>[]).any(
+      (one) => one.segmentId == segmentId,
+    );
+    if (lida != null && antes == null && regravada) {
+      final sucessora = SegmentView(
+        segmentId: '$segmentId-v${++_versoes}',
+        takeId: takeId,
+        startsMs: from.inMilliseconds,
+        endsMs: to.inMilliseconds,
+        told: true,
+      );
+      segments.add(sucessora);
+      _retired.add(segmentId);
+      retroSoFar = BackTranslationProgress(
+        segments: [...lida.segments, sucessora],
+        checked: lida.checked,
+        findingSegmentId: lida.findingSegmentId,
+        findings: lida.findings,
+        awaitingSegmentId: lida.awaitingSegmentId,
+        stale: [
+          for (final one in lida.stale)
+            if (one.segmentId != segmentId) one,
+        ],
+        bringBack: lida.bringBack,
+      );
+    }
     if (antes != null) {
       // The explanation was redone over a recording that did not move, so the stretch
       // keeps its take and its slice and is told again.
@@ -2965,6 +3015,8 @@ class FakeRoom implements RoomRepository {
 
   /// Waits until the held scope's sendTake is the one actually blocking, not just asked.
   Future<void> untilTakeHeld() async => _reachedTakeHold?.future;
+
+  bool get takeHeld => _reachedTakeHold?.isCompleted ?? false;
 
   void finishHeldTake() {
     _holdingTake?.complete();
@@ -3903,6 +3955,15 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// The disk refuses the next keep, before any row is written.
   bool refusesTheNextKeep = false;
 
+  Completer<void>? _holdingTheKeep;
+
+  void holdNextKeep() => _holdingTheKeep = Completer<void>();
+
+  void finishHeldKeep() {
+    _holdingTheKeep?.complete();
+    _holdingTheKeep = null;
+  }
+
   bool _lifeEnded = false;
   bool sweepFails = false;
 
@@ -3934,6 +3995,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       refusesTheNextKeep = false;
       throw const FileSystemException('o disco está cheio');
     }
+    await _holdingTheKeep?.future;
     final entry = PendingTake(
       id: '${_minted++}',
       path: audio.path,
@@ -4172,6 +4234,21 @@ class FakeTakeQueue implements TakeUploadQueue {
     if (forgetsNames) return null;
     for (final entry in rows) {
       if (entry.id == row) return entry.takeId;
+    }
+    return null;
+  }
+
+  @override
+  String? takeIdOfThePart(String sessionId, KeptTake part) {
+    if (forgetsNames) return null;
+    for (final entry in rows) {
+      if (entry.stored &&
+          entry.sessionId == sessionId &&
+          entry.scope == part.scopeId &&
+          (entry.passNumber ?? 1) == part.pass &&
+          entry.path == part.path) {
+        return entry.takeId;
+      }
     }
     return null;
   }

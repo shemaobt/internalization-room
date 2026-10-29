@@ -1,8 +1,9 @@
 import 'package:flutter/widgets.dart';
-import 'dart:ui' show Tristate;
+import 'dart:ui' show SemanticsAction, SemanticsActionEvent, Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -18,13 +19,14 @@ import 'um_ensaio_de_tres_partes.dart';
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
 const _traduzir = 'Traduzir a gravação';
-const _sinal = 'Um momento para uma pessoa';
 
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
 const _precisaConferida = 'para aprovar, a tradução precisa estar conferida';
 const _naoDeu = 'não deu para conferir agora — tentem de novo';
 const _ensaioSalvo = 'Ensaio salvo';
 const _pronto = 'Pronto';
+const _ouvirDeNovo = 'Ouvir de novo';
+const _ponto = 'Gravar o ensaio de vocês';
 const _recomecar = 'recomeçar a tradução';
 const _naoDeuRecomecar = 'não deu para recomeçar agora — tentem de novo';
 const _badge = '✓ aprovado como rascunho final (v1)';
@@ -46,9 +48,11 @@ Future<_Sala> _ateAConferida(
   WidgetTester tester, {
   String lingua = testLanguage,
   String aprovar = _aprovar,
+  bool terminada = false,
 }) async {
   final harness = SalaHarness(filaEmMemoria: true, lingua: lingua);
   harness.room.verdictChecked = true;
+  harness.room.done = terminada;
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -121,6 +125,7 @@ ButtonMood _humor(WidgetTester tester, String rotulo) => tester
     .mood;
 
 Future<void> _tocar(WidgetTester tester, [String rotulo = _aprovar]) async {
+  await tester.ensureVisible(byLabel(rotulo));
   await tester.tap(byLabel(rotulo));
   await tester.pump(const Duration(milliseconds: 300));
   await tester.pump(const Duration(milliseconds: 300));
@@ -134,8 +139,22 @@ Future<void> _approvedThroughPronto(
   it.harness.room.approvedDraft = readSays;
   await _tocar(tester);
   expect(find.text(_ensaioSalvo), findsOneWidget);
+  await _prontoEDeVoltaPeloPonto(tester);
+}
+
+Future<void> _prontoEDeVoltaPeloPonto(WidgetTester tester) async {
   await tester.tap(byLabel(_pronto));
   await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(byLabel(_ponto));
+  await _assentar(tester);
+}
+
+Future<void> _deVoltaATraducao(WidgetTester tester, _Sala it) async {
+  it.harness.room.readsChecked = true;
+  await _prontoEDeVoltaPeloPonto(tester);
+  it.container.read(salaSessionProvider.notifier).startRetro();
+  await _assentar(tester);
+  it.harness.room.readsChecked = false;
 }
 
 Finder _recomecoArmado() => find.byWidgetPredicate(
@@ -147,51 +166,63 @@ Finder _recomecoArmado() => find.byWidgetPredicate(
 );
 
 void main() {
-  testWidgets(
-    'a take not heard in full: the approval shows «$_faltaOuvir» and the part '
-    'plays',
-    (tester) async {
-      late Sala it;
-      await tester.runAsync(() async {
-        it = await umEnsaioContadoInteiro(
-          partesDoEnsaio,
-          numaSala: SalaHarness(filaEmMemoria: true),
+  for (final caso in const [
+    (codigo: 'playback_did_not_cover_the_clip', texto: _faltaOuvir),
+    (codigo: 'untold_part', texto: _precisaConferida),
+    (codigo: 'untold_stretch', texto: _precisaConferida),
+  ]) {
+    testWidgets(
+      'a refusal naming ${caso.codigo} writes «${caso.texto}» and plays '
+      'nothing, not the hole it names',
+      (tester) async {
+        late Sala it;
+        await tester.runAsync(() async {
+          it = await umEnsaioContadoInteiro(
+            partesDoEnsaio,
+            numaSala: SalaHarness(filaEmMemoria: true),
+          );
+          it.harness.room.verdictChecked = true;
+          await pedirOVeredito(it);
+        });
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: it.container,
+            child: const SalaApp(),
+          ),
         );
-        it.harness.room.verdictChecked = true;
-        await pedirOVeredito(it);
-      });
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: it.container,
-          child: const SalaApp(),
-        ),
-      );
-      await tester.pump();
-      final segunda = it.partes[1];
-      it.harness.room
-        ..releaseBlockers = const ['playback_did_not_cover_the_clip']
-        ..releaseUnheardTakeIds = [segunda.takeId!];
+        await tester.pump();
+        final segunda = it.partes[1];
+        it.harness.room
+          ..releaseBlockers = [caso.codigo]
+          ..releaseUnheardTakeIds = [segunda.takeId!]
+          ..releaseUntoldTakeIds = [segunda.takeId!]
+          ..releaseUntoldSegmentId = 'trecho-2';
 
-      expect(find.text(_faltaOuvir), findsNothing);
-      final tocadas = it.harness.playback.played.length;
-      await tester.ensureVisible(byLabel(_aprovar));
-      await tester.tap(byLabel(_aprovar));
-      await tester.runAsync(
-        () => waitFor(
-          'a parte 2 entrar no ar',
-          () =>
-              it.harness.playback.played.length > tocadas &&
-              it.harness.playback.played.last == segunda.path,
-        ),
-      );
-      await tester.pump();
+        expect(find.text(caso.texto), findsNothing);
+        final sons = it.harness.sounds.length;
+        await pressTheApproval(tester, _aprovar);
+        await tester.runAsync(() async {
+          await waitFor(
+            'a recusa acabar de descer',
+            () => it.estado.btAprovando == null,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+        await tester.pump();
 
-      expect(find.text(_faltaOuvir), findsOneWidget);
-      expect(it.harness.playback.played.last, segunda.path);
-      expect(byLabel(_sinal), findsNothing);
-      closeTheRoom(it.container);
-    },
-  );
+        expect(find.text(caso.texto), findsOneWidget);
+        expect(
+          it.harness.sounds.skip(sons),
+          isNot(contains('playback:play')),
+          reason:
+              'a recusa punha no ar a parte ou o trecho que nomeava, e a '
+              'gravação começava sozinha onde a dela só escreve o motivo',
+        );
+        expect(thePersonSign, findsNothing);
+        closeTheRoom(it.container);
+      },
+    );
+  }
 
   for (final (codigo, trecho) in [
     ('telling_back_not_checked', null),
@@ -210,7 +241,7 @@ void main() {
         await _tocar(tester);
 
         expect(find.text(_precisaConferida), findsOneWidget);
-        expect(byLabel(_sinal), findsNothing);
+        expect(thePersonSign, findsNothing);
         closeTheRoom(it.container);
       },
     );
@@ -223,7 +254,7 @@ void main() {
     await _tocar(tester);
 
     expect(find.text(_naoDeu), findsOneWidget);
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
     expect(byLabel(_aprovar), findsOneWidget);
     closeTheRoom(it.container);
   });
@@ -254,7 +285,7 @@ void main() {
     await _tocar(tester);
 
     expect(find.text(_naoDeu), findsOneWidget);
-    expect(byLabel(_sinal), findsNothing);
+    expect(thePersonSign, findsNothing);
 
     await tester.pump(const Duration(minutes: 2));
 
@@ -289,7 +320,7 @@ void main() {
 
   testWidgets(
     'approved from the check screen: the sentence, P3, then «$_ensaioSalvo», '
-    'and «$_pronto» lands on the Back-translation',
+    'and «$_pronto» lands on the conversation at rest',
     (tester) async {
       final it = await _ateAConferida(tester);
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
@@ -315,26 +346,58 @@ void main() {
       expect(byLabel(_ouvir), findsNothing);
       expect(find.text(_traduzir), findsNothing);
 
+      final falasAntesDoPronto = it.harness.voice.fixedLines.length;
+      final tocadasAntesDoPronto = it.harness.playback.playedFrom.length;
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text(_ensaioSalvo), findsNothing);
-      expect(find.text(_traduzir), findsOneWidget);
-      expect(find.text('✓ aprovado como rascunho final (v1)'), findsOneWidget);
-      expect(byLabel(_aprovar), findsNothing);
+      expect(
+        it.container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'o pronto deixava a equipe na retrotradução, e o dela volta à '
+            'conversa',
+      );
+      expect(byLabel(_ouvirDeNovo), findsOneWidget);
+      expect(
+        it.container.read(salaSessionProvider).orangeDotLook,
+        OrangeDotLook.faint,
+        reason: 'a conversa que não terminou volta à vez dela, não ao fim',
+      );
+      expect(it.harness.voice.fixedLines, hasLength(falasAntesDoPronto));
+      expect(it.harness.playback.playedFrom, hasLength(tocadasAntesDoPronto));
       expect(it.harness.emAberto.rows, contains('Ruth/P01/pt'));
 
       await tester.pump(it.harness.fimLinger + const Duration(seconds: 2));
 
-      expect(find.text(_traduzir), findsOneWidget);
-      expect(it.harness.emAberto.rows, contains('Ruth/P01/pt'));
+      expect(it.container.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(find.text(_traduzir), findsNothing);
+      expect(it.harness.voice.fixedLines, hasLength(falasAntesDoPronto));
+
+      final aberturasAntes = it.harness.room.calls
+          .where((call) => call == 'openSession')
+          .length;
+      await tester.tap(byLabel(_ouvirDeNovo));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        it.harness.room.calls.where((call) => call == 'openSession'),
+        hasLength(aberturasAntes + 1),
+        reason:
+            'o ouvir de novo da conversa repetia a fala da aprovação, não a '
+            'última do Guia',
+      );
+      expect(
+        it.harness.voice.fixedLines.skip(falasAntesDoPronto),
+        isNot(contains(('P3', testLanguage))),
+      );
       closeTheRoom(it.container);
     },
   );
 
-  testWidgets('«Done» never leads to the Choice, in English too', (
-    tester,
-  ) async {
+  testWidgets('«Done» lands on the conversation, never on the Choice, in '
+      'English too', (tester) async {
     final it = await _ateAConferida(
       tester,
       lingua: 'en',
@@ -357,7 +420,8 @@ void main() {
     await tester.pump(it.harness.fimLinger + const Duration(seconds: 2));
 
     expect(find.text('Rehearsal saved'), findsNothing);
-    expect(find.text('Translate the recording'), findsOneWidget);
+    expect(it.container.read(salaSessionProvider).stage, SalaStage.conversa);
+    expect(byLabel('Hear that again'), findsOneWidget);
     closeTheRoom(it.container);
   });
 
@@ -398,8 +462,7 @@ void main() {
       expect(find.text(_aprovado(1)), findsOneWidget);
 
       it.harness.voice.succeeds = true;
-      await tester.tap(byLabel(_pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester);
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.text('✓ aprovado como rascunho final (v1)'), findsOneWidget);
@@ -436,6 +499,7 @@ void main() {
     'after «$_pronto», an approval pressed again asks the room again',
     (tester) async {
       final it = await _ateAConferida(tester);
+      it.harness.room.readsChecked = true;
       await _approvedThroughPronto(tester, it, readSays: null);
 
       expect(byLabel(_aprovar), findsOneWidget);
@@ -479,6 +543,72 @@ void main() {
     },
   );
 
+  testWidgets('«Pronto» over a conversation the room had ended lands on it at '
+      'done, with the orange dot bright', (tester) async {
+    final it = await _ateAConferida(tester, terminada: true);
+    it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    await _tocar(tester, _aprovar);
+    await tester.tap(byLabel(_pronto));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(it.container.read(salaSessionProvider).stage, SalaStage.conversa);
+    expect(
+      it.container.read(salaSessionProvider).orangeDotLook,
+      OrangeDotLook.bright,
+      reason:
+          'a conversa que a sala já tinha terminado voltava à vez dela, e a '
+          'dela volta ao fim',
+    );
+    closeTheRoom(it.container);
+  });
+
+  for (final (lingua, aprovar, pronto, selo) in [
+    ('pt', _aprovar, _pronto, _badge),
+    (
+      'en',
+      'Approve as the final draft',
+      'Done',
+      '✓ approved as the final draft (v1)',
+    ),
+  ]) {
+    testWidgets(
+      'on a phone as narrow as the iPhone SE the $lingua badge wraps beside the '
+      'listen button instead of running off the screen',
+      (tester) async {
+        tester.view
+          ..physicalSize = const Size(375, 667)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final it = await _ateAConferida(
+          tester,
+          lingua: lingua,
+          aprovar: aprovar,
+        );
+        it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+        await _tocar(tester, aprovar);
+        it.harness.room.readsChecked = true;
+        await tester.tap(byLabel(pronto));
+        await tester.pump(const Duration(milliseconds: 300));
+        final sala = it.container.read(salaSessionProvider.notifier);
+        sala.openTheEnsaioFinal();
+        await _assentar(tester);
+        sala.startRetro();
+        await _assentar(tester);
+
+        final onde = tester.getRect(find.text(selo));
+        expect(onde.left, greaterThanOrEqualTo(0));
+        expect(
+          onde.right,
+          lessThanOrEqualTo(375),
+          reason:
+              'o selo passava da borda direita do iPhone SE e era cortado '
+              'no «final»',
+        );
+        closeTheRoom(it.container);
+      },
+    );
+  }
+
   testWidgets(
     'the restart pressed twice while the approval line plays does nothing, and '
     '«$_ensaioSalvo» still comes',
@@ -498,8 +628,7 @@ void main() {
       expect(it.harness.room.restartsAsked, isEmpty);
       expect(find.text(_ensaioSalvo), findsOneWidget);
 
-      await tester.tap(byLabel(_pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester);
 
       expect(find.text(_badge), findsOneWidget);
       expect(find.text(_aprovado(1)), findsNothing);
@@ -531,8 +660,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text(_ensaioSalvo), findsOneWidget);
 
-      await tester.tap(byLabel(_pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester);
 
       expect(find.text(_badge), findsOneWidget);
       closeTheRoom(it.container);
@@ -605,8 +733,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     await _tocar(tester);
-    await tester.tap(byLabel(_pronto));
-    await tester.pump(const Duration(milliseconds: 800));
+    await _deVoltaATraducao(tester, it);
 
     expect(byLabel(_recomecar), findsOneWidget);
     it.container.read(salaSessionProvider.notifier).recomecarATraducao();
@@ -697,42 +824,6 @@ void main() {
   });
 
   testWidgets(
-    'while the room still reads back the stretch a refusal names, the restart '
-    'and the approve button do nothing and are not drawn live; the stretch '
-    'plays, then the restart acts',
-    (tester) async {
-      final it = await _ateAConferida(tester);
-      it.harness.room
-        ..releaseBlockers = const ['untold_stretch']
-        ..releaseUntoldSegmentId = 'trecho-1'
-        ..holdNextState();
-      final trechosNoAr = it.harness.playback.ranges.length;
-      await _tocar(tester);
-      expect(find.text(_precisaConferida), findsOneWidget);
-
-      final sala = it.container.read(salaSessionProvider.notifier);
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 700));
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(it.harness.room.restartsAsked, isEmpty);
-      expect(_humor(tester, _aprovar), ButtonMood.dimmed);
-
-      it.harness.room.finishHeldState();
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(it.harness.playback.ranges, hasLength(trechosNoAr + 1));
-
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 700));
-      sala.recomecarATraducao();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(it.harness.room.restartsAsked, hasLength(1));
-      await tester.pump(const Duration(seconds: 7));
-      closeTheRoom(it.container);
-    },
-  );
-
-  testWidgets(
     'an approval left in the air never lets a newer one be sent twice',
     (tester) async {
       final it = await _ateAConferida(tester);
@@ -779,14 +870,13 @@ void main() {
     },
   );
 
-  testWidgets('a refusal whose read fails gives the gestures back', (
+  testWidgets('a refusal naming a stretch gives the gestures back', (
     tester,
   ) async {
     final it = await _ateAConferida(tester);
     it.harness.room
       ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1'
-      ..failStateOnceWith = const NetworkFailed('sem rede');
+      ..releaseUntoldSegmentId = 'trecho-1';
     await _tocar(tester);
 
     it.container.read(salaSessionProvider.notifier).recomecarATraducao();
@@ -796,6 +886,72 @@ void main() {
     await tester.pump(const Duration(seconds: 7));
     closeTheRoom(it.container);
   });
+
+  for (final (lingua, aprovar) in [
+    ('pt', 'Aprovar como rascunho final'),
+    ('en', 'Approve as the final draft'),
+  ]) {
+    testWidgets('the check screen writes «$aprovar» on its approve button, '
+        'not a ✓', (tester) async {
+      final it = await _ateAConferida(tester, lingua: lingua, aprovar: aprovar);
+
+      expect(
+        find.text(aprovar),
+        findsOneWidget,
+        reason: 'a tela de conferir só tinha um ✓ verde mudo ao lado do ouvir',
+      );
+      expect(
+        tester.widget<Semantics>(byLabel(aprovar)).properties.button,
+        isTrue,
+      );
+      closeTheRoom(it.container);
+    });
+  }
+
+  testWidgets('with approve on its own line, the listen button sits at the '
+      'middle of the check screen', (tester) async {
+    final it = await _ateAConferida(tester);
+
+    expect(
+      tester.getCenter(byLabel(_ouvir)).dx,
+      400,
+      reason: 'o espaço do botão que saiu empurrava o ouvir para a esquerda',
+    );
+    closeTheRoom(it.container);
+  });
+
+  for (final (lingua, aprovar) in [
+    ('pt', 'Aprovar como rascunho final'),
+    ('en', 'Approve as the final draft'),
+  ]) {
+    testWidgets('on a screen as small as the iPhone SE the $lingua approve '
+        'button keeps its margins, on the check screen and on the home', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(375, 667)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final it = await _ateAConferida(tester, lingua: lingua, aprovar: aprovar);
+
+      void nasMargens(String tela) {
+        final pilula = tester.getRect(byLabel(aprovar));
+        expect(
+          pilula.left,
+          greaterThanOrEqualTo(16),
+          reason: 'na $tela a pílula encostava na borda da tela',
+        );
+        expect(pilula.right, lessThanOrEqualTo(359), reason: tela);
+      }
+
+      nasMargens('tela de conferir');
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _assentar(tester);
+      nasMargens('casa');
+      closeTheRoom(it.container);
+    });
+  }
 
   group('the recording home', () {
     Future<_Sala> aCasaConferida(
@@ -851,6 +1007,97 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    for (final (lingua, aprovar) in [
+      ('pt', 'Aprovar como rascunho final'),
+      ('en', 'Approve as the final draft'),
+    ]) {
+      testWidgets('the home writes «$aprovar» on its approve button, not a '
+          'second ✓', (tester) async {
+        final it = await aCasaConferida(tester, lingua: lingua);
+
+        expect(
+          find.text(aprovar),
+          findsOneWidget,
+          reason: 'a casa só tinha um ✓ verde mudo ao lado do ✓ de enviar',
+        );
+        expect(
+          tester.widget<Semantics>(byLabel(aprovar)).properties.button,
+          isTrue,
+        );
+        closeTheRoom(it.container);
+      });
+    }
+
+    testWidgets('the approve button is her pill, her light green under her '
+        'white words', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      final pilula = tester.widget<Container>(
+        find
+            .ancestor(of: find.text(_aprovar), matching: find.byType(Container))
+            .first,
+      );
+      final fundo = pilula.decoration! as BoxDecoration;
+      expect(
+        fundo.color,
+        const Color(0xFF777D45),
+        reason: 'o botão dela é verde-claro; o nosso era o degradê do enviar',
+      );
+      expect(fundo.borderRadius, BorderRadius.circular(999));
+      expect(
+        tester.widget<Text>(find.text(_aprovar)).style?.color,
+        const Color(0xFFF6F5EB),
+      );
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('the keep button keeps its round green ✓, and it is the only ✓ '
+        'on the home', (tester) async {
+      final it = await aCasaConferida(tester);
+
+      expect(
+        find.byIcon(LucideIcons.check),
+        findsOneWidget,
+        reason: 'dois ✓ verdes iguais lado a lado, e a equipe tocava o errado',
+      );
+      final enviar = tester.widget<RoundActionButton>(
+        find.ancestor(
+          of: find.byIcon(LucideIcons.check),
+          matching: find.byType(RoundActionButton),
+        ),
+      );
+      expect(enviar.semanticLabel, 'Enviar a gravação');
+      expect(enviar.gradient, BeadStyles.verde);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a VoiceOver double-tap on the approve button approves, not '
+        'only announces it', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+
+      final node = tester.getSemantics(byLabel(_aprovar));
+      expect(
+        node.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
+        reason: 'o VoiceOver anunciava a pílula e o toque duplo não fazia nada',
+      );
+      tester.binding.performSemanticsAction(
+        SemanticsActionEvent(
+          type: SemanticsAction.tap,
+          viewId: tester.view.viewId,
+          nodeId: node.id,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(it.harness.room.releasesAsked, hasLength(1));
+      closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
     testWidgets('a passage the room has not checked says nothing of it, and a '
         'kept take takes the line away', (tester) async {
       final it = await _ateAConferida(tester);
@@ -897,11 +1144,57 @@ void main() {
       expect(find.text(_ensaioSalvo), findsOneWidget);
       expect(it.harness.voice.fixedLines.skip(falasAntes), isEmpty);
       expect(it.harness.room.releasesAsked, hasLength(1));
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('«$_pronto» after the approval from the home lands on the '
+        'conversation at rest, not on the home', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      final falasAntesDoPronto = it.harness.voice.fixedLines.length;
+      final tocadasAntesDoPronto = it.harness.playback.playedFrom.length;
 
       await tester.tap(byLabel(_pronto));
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text(_badge), findsOneWidget);
+      expect(find.text(_ensaioSalvo), findsNothing);
+      expect(
+        it.container.read(salaSessionProvider).stage,
+        SalaStage.conversa,
+        reason:
+            'o pronto deixava a equipe na casa da gravação, e o dela volta '
+            'à conversa',
+      );
+      expect(byLabel(_ouvirDeNovo), findsOneWidget);
+      expect(
+        it.container.read(salaSessionProvider).orangeDotLook,
+        OrangeDotLook.faint,
+        reason: 'a conversa que não terminou volta à vez dela, não ao fim',
+      );
+      expect(it.harness.voice.fixedLines, hasLength(falasAntesDoPronto));
+      expect(it.harness.playback.playedFrom, hasLength(tocadasAntesDoPronto));
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('back by the dot after «$_pronto», the home shows its approved '
+        'badge and «Checagem externa»', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await tester.tap(byLabel(_pronto));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(it.container.read(salaSessionProvider).stage, SalaStage.conversa);
+
+      await tester.tap(byLabel('Gravar o ensaio de vocês'));
+      await _assentar(tester);
+
+      expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+      expect(
+        find.text(_badge),
+        findsOneWidget,
+        reason: 'a casa reaberta pelo ponto perdia o selo da aprovação',
+      );
       expect(byLabel('Checagem externa'), findsOneWidget);
       expect(byLabel(_aprovar), findsNothing);
       closeTheRoom(it.container);
@@ -913,8 +1206,7 @@ void main() {
       final it = await aCasaConferida(tester);
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await _tocar(tester);
-      await tester.tap(byLabel(_pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester);
 
       await tester.ensureVisible(byLabel('Checagem externa'));
       await tester.tap(byLabel('Checagem externa'));
@@ -931,8 +1223,7 @@ void main() {
       final it = await aCasaConferida(tester);
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await _tocar(tester);
-      await tester.tap(byLabel(_pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester);
       await tester.tap(byLabel('Checagem externa'));
       await tester.pump(const Duration(milliseconds: 300));
       await _assentar(tester);
@@ -1066,8 +1357,7 @@ void main() {
       final it = await aCasaConferida(tester);
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await _tocar(tester);
-      await tester.tap(byLabel(_pronto));
-      await tester.pump(const Duration(milliseconds: 300));
+      await _prontoEDeVoltaPeloPonto(tester);
       expect(byLabel(_aprovar), findsNothing);
 
       it.harness.room

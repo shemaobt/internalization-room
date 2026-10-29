@@ -9,6 +9,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/machine.dart' show TakeInTheAir, TheKeep;
 import '../../domain/scene_question.dart';
 import '../../domain/session_state.dart';
+import 'back_to_passage_button.dart';
 import 'bead_styles.dart';
 import 'scene_question.dart';
 import 'scene_translate_step.dart';
@@ -17,8 +18,8 @@ import 'stage_heading.dart';
 
 /// The scene rehearsal's screen; her title and this session's list are written on every
 /// step, the translate, places-unknown and sent steps write her words (ADR 0014), the
-/// record step writes the take's state (ADR 0131), and its other words reach the team
-/// only through VoiceOver.
+/// record step writes her instruction and hint (ADR 0155) and the take's state (ADR
+/// 0131), and its circle is named only through VoiceOver.
 class SceneRehearsalView extends ConsumerWidget {
   const SceneRehearsalView({super.key});
 
@@ -34,110 +35,127 @@ class SceneRehearsalView extends ConsumerWidget {
     final sending = session.theSceneIsSending;
     final sendable = scene.sendable && !session.needsPerson;
 
-    return Column(
-      children: [
-        StageHeading(
-          text: said('title'),
-          style: TextStyle(
-            color: colors.ink,
-            fontSize: 26,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Expanded(
-          child: Center(
-            child: switch (scene.step) {
-              SceneStep.record => switch (session.scenes) {
-                ScenesAwaited() => const SizedBox.shrink(),
-                final scenes => _TheRecordStep(
-                  recording: switch (session.channel) {
-                    Microphone(owner: MicOwner.scene) => true,
-                    _ => false,
-                  },
-                  keep: scene.keep,
-                  inTheAir: session.sceneTakeInTheAir,
-                  diskFailed: session.sceneLine == SceneLine.diskFailed,
-                  label: said,
-                  onTap: notifier.sceneTap,
-                  onRetry: notifier.sendTheSceneTakeAgain,
-                  onStop: notifier.stopTheSend,
-                  question: session.sceneQuestionShown
-                      ? SceneQuestion(
-                          scenes: scenes.scenes,
-                          highlighted: session.sceneHighlighted,
-                          language: language,
-                          onPick: notifier.pickTheScene,
-                        )
-                      : null,
-                  chip: !session.sceneChipShown
-                      ? null
-                      : switch (scenes.numberOf(scene.picked)) {
-                          final n? => SceneChip(
-                            words: sceneChipTextFor(
-                              n,
-                              scenes.scenes[n - 1].title,
-                              language,
-                            ),
-                            label: sceneChipLabelFor(
-                              n,
-                              scenes.scenes[n - 1].title,
-                              language,
-                            ),
-                            live: session.sceneChipLive,
-                            onTap: notifier.backToTheSceneQuestion,
-                          ),
-                          null => null,
-                        },
-                  focused: scene.picked != null,
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                StageHeading(
+                  text: said('title'),
+                  style: TextStyle(
+                    color: colors.ink,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  top:
+                      MediaQuery.viewPaddingOf(context).top +
+                      MediaQuery.sizeOf(context).height * 0.09,
+                  corner:
+                      MediaQuery.viewPaddingOf(context).top +
+                      MediaQuery.sizeOf(context).height * 0.05 +
+                      42,
                 ),
-              },
-              SceneStep.translate => SceneTranslateStep(
-                scene: scene,
-                envelope: session.sceneEnvelope,
-                channel: session.channel,
-                language: language,
-                sending: sending,
-                sendable: sendable,
-                unseen: session.sceneTranslationUnseen,
-                adjusts: session.scenePausaAdjusts,
-                moving: session.sceneFraseOnTheMove != null,
-                line: session.sceneLine,
-                restartShown: session.sceneRestartShown,
-                restart: session.sceneRestart,
-                stoppedAt: session.sceneStoppedAt,
-              ),
-              SceneStep.placesUnknown => ScenePlacesUnknown(
-                scene: scene,
-                language: language,
-                sending: sending,
-                sendable: sendable,
-                line: session.sceneLine,
-                restartShown: session.sceneRestartShown,
-                restart: session.sceneRestart,
-              ),
-              SceneStep.sent => SceneListenMode(
-                scene: scene,
-                envelope: session.sceneEnvelope,
-                channel: session.channel,
-                language: language,
-                sending: sending,
-                line: session.sceneLine,
-                stoppedAt: session.sceneStoppedAt,
-              ),
-            },
-          ),
-        ),
-        if (session.sceneRehearsals.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 32),
-            child: SceneRehearsalList(
-              rows: session.sceneRehearsals,
-              onScreen: scene.rehearsal?.rehearsalId,
-              still: sending || scene.waiting || session.channel is Microphone,
-              language: language,
+                const SizedBox(height: 12.8),
+                switch (scene.step) {
+                  SceneStep.record => switch (session.scenes) {
+                    ScenesAwaited() => const SizedBox.shrink(),
+                    final scenes => _TheRecordStep(
+                      recording: switch (session.channel) {
+                        Microphone(owner: MicOwner.scene) => true,
+                        _ => false,
+                      },
+                      keep: scene.keep,
+                      inTheAir: session.sceneTakeInTheAir,
+                      diskFailed: session.sceneLine == SceneLine.diskFailed,
+                      label: said,
+                      onTap: notifier.sceneTap,
+                      onRetry: notifier.sendTheSceneTakeAgain,
+                      onStop: notifier.stopTheSend,
+                      question: session.sceneQuestionShown
+                          ? SceneQuestion(
+                              scenes: scenes.scenes,
+                              highlighted: session.sceneHighlighted,
+                              language: language,
+                              onPick: notifier.pickTheScene,
+                            )
+                          : null,
+                      chip: !session.sceneChipShown
+                          ? null
+                          : switch (scenes.numberOf(scene.picked)) {
+                              final n? => SceneChip(
+                                words: sceneChipTextFor(
+                                  n,
+                                  scenes.scenes[n - 1].title,
+                                  language,
+                                ),
+                                label: sceneChipLabelFor(
+                                  n,
+                                  scenes.scenes[n - 1].title,
+                                  language,
+                                ),
+                                live: session.sceneChipLive,
+                                onTap: notifier.backToTheSceneQuestion,
+                              ),
+                              null => null,
+                            },
+                      focused: scene.picked != null,
+                    ),
+                  },
+                  SceneStep.translate => SceneTranslateStep(
+                    scene: scene,
+                    envelope: session.sceneEnvelope,
+                    channel: session.channel,
+                    language: language,
+                    sending: sending,
+                    sendable: sendable,
+                    unseen: session.sceneTranslationUnseen,
+                    adjusts: session.scenePausaAdjusts,
+                    moving: session.sceneFraseOnTheMove != null,
+                    line: session.sceneLine,
+                    restartShown: session.sceneRestartShown,
+                    restart: session.sceneRestart,
+                    stoppedAt: session.sceneStoppedAt,
+                  ),
+                  SceneStep.placesUnknown => ScenePlacesUnknown(
+                    scene: scene,
+                    envelope: session.sceneEnvelope,
+                    language: language,
+                    sending: sending,
+                    sendable: sendable,
+                    line: session.sceneLine,
+                    restartShown: session.sceneRestartShown,
+                    restart: session.sceneRestart,
+                  ),
+                  SceneStep.sent => SceneListenMode(
+                    scene: scene,
+                    envelope: session.sceneEnvelope,
+                    channel: session.channel,
+                    language: language,
+                    sending: sending,
+                    line: session.sceneLine,
+                    stoppedAt: session.sceneStoppedAt,
+                  ),
+                },
+                if (session.sceneRehearsals.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 25.6, bottom: 32),
+                    child: SceneRehearsalList(
+                      rows: session.sceneRehearsals,
+                      onScreen: scene.rehearsal?.rehearsalId,
+                      still:
+                          sending ||
+                          scene.waiting ||
+                          session.channel is Microphone,
+                      language: language,
+                    ),
+                  ),
+              ],
             ),
-          ),
-      ],
+            const BackToPassageButton(),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -177,6 +195,8 @@ class _TheRecordStep extends StatelessWidget {
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SceneSub(label('subRecord')),
+            const SizedBox(height: 12),
             if (chip != null) ...[chip, const SizedBox(height: 24)],
             FocusOnArrival(
               wanted: focused,
@@ -186,6 +206,12 @@ class _TheRecordStep extends StatelessWidget {
                 label: label,
                 onTap: onTap,
               ),
+            ),
+            const SizedBox(height: 12),
+            SceneRecordHint(
+              recording: recording,
+              keeping: keep is Keeping,
+              label: label,
             ),
           ],
         );
@@ -201,7 +227,6 @@ class _TheRecordStep extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         circle,
-        const SizedBox(height: 24),
         SceneTakeState(
           recording: recording,
           keep: keep,

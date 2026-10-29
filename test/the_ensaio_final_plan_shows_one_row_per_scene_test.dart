@@ -6,22 +6,21 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_final_plan_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch;
+import 'scenario_helpers.dart' show byLabel, relaunch, thePersonSign;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _recordEnsaioEn = 'Record your rehearsal';
@@ -44,7 +43,6 @@ const _elsewhere =
 const _elsewhereEn =
     'This passage\'s rehearsals were recorded with the app in the other '
     'language. Switch back to that language to open the Final Rehearsal.';
-final _personSign = circleLabelFor('needsPerson', 'pt');
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -145,9 +143,17 @@ Finder _playOn(int n, [List<Scene> scenes = _threeScenes]) => _onRow(
 String _facts(int n, String dur, int k) =>
     'ensaio $n · ${_clock(_recordedAt)} · $dur · $k frases';
 
-IconData _glyphOn(WidgetTester tester, Finder control) => tester
-    .widget<Icon>(find.descendant(of: control, matching: find.byType(Icon)))
-    .icon!;
+Finder _paintedOn(Finder control) => find.descendant(
+  of: control,
+  matching: find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is ListenGlyphPainter,
+  ),
+);
+
+ListenGlyph _glyphOn(WidgetTester tester, Finder control) =>
+    (tester.widget<CustomPaint>(_paintedOn(control)).painter!
+            as ListenGlyphPainter)
+        .glyph;
 
 Tristate _pressedAt(WidgetTester tester, Finder control) =>
     tester.getSemantics(control).getSemanticsData().flagsCollection.isSelected;
@@ -173,11 +179,17 @@ Future<(SalaHarness, ProviderContainer)> _atRest(
   WidgetTester tester, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+  Duration? playbackCeiling,
 }) async {
-  final harness = SalaHarness(lingua: lingua, filaEmMemoria: true)
-    ..room.passages = const [_thePassage]
-    ..room.nextMoment = _midConversation
-    ..room.passageScenes = scenes;
+  final harness =
+      SalaHarness(
+          lingua: lingua,
+          filaEmMemoria: true,
+          playbackCeiling: playbackCeiling,
+        )
+        ..room.passages = const [_thePassage]
+        ..room.nextMoment = _midConversation
+        ..room.passageScenes = scenes;
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -199,11 +211,13 @@ Future<(SalaHarness, ProviderContainer)> _seeded(
   List<SceneRehearsalRecord> Function(String session) seed, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
+  Duration? playbackCeiling,
 }) async {
   final (harness, container) = await _atRest(
     tester,
     lingua: lingua,
     scenes: scenes,
+    playbackCeiling: playbackCeiling,
   );
   harness.room.sceneRehearsals.addAll(
     seed(container.read(salaSessionProvider).sessionId!),
@@ -961,7 +975,7 @@ void main() {
 
       expect(find.text(_how), findsOneWidget);
       expect(find.text(_facts(1, '0:07', 2)), findsNothing);
-      expect(byLabel(_personSign), findsNothing);
+      expect(thePersonSign, findsNothing);
     });
 
     testWidgets('that fails opens the grain choice, with no sign', (
@@ -974,7 +988,7 @@ void main() {
 
       expect(find.text(_how), findsOneWidget);
       expect(find.text(_facts(1, '0:07', 2)), findsNothing);
-      expect(byLabel(_personSign), findsNothing);
+      expect(thePersonSign, findsNothing);
     });
   });
 
@@ -1210,7 +1224,7 @@ void main() {
       final (harness, _) = await _seeded(tester, _oneEach);
       await _openThePlan(tester);
 
-      expect(_glyphOn(tester, _playOn(1)), LucideIcons.play);
+      expect(_glyphOn(tester, _playOn(1)), ListenGlyph.play);
 
       await tester.tap(_playOn(1));
       await _theAnswerSettles(tester);
@@ -1218,7 +1232,7 @@ void main() {
       expect(harness.playback.sounding, isTrue);
       expect(
         _glyphOn(tester, _playOn(1)),
-        LucideIcons.pause,
+        ListenGlyph.pause,
         reason: 'o ensaio tocava e o botão ainda mostrava tocar',
       );
       expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
@@ -1227,7 +1241,7 @@ void main() {
       await _theAnswerSettles(tester);
 
       expect(harness.playback.sounding, isFalse);
-      expect(_glyphOn(tester, _playOn(1)), LucideIcons.play);
+      expect(_glyphOn(tester, _playOn(1)), ListenGlyph.play);
       expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
       semantics.dispose();
     });
@@ -1240,14 +1254,14 @@ void main() {
       await _openThePlan(tester);
       await tester.tap(_playOn(1));
       await _theAnswerSettles(tester);
-      expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+      expect(_glyphOn(tester, _playOn(1)), ListenGlyph.pause);
 
       harness.playback.finishPlayback();
       await _theAnswerSettles(tester);
 
       expect(
         _glyphOn(tester, _playOn(1)),
-        LucideIcons.play,
+        ListenGlyph.play,
         reason: 'o ensaio acabou e o botão ficou em pausa sobre o silêncio',
       );
       expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
@@ -1268,7 +1282,7 @@ void main() {
         expect(harness.playback.sounding, isFalse);
         expect(
           _glyphOn(tester, _playOn(1)),
-          LucideIcons.pause,
+          ListenGlyph.pause,
           reason: 'o dela marca tocando no toque, antes do áudio carregar',
         );
         expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
@@ -1277,7 +1291,7 @@ void main() {
         await _theAnswerSettles(tester);
 
         expect(harness.playback.sounding, isTrue);
-        expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+        expect(_glyphOn(tester, _playOn(1)), ListenGlyph.pause);
         expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
         semantics.dispose();
       },
@@ -1296,12 +1310,12 @@ void main() {
       await _theAnswerSettles(tester);
 
       expect(harness.playback.sounding, isTrue);
-      expect(_glyphOn(tester, _playOn(2)), LucideIcons.pause);
+      expect(_glyphOn(tester, _playOn(2)), ListenGlyph.pause);
       expect(_pressedAt(tester, _playOn(2)), Tristate.isTrue);
       for (final n in [1, 3]) {
         expect(
           _glyphOn(tester, _playOn(n)),
-          LucideIcons.play,
+          ListenGlyph.play,
           reason: 'a linha $n mostrava pausa sem tocar',
         );
         expect(_pressedAt(tester, _playOn(n)), Tristate.isFalse);
@@ -1319,24 +1333,155 @@ void main() {
       await _openThePlan(tester);
       await tester.tap(_playOn(1));
       await _theAnswerSettles(tester);
-      expect(_glyphOn(tester, _playOn(1)), LucideIcons.pause);
+      expect(_glyphOn(tester, _playOn(1)), ListenGlyph.pause);
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.haltForABrokenBuild();
       await _theAnswerSettles(tester);
-      expect(byLabel(_personSign), findsOneWidget);
+      expect(thePersonSign, findsOneWidget);
       expect(harness.playback.sounding, isFalse);
       notifier.teamTapped();
       await _theAnswerSettles(tester);
 
-      expect(byLabel(_personSign), findsNothing);
+      expect(thePersonSign, findsNothing);
       expect(
         _glyphOn(tester, _playOn(1)),
-        LucideIcons.play,
+        ListenGlyph.play,
         reason: 'a parada calou o ensaio e a linha voltou em pausa',
       );
       expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
       semantics.dispose();
     },
   );
+
+  testWidgets(
+    'a rehearsal whose clip opens only after the ceiling ended it stays '
+    'silent, not sounding under the play',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(
+        tester,
+        _oneEach,
+        playbackCeiling: const Duration(seconds: 2),
+      );
+      await _openThePlan(tester);
+      harness.playback.holdNextOpening();
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isTrue);
+
+      await tester.pump(const Duration(seconds: 2));
+      harness.playback.finishHeldOpening();
+      await _theAnswerSettles(tester);
+
+      expect(_pressedAt(tester, _playOn(1)), Tristate.isFalse);
+      expect(
+        harness.playback.sounding,
+        isFalse,
+        reason:
+            'o teto terminava a parte sem parar o som, e o clipe que abria '
+            'depois tocava inteiro com o botão já de volta em tocar',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a row that plays when the app goes away falls silent and gives its play '
+    'back, not sounding behind the tablet',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _seeded(tester, _oneEach);
+      await _openThePlan(tester);
+      await tester.tap(_playOn(1));
+      await _theAnswerSettles(tester);
+      expect(harness.playback.sounding, isTrue);
+
+      for (final away in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(away);
+      }
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.playback.sounding,
+        isFalse,
+        reason: 'o app saía e o ensaio do plano seguia tocando atrás dele',
+      );
+
+      for (final back in const [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(back);
+      }
+      await _theAnswerSettles(tester);
+
+      expect(harness.playback.sounding, isFalse);
+      expect(
+        _pressedAt(tester, _playOn(1)),
+        Tristate.isFalse,
+        reason: 'e a linha voltava ainda em pausa sobre o silêncio',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a row of the plan offers its rehearsal as her filled triangle, '
+      'not a lucide outline', (tester) async {
+    await _seeded(tester, _oneEach);
+    await _openThePlan(tester);
+
+    expect(
+      find.descendant(of: _playOn(1), matching: find.byType(Icon)),
+      findsNothing,
+      reason: 'a linha do plano desenhava o play vazado do Lucide',
+    );
+    expect(
+      _paintedOn(_playOn(1)),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [Offset(10, 12), Offset(9, 7), Offset(9, 17)],
+        excludes: const [Offset(7, 12), Offset(16, 8), Offset(16, 16)],
+      ),
+      reason:
+          'o play dela é «M8 6l10 6-10 6z» cheio na caixa de 24 '
+          '(EnsaioFinalPlan.tsx:24)',
+    );
+  });
+
+  testWidgets('the row that plays shows her two filled bars, not a lucide '
+      'outline', (tester) async {
+    await _seeded(tester, _oneEach);
+    await _openThePlan(tester);
+    await tester.tap(_playOn(1));
+    await _theAnswerSettles(tester);
+
+    expect(
+      _paintedOn(_playOn(1)),
+      paints..path(
+        style: PaintingStyle.fill,
+        includes: const [
+          Offset(8, 12),
+          Offset(16, 12),
+          Offset(7, 6),
+          Offset(17, 18),
+        ],
+        excludes: const [
+          Offset(12, 12),
+          Offset(8, 4),
+          Offset(16, 20),
+          Offset(6.1, 5.1),
+          Offset(17.9, 18.9),
+        ],
+      ),
+      reason:
+          'a pausa dela são duas barras cheias, 6–10 e 14–18 por 5–19 com '
+          'rx 1, na caixa de 24 (EnsaioFinalPlan.tsx:25)',
+    );
+  });
 }

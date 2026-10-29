@@ -162,6 +162,40 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a recording of the whole passage writes its place beside play '
+      'as her clock alone, never as a part the team did not make', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      inteira: true,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-inteira',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+      ),
+    );
+    harness.playback.length = const Duration(seconds: 10);
+
+    harness.playback.at = const Duration(seconds: 5);
+    await tester.pump(passaDoCursor);
+
+    expect(
+      find.text('ouvindo a gravação de vocês… — 0:05 / 0:10'),
+      findsOneWidget,
+      reason: 'a gravação inteira tocava como «parte 1»',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('each part strip draws the loudness of its own take, so a '
       'silence reads as a valley', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -186,6 +220,101 @@ void main() {
       );
       expect(fala[50], greaterThan(0));
     }
+    closeTheRoom(container);
+  });
+
+  testWidgets('a checked passage picked back up draws each part with its own '
+      'loudness, not the word alone', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: _duasFrasesNaParteUm,
+        checked: true,
+      ),
+      fala: aSpokenWav(
+        gaps: [(const Duration(seconds: 3), const Duration(seconds: 4))],
+      ),
+    );
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
+    await waitFor(
+      'as duas partes terem a sua fala lida',
+      () => container.read(salaSessionProvider).partLoudness.length == 2,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final faixas = _faixas(tester);
+    expect(
+      faixas,
+      hasLength(2),
+      reason:
+          'a passagem conferida reaberta mostrava «parte 1» e «parte 2» sem '
+          'nenhuma faixa ao lado',
+    );
+    for (final faixa in faixas) {
+      expect(faixa.length, const Duration(seconds: 10));
+      expect(faixa.envelope!.loudness[175], 0);
+      expect(faixa.envelope!.loudness[50], greaterThan(0));
+    }
+    closeTheRoom(container);
+  });
+
+  testWidgets('a checked passage picked back up knows where each part ends, '
+      'as one checked in a single sitting does', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: _duasFrasesNaParteUm,
+        checked: true,
+      ),
+    );
+    await waitFor(
+      'o fim das duas partes ficar conhecido',
+      () => container.read(salaSessionProvider).btFimDasPartesMs.length == 2,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+
+    expect(
+      container.read(salaSessionProvider).btFimDasPartesMs,
+      [10000, 20000],
+      reason:
+          'a passagem conferida reaberta media as partes mas a régua da tela '
+          'ficava vazia, e o começo de cada parte era lido de dois jeitos',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a checked passage picked back up reads its parts one take at '
+      'a time, never every take at once', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)..holdTheEnvelope();
+    final container = await _voltaAoConferir(
+      tester,
+      harness,
+      contado: const BackTranslationProgress(
+        segments: _duasFrasesNaParteUm,
+        checked: true,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    harness.giveTheEnvelope();
+    await waitFor(
+      'as duas partes terem a sua fala lida',
+      () => container.read(salaSessionProvider).partLoudness.length == 2,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+
+    expect(container.read(salaSessionProvider).partLoudness, hasLength(2));
+    expect(
+      harness.mostEnvelopesReadAtOnce,
+      1,
+      reason:
+          'a passagem conferida reaberta abria a leitura de todas as partes '
+          'de uma vez, com cada arquivo inteiro na memória do tablet',
+    );
     closeTheRoom(container);
   });
 

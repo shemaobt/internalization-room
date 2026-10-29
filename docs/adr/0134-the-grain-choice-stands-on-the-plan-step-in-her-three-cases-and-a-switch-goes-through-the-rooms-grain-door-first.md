@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -33,11 +33,23 @@ aside from a current one.
 - **The whole-passage home** is the recording home with one row, «A passagem inteira». Its take
   goes up as `scope=passagem-inteira` with no `chunk_index`; recording it again replaces it at
   the next pass.
-- **«gravar a passagem inteira de uma vez»** (on the plan, and on a scene home over a joined
-  recording) takes one tap when nothing would be lost and ENG-1260's Armed tap otherwise:
+- **«gravar a passagem inteira de uma vez»** (on the plan, on a scene home over a joined
+  recording, and on the check screen of a joined recording) takes one tap when nothing would
+  be lost and ENG-1260's Armed tap otherwise:
   «toquem de novo: isto abre de novo o rascunho aprovado» over an approved draft, else «toquem
   de novo: as cenas e as traduções ficam guardadas». On a scene home with no join, her plain
   «Gravar a passagem inteira» takes one tap.
+- **On the check screen** (ENG-1876, hers at Drafting.tsx:2465-2471) it stands under «voltar e
+  regravar uma parte» through the whole telling step, never on the first listen and never over
+  a recording no join touched. It is dimmed and takes no tap while a part or a line sounds,
+  while the telling is recorded, sent or checked, while a sentence re-record is open, while an
+  approval or an open of the Checagem externa is in the air, and while the room is stopped for
+  a person; a part still on its way to the room does not rest it, as hers. Its second tap
+  leaves the check for the recording home at once, as hers does (`exitBt` before the grain
+  door, Drafting.tsx:2094-2101): leaving reports what was heard while the scene parts still
+  stand, and nothing on the check can be started while the door is in the air. The switch then
+  runs as the home's own does; a door that fails leaves the team on the recording home at the
+  joined grain.
 - **«Gravar cena por cena»** is always offered, on the plan and on the whole-passage home, one
   tap. The plain one-tap switches send `reopens_the_approved_draft`, since changing the
   recording form takes one tap even over an approved draft (ENG-1260).
@@ -47,6 +59,13 @@ aside from a current one.
 - **A switch calls the door before any recording at the new grain:** the new grain's home
   opens only once the door answered. While it is in the air every grain control is dimmed and
   a second tap does nothing.
+- **The recording home always draws its grain switch,** scene rows or not, as hers does
+  (Drafting.tsx:2565-2569). The home's grain controls and the plan's «gravar a passagem
+  inteira de uma vez» are dimmed and take no tap while a take records, is being kept or is on
+  its way to the room, while a join or a bring-back runs, and while a switch is in the air
+  (hers: `busy || grainBusy`, Drafting.tsx:2132-2137, :2274, :2566). A take whose send failed
+  holds nothing. The plan's «Gravar cena por cena» still rests on the join and the switch
+  alone: the plan never opens over a session holding its own part take.
 - **The door's answer is applied in one place:** the other grain's takes leave the tablet's
   parts (the Outbox keeps every row; the room sets a late one aside on arrival), the
   telling-back starts over silently, and the Resume point is rewritten.
@@ -103,3 +122,18 @@ aside from a current one.
   from the team's screen. Her app does the same.
 - An app with this change against a room without the grain door: the door answers 404 and the
   team stays on the screen it was on; nothing is set aside.
+
+## Amendment · 2026-10-29 (ENG-1862)
+
+Her frozen app is the rule (João, 2026-10-26). Hers draws «Como vocês querem gravar?» whenever
+the plan and the draft both went unread, whatever grain the team chose before
+(`todaysScreen(null)`, ensaioFinal.ts:43,76 at 18fa7c4), and a draft she did read takes her to
+that grain's screen. The first case changes: **a plan read that fails or runs out at 6 seconds
+with the room's listing unread shows the grain choice even with a grain in force.** With the
+listing read, a grain in force still opens that grain's home, and a listing that answers after
+the choice stood still takes the team to the grain it names.
+
+**A tap on the choice always calls the door,** also on the grain already in force, as her
+`chooseGrain` always sends its PUT; the room answers a switch to the grain it holds without
+changing anything. A door that fails changes nothing and says nothing, as above. The plan's and
+the home's grain controls still go straight to a grain already in force.

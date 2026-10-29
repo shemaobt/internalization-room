@@ -346,6 +346,7 @@ class TakeUploadQueue {
   int _minted = 0;
   _CachedRead? _cachedRead;
   final Map<String, String?> _confirmed = {};
+  final List<PendingTake> _landedRows = [];
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
 
   /// The rows a tap of this life asked to send, each by the tap that asked last. Kept in
@@ -524,6 +525,20 @@ class TakeUploadQueue {
   ) => entry.sessionId == null
       ? passage != null && entry.passage == passage
       : entry.sessionId == sessionId;
+
+  String? takeIdOfThePart(String sessionId, KeptTake part) {
+    final name = p.basenameWithoutExtension(part.path);
+    for (final entry in _landedRows) {
+      if (entry.sessionId == sessionId &&
+          entry.scope == part.scopeId &&
+          (entry.passNumber ?? 1) == part.pass &&
+          p.basenameWithoutExtension(entry.path) ==
+              '${entry.kind}-$name-${entry.id}') {
+        return entry.takeId;
+      }
+    }
+    return null;
+  }
 
   Future<Map<String, List<PendingTake>>> _unsentPartsIn(
     List<PendingTake>? written,
@@ -1016,6 +1031,7 @@ class TakeUploadQueue {
           case Refused(code: RefusalCode.takeMoved):
             _moved.add(entry.id);
             await withdraw(entry);
+            await _deleteTheCopy(entry);
             return _Landing.givenUp;
           case Refused(
             code: RefusalCode.deviceRevoked || RefusalCode.unauthorized,
@@ -1240,6 +1256,7 @@ class TakeUploadQueue {
 
   Future<void> _confirm(PendingTake entry, String takeId) async {
     _confirmed[entry.id] = takeId;
+    _landedRows.add(entry.copyWith(takeId: takeId));
     final gone = entry.kind == partTakeKind
         ? await _goneRowsOf(
             entry.sessionId,
@@ -1427,8 +1444,9 @@ class TakeUploadQueue {
         ],
       );
 
-  /// Take every join row of [scope] still waiting off the manifest, with its copy: the
-  /// team recorded the part again by hand.
+  /// Take every join row of [scope] off the manifest, even one whose request is in the
+  /// air: the team recorded the part again by hand. A row at rest goes with its copy; a
+  /// request in the air keeps its copy until its answer deletes it.
   Future<void> withdrawTheJoinsOf(String sessionId, String scope) async {
     final removed = <PendingTake>[];
     await _mutate((written) {
@@ -1437,9 +1455,8 @@ class TakeUploadQueue {
         if (!entry.stored &&
             entry.origin != null &&
             entry.sessionId == sessionId &&
-            entry.scope == scope &&
-            !_isInTheAir(entry)) {
-          removed.add(entry);
+            entry.scope == scope) {
+          if (!_isInTheAir(entry)) removed.add(entry);
           continue;
         }
         kept.add(entry);

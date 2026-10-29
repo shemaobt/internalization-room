@@ -350,6 +350,17 @@ final class TheSessionOpened extends AnsweringEvent {
   const TheSessionOpened(this.session, {super.generation});
 }
 
+final class ThePanoramaFound extends AnsweringEvent {
+  final String session;
+  final bool opened;
+
+  const ThePanoramaFound(
+    this.session, {
+    required this.opened,
+    super.generation,
+  });
+}
+
 final class TheSessionLetGo extends MachineEvent {
   final String session;
 
@@ -378,10 +389,12 @@ final class TheLanguageChosen extends MachineEvent {
 final class TheRehearsalWeighed extends MachineEvent {
   final bool everySceneHasItsPart;
   final bool everyPartIsHere;
+  final bool everyPartIsSent;
 
   const TheRehearsalWeighed({
     required this.everySceneHasItsPart,
     required this.everyPartIsHere,
+    required this.everyPartIsSent,
   });
 }
 
@@ -466,7 +479,7 @@ final class LookEmpty extends AnsweringEvent {
 /// again.
 ///
 /// It carries no generation: it is never stale only because the notifier dispatches it
-/// synchronously, right after checking that the generation was not abandoned (ADR 0140).
+/// synchronously, right after checking that the generation was not abandoned (ADR 0152).
 final class TheReplyFailedToLoad extends MachineEvent {
   final int load;
   final RoomResult? because;
@@ -772,6 +785,10 @@ final class ReturnToThePanorama extends LifecycleHandOff {
   const ReturnToThePanorama();
 }
 
+final class RestOnThePanorama extends LifecycleHandOff {
+  const RestOnThePanorama();
+}
+
 final class EnterThePassageLeft extends LifecycleHandOff {
   final LeftEntry left;
 
@@ -914,6 +931,14 @@ final class AskTheFraseAgain extends Effect {
 
 final class TellTheDiskFailed extends Effect {
   const TellTheDiskFailed();
+}
+
+final class TellThePlayFailed extends Effect {
+  const TellThePlayFailed();
+}
+
+final class TellThePlayOpened extends Effect {
+  const TellThePlayOpened();
 }
 
 final class TellTheSendFailed extends Effect {
@@ -1218,7 +1243,13 @@ const _watch = ArmTheWatch();
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
   PlayerOpened() => (
     _opened(machine),
-    [if (machine.channel is Playing) const ArmTheCeiling()],
+    [
+      if (machine.channel is Playing) const ArmTheCeiling(),
+      if (machine.channel case Playing(
+        sound: PartSound() || StretchSound(telling: false),
+      ) when machine.station is Retro)
+        const TellThePlayOpened(),
+    ],
   ),
   PlayerEnded(:final line?) => _answer(
     machine,
@@ -1241,6 +1272,9 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
+  PlayerFailed(sound: PartSound() || StretchSound(telling: false))
+      when machine.station is Retro =>
+    _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
   MicOpened(:final owner, :final take) => _openTheMic(machine, owner, take),
   MicClosed() => _closeTheMic(machine),
@@ -1506,6 +1540,19 @@ const _watch = ArmTheWatch();
     },
     const [_watch],
   ),
+  ThePanoramaFound(:final session, :final opened) => switch (machine.panorama) {
+    final HeldPanorama held when machine.station is Panorama => (
+      machine.copyWith(
+        panorama: HeldPanorama(held.id, held.language, session: session),
+      ),
+      [
+        _watch,
+        if (opened) const RestOnThePanorama(),
+        if (!opened) OpenThePanorama(held.id, held.language),
+      ],
+    ),
+    _ => (machine, const []),
+  },
   TheSessionLetGo(:final session) => switch (machine.panorama) {
     final HeldPanorama held when held.session == session => (
       machine.copyWith(panorama: HeldPanorama(held.id, held.language)),
@@ -1513,13 +1560,18 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
-  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsHere) =>
+  TheRehearsalWeighed(
+    :final everySceneHasItsPart,
+    :final everyPartIsHere,
+    :final everyPartIsSent,
+  ) =>
     switch (machine.station) {
       Ensaio(:final step) => (
         machine.copyWith(
           station: Ensaio(
             everySceneHasItsPart: everySceneHasItsPart,
             everyPartIsHere: everyPartIsHere,
+            everyPartIsSent: everyPartIsSent,
             step: step,
           ),
         ),
@@ -1805,6 +1857,11 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   );
 }
 
+(Machine, List<Effect>) _tellThePlayFailed(Machine machine) {
+  final (failed, effects) = _failed(machine);
+  return (failed, [...effects, const TellThePlayFailed()]);
+}
+
 (Machine, List<Effect>) _openTheMic(
   Machine machine,
   MicOwner owner,
@@ -1826,15 +1883,16 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
   _ => null,
 };
 
-/// The team's tap while the Guide speaks on the Canvas: her line ends cut, and the
-/// conversation's microphone opens in the same step, after the stop. Over the
+/// The team's tap while the Guide speaks on the Canvas or the Panorama: her line ends
+/// cut, and the conversation's microphone opens in the same step, after the stop. Over the
 /// acknowledgement, the reply waiting behind it is the line cut, at its very start.
 (Machine, List<Effect>) _interrupt(
   Machine machine,
   String take,
   CutPoint measured,
 ) {
-  if (machine.station is! Canvas || machine.halt is Blocking) {
+  if ((machine.station is! Canvas && machine.station is! Panorama) ||
+      machine.halt is Blocking) {
     return (machine, const []);
   }
   final (reply, held, cut) = switch (machine.channel) {
@@ -2191,6 +2249,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   TheRehearsalWeighed() ||
   ThePanoramaAsked() ||
   TheSessionOpened() ||
+  ThePanoramaFound() ||
   TheSessionLetGo() ||
   TheWayBackTaken() ||
   TheLeftPassageReturns() => (halt, const []),

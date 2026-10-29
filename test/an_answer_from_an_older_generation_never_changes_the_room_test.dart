@@ -118,6 +118,11 @@ AnsweringEvent _stampedAnswer(
     session,
     generation: generation,
   ),
+  ThePanoramaFound(:final session, :final opened) => ThePanoramaFound(
+    session,
+    opened: opened,
+    generation: generation,
+  ),
 };
 
 String? _aStaleAnswerChangedTheRoom(int seed) {
