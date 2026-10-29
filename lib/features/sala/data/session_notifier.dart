@@ -3656,7 +3656,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _listen(MachineEvent opening) {
     _recordingStarting = true;
     _listeningSince = clock.now();
-    state = state.copyWith(peerCue: false);
+    state = state.copyWith(peerCue: false, clearRecorderStartedAt: true);
     _dispatch(opening);
     if (state.channel is! Microphone) {
       _recordingStarting = false;
@@ -7585,6 +7585,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     switch (heard.answer) {
       case MicAnswer.started:
+        state = state.copyWith(recorderStartedAt: clock.now());
         _captureFails.remove(heard.owner);
         ref.read(micPermissionProvider.notifier).heard();
       case MicAnswer.refused:
