@@ -2004,6 +2004,40 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while the owed part is fetched again the way back is drawn '
+      'away, not lit over a tap it no longer takes', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    final nova = await deitarSemAParte(tester, harness, 2);
+    harness.room.failClipOf.remove(nova);
+    harness.room.holdNextClip();
+    double volta() => tester
+        .widget<AnimatedOpacity>(
+          find
+              .ancestor(
+                of: byLabel('Voltar para a gravação'),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first,
+        )
+        .opacity;
+    expect(volta(), 1);
+
+    await tocar(tester, 'não deu para guardar a frase — tentar de novo');
+    await _passo(tester);
+
+    expect(
+      volta(),
+      0,
+      reason: 'a seta de voltar ficava acesa e o toque nela não fazia nada',
+    );
+    harness.room.finishHeldClip();
+    await _passo(tester);
+    await _passo(tester);
+    expect(volta(), 1);
+    closeTheRoom(container);
+  });
+
   testWidgets('while a new part is owed no row offers «regravar», not even '
       'the row of the sentence that waits for it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
