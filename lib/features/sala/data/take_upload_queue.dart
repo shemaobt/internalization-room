@@ -316,6 +316,7 @@ class TakeUploadQueue {
   int _minted = 0;
   _CachedRead? _cachedRead;
   final Map<String, String?> _confirmed = {};
+  final List<PendingTake> _landedRows = [];
   final Map<String, SceneRehearsalRecord> _keptScenes = {};
 
   final RecordingRepository Function() _recordings;
@@ -478,6 +479,20 @@ class TakeUploadQueue {
     if (_confirmed.containsKey(row)) return _confirmed[row];
     for (final entry in (await _written() ?? const <PendingTake>[])) {
       if (entry.id == row) return entry.takeId;
+    }
+    return null;
+  }
+
+  String? takeIdOfThePart(String sessionId, KeptTake part) {
+    final name = p.basenameWithoutExtension(part.path);
+    for (final entry in _landedRows) {
+      if (entry.sessionId == sessionId &&
+          entry.scope == part.scopeId &&
+          (entry.passNumber ?? 1) == part.pass &&
+          p.basenameWithoutExtension(entry.path) ==
+              '${entry.kind}-$name-${entry.id}') {
+        return entry.takeId;
+      }
     }
     return null;
   }
@@ -1198,6 +1213,7 @@ class TakeUploadQueue {
 
   Future<void> _confirm(PendingTake entry, String takeId) async {
     _confirmed[entry.id] = takeId;
+    _landedRows.add(entry.copyWith(takeId: takeId));
     final gone = entry.kind == partTakeKind
         ? await _goneRowsOf(
             entry.sessionId,

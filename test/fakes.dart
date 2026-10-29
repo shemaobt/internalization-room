@@ -4176,6 +4176,21 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
+  String? takeIdOfThePart(String sessionId, KeptTake part) {
+    if (forgetsNames) return null;
+    for (final entry in rows) {
+      if (entry.stored &&
+          entry.sessionId == sessionId &&
+          entry.scope == part.scopeId &&
+          (entry.passNumber ?? 1) == part.pass &&
+          entry.path == part.path) {
+        return entry.takeId;
+      }
+    }
+    return null;
+  }
+
+  @override
   Future<List<PendingTake>> entries() async => List.of(rows);
 
   @override

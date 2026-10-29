@@ -33,11 +33,23 @@ aside from a current one.
 - **The whole-passage home** is the recording home with one row, «A passagem inteira». Its take
   goes up as `scope=passagem-inteira` with no `chunk_index`; recording it again replaces it at
   the next pass.
-- **«gravar a passagem inteira de uma vez»** (on the plan, and on a scene home over a joined
-  recording) takes one tap when nothing would be lost and ENG-1260's Armed tap otherwise:
+- **«gravar a passagem inteira de uma vez»** (on the plan, on a scene home over a joined
+  recording, and on the check screen of a joined recording) takes one tap when nothing would
+  be lost and ENG-1260's Armed tap otherwise:
   «toquem de novo: isto abre de novo o rascunho aprovado» over an approved draft, else «toquem
   de novo: as cenas e as traduções ficam guardadas». On a scene home with no join, her plain
   «Gravar a passagem inteira» takes one tap.
+- **On the check screen** (ENG-1876, hers at Drafting.tsx:2465-2471) it stands under «voltar e
+  regravar uma parte» through the whole telling step, never on the first listen and never over
+  a recording no join touched. It is dimmed and takes no tap while a part or a line sounds,
+  while the telling is recorded, sent or checked, while a sentence re-record is open, while an
+  approval or an open of the Checagem externa is in the air, and while the room is stopped for
+  a person; a part still on its way to the room does not rest it, as hers. Its second tap
+  leaves the check for the recording home at once, as hers does (`exitBt` before the grain
+  door, Drafting.tsx:2094-2101): leaving reports what was heard while the scene parts still
+  stand, and nothing on the check can be started while the door is in the air. The switch then
+  runs as the home's own does; a door that fails leaves the team on the recording home at the
+  joined grain.
 - **«Gravar cena por cena»** is always offered, on the plan and on the whole-passage home, one
   tap. The plain one-tap switches send `reopens_the_approved_draft`, since changing the
   recording form takes one tap even over an approved draft (ENG-1260).
