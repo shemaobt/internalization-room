@@ -28,7 +28,6 @@ Finder _naTraducao(String label) =>
 bool _aceso(WidgetTester tester) =>
     tester.widget<Semantics>(_naTraducao(_voltar)).properties.enabled == true;
 
-/// Both parts told back to their ends, and the room asked for its verdict.
 Future<ProviderContainer> _contadaEConferida(
   WidgetTester tester,
   SalaHarness harness,
