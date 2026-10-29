@@ -443,4 +443,47 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'every control of the translate step stays lit while a frase\'s translation comes down, as hers, not dimmed',
+    (tester) async {
+      final (harness, _) = await _theLastFraseTranslatedAgain(tester);
+      bool? circle() =>
+          tester.widget<Semantics>(byLabel(_tell)).properties.enabled;
+      final controls = [
+        _playPause,
+        _bar(1),
+        _bar(2),
+        _hearMine(2),
+        _restart,
+        _keepTheEarlier,
+        _recordAgain,
+      ];
+      expect(circle(), isNot(isFalse));
+      for (final control in controls) {
+        expect(_lit(tester, control), isTrue, reason: control);
+      }
+
+      harness.room.holdNextClip();
+      await tester.tap(byLabel(_hearMine(1)));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        circle(),
+        isNot(isFalse),
+        reason: 'o círculo se apagava enquanto a tradução da frase descia',
+      );
+      for (final control in controls) {
+        expect(
+          _lit(tester, control),
+          isTrue,
+          reason:
+              '«$control» se apagava enquanto a tradução da frase descia; '
+              'no dela fica aceso',
+        );
+      }
+      harness.room.finishHeldClip();
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
 }

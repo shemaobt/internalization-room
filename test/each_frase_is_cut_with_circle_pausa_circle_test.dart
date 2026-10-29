@@ -8,6 +8,7 @@ import 'package:internalization_room/features/sala/data/mic_permission.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_rehearsal_view.dart';
@@ -1953,4 +1954,141 @@ void main() {
       expect(room.harness.playback.playedFrom.last, _s(4.0));
     },
   );
+
+  test('the circle during a frase\'s download plays the take, and the '
+      'translation that lands after it never sounds, as hers', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    await _listening(room);
+    final take = room.state.scene.take;
+    room.harness.room.holdNextClip();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    await _circle(room);
+    expect(room.harness.playback.played.last, take);
+    room.harness.room.finishHeldClip();
+    await settle();
+
+    expect(
+      room.harness.playback.played.map((path) => path.split('/').last),
+      isNot(contains('cena-ensaio-da-cena-1-frase-f1.wav')),
+      reason: 'a tradução que chegava tarde cortava o ensaio do círculo',
+    );
+    expect(room.harness.playback.played.last, take);
+  });
+
+  test(
+    '«ouvir a pausa» during a frase\'s download hushes the translation, even '
+    'when the pausa ends before it lands',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 2000)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = _s(6.0);
+      await _circle(room);
+      room.harness.room.holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f1')
+        ..hearThePause();
+      await settle();
+      expect(room.harness.playback.ranges.last, '4500-6000');
+      room.harness.playback.finishPlayback();
+      await settle();
+      room.harness.room.finishHeldClip();
+      await settle();
+
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        isNot(contains('cena-ensaio-da-cena-1-frase-f1.wav')),
+        reason: 'a tradução que chegava depois da pausa tocava sozinha',
+      );
+    },
+  );
+
+  test('a frase\'s translation the room cannot hand over says nothing and '
+      'leaves the team on the translate step, never on the choice', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    room.harness.room.failClipWith = const SessionGone();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    await settle();
+
+    expect(
+      room.state.stage,
+      SalaStage.cena,
+      reason: 'uma tradução que não descia encerrava a sessão',
+    );
+    expect(room.state.sessionId, _session);
+    expect(room.state.scene.step, SceneStep.translate);
+    expect(room.state.sceneLine, isNull);
+    expect(room.state.machine.aHaltWaitsForTheCanvas, isNull);
+    expect(room.state.halt, isA<NoHalt>());
+  });
+
+  test(
+    'a second speaker during a download plays that frase\'s translation, and '
+    'the first ask failing after it writes nothing over it',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.harness.room
+        ..failFraseOf['f2'] = const SessionGone()
+        ..holdNextClip();
+
+      room.sala
+        ..hearTheFraseTranslation('f2')
+        ..hearTheFraseTranslation('f1');
+      await settle();
+      room.harness.room.finishHeldClip();
+      await settle();
+      await settle();
+
+      expect(
+        room.state.stage,
+        SalaStage.cena,
+        reason: 'o primeiro pedido, ao falhar, encerrava a sessão por cima',
+      );
+      expect(room.state.sceneLine, isNull);
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        ['cena-ensaio-da-cena-1-frase-f1.wav'],
+        reason: 'o segundo alto-falante ficava apagado e tocava a frase 2',
+      );
+    },
+  );
+
+  test('the circle during a frase\'s download plays on, and a translation the '
+      'disk then fails to keep writes nothing over it', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    await _listening(room);
+    final take = room.state.scene.take;
+    room.harness.room.holdNextClip();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    await _circle(room);
+    room.harness.recorder.keepBytesFails = true;
+    room.harness.room.finishHeldClip();
+    await settle();
+
+    expect(
+      room.state.sceneLine,
+      isNull,
+      reason: 'o disco da tradução calada escrevia por cima do círculo',
+    );
+    expect(room.state.channel, isA<PartPlaying>());
+    expect(room.harness.playback.played.last, take);
+  });
 }
