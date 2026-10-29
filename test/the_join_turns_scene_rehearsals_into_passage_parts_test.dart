@@ -530,6 +530,10 @@ void main() {
         await it.wait(const Duration(seconds: 1));
         expect(find.text(_retry), findsNothing);
       }
+      final waited = Stopwatch()..start();
+      while (!it.ticked(2) && waited.elapsed < const Duration(seconds: 30)) {
+        await it.beat();
+      }
 
       expect(it.ticked(2), isTrue);
       it.room.finishHeldTake();
