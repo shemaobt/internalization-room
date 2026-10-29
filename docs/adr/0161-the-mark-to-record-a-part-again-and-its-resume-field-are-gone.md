@@ -7,7 +7,7 @@ amends: 0026 (the mark is gone), 0045 (the resume row carries no part), 0158 (a 
 # The mark to record a part again and its resume field are gone
 
 This amends ADR 0026, ADR 0045 and ADR 0158 without editing their decisions: it adds "amended
-by 0160" to their status lines. Her app is the bar, and it wins over our ADRs (João, 26 October).
+by 0161" to their status lines. Her app is the bar, and it wins over our ADRs (João, 26 October).
 Settled on the ticket (ENG-2035).
 
 ## Context

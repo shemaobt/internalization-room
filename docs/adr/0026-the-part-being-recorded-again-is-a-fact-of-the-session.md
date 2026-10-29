@@ -1,4 +1,4 @@
-Amended by 0158 (the check no longer marks a part), amended by 0160 (the mark is gone).
+Amended by 0158 (the check no longer marks a part), amended by 0161 (the mark is gone).
 
 # The part being recorded again is a fact of the session
 
