@@ -22,9 +22,8 @@ machine's output and no field could move into `Machine`.
 ## Decision
 
 - **Every effect stays in the machine's output; only who executes it changes.**
-- **Port work is the runner's.** `DrainTheOutbox` is the Store port's flush. The Station
-  then hears the names to adopt when it lands, and the count of what is unsent whether it
-  landed or failed. The chain stays unawaited, so a failed flush surfaces as before.
+- **Port work is the runner's.** `DrainTheOutbox`, the Store port's flush, is gone: the
+  Outbox sends only on a tap (0087, amended 28 October, ENG-1777).
 - **A machine event the notifier dispatched from inside an effect is the runner's
   answer.** `SilenceTheRoom` is handed over, then the runner answers
   `GestureSilenced(keepingTheHold: false)`. `LetTheTurnGo` asks the Station which gestures
