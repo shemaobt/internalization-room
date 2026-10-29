@@ -76,7 +76,7 @@ class SceneTranslateStep extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Sub(said('subTranslate')),
+          SceneSub(said('subTranslate')),
           const SizedBox(height: 12),
           _PlayRow(
             mood: idle && scene.listened ? ButtonMood.lit : ButtonMood.dimmed,
@@ -431,7 +431,7 @@ class SceneListenMode extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _Sub(
+            child: SceneSub(
               said('listen'),
               heard: line == SceneLine.diskFailed
                   ? '${said('listen')} — ${said('diskFailed')}'
@@ -710,11 +710,27 @@ class _Written extends StatelessWidget {
   );
 }
 
-class _Sub extends StatelessWidget {
+double chOf(BuildContext context, TextStyle style) {
+  final zero = TextPainter(
+    text: TextSpan(
+      text: '0',
+      style: DefaultTextStyle.of(
+        context,
+      ).style.merge(style).copyWith(letterSpacing: 0),
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final ch = zero.width;
+  zero.dispose();
+  return ch;
+}
+
+class SceneSub extends StatelessWidget {
   final String words;
   final String? heard;
 
-  const _Sub(this.words, {this.heard});
+  const SceneSub(this.words, {super.key, this.heard});
 
   @override
   Widget build(BuildContext context) {
@@ -722,20 +738,8 @@ class _Sub extends StatelessWidget {
       color: SalaColors.of(context).claquete,
       fontSize: 0.92 * _rem,
     );
-    final zero = TextPainter(
-      text: TextSpan(
-        text: '0',
-        style: DefaultTextStyle.of(
-          context,
-        ).style.merge(style).copyWith(letterSpacing: 0),
-      ),
-      textDirection: TextDirection.ltr,
-      textScaler: MediaQuery.textScalerOf(context),
-    )..layout();
-    final ch = zero.width;
-    zero.dispose();
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 36 * ch),
+      constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
       child: _Written(words, heard: heard, style: style),
     );
   }
