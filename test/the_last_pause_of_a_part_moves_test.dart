@@ -661,9 +661,10 @@ void main() {
       expect(container.read(salaSessionProvider).btFraseQueAguarda, 'trecho-2');
       for (final controle in [antes, ouvirAPausa, depois]) {
         expect(
-          aceso(tester, controle),
-          isFalse,
-          reason: 'a frase que espera a tradução movia a pausa: $controle',
+          byLabel(controle),
+          findsNothing,
+          reason:
+              'a frase que espera a tradução ficava com a linha, apagada: $controle',
         );
       }
       expect(
