@@ -2115,8 +2115,9 @@ void main() {
   );
 
   testWidgets(
-    "a scene take reads enviando on the red microphone until the room's scene "
-    'rehearsals list holds it, and opens on translate after',
+    'a scene take reads «guardando o ensaio da cena…» on the red microphone, '
+    "never enviando, until the room's scene rehearsals list holds it, and "
+    'opens on translate after',
     (tester) async {
       late SceneRoom room;
       late int antes;
@@ -2135,7 +2136,12 @@ void main() {
       await _pumpTheRoom(tester, room);
 
       expect(room.asked('keepSceneRehearsal'), 1);
-      expect(find.text(_enviando), findsOneWidget);
+      expect(
+        find.text('guardando o ensaio da cena…'),
+        findsOneWidget,
+        reason: 'o microfone vermelho escrevia «enviando…», que não é dela',
+      );
+      expect(find.text(_enviando), findsNothing);
       expect(room.state.scene.step, SceneStep.record);
 
       await tester.runAsync(() async {
