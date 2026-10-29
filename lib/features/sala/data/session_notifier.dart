@@ -6001,8 +6001,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _sendTheSceneTake(sessionId, take, keeping, generation);
   }
 
-  /// The circle of the translate step: it marks the pausa while the take plays, opens
-  /// the frase's microphone once a pausa waits, and keeps the frase at the stop tap.
+  /// The circle of the translate step: it plays the take from where the translation
+  /// stopped before the team listens, marks the pausa while the take plays, opens the
+  /// frase's microphone once a pausa waits, and keeps the frase at the stop tap.
   void tapTheTranslateCircle() => _gesture(_tapTheTranslateCircle);
 
   void _tapTheTranslateCircle() {
