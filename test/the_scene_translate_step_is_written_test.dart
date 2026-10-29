@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -2393,6 +2394,288 @@ void main() {
         );
       },
     );
+  }
+  for (final (device, width, wide) in [
+    ('an iPhone SE', 375.0, 375.0 - 2 * 16),
+    ('an iPad', 820.0, 470.0),
+  ]) {
+    testWidgets(
+      'on $device a listed scene rehearsal is as wide as the frase told above it, not narrower',
+      (tester) async {
+        await _onTheSceneScreen(
+          tester,
+          view: Size(width, 2400),
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        );
+        final frase =
+            tester.getRect(byLabel('ouvir a minha tradução da frase 1')).right -
+            tester.getRect(byLabel(_bar(1))).left;
+
+        expect(frase, wide);
+        expect(
+          tester
+              .getSize(
+                byLabel('Ensaio da cena 1, 1 · frases traduzidas, não enviado'),
+              )
+              .width,
+          wide,
+          reason: 'no iPad a lista tinha 438 pontos e as frases 470',
+        );
+      },
+    );
+  }
+  for (final (step, line, open)
+      in <(String, String, Future<void> Function(WidgetTester))>[
+        (
+          'record step',
+          'Toquem no círculo para gravar o ensaio da cena; toquem de novo '
+              'para parar.',
+          (tester) => _onTheSceneScreen(
+            tester,
+            scenesHeld: true,
+            until: (state) => state.stage == SalaStage.cena,
+          ),
+        ),
+        (
+          'translate step',
+          'Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase '
+              'acaba, e de novo para traduzir só aquela frase.',
+          (tester) => _onTheSceneScreen(
+            tester,
+            rehearsals: [
+              _rehearsal(frases: [_frase('f1', 0, 3000)]),
+            ],
+            until: (state) => state.scene.step == SceneStep.translate,
+          ),
+        ),
+        ('listen mode', _listenLine, _inListenMode),
+      ]) {
+    testWidgets(
+      'the $step sub line is drawn at her normal letter spacing, not spread by a quarter point',
+      (tester) async {
+        await open(tester);
+        await pumpUntil(tester, () => find.text(line).evaluate().isNotEmpty);
+
+        expect(
+          tester
+              .renderObject<RenderParagraph>(find.text(line))
+              .text
+              .style
+              ?.letterSpacing,
+          0,
+          reason: 'a linha herdava o espaçamento de .25 do Material',
+        );
+      },
+    );
+  }
+  for (final (look, areia) in [
+    (Brightness.light, const Color(0xFFC5C29F)),
+    (Brightness.dark, const Color(0xFF6E6A57)),
+  ]) {
+    testWidgets(
+      'in the ${look.name} look a listed rehearsal that is not on screen is edged in her areia, not a faint line',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue = look;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+        await _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(
+              sentAt: '2026-10-15T14:20:00+00:00',
+              frases: [_frase('f1', 0, 3000)],
+            ),
+            _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+          ],
+          until: (state) => state.scene.rehearsal?.n == 2,
+        );
+        final decoration =
+            tester
+                    .widget<Container>(
+                      find.descendant(
+                        of: byLabel(
+                          'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado',
+                        ),
+                        matching: find.byType(Container),
+                      ),
+                    )
+                    .decoration
+                as BoxDecoration;
+
+        expect(
+          decoration.border,
+          Border.all(color: areia, width: 1.2),
+          reason: 'a borda da linha era uma linha de 16%; a dela é areia',
+        );
+      },
+    );
+  }
+  testWidgets(
+    'two listed scene rehearsals stand her .3rem apart, not 6 points',
+    (tester) async {
+      await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-15T14:20:00+00:00',
+            frases: [_frase('f1', 0, 3000)],
+          ),
+          _rehearsal(n: 2, frases: [_frase('f2', 0, 3000)]),
+        ],
+        until: (state) => state.scene.rehearsal?.n == 2,
+      );
+
+      expect(
+        tester
+                .getRect(
+                  byLabel(
+                    'Ensaio da cena 2, 1 · frases traduzidas, não enviado',
+                  ),
+                )
+                .top -
+            tester
+                .getRect(
+                  byLabel(
+                    'ouvir o ensaio da cena 1, 1 · frases traduzidas, enviado',
+                  ),
+                )
+                .bottom,
+        closeTo(4.8, 1e-9),
+        reason: 'as linhas da lista ficavam a 6 pontos; as dela a .3rem',
+      );
+    },
+  );
+  testWidgets('two frases told stand her .3rem apart, not 6 points', (
+    tester,
+  ) async {
+    await _onTheSceneScreen(
+      tester,
+      rehearsals: [
+        _rehearsal(frases: [_frase('f1', 0, 3000), _frase('f2', 3000, 6000)]),
+      ],
+      until: (state) => state.scene.step == SceneStep.translate,
+    );
+
+    expect(
+      tester.getRect(byLabel(_bar(2))).top -
+          tester.getRect(byLabel(_bar(1))).bottom,
+      closeTo(4.8, 1e-9),
+      reason: 'as frases ficavam a 6 pontos uma da outra; as dela a .3rem',
+    );
+  });
+  testWidgets(
+    'a frase that cannot be tapped while a translation comes down keeps its card at full strength, and only its speaker dims',
+    (tester) async {
+      final (harness, container) = await _onTheSceneScreen(
+        tester,
+        rehearsals: [
+          _rehearsal(frases: [_frase('f1', 0, 3000)]),
+        ],
+        until: (state) => state.scene.step == SceneStep.translate,
+      );
+      const speaker = 'ouvir a minha tradução da frase 1';
+
+      harness.room.holdNextClip();
+      await tester.tap(byLabel(speaker));
+      await pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).scene.waiting,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(container.read(salaSessionProvider).scene.waiting, isTrue);
+      expect(
+        tester.widget<Semantics>(byLabel(_bar(1))).properties.enabled,
+        isFalse,
+      );
+      expect(
+        tester
+            .widgetList<Opacity>(
+              find.descendant(
+                of: byLabel(_bar(1)),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .map((opacity) => opacity.opacity),
+        everyElement(1.0),
+        reason: 'a frase que não se toca agora vinha apagada; a dela não',
+      );
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.descendant(
+                of: byLabel(speaker),
+                matching: find.byType(AnimatedOpacity),
+              ),
+            )
+            .opacity,
+        0.35,
+      );
+      harness.room.finishHeldClip();
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
+  for (final (look, areia, verdeClaro) in [
+    (Brightness.light, const Color(0xFFC5C29F), const Color(0xFF777D45)),
+    (Brightness.dark, const Color(0xFF6E6A57), const Color(0xFFAAB07E)),
+  ]) {
+    for (final (step, open) in <(String, Future<void> Function(WidgetTester))>[
+      (
+        'told',
+        (tester) => _onTheSceneScreen(
+          tester,
+          rehearsals: [
+            _rehearsal(frases: [_frase('f1', 0, 3000)]),
+          ],
+          until: (state) => state.scene.step == SceneStep.translate,
+        ),
+      ),
+      ('of a sent scene rehearsal', _inListenMode),
+    ]) {
+      testWidgets(
+        'in the ${look.name} look the speaker beside each frase $step is her 38 point areia ring around a verde-claro speaker, not a bare red one',
+        (tester) async {
+          tester.platformDispatcher.platformBrightnessTestValue = look;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await open(tester);
+          final speaker = byLabel('ouvir a minha tradução da frase 1');
+          final ring = find.descendant(
+            of: speaker,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Container &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+            ),
+          );
+          final icon = tester.widget<Icon>(
+            find.descendant(of: speaker, matching: find.byType(Icon)),
+          );
+
+          expect(ring, findsOneWidget);
+          expect(tester.getSize(ring), const Size(38, 38));
+          final decoration =
+              tester.widget<Container>(ring).decoration as BoxDecoration;
+          expect(
+            decoration.border,
+            Border.all(color: areia, width: 1.3),
+            reason: 'o alto-falante não tinha o anel de areia dela',
+          );
+          expect(decoration.color, isNull);
+          expect(icon.icon, LucideIcons.volume2);
+          expect(icon.size, 18);
+          expect(
+            icon.color,
+            verdeClaro,
+            reason: 'o alto-falante era vermelho; o dela é verde-claro',
+          );
+        },
+      );
+    }
   }
   for (final (look, verdeClaro) in [
     (Brightness.light, const Color(0xFF777D45)),
