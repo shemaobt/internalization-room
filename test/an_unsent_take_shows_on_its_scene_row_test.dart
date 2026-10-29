@@ -578,7 +578,11 @@ void main() {
       expect(botao, findsOneWidget);
 
       final antes = casa.envios;
-      await casa.tocar(botao);
+      await casa.tocarAte(
+        botao,
+        'a cena 2 ser enviada de novo',
+        () => casa.envios > antes,
+      );
       expect(casa.envios - antes, 1);
 
       await casa.emTempoReal(() async {
