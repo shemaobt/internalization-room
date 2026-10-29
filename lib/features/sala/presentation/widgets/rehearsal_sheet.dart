@@ -22,7 +22,7 @@ class RehearsalSheet extends ConsumerWidget {
   final String language;
   final bool busy;
   final bool Function(SceneRehearsalRecord) offersToUse;
-  final String? Function(SceneRehearsalRecord)? noteOf;
+  final String? Function(SceneRehearsalRecord)? answerOf;
   final String Function(SceneRehearsalRecord)? useLabelOf;
   final bool Function(SceneRehearsalRecord)? armedOf;
   final bool Function(SceneRehearsalRecord)? wakingOf;
@@ -38,7 +38,7 @@ class RehearsalSheet extends ConsumerWidget {
     required this.language,
     required this.busy,
     required this.offersToUse,
-    this.noteOf,
+    this.answerOf,
     this.useLabelOf,
     this.armedOf,
     this.wakingOf,
@@ -101,8 +101,8 @@ class RehearsalSheet extends ConsumerWidget {
                         rehearsal: candidate,
                         inUse: candidate.rehearsalId == inUseId,
                         offersToUse: offersToUse(candidate),
-                        note:
-                            noteOf?.call(candidate) ?? _cannotEnter(candidate),
+                        note: _cannotEnter(candidate),
+                        answer: answerOf?.call(candidate),
                         useLabel:
                             useLabelOf?.call(candidate) ?? said('useThis'),
                         armed: armedOf?.call(candidate) ?? false,
@@ -180,6 +180,7 @@ class _SheetLine extends StatelessWidget {
   final bool inUse;
   final bool offersToUse;
   final String? note;
+  final String? answer;
   final String useLabel;
   final bool armed;
   final bool waking;
@@ -194,6 +195,7 @@ class _SheetLine extends StatelessWidget {
     required this.inUse,
     required this.offersToUse,
     required this.note,
+    required this.answer,
     required this.useLabel,
     required this.armed,
     required this.waking,
@@ -210,6 +212,7 @@ class _SheetLine extends StatelessWidget {
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     final line = sheetLineFor(rehearsal, language);
     final note = this.note;
+    final answer = this.answer;
     final usable = !busy && !waking;
 
     return Semantics(
@@ -336,6 +339,17 @@ class _SheetLine extends StatelessWidget {
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                if (answer != null)
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      answer,
+                      style: TextStyle(
+                        color: colors.telha,
+                        fontSize: 0.76 * _rem,
                       ),
                     ),
                   ),

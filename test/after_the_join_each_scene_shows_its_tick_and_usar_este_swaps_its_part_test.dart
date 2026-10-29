@@ -1056,6 +1056,47 @@ void main() {
   );
 
   testWidgets(
+    'the answer to the last try is said after «usar este», on the actions '
+    'line, not under the facts',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+      await it.wait(const Duration(seconds: 71));
+
+      final said = it.onLine(s2b, find.text(_retry));
+      expect(said, findsOneWidget);
+      final answer = tester.getRect(said);
+      final pill = tester.getRect(it.use(s2b));
+      expect(
+        answer.top,
+        greaterThanOrEqualTo(tester.getRect(it.listen(s2b)).bottom),
+        reason: 'a resposta da troca vinha sob os fatos, longe do botão',
+      );
+      expect(
+        answer.top >= pill.bottom || answer.left >= pill.right,
+        isTrue,
+        reason: 'a resposta vinha antes de «usar este»',
+      );
+      expect(
+        tester
+            .getSemantics(said)
+            .getSemanticsData()
+            .flagsCollection
+            .isLiveRegion,
+        isTrue,
+      );
+      it.room.finishHeldTake();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'a swap with no answer for 70 s says to try again, changes nothing, and '
     'leaves nothing to land later',
     (tester) async {
