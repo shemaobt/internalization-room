@@ -15,6 +15,7 @@ class FraseRow {
   final VoidCallback? onRetell;
   final String? mark;
   final BtFindingKind? achado;
+  final bool aguardando;
   final bool traduzindoDeNovo;
   final bool regravando;
   final String? regravar;
@@ -33,6 +34,7 @@ class FraseRow {
     this.onRetell,
     this.mark,
     this.achado,
+    this.aguardando = false,
     this.traduzindoDeNovo = false,
     this.regravando = false,
     this.regravar,
@@ -294,13 +296,18 @@ class _FraseTile extends StatelessWidget {
                   : DecoratedBox(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: colors.areia,
+                        color: row.aguardando ? colors.telha : colors.areia,
                       ),
                       child: Center(
                         child: Text(
                           '$n',
                           style: TextStyle(
-                            color: colors.ink,
+                            color: !row.aguardando
+                                ? colors.ink
+                                : Theme.of(context).brightness ==
+                                      Brightness.dark
+                                ? const Color(0xFF1E1B15)
+                                : ShemaBrand.branco,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),

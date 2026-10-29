@@ -370,6 +370,7 @@ class RetroView extends ConsumerWidget {
               final kind => retroLabelFor(kind.name, language),
             },
       achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
+      aguardando: aguarda(trecho),
       traduzindoDeNovo:
           trecho.segmentId != null &&
           trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
