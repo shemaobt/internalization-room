@@ -30,6 +30,11 @@ over ADR 0107.
 3. **The Back-translation keeps the sign for now.** Deferring a halt there overturns what
    ADRs 0029, 0036 and 0044 and Henok's rulings of 25 September settle about a halt standing
    on it; that is ENG-2009, after this one. Her frozen app still wins there.
+4. **While the sign rises or stands, VoiceOver reaches nothing beneath it**, on every screen it
+   stands over: the Choice's heading and its look and language switches, the Ensaio's rows,
+   and the rest. The wash already took every tap; a VoiceOver double tap went around it. The
+   sign itself still says no word (ADR 0144). As it fades out, VoiceOver reaches what lies
+   beneath again, as a finger does.
 
 ## Considered Options
 

@@ -358,6 +358,57 @@ void main() {
     },
   );
 
+  testWidgets(
+    'under the sign on the Choice VoiceOver reaches neither the heading nor the look and language switches',
+    (tester) async {
+      final heard = tester.ensureSemantics();
+      final container = await pumpSala(tester, SalaHarness());
+      await tester.pump(const Duration(milliseconds: 1500));
+      const beneath = ['Escolha a passagem', 'Claro', 'Escuro', 'PT', 'EN'];
+      expect(_labelsHeard(tester), containsAll(beneath));
+
+      container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(thePersonSign, findsOneWidget);
+      expect(
+        _labelsHeard(tester).where(beneath.contains),
+        isEmpty,
+        reason:
+            'sob o sinal o VoiceOver ainda chegava ao título e às chaves da escolha',
+      );
+      heard.dispose();
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'under the sign on the Ensaio VoiceOver reaches nothing beneath',
+    (tester) async {
+      final heard = tester.ensureSemantics();
+      final sala = await _atRestInTheConversation(tester);
+      sala.container.read(salaSessionProvider.notifier).goEnsaio();
+      await _pass(sala, 20);
+      expect(_read(sala).stage, SalaStage.ensaio);
+      final beneath = _labelsHeard(
+        tester,
+      ).where((label) => label.isNotEmpty).toSet();
+      expect(beneath, isNotEmpty);
+
+      sala.container.read(salaSessionProvider.notifier).haltForABrokenBuild();
+      await _pass(sala);
+
+      expect(thePersonSign, findsOneWidget);
+      expect(
+        _labelsHeard(tester).where(beneath.contains),
+        isEmpty,
+        reason: 'sob o sinal o VoiceOver ainda chegava aos botões do ensaio',
+      );
+      heard.dispose();
+      closeTheRoom(sala.container);
+    },
+  );
+
   testWidgets('a tap while the sign is still rising clears it, as hers', (
     tester,
   ) async {

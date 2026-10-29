@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -140,9 +141,33 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(container.read(salaSessionProvider).needsPerson, isTrue);
-      _expectAway(
-        tester,
+      expect(_first, findsOneWidget, reason: 'os botões não estavam montados');
+      expect(
+        _opacity(tester),
+        0.0,
         reason: 'os botões ficaram com a tela chamando uma pessoa',
+      );
+      expect(_deaf(tester), isTrue);
+      final heard = <String>[];
+      bool visit(SemanticsNode node) {
+        heard.add(node.label);
+        node.visitChildren(visit);
+        return true;
+      }
+
+      visit(
+        tester
+            .binding
+            .renderViews
+            .first
+            .owner!
+            .semanticsOwner!
+            .rootSemanticsNode!,
+      );
+      expect(
+        heard,
+        isNot(contains('Hear how you told part 1')),
+        reason: 'o leitor de tela ainda alcançava o take sob o sinal',
       );
       semantics.dispose();
       closeTheRoom(container);

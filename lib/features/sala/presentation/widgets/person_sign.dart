@@ -45,29 +45,32 @@ class _PersonSignState extends ConsumerState<PersonSign>
     );
     final colors = SalaColors.of(context);
     return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !shown,
-        child: FadeTransition(
-          opacity: _opacity,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _tapped,
-            child: ColoredBox(
-              color: colors.personSignWash,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const ShemaMark(size: 76, opacity: 0.8),
-                  const SizedBox(height: 26),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _Figure(colors.verde),
-                      const SizedBox(width: 14),
-                      _Figure(colors.verde),
-                    ],
-                  ),
-                ],
+      child: BlockSemantics(
+        blocking: shown,
+        child: IgnorePointer(
+          ignoring: !shown,
+          child: FadeTransition(
+            opacity: _opacity,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _tapped,
+              child: ColoredBox(
+                color: colors.personSignWash,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const ShemaMark(size: 76, opacity: 0.8),
+                    const SizedBox(height: 26),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _Figure(colors.verde),
+                        const SizedBox(width: 14),
+                        _Figure(colors.verde),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
