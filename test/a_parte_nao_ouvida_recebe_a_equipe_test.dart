@@ -64,6 +64,34 @@ void main() {
     expect(it.estado.btClipRodando, isFalse);
   });
 
+  test('um veredito que nomeia uma parte não contada não põe parte nenhuma '
+      'no ar', () async {
+    final sala = _UmaSalaDeAntesDe19DeOutubro();
+    final it = await umEnsaioContadoInteiro(
+      partesDoEnsaio,
+      numaSala: SalaHarness(room: sala),
+    );
+    sala.veredito = {
+      'audio_url': falaDoVeredito,
+      'checked': false,
+      'untold_take_ids': [it.partes[1].takeId],
+      'findings_remaining': 0,
+    };
+    final tocadas = it.harness.playback.played.length;
+
+    await pedirOVeredito(it);
+    await settle();
+
+    expect(
+      it.harness.playback.played,
+      hasLength(tocadas),
+      reason:
+          'a sala caía sozinha na parte não contada, por uma recusa que a '
+          'sala aposentou em 19 de outubro e que a dela nunca teve',
+    );
+    expect(it.estado.btClipRodando, isFalse);
+  });
+
   test(
     'uma parte que acaba sem o player dizer nada não encolhe o colar',
     () async {

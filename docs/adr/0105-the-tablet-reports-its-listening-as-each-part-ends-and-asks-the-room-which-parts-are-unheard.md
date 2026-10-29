@@ -93,5 +93,7 @@ No room sends a verdict that names unheard parts without a refusal any more: sin
 has no such answer at all, only the 409 the amendment above follows (`Drafting.tsx:1515`, at
 18fa7c4). The rule that played every part such a verdict named, in row order, is withdrawn.
 
-A verdict that names unheard parts with no refusal is read as the verdict it otherwise is:
-the parts it names start nothing, and nothing goes in the air on their account. A `PART_UNHEARD` refusal keeps the amendment above.
+A verdict that names unheard parts with no refusal, or untold parts at all, is read as the
+verdict it otherwise is: the parts it names start nothing, and nothing goes in the air on
+their account. The untold parts were refused on their own until that same day; that refusal
+is gone from the room, and the tablet no longer reads the field. A `PART_UNHEARD` refusal keeps the amendment above.
