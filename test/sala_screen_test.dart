@@ -555,6 +555,31 @@ void main() {
     expect(onTheCircle('Toque para falar'), findsOneWidget);
   });
 
+  testWidgets('a Panorama reply that sends the team to talk among themselves '
+      'shows the team glyph at rest, as the Conversation does', (tester) async {
+    final harness = SalaHarness()..room.peerCue = true;
+    final container = await pumpSala(tester, harness);
+    await _enterThePanorama(tester, harness, container);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byType(PanoramaView), findsOneWidget);
+    expect(container.read(salaSessionProvider).peerCue, isTrue);
+    expect(paintedGlyph(CircleGlyph.team), findsOneWidget);
+    expect(onTheCircle('Toque para falar'), findsOneWidget);
+  });
+
+  testWidgets('a Panorama reply without the cue draws no team glyph', (
+    tester,
+  ) async {
+    final harness = SalaHarness();
+    final container = await pumpSala(tester, harness);
+    await _enterThePanorama(tester, harness, container);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byType(PanoramaView), findsOneWidget);
+    expect(paintedGlyph(CircleGlyph.team), findsNothing);
+  });
+
   testWidgets(
     'done without a peer cue offers a tap to speak, with no team glyph',
     (tester) async {
