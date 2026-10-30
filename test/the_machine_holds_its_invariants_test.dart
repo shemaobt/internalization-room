@@ -434,7 +434,6 @@ final _atTheRehearsal = MachineUnderTest<Machine>(
     0 => const TheRehearsalOpened(),
     1 => TheRehearsalWeighed(
       everySceneHasItsPart: random.nextBool(),
-      everyPartIsHere: random.nextBool(),
       everyPartIsSent: random.nextBool(),
     ),
     2 => const TheBackTranslationOpened(),

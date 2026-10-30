@@ -168,7 +168,7 @@ Future<void> _naCasaPelaBolinha(Sala it) async {
   it.sala.openTheEnsaioFinal();
   await waitFor(
     'as partes da sala chegarem à casa',
-    () => it.estado.station == const Ensaio() && it.estado.partsAway.isEmpty,
+    () => it.estado.station == const Ensaio(),
   );
   await settle();
 }
@@ -390,12 +390,6 @@ Future<ProviderContainer> _retomarNoEnsaio(
   }
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(seconds: 1));
-  }
-  for (var i = 0; i < 20 && !_estado(container).everyPartIsHere; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 50)),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
   }
   expect(
     _estado(container).station,
