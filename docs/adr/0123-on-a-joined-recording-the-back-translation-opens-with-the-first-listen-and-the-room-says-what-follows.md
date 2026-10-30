@@ -18,8 +18,8 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    awaiting), and the end of a join that left every scene with its part, with no tap.
    - every part unheard: her line N0, then every part from its beginning in passage order;
    - some part heard: her P2, then only the unheard parts, each from its beginning;
-   - the room names parts and this tablet holds none of them: her line N0, then every part from
-     its beginning (ENG-1854 amendment below);
+   - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
+     keeps the listen for it;
    - none unheard, or an older room: today's path. An entry the room does not answer at all, with nothing the room said earlier in the visit, is the First listen (ENG-1859 amendment below).
 2. **A recording no join touched has the First listen too** (ENG-1206, 26 October), as hers
    does (`listenPlan`, `afterFullListen`): every entry asks the room in the same way; every
@@ -112,9 +112,9 @@ Nothing is written or said for the failure itself.
 
 ## Amendment · 2026-10-30 (ENG-1854)
 
-On her app the unheard list is cut to the clips the tablet holds, and an empty cut is the
-first listen of a join: `left = clipKeys ∩ unheard`, `left.length === 0` gives `N-open` and the
-whole chain (`ensaioFinal.ts:380-381`, at 18fa7c4). Rule 1's third bullet changes: **a joined
-recording whose unheard list names no part this tablet holds opens with N0 and plays every
-part from its beginning**, not P2. Rule 7.1 is unchanged: after the listen, a part the room
-names that this tablet does not hold still keeps the listen.
+On her app the unheard list is cut to the parts the tablet holds, and an empty cut is the
+First listen of a join: the unheard list intersected with the tablet's parts, and an empty
+result gives N0 and the whole passage (`ensaioFinal.ts:380-381`, at 18fa7c4). Rule 1's third
+bullet no longer holds: **a joined recording whose unheard list names no part this tablet holds
+opens with N0 and plays every part from its beginning**, not P2. Rule 7.1 is unchanged: after
+the listen, a part the room names that this tablet does not hold still keeps the listen.
