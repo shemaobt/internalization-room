@@ -198,7 +198,8 @@ final class _Room {
 
   void restsNow() => _repliesAtRest = _replies;
 
-  bool get repliedOnTheCanvas => _replies > _repliesAtRest;
+  bool get repliedOnTheCanvas =>
+      _replies > _repliesAtRest && sala.state.stage == SalaStage.conversa;
 }
 
 Future<_Room> _atRest(
@@ -1010,6 +1011,61 @@ void main() {
       'a voz voltar a convidar',
       () => room.state.voice == VoiceState.invite,
     );
+  });
+
+  group('the reply of terminei plays beneath the send-off line', () {
+    Future<_Room> sentWithTheReplyHeld() async {
+      final room = await _atRest([_unsentWithFrases()]);
+      await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+      room.harness.room.holdNextTurn();
+      room.harness.room.fixedLine = 'A1';
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'o ensaio ir',
+        () => room.harness.room.scenesSent.isNotEmpty,
+      );
+      await settle();
+      room.harness.voice.holdNextLine();
+      room.harness.room.finishHeldTurn();
+      return room;
+    }
+
+    int timesSaid(_Room room) =>
+        room.harness.voice.fixedLines.where((said) => said.$1 == 'A1').length;
+
+    test(
+      'it starts at once, while the line still shows on the screen',
+      () async {
+        final room = await sentWithTheReplyHeld();
+
+        await waitFor('a linha A tocar', () => timesSaid(room) == 1);
+
+        expect(room.state.scene.wentToTheVoice, isTrue);
+        expect(room.state.stage, SalaStage.cena);
+        room.harness.voice.finishHeldLine();
+      },
+    );
+
+    test('the screen closing onto the conversation does not cut it', () async {
+      final room = await sentWithTheReplyHeld();
+      await waitFor('a linha A tocar', () => timesSaid(room) == 1);
+      final stopsBefore = room.harness.voice.stops;
+
+      await waitFor(
+        'a tela fechar',
+        () => room.state.stage == SalaStage.conversa,
+      );
+      room.harness.voice.finishHeldLine();
+      await waitFor(
+        'a voz voltar a convidar',
+        () => room.state.voice == VoiceState.invite,
+      );
+
+      expect(timesSaid(room), 1);
+      expect(room.harness.voice.stops, stopsBefore);
+      expect(room.state.needsPerson, isFalse);
+      expect(room.state.awaitingTheGuide, isFalse);
+    });
   });
 
   test('a terminei the room answered with an A line is the line «Ouvir de '

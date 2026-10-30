@@ -1113,7 +1113,8 @@ class SalaSessionState {
       sceneFrasesHeld.contains(scene.rehearsal?.rehearsalId);
 
   bool get theSceneIsSending =>
-      sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
+      sceneRehearsalIsOpen &&
+      (awaitingTheGuide || machine.inFlight != null || scene.wentToTheVoice);
 
   bool get redMicrophoneIsShown =>
       (voice == VoiceState.invite || voice == VoiceState.done) &&
