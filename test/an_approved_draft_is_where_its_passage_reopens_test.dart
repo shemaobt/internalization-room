@@ -185,7 +185,7 @@ void main() {
             File('${home.path}/frase-1.m4a')..writeAsBytesSync([5, 5]),
             sessionId: 'sessao-antiga',
             kind: sentenceKind,
-            scope: '1',
+            scope: 'trecho-1',
           );
         });
 
@@ -539,7 +539,7 @@ void main() {
     () {
       for (final (what, kind, scope) in [
         ('a take', 'ensaio', 'parte-1'),
-        ('a re-told frase', sentenceKind, '1'),
+        ('a re-told frase', sentenceKind, 'trecho-1'),
       ]) {
         testWidgets(what, (tester) async {
           final harness = _aRoomHolding(approved: _approvedAs(1))
@@ -581,7 +581,7 @@ void main() {
           File('${home.path}/frase-1.m4a')..writeAsBytesSync([5, 5]),
           sessionId: 'sessao-antiga',
           kind: sentenceKind,
-          scope: '1',
+          scope: 'trecho-1',
         );
       });
 

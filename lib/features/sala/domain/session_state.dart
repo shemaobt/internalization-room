@@ -509,7 +509,7 @@ class SalaSessionState {
   final bool btRecomecada;
   final RegravacaoDaFrase? btRegravacao;
   final String? btFraseQueAguarda;
-  final int? btFraseGuardada;
+  final String? btFraseGuardada;
   final String? btFraseDevida;
 
   /// The approval the newest Session read says the draft stands under.
@@ -1667,10 +1667,11 @@ class SalaSessionState {
       !btSoOuvir &&
       aBackTranslationGestureActs &&
       trecho.frase != null &&
+      trecho.segmentId != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
       btFraseDevida == null &&
-      (btFraseGuardada == null || btFraseGuardada == trecho.frase) &&
+      (btFraseGuardada == null || btFraseGuardada == trecho.segmentId) &&
       (btFraseQueAguarda == null || btFraseQueAguarda == trecho.segmentId) &&
       !needsPerson &&
       trecho.parte >= 0 &&
@@ -1894,7 +1895,7 @@ class SalaSessionState {
     bool clearBtRegravacao = false,
     String? btFraseQueAguarda,
     bool clearBtFraseQueAguarda = false,
-    int? btFraseGuardada,
+    String? btFraseGuardada,
     bool clearBtFraseGuardada = false,
     String? btFraseDevida,
     bool clearBtFraseDevida = false,
