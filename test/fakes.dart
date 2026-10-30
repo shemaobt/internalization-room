@@ -471,6 +471,9 @@ class FakeRecorder implements RecordingRepository {
 
   Future<void>? _stopping;
 
+  /// The take a stop that threw left on the platform, until a discard removes it.
+  String? _lost;
+
   @override
   Future<String?> stop() async {
     final held = _holdingStop;
@@ -478,6 +481,7 @@ class FakeRecorder implements RecordingRepository {
     _stopping = null;
     _recording = false;
     if (stopThrows) {
+      _lost = '${home.path}/captura-$captures.m4a';
       throw const FileSystemException('o gravador perdeu o arquivo');
     }
     if (returnsNothing) return null;
@@ -518,6 +522,11 @@ class FakeRecorder implements RecordingRepository {
     sounds.add('recorder:discard');
     final stopping = _stopping;
     if (stopping != null) await stopping;
+    if (_lost case final lost?) {
+      _lost = null;
+      deleted.add(lost);
+      return;
+    }
     if (!_recording) return;
     final path = await stop();
     if (path != null) deleted.add(path);

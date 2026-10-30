@@ -426,6 +426,7 @@ void main() {
         expect(room.circleListens, isFalse);
         final deadTake = room.harness.recorder.starts.single;
         final deadStart = room.harness.sounds.lastIndexOf('recorder:start');
+        final deletedBefore = room.harness.recorder.deleted.length;
 
         room.harness.recorder.stopThrows = false;
         room.tap();
@@ -436,6 +437,13 @@ void main() {
           reason:
               'o toque no círculo em repouso fechava de novo o microfone '
               'morto, e nada voltava a gravar',
+        );
+        expect(
+          room.harness.recorder.deleted,
+          hasLength(deletedBefore + 1),
+          reason:
+              'o descarte do microfone morto foi pedido e não apagou a vez '
+              'perdida',
         );
         expect(
           room.harness.recorder.starts.last,
@@ -469,6 +477,7 @@ void main() {
         final deadTake = room.harness.recorder.starts.single;
         final deadStart = room.harness.sounds.lastIndexOf('recorder:start');
         final turnsBefore = room.harness.room.turnsSent;
+        final deletedBefore = room.harness.recorder.deleted.length;
 
         room.tap();
         await room.beat(300);
@@ -478,6 +487,11 @@ void main() {
           reason:
               'o toque com o microfone tomado parava a vez e mandava à sala '
               'o que foi gravado até a chamada',
+        );
+        expect(
+          room.harness.recorder.deleted,
+          hasLength(deletedBefore + 1),
+          reason: 'o descarte da vez tomada não apagou o que ela gravou',
         );
         expect(room.harness.recorder.starts.last, isNot(deadTake));
         final newStart = room.harness.sounds.lastIndexOf('recorder:start');
