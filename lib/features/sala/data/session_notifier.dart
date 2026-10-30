@@ -1658,12 +1658,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: false, peerCue: false);
   }
 
-  void _refuseThePassage() {
-    if (state.passageLeft case final left?) {
-      return _bringBackThePassageLeft(left);
-    }
-    unawaited(abrirEscolha());
-  }
+  void _refuseThePassage() => unawaited(abrirEscolha());
 
   void _watchBusyState() {
     final ceiling = ref.read(busyStateCeilingProvider);
@@ -2346,6 +2341,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
     _silenceTheRoom();
+    state = state.copyWith(openingEntry: entry);
     if (entry.isPanorama) {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
@@ -2365,19 +2361,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _openedFromTheChoice(Future<void> Function() open) async {
+    final held = state.passageLeft?.session;
     final opening = open().catchError(
       (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
       test: (error) => error is Error && _theOpenBroughtNoSession,
     );
     final generation = _generation;
     await opening;
-    final left = state.passageLeft;
-    if (left != null) state = state.copyWith(clearPassageLeft: true);
-    if (_generation != generation || state.needsPerson) return;
-    final unopened = _theOpenBroughtNoSession;
-    if (!unopened) return;
-    if (left != null) return _bringBackThePassageLeft(left);
-    _arriveAtTheChoice();
+    if (state.openingEntry != null) {
+      state = state.copyWith(clearOpeningEntry: true);
+    }
+    if (_generation == generation &&
+        !state.needsPerson &&
+        _theOpenBroughtNoSession) {
+      return _dispatch(const TheOpenBroughtNoSession());
+    }
+    if (held == null || state.machine.waiting != null) return;
+    if (state.passageLeft != null) {
+      state = state.copyWith(clearPassageLeft: true);
+    }
+    if (held != state.sessionId) _forgetTheKeptRetellings(held);
   }
 
   bool get _theOpenBroughtNoSession => switch (state.station) {
@@ -2393,7 +2396,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Menu());
     _clearAll();
     _arriveAt(const TheChoiceOpened());
-    state = state.copyWith(arrivedAtTheChoice: true);
+    state = state.copyWith(arrivedAtTheChoice: true, clearOpeningEntry: true);
   }
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
@@ -2456,6 +2459,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       case final RoomFailure failure:
         _decideTheFailure(failure);
+        if (!_abandoned(generation) && !state.needsPerson) {
+          _dispatch(const TheOpenBroughtNoSession());
+        }
     }
   }
 
@@ -2483,10 +2489,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         : null;
     _clearAll();
     _dropThePendingTake();
-    _forgetThePassage();
+    _forgetThePassage(keepingTheTellings: kept != null);
     _openTheChoice();
     if (left != null) state = state.copyWith(leftEntry: left);
     if (kept != null) state = state.copyWith(passageLeft: kept);
+    if (left != null && (kept != null || left.panorama)) {
+      _dispatch(TheEntryWaits(left));
+    }
   }
 
   LeftEntry? _whatTheLeaveLeaves() {
@@ -2520,8 +2529,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> returnToTheLeftEntry() async => _gesture(_returnToTheLeftEntry);
 
   void _returnToTheLeftEntry() {
-    if (!state.theWayBackIsLive) return;
-    final left = state.leftEntry!;
+    if (state.theWayBackIsLive) _returnTo(state.leftEntry!);
+  }
+
+  void _returnTo(LeftEntry left) {
     state = state.copyWith(clearLeftEntry: true);
     if (left case LeftEntry(panorama: true, pericope: final id?)) {
       _silenceTheRoom();
@@ -2595,6 +2606,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (sessionId != null && state.passageLeft?.session == sessionId) {
       state = state.copyWith(clearPassageLeft: true);
+      _forgetTheKeptRetellings(sessionId);
     }
     unawaited(
       _mindingThePlace(
@@ -2736,9 +2748,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _openTheChoice() {
-    if (state.passageLeft case final left?) {
-      return _bringBackThePassageLeft(left);
-    }
     _aLinhaDiz = null;
     state = SalaSessionState(
       machine: state.machine.withNoPassage(_gesturesOnTheirWay.onTheirWay),
@@ -3515,7 +3524,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _porCadaTrechoNaSuaParte(
           sessionId,
           told.segments,
-          _generation,
           regravados: told.stale,
         ),
       );
@@ -11338,8 +11346,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// were.
   Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
-    List<SegmentView> segments,
-    int generation, {
+    List<SegmentView> segments, {
     List<SegmentView> regravados = const [],
   }) async {
     Set<String> semGravacao(List<SegmentView> lidos) => {
@@ -11371,7 +11378,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         return;
     }
-    if (_abandoned(generation)) return;
+    if (_endedSince(life) || state.sessionId != sessionId) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId) &&
@@ -11629,11 +11636,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// them. The stretch being told again — armed when the team asks to tell one again and
   /// let go only by a telling that lands — would make the very first stretch of the next
   /// back translation upload as a correction of a stretch that does not exist.
-  void _forgetThePassage() {
+  void _forgetThePassage({bool keepingTheTellings = false}) {
     _relatarAEscuta();
     state = state.copyWith(btSoOuvir: false);
-    if (state.sessionId case final session?) {
-      unawaited(_recorder.forgetTheKeptRetellings(session).catchError((_) {}));
+    if (state.sessionId case final session? when !keepingTheTellings) {
+      _forgetTheKeptRetellings(session);
     }
     unawaited(_coverageWatch?.cancel());
     _coverageWatch = null;
@@ -11663,6 +11670,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _captureFails = {};
     _recordingStarting = false;
   }
+
+  void _forgetTheKeptRetellings(String session) =>
+      unawaited(_recorder.forgetTheKeptRetellings(session).catchError((_) {}));
 }
 
 typedef _AwaitedReply = ({
@@ -11847,6 +11857,10 @@ class _NotifierHost implements StationHost {
     switch (handOff) {
       case OpenTheChoice():
         _notifier._openTheChoice();
+      case ReturnToTheEntryLeft(:final left):
+        _notifier._returnTo(left);
+      case RestOnTheChoice():
+        _notifier._arriveAtTheChoice();
       case ReadTheWheel() when _notifier._current.naRoda != null:
         _notifier._handOff(_notifier._readTheStartedEntriesAgain());
       case ReadTheWheel()

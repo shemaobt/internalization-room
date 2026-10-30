@@ -344,6 +344,34 @@ void main() {
     expect(harness.room.personAsksFor, [primeira]);
   });
 
+  test('a session the room lets go while its passage waits under the Choice '
+      'takes its kept tellings off the tablet', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness);
+    final primeira = _estado(container).sessionId!;
+    final kept = File('${harness.recorder.home.path}/kept-$primeira-S1-1.wav')
+      ..writeAsBytesSync([1, 2, 3]);
+    harness.room.holdNextAskForAPerson();
+    await _aPassagemFechaNoPedidoDePessoa(harness, container);
+    harness.room.askForAPersonFailsWith = const SessionGone();
+    _sala(container).leaveThePassage();
+    await _naEscolha(container);
+    expect(kept.existsSync(), isTrue);
+
+    harness.room.finishHeldAskForAPerson();
+    await waitFor(
+      'a primeira sessão ser largada',
+      () => _estado(container).passageLeft == null,
+    );
+    await settle();
+
+    expect(
+      kept.existsSync(),
+      isFalse,
+      reason: 'o take guardado da sessão largada ficou no tablet para sempre',
+    );
+  });
+
   test('a call for an earlier session that fell on the network leaves the '
       'current session still called for', () async {
     final harness = SalaHarness();
