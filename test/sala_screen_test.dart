@@ -33,6 +33,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
+import 'package:internalization_room/features/sala/presentation/widgets/replay_arc.dart';
 import 'scenario_helpers.dart'
     show byLabel, offTheRows, onTheCircle, onTheRows, stateReads, inTheHome;
 import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
@@ -55,6 +56,12 @@ Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   )) {
     if (mark.color != null) colours.add(mark.color!);
   }
+  for (final paint in tester.widgetList<CustomPaint>(
+    find.descendant(of: corner, matching: find.byType(CustomPaint)),
+  )) {
+    final painter = paint.painter;
+    if (painter is ReplayArcPainter) colours.add(painter.ink);
+  }
   return colours;
 }
 
@@ -75,9 +82,20 @@ double contrastOf(Color one, Color other) {
 }
 
 Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
-  final marca = find.descendant(of: corner, matching: find.byType(Icon));
-  final tinta = tester.widget<Icon>(marca).color!;
+  final marca = find.descendant(
+    of: corner,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is ReplayArcPainter,
+    ),
+  );
+  final tinta =
+      (tester.widget<CustomPaint>(marca).painter! as ReplayArcPainter).ink;
   var alpha = tinta.a;
+  for (final veu in tester.widgetList<FadeTransition>(
+    find.ancestor(of: marca, matching: find.byType(FadeTransition)),
+  )) {
+    alpha *= veu.opacity.value;
+  }
   for (final veu in tester.widgetList<Opacity>(
     find.ancestor(of: marca, matching: find.byType(Opacity)),
   )) {
@@ -188,28 +206,13 @@ Future<void> _enterThePanorama(
 }
 
 void main() {
-  testWidgets('convite renders the facilitator circle', (tester) async {
-    await pumpSala(tester, SalaHarness());
-
-    expect(find.byType(FacilitatorCircle), findsOneWidget);
-  });
-
-  testWidgets('the circle has real size, not just a place in the tree', (
+  testWidgets('convite draws the mark and the title and no circle', (
     tester,
   ) async {
     await pumpSala(tester, SalaHarness());
 
-    final drawn = tester.getSize(find.byType(FacilitatorCircle));
-
-    expect(
-      drawn.width,
-      greaterThan(0),
-      reason:
-          'um Stack com restrições frouxas encolhe para o maior filho sem '
-          'posição — um filho de 0x0 colapsa a tela inteira, e o widget continua '
-          'na árvore como se estivesse lá',
-    );
-    expect(drawn.height, greaterThan(0));
+    expect(find.text('Escolha a passagem'), findsOneWidget);
+    expect(find.byType(FacilitatorCircle), findsNothing);
   });
 
   testWidgets('every stage paints something the team can see', (tester) async {
@@ -248,7 +251,7 @@ void main() {
     expectOnlyHerMenuAndTheLanguageCodesAreWritten();
   });
 
-  testWidgets('a finished book is announced in english to an english room', (
+  testWidgets('a finished book keeps the title in english over an empty list', (
     tester,
   ) async {
     final harness = SalaHarness(lingua: 'en')..room.passages = const [];
@@ -256,18 +259,12 @@ void main() {
     await container.read(salaSessionProvider.notifier).abrirEscolha();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(byLabel('Every passage has been worked through'), findsOneWidget);
-    expect(
-      byLabel('Todas as passagens foram trabalhadas'),
-      findsNothing,
-      reason:
-          'o livro terminado era anunciado em português a um aparelho em '
-          'inglês',
-    );
+    expect(find.text('Choose the Passage'), findsOneWidget);
+    expect(find.byType(FacilitatorCircle), findsNothing);
   });
 
   testWidgets(
-    'a wheel still to be read asks for it in english, not in portuguese',
+    'a wheel still to be read keeps the title in english over an empty list',
     (tester) async {
       final harness = SalaHarness(lingua: 'en', linkedAs: _holdingItsCredential)
         ..room.failWith = const Refused('BAD_REQUEST');
@@ -276,14 +273,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(container.read(salaSessionProvider).rodaPorLer, isTrue);
-      expect(byLabel('Tap to look for the passages'), findsOneWidget);
-      expect(
-        byLabel('Tocar para procurar as passagens'),
-        findsNothing,
-        reason:
-            'a roda que ainda não foi lida pedia o toque em português a um '
-            'aparelho em inglês',
-      );
+      expect(find.text('Choose the Passage'), findsOneWidget);
+      expect(find.byType(FacilitatorCircle), findsNothing);
       closeTheRoom(container);
     },
   );
@@ -301,7 +292,7 @@ void main() {
           'não há o que oferecer, e um botão que não leva a lugar nenhum '
           'é pior do que nenhum botão',
     );
-    expect(byLabel('Todas as passagens foram trabalhadas'), findsOneWidget);
+    expect(find.byType(FacilitatorCircle), findsNothing);
   });
 
   testWidgets('no stage ever shows a written word', (tester) async {

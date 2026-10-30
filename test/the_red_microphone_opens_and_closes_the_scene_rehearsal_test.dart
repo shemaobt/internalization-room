@@ -18,7 +18,7 @@ import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart'
-    show byLabel, enterThePassage, relaunch, settle, stateReads;
+    show byLabel, offered, enterThePassage, relaunch, settle, stateReads;
 
 const _session = 'sessao-1';
 const _placesUnknownLine =
@@ -564,7 +564,7 @@ void main() {
     await tester.tap(_redMicrophone);
     await tester.pump(const Duration(milliseconds: 1500));
 
-    expect(byLabel('Ouvir de novo'), findsNothing);
+    expect(offered('Ouvir de novo'), findsNothing);
   });
 
   testWidgets(
@@ -698,7 +698,7 @@ void main() {
       expect(byLabel('gravar o ensaio da cena de novo'), findsOneWidget);
       expect(byLabel('traduzir o ensaio da cena'), findsNothing);
       expect(byLabel('Gravar o ensaio da cena'), findsNothing);
-      expect(byLabel('Ouvir de novo'), findsNothing);
+      expect(offered('Ouvir de novo'), findsNothing);
     },
   );
 

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0107
+status: accepted, amended by 0107, amended by ENG-1899 (2026-10-30: the Choice's way out)
 ---
 
 # No station of the room is a dead end
@@ -27,3 +27,11 @@ A station added later is covered without anyone remembering to cover it: the set
 fails before the walk can silently skip it. The **Closing** is included — it is not where
 the team stays, and the **Wheel** reopens on its own after a pause, or at once on a touch
 anywhere.
+
+Amended by ENG-1899 (2026-10-30): the Choice. While the Wheel is unread or failed, the Choice
+draws the mark and its title over an empty list and no circle, as hers does. The Choice then
+has no gesture of its own: "no dead end" holds there through the next open of the Choice by
+the notifier (`abrirEscolha`, which reads the Wheel again), not through anything the team
+touches on the Choice. João accepted on the ticket that removing the circle removes its
+retry, because her Choice has none. The table of exits keeps the Choice's exit on a listed
+Wheel, the tap on an entry.

@@ -838,14 +838,6 @@ String findingLabelFor(String control, String language) =>
 const escolhaLabels = {
   'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
   'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
-  'allDone': {
-    'pt': 'Todas as passagens foram trabalhadas',
-    'en': 'Every passage has been worked through',
-  },
-  'readTheWheel': {
-    'pt': 'Tocar para procurar as passagens',
-    'en': 'Tap to look for the passages',
-  },
   'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
   'light': {'pt': 'Claro', 'en': 'Light'},
   'dark': {'pt': 'Escuro', 'en': 'Dark'},
