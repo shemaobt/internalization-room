@@ -53,6 +53,10 @@ Future<ProviderContainer> _atTheCheckScreen(
   notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
+  await untilTheAdvanceDiscLights(
+    notifier,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 1600));
   await tester.pump(const Duration(milliseconds: 2400));

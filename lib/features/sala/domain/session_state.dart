@@ -805,12 +805,14 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part and none waits in the Outbox,
-  /// with nothing recorded and waiting.
+  /// The advance disc lights: every Scene has its Part and the room holds every one,
+  /// from the keep tap on, with nothing recorded and waiting.
   bool get ensaioDone =>
       ensaio == EnsaioStatus.idle && everySceneHasItsPart && everyPartIsSent;
 
-  bool get everyPartIsSent => !partes.any(_waitsToGoUp);
+  bool get everyPartIsSent => !partes.any(
+    (take) => _waitsToGoUp(take) || machine.beingKept(sessionId, take.scopeId),
+  );
 
   bool _waitsToGoUp(KeptTake take) =>
       take.takeId == null && unsentParts.containsKey(rowOf(take.scopeId));
@@ -1620,12 +1622,13 @@ class SalaSessionState {
 
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
-  bool get canOuvirTudo =>
-      partes.isNotEmpty && ensaio == EnsaioStatus.idle && !needsPerson;
+  bool get canOuvirTudo => ensaioDone && !needsPerson;
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
-      ensaio != EnsaioStatus.recording;
+      ensaio != EnsaioStatus.recording &&
+      !partes.any((take) => machine.beingKept(sessionId, take.scopeId)) &&
+      _theTakeInTheAirOf(partTakeKind) == null;
 
   Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
     final Trecho trecho

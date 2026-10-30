@@ -54,6 +54,7 @@ final _wayOut =
           n.gravarACena(1);
           await settle();
           n.takeKeep();
+          await untilTheAdvanceDiscLights(n);
           n.startRetro();
         },
       ),
@@ -170,6 +171,7 @@ Future<void> _standIn(
   notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
+  await untilTheAdvanceDiscLights(notifier);
   notifier.startRetro();
   await settle();
 }

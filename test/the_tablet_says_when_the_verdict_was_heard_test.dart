@@ -32,6 +32,7 @@ Future<void> _toTheTelling(
   notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
+  await untilTheAdvanceDiscLights(notifier);
   notifier.startRetro();
   await settle();
   harness.playback.finishPlayback();

@@ -488,6 +488,7 @@ void main() {
       final partes = container.read(salaSessionProvider).partes;
       return partes.isNotEmpty && partes.last.takeId != null;
     });
+    await untilTheAdvanceDiscLights(notifier);
     notifier.startRetro();
     await settle();
 
@@ -539,6 +540,7 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await untilTheAdvanceDiscLights(notifier);
     notifier.startRetro();
     await settle();
 
@@ -599,6 +601,7 @@ void main() {
       await settle();
       notifier.takeKeep();
       await settle();
+      await untilTheWoodPlayLights(notifier);
       notifier.playTheRehearsal();
       await settle();
       expect(container.read(salaSessionProvider).playPing, isTrue);
@@ -997,6 +1000,7 @@ void main() {
           notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
+          await untilTheAdvanceDiscLights(notifier);
           notifier.startRetro();
           await settle();
           harness.playback.at = const Duration(seconds: 12);
@@ -1028,6 +1032,7 @@ void main() {
           notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
+          await untilTheAdvanceDiscLights(notifier);
           notifier.startRetro();
           await settle();
           harness.playback.at = const Duration(seconds: 9);
@@ -1213,6 +1218,7 @@ void main() {
       notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
+      await untilTheAdvanceDiscLights(notifier);
       notifier.startRetro();
       await settle();
       harness.playback.finishPlayback();
@@ -1246,6 +1252,7 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await untilTheAdvanceDiscLights(notifier);
     notifier.startRetro();
     await settle();
     harness.playback.finishPlayback();

@@ -176,6 +176,10 @@ Future<ProviderContainer> pumpToFindings(
   notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
+  await untilTheAdvanceDiscLights(
+    notifier,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
   harness.playback.finishPlayback();
@@ -773,6 +777,10 @@ void main() {
       notifier.gravarACena(1);
       await tester.pump(const Duration(milliseconds: 200));
       notifier.takeKeep();
+      await untilTheAdvanceDiscLights(
+        notifier,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
       notifier.startRetro();
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 1400));
@@ -926,7 +934,7 @@ void main() {
     expect(offered, greaterThan(0));
   });
 
-  testWidgets('the ensaio lights its play once there is a part to hear', (
+  testWidgets('the ensaio lights its play once the room holds a part to hear', (
     tester,
   ) async {
     final container = await pumpSala(tester, SalaHarness());
@@ -944,6 +952,7 @@ void main() {
     notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
+    await theRoomNamesTheParts(tester, container, parts: 1);
     await tester.pump(const Duration(milliseconds: 800));
 
     expect(tocavel(), isTrue);
@@ -1043,6 +1052,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(inTheHome('Traduzir a gravação'), findsOneWidget);
 
+    await untilTheAdvanceDiscLights(
+      notifier,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
     notifier.playTheRehearsal();
     await tester.pump(const Duration(milliseconds: 200));
 

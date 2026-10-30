@@ -4339,20 +4339,29 @@ class FakeTakeQueue implements TakeUploadQueue {
   ].length;
 
   Completer<void>? _armed;
-  Completer<void>? _holding;
+  final List<Completer<void>> _holding = [];
 
   /// Hold the next reading *after* it has looked at the queue, so a count taken while
   /// recordings were still here can be made to arrive after a newer one.
   void holdTheNextReading() => _armed = Completer<void>();
 
+  /// The next reading of the queue fails, the way a disk that cannot be read would.
+  bool failsTheNextReading = false;
+
   /// Whether a reading is parked in the hold with its numbers already taken. Waiting on
   /// a duration here instead would let the queue change first, and the older reading
   /// would come back as fresh as the newer one — a race the case never ran.
-  bool get readingHeld => _holding != null;
+  bool get readingHeld => _holding.isNotEmpty;
+
+  int get readingsHeld => _holding.length;
+
+  void releaseTheOldestReading() => _holding.removeAt(0).complete();
 
   void releaseTheHeldReading() {
-    _holding?.complete();
-    _holding = null;
+    for (final held in _holding) {
+      held.complete();
+    }
+    _holding.clear();
   }
 
   /// How many takes were still unsent each time the room counted, in order.
@@ -4363,10 +4372,14 @@ class FakeTakeQueue implements TakeUploadQueue {
     required String? sessionId,
     String? passage,
   }) async {
+    if (failsTheNextReading) {
+      failsTheNextReading = false;
+      throw const FileSystemException('o disco não leu a fila');
+    }
     unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
-    if (held != null) _holding = held;
+    if (held != null) _holding.add(held);
     // Nenhum await antes daqui: os números precisam ser tomados no mesmo turno
     // síncrono em que a espera é armada — um await entre as duas coisas muda
     // quando a leitura vê a fila, não só quando ela responde.
@@ -4443,6 +4456,26 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
   );
   await tester.pump(const Duration(milliseconds: 100));
 }
+
+/// Until the advance disc lights: every scene has its part and the room holds every one.
+Future<void> untilTheAdvanceDiscLights(
+  SalaSessionNotifier sala, {
+  Future<void> Function()? step,
+}) => waitFor(
+  'o disco de avanço acender',
+  () => sala.state.ensaioDone,
+  step: step,
+);
+
+/// Until the wood play lights: no part is still going up to the room.
+Future<void> untilTheWoodPlayLights(
+  SalaSessionNotifier sala, {
+  Future<void> Function()? step,
+}) => waitFor(
+  'o play de madeira acender',
+  () => sala.state.canPlayTheRehearsal,
+  step: step,
+);
 
 Future<void> theRoomNamesTheParts(
   WidgetTester tester,
@@ -4851,6 +4884,34 @@ class QueueHeldOnTheTally extends TakeUploadQueue {
   }) async {
     if (!asking.isCompleted) asking.complete();
     await answer.future;
+    return super.tally(sessionId: sessionId, passage: passage);
+  }
+}
+
+/// A real Outbox whose next count, once armed, waits for the case to let it answer.
+class QueueHeldOnTheNextTally extends TakeUploadQueue {
+  QueueHeldOnTheNextTally({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  ({Completer<void> asking, Completer<void> answer})? _armed;
+
+  ({Completer<void> asking, Completer<void> answer}) holdTheNextTally() =>
+      _armed = (asking: Completer<void>(), answer: Completer<void>());
+
+  @override
+  Future<OutboxTally> tally({
+    required String? sessionId,
+    String? passage,
+  }) async {
+    final held = _armed;
+    _armed = null;
+    if (held != null) {
+      held.asking.complete();
+      await held.answer.future;
+    }
     return super.tally(sessionId: sessionId, passage: passage);
   }
 }

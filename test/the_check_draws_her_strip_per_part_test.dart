@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -1110,41 +1111,58 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a part whose upload has not landed carries her dot, since the '
-      'room has not heard it and the team is sent to hear it', (tester) async {
+  testWidgets('a part landed without this tablet learning its name carries her '
+      'dot, since the room has not heard it and the team is sent to hear it', (
+    tester,
+  ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     harness.room
       ..listeningUnheardTakeIds = const []
-      ..holdNextTake(KeptScope.parte(2));
+      ..failTakesWith = const NetworkFailed('sem rede')
+      ..takes.addAll(const [
+        TakeView(
+          takeId: 'gravacao-1',
+          kind: 'ensaio',
+          scope: 'parte-1',
+          ordinal: 1,
+        ),
+        TakeView(
+          takeId: 'da-sala-2',
+          kind: 'ensaio',
+          scope: 'parte-2',
+          ordinal: 2,
+        ),
+      ]);
     harness.playback
       ..measured = parte
       ..length = parte;
+    final pasta = Directory.systemTemp.createTempSync('sala-parte-sem-nome');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await holdTheSession(
+      harness,
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          for (var n = 1; n <= 2; n++)
+            KeptTake(
+              scopeId: KeptScope.parte(n),
+              path: (File('${pasta.path}/p$n.m4a')..writeAsBytesSync([n])).path,
+              takeId: n == 1 ? 'gravacao-1' : null,
+            ),
+        ],
+      ),
+    );
     final container = harness.container();
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const SalaApp()),
     );
-    await tester.pump(const Duration(milliseconds: 100));
-    final sala = container.read(salaSessionProvider.notifier);
-    await sala.goConversa(book: 'Ruth');
-    await tester.pump(const Duration(milliseconds: 200));
-    sala.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 100));
-    for (var gravada = 0; gravada < 2; gravada++) {
-      sala.gravarACena(gravada + 1);
-      sala.gravarACena(gravada + 1);
-      await tester.pump(const Duration(milliseconds: 100));
-      sala.takeKeep();
-      if (gravada == 0) {
-        await theRoomNamesTheParts(tester, container, parts: 1);
-      }
-    }
-    await waitFor(
-      'a parte 2 ficar guardada, ainda subindo',
-      () => container.read(salaSessionProvider).partes.length == 2,
+    await intoTheBackTranslation(
+      container.read(salaSessionProvider.notifier),
+      () => container.read(salaSessionProvider),
       step: () => letTheRehearsalReachTheRoom(tester),
     );
-    sala.startRetro();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -1156,7 +1174,6 @@ void main() {
           'a parte que ainda subia era a que a sala mandava ouvir, e a '
           'fileira dela não dizia que faltava ouvi-la',
     );
-    harness.room.finishHeldTake();
     closeTheRoom(container);
   });
 }
