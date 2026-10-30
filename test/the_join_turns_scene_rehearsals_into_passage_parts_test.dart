@@ -197,6 +197,11 @@ class _Room {
     matching: find.byType(TextButton),
   );
 
+  Finder sendNowOf(int n) => find.ancestor(
+    of: find.textContaining('Cena $n · '),
+    matching: find.byType(TextButton),
+  );
+
   /// Every part a join wrote, landed in the room or still in the Outbox.
   Future<Set<String>> scopesJoined() async => {
     for (final take in room.takesReceivedWhole)
@@ -1824,6 +1829,48 @@ void main() {
         reason:
             'o enviarACena no meio da junta punha a parte 3 de novo na fila, e '
             'ela subia logo depois da junta',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "while one scene's take goes up from the notice, the other scene's «enviar "
+    'agora» rests, and is offered again once it landed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.heldOnTheTablet(1);
+      await it.aHandTakeGivenUp(2);
+      await it.aHandTakeGivenUp(3);
+      await it.openThePlan();
+      expect(it.sendNowOf(2), findsOneWidget);
+      expect(it.sendNowOf(3), findsOneWidget);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-2');
+
+      await tester.tap(it.sendNowOf(2));
+      await it.until('a parte 2 ficar presa na sala', () => it.room.takeHeld);
+
+      expect(
+        tester.widget<TextButton>(it.sendNowOf(3)).onPressed,
+        isNull,
+        reason:
+            'o «enviar agora» da cena 3 ficava aceso enquanto a cena 2 subia',
+      );
+
+      it.room.finishHeldTake();
+      await it.until(
+        'a parte 2 chegar',
+        () => it.partsReceived.contains('parte-2'),
+      );
+      await it.until(
+        'o «enviar agora» da cena 3 voltar',
+        () =>
+            it.sendNowOf(3).evaluate().isNotEmpty &&
+            tester.widget<TextButton>(it.sendNowOf(3)).onPressed != null,
       );
       closeTheRoom(it.container);
       semantics.dispose();
