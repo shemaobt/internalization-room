@@ -3,7 +3,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -118,7 +117,7 @@ void main() {
         it.estado.sessionId,
         'sessao-7',
         reason:
-            'a língua tocada no meio do pouso deixava a escolha sem roda e sem pouso',
+            'a língua tocada no meio do pouso movia a geração e o pouso era abandonado',
       );
     },
   );

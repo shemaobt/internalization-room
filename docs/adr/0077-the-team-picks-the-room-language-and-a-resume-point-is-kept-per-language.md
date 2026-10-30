@@ -1,3 +1,6 @@
+---
+status: accepted, amended by ENG-1866 and ENG-1988
+---
 # The team picks the room language, and a Resume point is kept per passage and language
 
 Supersedes ADR 0015. Amends ADR 0031 (a row created in another language no longer drops it).
@@ -17,6 +20,12 @@ standing approval, which no language keys; the voiced name it sends per language
 played on the tablet. The choice is still a machine event that moves the generation, so a
 read for an earlier choice is never applied; the Wheel is read again from the room only
 while the Choice holds none.
+
+Amended by ENG-1988 (2026-10-30): the machine event of the ENG-1866 amendment. A language
+tapped while the Wheel's first read is in flight, or while the room is launching, is not sent
+to the machine: the generation stays, the read lands and its started passages are read again
+in the language chosen, and a launch goes on to its landing. As in her app, the toggle never
+abandons a read. The machine cannot see a launch, so this guard stays in the notifier.
 
 ## Context
 

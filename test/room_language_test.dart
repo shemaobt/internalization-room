@@ -32,6 +32,20 @@ const _livroComPanorama = [
   Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
 ];
 
+class _AnEnglishReadHeldOnTheDisk extends FakeWorkInProgress {
+  Completer<void>? _gate;
+
+  void hold() => _gate = Completer<void>();
+
+  void release() => _gate?.complete();
+
+  @override
+  Future<Set<String>> startedIn(String book, String language) async {
+    if (language == 'en') await _gate?.future;
+    return super.startedIn(book, language);
+  }
+}
+
 Sala _aTabletWithNothingChosen({FakeRoomLanguageLedger? chosen}) {
   final harness = SalaHarness(lingua: null, roomLanguage: chosen);
   final container = harness.container();
@@ -406,7 +420,46 @@ void main() {
 
       expect(it.estado.naRoda, portuguese);
       expect(it.estado.comecadas, contains('P01'));
-      expect(it.harness.room.languagesAsked.toSet(), {'pt'});
+      expect(it.harness.room.languagesAsked, ['pt']);
+    },
+  );
+
+  test(
+    'two taps while the launch reads the Wheel leave the started marks in the '
+    'language last chosen',
+    () async {
+      const book = [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01', book: 'Ruth'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02', book: 'Ruth'),
+      ];
+      final disk = _AnEnglishReadHeldOnTheDisk()
+        ..rows['Ruth/P01/en'] = const ResumePoint(
+          sessionId: 'sessao-en',
+          stage: SalaStage.ensaio,
+        )
+        ..rows['Ruth/P02/pt'] = const ResumePoint(
+          sessionId: 'sessao-pt',
+          stage: SalaStage.ensaio,
+        );
+      final harness = SalaHarness(lingua: null, emAbertoNoDisco: disk)
+        ..room.passages = book;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      final slow = harness.room.holdOneWheelRead();
+      unawaited(it.sala.openTheRoom());
+      await settle();
+
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      disk.hold();
+      slow.complete();
+      await waitFor('the Wheel to land', () => it.estado.naRoda != null);
+      it.sala.chooseTheLanguage('pt');
+      disk.release();
+      await settle();
+
+      expect(it.estado.comecadas, {'P02'});
     },
   );
 

@@ -2262,7 +2262,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       comecadas: comecadas,
       awaitingTheGuide: false,
     );
-    if (_lingua != language) await _readTheStartedEntriesAgain();
+    if (_lingua != language) _handOff(_readTheStartedEntriesAgain());
   }
 
   Future<void> _readTheStartedEntriesAgain() async {
