@@ -623,7 +623,7 @@ class RetroView extends ConsumerWidget {
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;
     for (final finding in session.btFindings) {
-      if (finding.frase == frase) return finding.kind;
+      if (finding.frase == frase && finding.kind != null) return finding.kind;
     }
     return null;
   }

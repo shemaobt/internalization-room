@@ -443,6 +443,36 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a frase whose nuance comes before its missing finding still '
+      'reads «faltou depois desta», as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(
+      tester,
+      harness,
+      BtFinding.listFrom({
+        'findings': [
+          {'kind': 'nuance', 'frase': 2, 'segment_id': 'trecho-2'},
+          {'kind': 'missing', 'frase': 2, 'segment_id': 'trecho-2'},
+        ],
+      }),
+    );
+
+    expect(
+      find.descendant(
+        of: _aFrase(2).first,
+        matching: find.text('faltou depois desta'),
+      ),
+      findsOneWidget,
+      reason:
+          'uma nuance sem tipo na frente escondia o «faltou» da mesma frase, '
+          'que a dela marca',
+    );
+    expect(_borda(tester, 2), ShemaBrand.azul);
+    expect(_corDaBarra(tester, 2), ShemaBrand.azul);
+    expect(_corDaPalavra(tester, 2, 'faltou depois desta'), ShemaBrand.azul);
+    closeTheRoom(container);
+  });
+
   testWidgets('a silence finding wears terracotta with «acrescentado», as her '
       'addition does, not the blue of a kind nobody knows', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
