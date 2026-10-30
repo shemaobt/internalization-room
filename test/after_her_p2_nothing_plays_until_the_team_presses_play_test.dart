@@ -102,6 +102,64 @@ void main() {
     );
   });
 
+  test('a P2 whose line cannot sound still asks the room, and leaves her line '
+      'and a dark terminei while the room names a part', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    it.harness.room
+      ..verdictRefusal = CheckRefusal.partUnheard
+      ..verdictFixedLine = 'P2'
+      ..verdictUnheardTakeIds = [it.partes[2].takeId!]
+      ..listeningUnheardTakeIds = [it.partes[2].takeId!];
+    it.harness.voice.refuses.add('P2');
+    final relatos = it.harness.room.listeningReports.length;
+
+    await pedirOVeredito(it);
+    await settle();
+
+    expect(
+      it.harness.room.listeningReports.skip(relatos),
+      [<Map<String, Object?>>[]],
+      reason:
+          'uma P2 que não tocava voltava antes de perguntar à sala, e nada '
+          'relia o que faltava ouvir',
+    );
+    expect(it.estado.btRecusa, CheckRefusal.partUnheard);
+    expect(it.estado.canFinishBackTranslation, isFalse);
+  });
+
+  test(
+    'a P2 whose line cannot sound, answered by a room that counts every '
+    'part heard, clears her line and lights terminei with nothing played',
+    () async {
+      final it = await umEnsaioDeTresPartesContadoInteiro();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.partUnheard
+        ..verdictFixedLine = 'P2'
+        ..verdictUnheardTakeIds = [it.partes[2].takeId!]
+        ..listeningUnheardTakeIds = const [];
+      it.harness.voice.refuses.add('P2');
+      final tocadas = it.harness.playback.played.length;
+
+      await pedirOVeredito(it);
+      await settle();
+
+      expect(
+        it.estado.btRecusa,
+        isNull,
+        reason:
+            'a sala já contava tudo ouvido, e a linha de que falta ouvir ficava '
+            'por cima só porque a P2 não tocou',
+      );
+      expect(
+        it.estado.canFinishBackTranslation,
+        isTrue,
+        reason:
+            'o terminei seguia apagado até a equipe tocar a gravação inteira',
+      );
+      expect(it.harness.playback.played.length, tocadas);
+    },
+  );
+
   test('a P2 naming a part this tablet does not hold leaves terminei dark '
       'and play replays every part, not a terminei lit over her line', () async {
     final it = await _recusadoPelaP2((it) => ['ninguem']);
