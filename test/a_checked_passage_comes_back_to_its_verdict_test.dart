@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -79,6 +80,82 @@ void main() {
       );
     },
   );
+
+  test('a passage checked clean comes back with the marks the room keeps on '
+      'its frases', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    final trechos = it.harness.room.segments;
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..retroSoFar = BackTranslationProgress(
+        segments: [...trechos],
+        checked: true,
+        namedNuance: BtFinding(
+          kind: BtFindingKind.nuance,
+          frase: 1,
+          segmentId: trechos[0].segmentId,
+        ),
+        findings: [
+          BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: 2,
+            segmentId: trechos[1].segmentId,
+          ),
+        ],
+      );
+
+    await _traduzirAGravacao(it);
+
+    expect(it.estado.btPhase, BtPhase.conferida);
+    expect(
+      [for (final f in it.estado.btFindings) (f.kind, f.segmentId)],
+      [
+        (BtFindingKind.nuance, trechos[0].segmentId),
+        (BtFindingKind.unclear, trechos[1].segmentId),
+      ],
+      reason: 'a volta à conferência voltava sem as marcas que a sala guardou',
+    );
+  });
+
+  test('the session read hands over the nuance the last check named, and '
+      'none from a room that does not say', () {
+    final nuance = BackTranslationProgress.fromJson({
+      'named_nuance': {'kind': 'nuance', 'frase': 1, 'segment_id': 'trecho-1'},
+    }).namedNuance;
+    expect(
+      (nuance?.kind, nuance?.frase, nuance?.segmentId),
+      (BtFindingKind.nuance, 1, 'trecho-1'),
+    );
+    expect(BackTranslationProgress.fromJson(const {}).namedNuance, isNull);
+  });
+
+  test('coming back to a checked passage shows the check while the room is '
+      'still read, never the guide thinking', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..holdNextState();
+    final fases = <(BtPhase, bool)>[];
+    final ouvindo = it.container.listen(
+      salaSessionProvider,
+      (_, agora) => fases.add((agora.btPhase, agora.awaitingTheGuide)),
+    );
+    addTearDown(ouvindo.close);
+
+    it.sala.startRetro();
+    await settle();
+
+    expect(it.estado.btPhase, BtPhase.conferida);
+    expect(
+      fases.where((f) => f.$1 == BtPhase.thinking && f.$2),
+      isEmpty,
+      reason: 'a equipe via «pensando» sobre a passagem conferida',
+    );
+    it.harness.room.finishHeldState();
+    await settle();
+    expect(it.estado.btPhase, BtPhase.conferida);
+    expect(it.estado.btVeredito, isTrue);
+  });
 
   test('a passage the room no longer counts as checked when the team comes '
       'back gets no verdict restored', () async {
