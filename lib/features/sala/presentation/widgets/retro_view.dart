@@ -270,6 +270,7 @@ class RetroView extends ConsumerWidget {
                 language,
                 notifier.recordTheWholePassage,
                 open: session.wholeSwitchActsOnTheCheck,
+                onFocusLeft: notifier.accessibilityFocusLeft,
               ),
             ],
             const SizedBox(height: 48),
@@ -374,6 +375,8 @@ class RetroView extends ConsumerWidget {
       regravarDormindo: _dormindo('rerecord:${trecho.segmentId}', session),
       regravarArmado:
           session.armedTap?.control == 'rerecord:${trecho.segmentId}',
+      onRegravarFocusLeft: () =>
+          notifier.accessibilityFocusLeft('rerecord:${trecho.segmentId}'),
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,
@@ -418,6 +421,8 @@ class RetroView extends ConsumerWidget {
       },
       estadoDormindo: _dormindo('resend:${trecho.segmentId}', session),
       estadoArmado: session.armedTap?.control == 'resend:${trecho.segmentId}',
+      onEstadoFocusLeft: () =>
+          notifier.accessibilityFocusLeft('resend:${trecho.segmentId}'),
       onEstado:
           atua &&
               quieta &&
