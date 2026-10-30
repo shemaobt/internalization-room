@@ -5465,6 +5465,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (guardadas == null) return;
     if (_abandoned(generation)) return;
+    _takeTheNamesTheRoomLists(guardadas);
     final held = state.partNumbers;
     final standing = _theRowsStanding;
     final altas = _passadasMaisAltas(guardadas);

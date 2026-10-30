@@ -247,6 +247,40 @@ void main() {
     expect(again.room.clipsFetched, isEmpty);
   });
 
+  test('a standing part the resume could not name is named when the recording '
+      'home lays in the listing, not left nameless', () async {
+    final before = SalaHarness();
+    final first = await _umaLinhaComAParte3SemNome(before);
+    final (harness, container) = await relaunch(before, first);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.openTheRoom();
+    await waitFor(
+      'a equipe pousar na conversa',
+      () =>
+          container.read(salaSessionProvider).sessionId == 'sessao-antiga' &&
+          !container.read(salaSessionProvider).awaitingTheGuide,
+    );
+    await settle();
+    expect(container.read(salaSessionProvider).partes[2].takeId, isNull);
+    harness.room.failTakesWith = null;
+
+    notifier.openTheEnsaioFinal();
+    await waitFor(
+      'a casa das gravações abrir',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+    );
+    await _aParte3GanhaONome(container);
+
+    expect(
+      container.read(salaSessionProvider).partes[2].takeId,
+      'da-sala-3',
+      reason:
+          'a casa das gravações deitava só as partes de fileiras vazias e '
+          'nunca tocava uma fileira com parte, mesmo sem nome',
+    );
+    expect(harness.room.clipsFetched, isEmpty);
+  });
+
   test('a name taken back from the Outbox is written to the row at once, not '
       'left for the next save', () async {
     final (harness, container) = await _aParte3QueChegouLongeDaPassagem();
