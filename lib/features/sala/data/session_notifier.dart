@@ -389,7 +389,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late String? _sessionLanguage;
   late CurrentSession? _landingOn;
   late CurrentSession? _heldSession;
-  late ({String session, SpokenLine? line})? _endsOn;
+  late Map<String, SpokenLine?> _endsOf;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -556,7 +556,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _aNewLife() {
     _heldSession = null;
-    _endsOn = null;
+    _endsOf = {};
     _timers = {};
     _armHandedOver = null;
     _readsSent = 0;
@@ -1766,7 +1766,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     RefusalRule rule = RefusalRule.aSpokenTurn,
     bool endsTheConversation = false,
   }) async {
-    final before = _endsOn;
+    final endedSession = state.stationSessionId;
+    final before = _endOf(endedSession);
     Future<void> heard(TurnResult reply) async {
       try {
         await play(reply);
@@ -1787,7 +1788,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (answer case final RoomFailure lost
         when FailurePolicy.theAnswerWasLost(lost.result, rule)) {
-      if (endsTheConversation) _setTheEnd(before);
+      if (endsTheConversation) _setTheEnd(endedSession, before);
       return _giveUpOnTheTurn(turn, lost.result, rule: rule);
     }
     if (state.machine.inFlight != turn) return;
@@ -1797,7 +1798,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _dispatch(decided(const RoomAnswered(), _failureContext(turn: turn)));
         await heard(reply);
       case final RoomFailure failure:
-        if (endsTheConversation) _setTheEnd(before);
+        if (endsTheConversation) _setTheEnd(endedSession, before);
         _dispatch(TurnFailed(turn, generation: _generation));
         failed(failure);
     }
@@ -2096,7 +2097,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _landOn(CurrentSession held) async {
     final generation = _waitOnTheGeneration;
     if (held.lastLine != null || held.teamSpokeLast) {
-      _endsOn = (session: held.sessionId, line: held.lastLine);
+      _endsOf[held.sessionId] = held.lastLine;
     }
     final read = await _room.fetchState(held.sessionId);
     if (_abandoned(generation)) return;
@@ -2137,8 +2138,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       book: book,
       pericope: pericope,
       language: language,
-      lastLine: _endsOn?.session == sessionId ? _endsOn?.line : null,
-      teamSpokeLast: _endsOn?.session == sessionId && _endsOn?.line == null,
+      lastLine: _endOf(sessionId)?.line,
+      teamSpokeLast: _endOf(sessionId) == (line: null),
     ),
   );
 
@@ -2150,21 +2151,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The clip the conversation ends on, kept on the tablet for a relaunch; a turn of
   /// the team's ([line] null) ends the conversation on them instead.
   void _keepTheLastLine(SpokenLine? line) {
-    final sessionId = state.sessionId;
-    if (sessionId == null) return;
-    _setTheEnd((session: sessionId, line: line));
+    _setTheEnd(state.stationSessionId, (line: line));
   }
 
-  void _setTheEnd(({String session, SpokenLine? line})? end) {
-    _endsOn = end;
+  ({SpokenLine? line})? _endOf(String? session) =>
+      _endsOf.containsKey(session) ? (line: _endsOf[session]) : null;
+
+  void _setTheEnd(String? session, ({SpokenLine? line})? end) {
+    if (session == null) return;
+    if (end == null) {
+      _endsOf.remove(session);
+    } else {
+      _endsOf[session] = end.line;
+    }
     final held = _heldSession;
-    if (held == null || held.sessionId != state.sessionId) return;
+    if (held == null || held.sessionId != session) return;
     _hold(held.withLine(end?.line, known: end != null));
   }
 
   void _letGoOfTheCurrentSession({String? only}) {
     if (only == null || _heldSession?.sessionId == only) _heldSession = null;
-    if (only != null && _endsOn?.session == only) _endsOn = null;
+    if (only != null) _endsOf.remove(only);
     unawaited(_store.letGoOfTheSession(only: only).catchError((_) {}));
   }
 
@@ -2498,7 +2505,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         panorama: true,
         session: session,
         language: state.machine.panorama?.language,
-        said: state.panoramaSaid,
+        said: state.panoramaSaid || state.lastSpoken != null,
       );
     }
     final passage = _emCurso;
@@ -2532,6 +2539,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _returnToThePanorama() {
     state = state.copyWith(panoramaSaid: true);
+    _offerTheReplayOfTheEnd();
     unawaited(_hand.pull());
   }
 
@@ -3145,12 +3153,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _landWhereTheyStopped({required bool done}) {
     _resumeFailures.clear();
-    final end = _endsOn?.session == state.sessionId ? _endsOn : null;
     state = state.copyWith(
       awaitingTheGuide: false,
       peerCue: false,
-      roomSaysItAgain: end == null || end.line != null,
       endOfThePassage: done,
+    );
+    _offerTheReplayOfTheEnd();
+  }
+
+  void _offerTheReplayOfTheEnd() {
+    final end = _endOf(state.stationSessionId);
+    state = state.copyWith(
+      roomSaysItAgain: end == null || end.line != null,
       lastSpoken: state.station is Retro ? null : end?.line,
     );
   }
@@ -7305,6 +7319,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _clearAll();
     _dropThePendingTake();
     state = state.copyWith(ensaio: EnsaioStatus.idle);
+    _offerTheReplayOfTheEnd();
     _arriveAt(const TheRecordingLeft());
     state = state.copyWith(endOfThePassage: state.machine.theCanvasEnded);
   }

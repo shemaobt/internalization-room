@@ -365,6 +365,38 @@ void main() {
     await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
   });
 
+  test(
+    'a passage switched back to, whose conversation ends on a Guide turn, '
+    'offers «Ouvir de novo» and plays that clip, asking the room nothing',
+    () async {
+      final tablet = await _inP01();
+      final session = tablet.state.sessionId!;
+      tablet.notifier.leaveThePassage();
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
+      await waitFor(
+        'P02 to open',
+        () =>
+            tablet.state.sessionId != null &&
+            tablet.state.sessionId != session &&
+            tablet.state.voice == VoiceState.invite,
+      );
+      tablet.notifier.leaveThePassage();
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await _landsOn(tablet, session);
+      final played = tablet.harness.voice.played.length;
+
+      expect(tablet.state.canHearAgain, isTrue);
+      await tablet.notifier.hearAgain();
+      await waitFor(
+        'the clip to be played again',
+        () => tablet.harness.voice.played.length > played,
+      );
+
+      expect(tablet.harness.voice.played.last, turnoUrl);
+      expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
+    },
+  );
+
   test('the clip survives a round trip to the Panorama: a later relaunch still '
       'replays it from the tablet', () async {
     final first = await _inP01();
