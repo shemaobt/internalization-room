@@ -129,34 +129,6 @@ void main() {
     expect(BackTranslationProgress.fromJson(const {}).namedNuance, isNull);
   });
 
-  test('coming back to a checked passage shows the check while the room is '
-      'still read, never the guide thinking', () async {
-    final it = await _conferidaEDeixadaPelaVolta();
-    it.harness.room
-      ..listeningUnheardTakeIds = const []
-      ..holdNextState();
-    final fases = <(BtPhase, bool)>[];
-    final ouvindo = it.container.listen(
-      salaSessionProvider,
-      (_, agora) => fases.add((agora.btPhase, agora.awaitingTheGuide)),
-    );
-    addTearDown(ouvindo.close);
-
-    it.sala.startRetro();
-    await settle();
-
-    expect(it.estado.btPhase, BtPhase.conferida);
-    expect(
-      fases.where((f) => f.$1 == BtPhase.thinking && f.$2),
-      isEmpty,
-      reason: 'a equipe via «pensando» sobre a passagem conferida',
-    );
-    it.harness.room.finishHeldState();
-    await settle();
-    expect(it.estado.btPhase, BtPhase.conferida);
-    expect(it.estado.btVeredito, isTrue);
-  });
-
   test('a passage the room no longer counts as checked when the team comes '
       'back gets no verdict restored', () async {
     final it = await _conferidaEDeixadaPelaVolta();

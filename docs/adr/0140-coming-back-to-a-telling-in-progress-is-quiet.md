@@ -62,6 +62,6 @@ decision in a44568c2.
 ## Amendment (ENG-1967)
 
 - Rule 5 (rule 4 when ENG-1967 was written): a passage the room calls checked is not on
-  today's path. It shows the check at once and draws the verdict, with the last check's
-  findings and named nuance as marks, when the read answers; only while the room still calls
-  it checked. Hers: `restoreVerdict`, `Drafting.tsx:1010-1012`.
+  today's path. It lands on the verdict, with the last check's findings and named nuance as
+  marks, only while the room still calls it checked. Hers: `restoreVerdict`,
+  `Drafting.tsx:1010-1012`.

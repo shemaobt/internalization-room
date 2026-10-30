@@ -8202,11 +8202,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool entrando = false,
   }) async {
     final life = _thisLife;
-    final naConferida = conferida && entrando;
-    if (naConferida) state = state.copyWith(btPhase: BtPhase.conferida);
-    if (!await _medirAsPartesDaRetro(generation, emEspera: !naConferida)) {
-      return;
-    }
+    if (!await _medirAsPartesDaRetro(generation)) return;
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
     final sessionId = state.sessionId;
@@ -8451,10 +8447,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(falta.aFrente);
   }
 
-  Future<bool> _medirAsPartesDaRetro(
-    int generation, {
-    bool emEspera = true,
-  }) async {
+  Future<bool> _medirAsPartesDaRetro(int generation) async {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
@@ -8479,9 +8472,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Measuring waits on the player, and the screen it waits under is the retro with its
     // buttons up: a cut landing inside the wait opened the microphone over a clip about to
     // start, with the cursor at nought. Busy is the honest state for it.
-    if (emEspera) {
-      state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
-    }
+    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     await _medirAsPartes(partes, generation);
     return !_abandoned(generation);
   }
