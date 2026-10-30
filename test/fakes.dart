@@ -476,6 +476,7 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<String?> stop() async {
+    sounds.add('recorder:stop');
     final held = _holdingStop;
     if (held != null) await (_stopping = held.future);
     _stopping = null;
