@@ -4,6 +4,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show intoTheBackTranslation;
 import 'um_ensaio_de_tres_partes.dart';
 
 /// How long each rehearsal part is, and what the player answers for anything else.
@@ -84,6 +85,7 @@ Future<void> _retomar(Sala it) async {
     () => it.estado.comecadas.contains('P01'),
   );
   await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await intoTheBackTranslation(it.sala, () => it.estado);
   await waitFor(
     'a tradução ser retomada e voltar ao ar',
     () =>

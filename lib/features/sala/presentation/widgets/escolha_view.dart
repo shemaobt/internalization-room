@@ -7,7 +7,7 @@ import '../../domain/book_names.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/passagem.dart';
 import '../../domain/session_state.dart';
-import 'facilitator_circle.dart';
+import 'motion.dart';
 import 'shema_mark.dart';
 
 const _rem = 16.0;
@@ -44,37 +44,11 @@ class EscolhaView extends ConsumerWidget {
                 color: colors.momentoInk,
               ),
             ),
-            if (session.entriesOpen)
-              _Books(session: session, language: language)
-            else
-              _Circle(session: session, language: language),
+            if (session.entriesOpen || session.theEntryOpening != null)
+              _Books(session: session, language: language),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Circle extends ConsumerWidget {
-  final SalaSessionState session;
-  final String language;
-
-  const _Circle({required this.session, required this.language});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(salaSessionProvider.notifier);
-    return FacilitatorCircle(
-      size: facilitatorCircleSize,
-      halt: session.halt,
-      voice: session.voice,
-      semanticLabel: escolhaLabelFor(
-        session.livroInteiroFeito || session.wheelOffersNothing
-            ? 'allDone'
-            : 'readTheWheel',
-        language,
-      ),
-      onTap: notifier.escolhaTap,
     );
   }
 }
@@ -86,6 +60,15 @@ class _Books extends StatelessWidget {
   const _Books({required this.session, required this.language});
 
   bool _isTheEntryLeft(Passagem entry) => session.isTheEntryLeft(entry);
+
+  _Opening _openingOf(Passagem entry) {
+    final opening = session.theEntryOpening;
+    return switch (opening) {
+      null => _Opening.none,
+      _ when opening == entry => _Opening.thisOne,
+      _ => _Opening.another,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +91,7 @@ class _Books extends StatelessWidget {
                       entry: entry,
                       words: escolhaLabelFor('bookPanorama', language),
                       tinted: _isTheEntryLeft(entry),
+                      opening: _openingOf(entry),
                       language: language,
                     ),
               ],
@@ -118,6 +102,7 @@ class _Books extends StatelessWidget {
                       entry: entry,
                       words: referenceFor(entry.reference, language),
                       tinted: _isTheEntryLeft(entry),
+                      opening: _openingOf(entry),
                       language: language,
                     ),
               ],
@@ -181,16 +166,20 @@ class _Book extends StatelessWidget {
   }
 }
 
+enum _Opening { none, thisOne, another }
+
 class _Pill extends ConsumerStatefulWidget {
   final Passagem entry;
   final String words;
   final bool tinted;
+  final _Opening opening;
   final String language;
 
   const _Pill({
     required this.entry,
     required this.words,
     required this.tinted,
+    required this.opening,
     required this.language,
   });
 
@@ -213,73 +202,95 @@ class _PillState extends ConsumerState<_Pill> {
     final panorama = entry.isPanorama;
     const size = 0.95 * _rem;
     const dot = 0.66 * size;
+    final opening = widget.opening == _Opening.thisOne;
     return MergeSemantics(
       child: Semantics(
         button: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => _press(true),
-          onTapUp: (_) => _press(false),
-          onTapCancel: () => _press(false),
-          onTap: () =>
-              ref.read(salaSessionProvider.notifier).openTheEntry(entry),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                width: 1.5,
-                color: switch (entry) {
-                  _ when panorama || tinted => colors.azul,
-                  Passagem(approved: true) => colors.claquete,
-                  _ => colors.areia,
-                },
-              ),
-              color: switch (panorama) {
-                _ when _pressed => colors.azul,
-                _ when tinted => ShemaBrand.azul.withValues(alpha: 0.18),
-                true => ShemaBrand.azul.withValues(alpha: 0.10),
-                false => null,
-              },
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 0.6 * _rem,
-                horizontal: 1.05 * _rem,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      panorama ? '◈ $words' : words,
-                      semanticsLabel: words,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: size,
-                        fontWeight: panorama ? FontWeight.w600 : null,
-                        letterSpacing: panorama ? 0.02 * size : null,
-                        color: _pressed ? colors.branco : colors.momentoInk,
+        child: Opacity(
+          opacity: widget.opening == _Opening.another ? 0.45 : 1,
+          child: IgnorePointer(
+            ignoring: widget.opening != _Opening.none,
+            child: Loop(
+              animate: opening,
+              period: const Duration(milliseconds: 1400),
+              builder: (context, t) => Opacity(
+                opacity: 1 - 0.38 * t,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) => _press(true),
+                  onTapUp: (_) => _press(false),
+                  onTapCancel: () => _press(false),
+                  onTap: () => ref
+                      .read(salaSessionProvider.notifier)
+                      .openTheEntry(entry),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        width: 1.5,
+                        color: switch (entry) {
+                          _ when opening || panorama || tinted => colors.azul,
+                          Passagem(approved: true) => colors.claquete,
+                          _ => colors.areia,
+                        },
+                      ),
+                      color: switch (panorama) {
+                        _ when opening => ShemaBrand.azul.withValues(
+                          alpha: 0.28,
+                        ),
+                        _ when _pressed => colors.azul,
+                        _ when tinted => ShemaBrand.azul.withValues(
+                          alpha: 0.18,
+                        ),
+                        true => ShemaBrand.azul.withValues(alpha: 0.10),
+                        false => null,
+                      },
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 0.6 * _rem,
+                        horizontal: 1.05 * _rem,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              panorama ? '◈ $words' : words,
+                              semanticsLabel: words,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: size,
+                                fontWeight: panorama ? FontWeight.w600 : null,
+                                letterSpacing: panorama ? 0.02 * size : null,
+                                color: _pressed
+                                    ? colors.branco
+                                    : colors.momentoInk,
+                              ),
+                            ),
+                          ),
+                          if (entry.approved && !panorama)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 0.45 * dot),
+                              child: Semantics(
+                                label: escolhaLabelFor('approved', language),
+                                child: ExcludeSemantics(
+                                  child: Text(
+                                    '●',
+                                    style: TextStyle(
+                                      fontSize: dot,
+                                      color: colors.telha,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                  if (entry.approved && !panorama)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 0.45 * dot),
-                      child: Semantics(
-                        label: escolhaLabelFor('approved', language),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '●',
-                            style: TextStyle(
-                              fontSize: dot,
-                              color: colors.telha,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
           ),

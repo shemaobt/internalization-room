@@ -482,6 +482,27 @@ void main() {
     expect(await afterRestart.sentenceHeldIn('sessao-2'), isNull);
   });
 
+  test('a sentence withdrawn is no longer held, even when asked before the '
+      'withdrawal is written', () async {
+    final queue = queueOn(FakeRoom());
+    final row = await queue.enqueue(
+      aTake('frase'),
+      sessionId: 'sessao-1',
+      kind: sentenceKind,
+      scope: '3',
+    );
+
+    unawaited(queue.withdraw(row));
+
+    expect(
+      await queue.sentenceHeldIn('sessao-1'),
+      isNull,
+      reason:
+          'a leitura passava à frente da retirada ainda por escrever, e a '
+          'frase deixada voltava',
+    );
+  });
+
   test('the queue survives the app being closed', () async {
     final room = FakeRoom()..reachable = false;
     await queueOn(room).enqueue(

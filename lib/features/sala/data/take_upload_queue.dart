@@ -524,6 +524,14 @@ class TakeUploadQueue {
       ? passage != null && entry.passage == passage
       : entry.sessionId == sessionId;
 
+  Future<String?> fingerprintOf(String path) async {
+    try {
+      return (await _whatTheCopyHolds(path)).sha256;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
   String? takeIdOfThePart(String sessionId, KeptTake part) {
     final name = p.basenameWithoutExtension(part.path);
     for (final entry in _landedRows) {
@@ -1514,7 +1522,7 @@ class TakeUploadQueue {
     String? passage,
   }) async {
     PendingTake? newest;
-    for (final entry in await pending()) {
+    for (final entry in await _inTurn(pending)) {
       if (entry.kind == sentenceKind &&
           _ofTheVisit(entry, sessionId, passage)) {
         newest = entry;

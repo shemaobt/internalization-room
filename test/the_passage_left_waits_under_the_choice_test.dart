@@ -4,6 +4,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -104,7 +105,7 @@ void main() {
     tablet.notifier.openTheEntry(p02);
     await waitFor(
       'the room to be asked for P02',
-      () => harness.room.calls.skip(asked).contains('fetchState'),
+      () => harness.room.calls.skip(asked).contains('createSession'),
     );
     await settle();
     await settle();
@@ -132,14 +133,14 @@ void main() {
     tablet.notifier.openTheEntry(p01);
     await waitFor(
       'the room to be asked for P01',
-      () => harness.room.calls.skip(asked).contains('fetchState'),
+      () => harness.room.calls.skip(asked).contains('createSession'),
     );
     await settle();
     await settle();
 
     expect(
       harness.room.calls.skip(asked),
-      contains('fetchState'),
+      contains('createSession'),
       reason: 'a pílula da passagem deixada não perguntava à sala',
     );
     expect(
@@ -161,12 +162,12 @@ void main() {
     final read = tablet.read;
     final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
     final asked = harness.room.calls.length;
-    harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(400));
+    harness.room.failCreateOnceWith = Refused(RefusalCode.unnamed(400));
 
     tablet.notifier.openTheEntry(p01);
     await waitFor(
       'the room to be asked for P01',
-      () => harness.room.calls.skip(asked).contains('fetchState'),
+      () => harness.room.calls.skip(asked).contains('createSession'),
     );
     await settle();
     await settle();
@@ -182,6 +183,38 @@ void main() {
     expect(read().pericope, 'P01');
     expect(read().coverage.engaged, 2);
   });
+
+  test(
+    'the pill of the passage left whose session the facilitator reset '
+    'opens on the session the room returns, never on the canvas left',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
+      harness.room.forgetTheSession(tablet.p01);
+      harness.room.nextCoverage = coverage(engaged: 0, surfaced: 3);
+
+      tablet.notifier.openTheEntry(p01);
+      await waitFor(
+        'P01 to open on the room\'s new session',
+        () =>
+            read().sessionId != null &&
+            read().sessionId != tablet.p01 &&
+            read().voice == VoiceState.invite,
+      );
+
+      expect(read().sessionId, harness.room.sessionIds.last);
+      expect(read().pericope, 'P01');
+      expect(
+        read().coverage.engaged,
+        0,
+        reason: 'a tela da P01 deixada voltava sobre a sessão zerada',
+      );
+      expect(read().passageLeft, isNull);
+      expect(read().leftEntry, isNull);
+    },
+  );
 
   test('the pill of a passage left with no session that cannot open rests on '
       'the Choice with the way back still there', () async {
@@ -496,5 +529,60 @@ void main() {
 
     expect(machine.session, 's2');
     expect(machine.halt, isA<NoHalt>());
+  });
+
+  test('What waits under the Choice is the machine\'s: a failed resume, a pill '
+      'that cannot open and an open that brings no session return to it', () {
+    const left = LeftEntry(
+      book: 'Ruth',
+      pericope: 'P01',
+      session: 's1',
+      language: 'pt',
+    );
+    final (waiting, _) = reduce(
+      const Machine(generation: 4),
+      const TheEntryWaits(left),
+    );
+
+    for (final failed in const <MachineEvent>[
+      TheResumeFailed(),
+      ThePassageCannotOpen(),
+      TheOpenBroughtNoSession(),
+    ]) {
+      final (machine, effects) = reduce(
+        waiting.copyWith(station: const Canvas()),
+        failed,
+      );
+      expect(effects, contains(const ReturnToTheEntryLeft(left)));
+      expect(effects, isNot(contains(const OpenTheChoice())));
+      expect(effects, isNot(contains(const RefuseThePassage())));
+      expect(machine.waiting, isNull);
+    }
+    for (final (failed, toTheChoice) in const <(MachineEvent, Effect)>[
+      (TheResumeFailed(), OpenTheChoice()),
+      (ThePassageCannotOpen(), RefuseThePassage()),
+      (TheOpenBroughtNoSession(), RestOnTheChoice()),
+    ]) {
+      final (_, effects) = reduce(
+        const Machine(station: Canvas(), generation: 4),
+        failed,
+      );
+      expect(effects, contains(toTheChoice));
+    }
+  });
+
+  test('What waits goes when the room lets its session go, and when the team '
+      'takes the way back to it', () {
+    const left = LeftEntry(book: 'Ruth', pericope: 'P01', session: 's1');
+    final waiting = const Machine(generation: 4).copyWith(waiting: left);
+
+    for (final gone in const <MachineEvent>[
+      TheSessionLetGo('s1'),
+      TheWayBackTaken(left),
+      TheLeftPassageReturns('s1'),
+    ]) {
+      expect(reduce(waiting, gone).$1.waiting, isNull);
+    }
+    expect(reduce(waiting, const TheSessionLetGo('s2')).$1.waiting, left);
   });
 }

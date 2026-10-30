@@ -74,12 +74,14 @@ void main() {
   );
 
   test(
-    'the sweep at launch deletes every listener retelling a killed app left',
+    'the sweep at launch deletes every listener retelling and every question a '
+    'killed app left',
     () async {
       final recordings = Directory('${documents.path}/recordings')
         ..createSync(recursive: true);
       for (final name in [
         'ouvinte_1760900000000.m4a',
+        'pergunta_1760900000004.m4a',
         'checagem-t1.m4a',
         'conversa_1760900000003.m4a',
       ]) {

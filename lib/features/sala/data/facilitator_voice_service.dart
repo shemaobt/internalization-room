@@ -191,6 +191,8 @@ class FacilitatorVoiceService {
   /// A replay is not the room thinking — it already holds the words. Passing through the
   /// thinking face on the way to repeating something it has in hand made the circle change
   /// colour twice for a line that starts instantly.
+  bool arrives(String url) => _arriving.containsKey(url);
+
   Future<bool> holds(String url) async {
     if (url.isEmpty) return false;
     try {

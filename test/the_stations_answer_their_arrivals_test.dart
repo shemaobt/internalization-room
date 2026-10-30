@@ -100,7 +100,7 @@ void main() {
   });
 
   test('the Menu ignores an event that is not its own', () {
-    for (final event in [..._notTheirOwn, const TheNecklaceClosed()]) {
+    for (final event in _notTheirOwn) {
       _expectItStays(const Menu(), event, isA<Menu>());
     }
   });
@@ -136,7 +136,7 @@ void main() {
   });
 
   test('the Canvas ignores an event that is not its own', () {
-    for (final event in [..._notTheirOwn, const TheNecklaceClosed()]) {
+    for (final event in _notTheirOwn) {
       _expectItStays(const Canvas(), event, isA<Canvas>());
     }
   });
@@ -169,11 +169,6 @@ void main() {
         const TheRoomStartedOver(),
         isA<Menu>(),
       );
-      _expectItStays(
-        const Panorama('OV-Ruth'),
-        const TheNecklaceClosed(),
-        isA<Panorama>(),
-      );
     });
 
     test('the Rehearsal', () {
@@ -189,11 +184,9 @@ void main() {
         const TheRoomStartedOver(),
         isA<Menu>(),
       );
-      _expectItStays(const Ensaio(), const TheNecklaceClosed(), isA<Ensaio>());
     });
 
     test('the Back-translation', () {
-      _expectTheArrival(const Retro(), const TheNecklaceClosed(), isA<Fim>());
       _expectTheArrival(
         const Retro(),
         const TheRehearsalOpened(),
@@ -213,18 +206,6 @@ void main() {
       );
       _expectTheArrival(const Retro(), const TheRecordingLeft(), isA<Canvas>());
     });
-
-    test('the Closing', () {
-      _expectTheArrival(const Fim(), const TheRoomStartedOver(), isA<Menu>());
-      _expectTheArrival(const Fim(), const TheChoiceOpened(), isA<Menu>());
-      _expectTheArrival(const Fim(), const PassageChosen(), isA<Canvas>());
-      _expectTheArrival(const Fim(), const TheRehearsalOpened(), isA<Ensaio>());
-      _expectTheArrival(
-        const Fim(),
-        const TheBackTranslationOpened(),
-        isA<Retro>(),
-      );
-    });
   });
 
   test('an arrival at the Station already held moves nothing', () {
@@ -242,7 +223,6 @@ void main() {
       const TheBackTranslationOpened(),
       isA<Retro>(),
     );
-    _expectItStays(const Fim(), const TheNecklaceClosed(), isA<Fim>());
   });
 
   test(
@@ -275,39 +255,12 @@ void main() {
     },
   );
 
-  test('the Rehearsal answers the telling-back picked up again on a reopening '
-      'with the Back-translation, whatever it weighed', () {
-    _expectTheArrival(
-      const Ensaio(),
-      const TheBackTranslationResumed(),
-      isA<Retro>(),
-    );
-  });
-
-  test('the Rehearsal weighed with a part still on its way does not open the '
-      'Back-translation', () {
-    final (weighed, _) = reduce(
-      _at(const Ensaio()),
-      const TheRehearsalWeighed(
-        everySceneHasItsPart: true,
-        everyPartIsHere: false,
-        everyPartIsSent: true,
-      ),
-    );
-
-    expect(
-      reduce(weighed, const TheBackTranslationOpened()).$1.station,
-      isA<Ensaio>(),
-    );
-  });
-
   test('the Rehearsal weighed with a part still in the Outbox does not open '
       'the Back-translation, as hers', () {
     final (weighed, _) = reduce(
       _at(const Ensaio()),
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
-        everyPartIsHere: true,
         everyPartIsSent: false,
       ),
     );
@@ -326,7 +279,6 @@ void main() {
       _at(const Ensaio()),
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
-        everyPartIsHere: true,
         everyPartIsSent: true,
       ),
     );
@@ -366,7 +318,6 @@ void main() {
       Menu(),
       Panorama('OV-Ruth'),
       Retro(),
-      Fim(),
       ChecagemExterna(1),
     ]) {
       _expectItStays(station, const TheSceneRehearsalOpened(), equals(station));
@@ -423,7 +374,6 @@ void main() {
       Menu(),
       Panorama('OV-Ruth'),
       Canvas(),
-      Fim(),
       SceneRehearsal(),
     ]) {
       _expectItStays(station, const TheExternalCheckOpened(3), equals(station));
@@ -439,7 +389,6 @@ void main() {
         Canvas(),
         Ensaio(),
         Retro(),
-        Fim(),
         SceneRehearsal(),
       ]) {
         _expectItStays(station, const TheExternalCheckLeft(), equals(station));
@@ -477,6 +426,21 @@ void main() {
     );
 
     expect(effects, isEmpty);
+  });
+
+  test('the way back from the Scene rehearsal carries the turn in flight and '
+      'its look to the Canvas', () {
+    for (final sending in [
+      _at(const SceneRehearsal()).copyWith(inFlight: _aGivenUpTurn),
+      _lookingAt(_at(const SceneRehearsal())),
+    ]) {
+      final (machine, _) = reduce(sending, const TheSceneRehearsalLeft());
+
+      expect(machine.station, isA<Canvas>());
+      expect(machine.generation, _generation);
+      expect(machine.inFlight, sending.inFlight);
+      expect(machine.look, sending.look);
+    }
   });
 
   test('the sign held on the scene screen shows when the team is back on the '
@@ -580,7 +544,6 @@ void main() {
       Canvas(),
       Ensaio(),
       Retro(),
-      Fim(),
       ChecagemExterna(1),
     ];
     for (final station in everyStation) {

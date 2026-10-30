@@ -21,15 +21,12 @@ SegmentView _trecho(String id, int startsMs, int endsMs) => SegmentView(
   endsMs: endsMs,
 );
 
-Future<ProviderContainer> _reopensIntoRetro(
-  SalaHarness harness, {
-  required bool theFileIsHere,
-}) async {
+Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
   final pasta = Directory.systemTemp.createTempSync('sala-1168-leitura');
   addTearDown(() => pasta.deleteSync(recursive: true));
   final gravada = File('${pasta.path}/p1.m4a');
-  if (theFileIsHere) gravada.writeAsBytesSync([1, 2, 3]);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  gravada.writeAsBytesSync([1, 2, 3]);
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -40,12 +37,15 @@ Future<ProviderContainer> _reopensIntoRetro(
       ),
     ],
   );
+  await holdTheSession(harness, row);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await notifier.openTheRoom();
+  await intoTheBackTranslation(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await settle();
   return container;
 }
@@ -59,7 +59,7 @@ void main() {
       ..room.retroSoFar = BackTranslationProgress(
         segments: [_trecho('trecho-1', 0, 12000)],
       );
-    final container = await _reopensIntoRetro(harness, theFileIsHere: true);
+    final container = await _reopensIntoRetro(harness);
     SalaSessionState read() => container.read(salaSessionProvider);
     await waitFor('o aviso chegar', () => read().warning);
     expect(read().btTrechos, hasLength(1));
@@ -76,33 +76,6 @@ void main() {
     );
 
     expect(read().warning, isTrue);
-  });
-
-  test('the second read of a reopening with no rehearsal to hand back applies '
-      'what it carries and raises no sign', () async {
-    final harness = SalaHarness()
-      ..room.serverStatus = 'needs_person'
-      ..room.serverHalt = HaltKind.blocking
-      ..room.retroSoFar = BackTranslationProgress(
-        segments: [_trecho('trecho-1', 0, 30000)],
-        checked: true,
-      );
-    final container = await _reopensIntoRetro(harness, theFileIsHere: false);
-    SalaSessionState read() => container.read(salaSessionProvider);
-
-    await waitFor(
-      'a sala voltar à retro',
-      () => read().stage == SalaStage.retro,
-    );
-    await settle();
-
-    expect(read().btPhase, BtPhase.conferida);
-    expect(
-      read().needsPerson,
-      isFalse,
-      reason: 'uma leitura nunca levanta o sinal da pessoa',
-    );
-    expect(harness.room.personsAsked, 0);
   });
 
   test('the read after a turn that says a person is needed keeps the warning '
