@@ -3322,7 +3322,46 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(_countUnsent());
     unawaited(_adoptTheNames(_takes, _thisLife));
+    unawaited(_adoptTheNamesTheRoomLists(waiting.sessionId, _thisLife));
     return _Resume.landed;
+  }
+
+  bool _namelessOffTheOutbox(KeptTake take) =>
+      take.takeId == null &&
+      !state.unsentParts.containsKey(state.rowOf(take.scopeId));
+
+  Future<void> _adoptTheNamesTheRoomLists(String sessionId, int? life) async {
+    await _countUnsentIn(life);
+    if (_endedSince(life) ||
+        state.sessionId != sessionId ||
+        !state.keptTakes.any(_namelessOffTheOutbox)) {
+      return;
+    }
+    final listing = await _room.takesOf(sessionId);
+    if (_endedSince(life) || state.sessionId != sessionId) return;
+    if (listing case Answered(value: final guardadas)) {
+      _takeTheNamesTheRoomLists(guardadas);
+    }
+  }
+
+  void _takeTheNamesTheRoomLists(List<TakeView> guardadas) {
+    final correntes = _correntes(guardadas);
+    final named = <KeptTake>[];
+    var adopted = false;
+    for (final take in state.keptTakes) {
+      final corrente = _namelessOffTheOutbox(take)
+          ? correntes[KeptScope.numberOf(take.scopeId)]
+          : null;
+      if (corrente != null && (corrente.pass ?? 1) == take.pass) {
+        named.add(take.withTakeId(corrente.takeId));
+        adopted = true;
+      } else {
+        named.add(take);
+      }
+    }
+    if (!adopted) return;
+    state = state.copyWith(keptTakes: named);
+    _weighTheRehearsal();
   }
 
   /// The room's current parts, kept on a tablet that no longer holds them.
