@@ -990,6 +990,13 @@ class FakeWorkInProgress implements WorkInProgress {
     _holdingRead = null;
   }
 
+  String? sessionOf(String? pericope, String language) => [
+    for (final MapEntry(:key, :value) in rows.entries)
+      if (key.split('/')[1] == pericope &&
+          (key.endsWith('/$language') || value.language == language))
+        value.sessionId,
+  ].firstOrNull;
+
   @override
   Future<ResumePoint?> of(String book, String pericope, String language) async {
     final row = rows['$book/$pericope/$language'];
@@ -1550,6 +1557,11 @@ class FakeRoom implements RoomRepository {
   bool createdOpened = false;
 
   bool resumesTheLatest = false;
+
+  /// The session the tablet's row names for a passage and language. The server holds
+  /// that one for the team until the facilitator resets it, so `createSession` resumes
+  /// it, and mints a new one once it is forgotten.
+  Future<String?> Function(String? pericope, String language)? heldByTheTeam;
 
   final Map<String, String> latestSessions = {};
 
@@ -2492,12 +2504,23 @@ class FakeRoom implements RoomRepository {
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;
+      if (failure is SessionGone && afterSession == null) {
+        return const Refused(RefusalCode.notFound);
+      }
       return failure;
     }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
     final key = '$pericope/$language';
+    final ours = await heldByTheTeam?.call(pericope, language);
+    if (ours != null && !forgottenSessions.contains(ours)) {
+      if (serverHalt == HaltKind.blocking) {
+        serverHalt = HaltKind.unnamed;
+        serverStatus = null;
+      }
+      return Answered(_theStateOf(ours));
+    }
     final latest = resumesTheLatest ? latestSessions[key] : null;
     final resumed = latest != null && !forgottenSessions.contains(latest);
     final sessionId = resumed
@@ -2571,6 +2594,26 @@ class FakeRoom implements RoomRepository {
         Answered(passagesOfBook[book] ?? passagesIn[language] ?? passages);
   }
 
+  SessionSnapshot _theStateOf(String sessionId) => SessionSnapshot(
+    sessionId: sessionId,
+    pericope: 'rute-1',
+    status: serverStatus ?? ((readsDone ?? done) ? 'done' : 'in_progress'),
+    coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
+    done: readsDone ?? done,
+    halt: serverHalt,
+    opened: openedSessions.contains(sessionId),
+    moment: nextMoment,
+    keptRetellings: keptRetellings,
+    backTranslation:
+        retroSoFar ??
+        BackTranslationProgress(
+          segments: _numbered,
+          checked: readsChecked,
+          awaitingSegmentId: awaitingSegmentId,
+        ),
+    approved: approvedDraft,
+  );
+
   @override
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
     if (_guard('fetchState') case final failure?) {
@@ -2591,29 +2634,7 @@ class FakeRoom implements RoomRepository {
     }
     final held = _holdingState;
     if (held != null) await held.future;
-    final answer = Answered(
-      SessionSnapshot(
-        sessionId: sessionId,
-        pericope: 'rute-1',
-        status: serverStatus ?? ((readsDone ?? done) ? 'done' : 'in_progress'),
-        coverage: silentAboutCoverage
-            ? null
-            : (settledCoverage ?? nextCoverage),
-        done: readsDone ?? done,
-        halt: serverHalt,
-        opened: openedSessions.contains(sessionId),
-        moment: nextMoment,
-        keptRetellings: keptRetellings,
-        backTranslation:
-            retroSoFar ??
-            BackTranslationProgress(
-              segments: _numbered,
-              checked: readsChecked,
-              awaitingSegmentId: awaitingSegmentId,
-            ),
-        approved: approvedDraft,
-      ),
-    );
+    final answer = Answered(_theStateOf(sessionId));
     if (_readsToHold > 0) {
       _readsToHold--;
       final reply = Completer<void>();
@@ -4546,7 +4567,23 @@ class SalaHarness {
            takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
-       vinculo = FakeLinkedTeam(remembered: linkedAs);
+       vinculo = FakeLinkedTeam(remembered: linkedAs) {
+    this.room.heldByTheTeam = _theRowsSession;
+  }
+
+  Future<String?> _theRowsSession(String? pericope, String language) async {
+    final ledger = emAbertoNoDisco ?? emAberto;
+    if (ledger is FakeWorkInProgress) {
+      return ledger.sessionOf(pericope, language);
+    }
+    if (pericope == null) return null;
+    for (final book in room.books) {
+      if (await ledger.of(book, pericope, language) case final row?) {
+        return row.sessionId;
+      }
+    }
+    return null;
+  }
 
   final Duration? linkPoll;
 
