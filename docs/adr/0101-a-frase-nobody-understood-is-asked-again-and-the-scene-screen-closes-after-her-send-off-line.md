@@ -1,10 +1,12 @@
 ---
-status: accepted, amended by 0100, 0146, 0167 (in part: where the reply plays)
+status: accepted, amended by 0100, 0146, 0167
 date: 2026-10-20
 amends: 0053 (a door of its own and its rows), 0068, 0085, 0099
 ---
 
 # A frase nobody understood is asked again, and the scene screen closes after her send-off line
+
+Amended by 0167 (ENG-1907, 2026-10-30): the reply of «terminei» plays from the moment it lands, beneath the send-off line, and not after the screen closes; the screen still closes after 1.4 s.
 
 This amends ADRs 0053, 0068, 0085 and 0099 without editing their decisions; it adds "amended by
 0101" to their status lines. The Definer settled the rules on 19 and 20 October (ENG-1363).
@@ -57,9 +59,9 @@ frase's bar to translate it again, and holds «a tradução do ensaio da cena fo
   stays at its cut. The scene goes once that piece is translated again and «terminei» is tapped,
   or on a second «terminei», which sends without it: on hers the refusal is seen before
   «terminei» can be pressed again.
-- «terminei» shows her line on the answer in its place and holds the screen 1.4 s, then
-  closes it. The send's inert screen (0085) stays inert through the 1.4 s. (Amended by 0167:
-  the reply plays from the moment it lands, beneath the line.)
+- «terminei» shows her line on the answer in its place, holds the screen 1.4 s, then closes it
+  and voices the reply on the Canvas. The send's inert screen (0085) stays inert through the
+  1.4 s.
 
 ## Considered Options
 
@@ -76,10 +78,10 @@ says.
 
 **Voicing the reply beneath the open screen, as her app does.** Rejected: a Station change moves
 the Generation and silences the room (0083, 0058), so the reply would be cut when the screen
-closed. (Taken by 0167, which closes the screen without moving the Generation.)
+closed.
 
 ## Consequences
 
-The reply starts 1.4 s after the answer, where hers starts at once (amended by 0167: it starts at once). A dropped connection on a
+The reply starts 1.4 s after the answer, where hers starts at once. A dropped connection on a
 frase reads «não entendi» and never «sem conexão». A frase the room kept while its answer was
 lost costs the team one more recording, which the room refuses.

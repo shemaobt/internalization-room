@@ -855,7 +855,9 @@ MachineEvent _draw(
     _servedPanoramas[random.nextInt(_servedPanoramas.length)],
   ),
   EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
-  EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
+  EventKind.theSceneRehearsalLeft => TheSceneRehearsalLeft(
+    keepsTheReply: random.nextBool(),
+  ),
   EventKind.theExternalCheckOpened => TheExternalCheckOpened(
     1 + random.nextInt(3),
   ),
