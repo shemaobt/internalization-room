@@ -212,7 +212,7 @@ Future<void> _theChoiceOffersThePanorama(
   );
 }
 
-/// The team taps the Panorama on the Choice, and its opening has had time to be said.
+/// The team taps the Panorama on the Choice, and its opening has landed, said or not.
 Future<void> _enterThePanorama(
   SalaHarness harness,
   ProviderContainer container,
@@ -222,7 +222,10 @@ Future<void> _enterThePanorama(
     container.read(salaSessionProvider.notifier),
     () => container.read(salaSessionProvider),
   );
-  await settle();
+  await waitFor('o panorama abrir', () {
+    final state = container.read(salaSessionProvider);
+    return state.station is Panorama && !state.awaitingTheGuide;
+  });
 }
 
 class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
