@@ -1045,6 +1045,71 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a sentence held on the tablet whose stretch the room no longer '
+      'has is let go when the passage is picked back up, as hers', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    final semAFrase = [
+      for (final (antes, trecho)
+          in _daSala.where((trecho) => trecho.segmentId != 'trecho-3').indexed)
+        SegmentView(
+          segmentId: trecho.segmentId,
+          takeId: trecho.takeId,
+          startsMs: trecho.startsMs,
+          endsMs: trecho.endsMs,
+          frase: antes + 1,
+        ),
+    ];
+    harness.room
+      ..retroSoFar = BackTranslationProgress(segments: semAFrase)
+      ..segments.clear()
+      ..segments.addAll(semAFrase);
+
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await waitFor(
+      'a equipe sair da passagem',
+      () => container.read(salaSessionProvider).stage != SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução voltar sem o trecho da frase guardada',
+      () =>
+          container.read(salaSessionProvider).stage == SalaStage.retro &&
+          container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a frase de um trecho que a sala não tem mais voltava guardada',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null) linha.n,
+      ],
+      [1, 2, 3],
+      reason: 'a frase guardada sem linha tirava o regravar de todas',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence held while the room renumbers the frases keeps its '
       'own row, its «regravar» and its armed resend, and is sent to its own '
       'stretch, as hers', (tester) async {
@@ -1113,6 +1178,59 @@ void main() {
       harness.room.sentencesSent.last.segmentId,
       'trecho-3',
       reason: 'a frase guardada subia para o trecho que herdou o número dela',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held while the room no longer has its stretch is '
+      'let go when the telling is read, and «regravar» comes back to every '
+      'row, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..sentenceAnswersFirst.add(const Refused('DRAFT_APPROVED'))
+      ..retroSoFar = BackTranslationProgress(
+        segments: [
+          for (final (antes, trecho)
+              in harness.room.segments
+                  .where((trecho) => trecho.segmentId != 'trecho-3')
+                  .indexed)
+            SegmentView(
+              segmentId: trecho.segmentId,
+              takeId: trecho.takeId,
+              startsMs: trecho.startsMs,
+              endsMs: trecho.endsMs,
+              told: trecho.told,
+              frase: antes + 1,
+            ),
+        ],
+      );
+    segura.complete();
+    await waitFor(
+      'a sala ler as frases sem a da frase guardada',
+      () => container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a frase de um trecho que a sala não tem mais ficava guardada',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null) linha.n,
+      ],
+      [1, 2, 3],
+      reason: 'a frase guardada sem linha tirava o regravar de todas',
     );
     closeTheRoom(container);
   });

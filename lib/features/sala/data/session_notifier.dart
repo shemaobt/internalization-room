@@ -10329,6 +10329,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (guardada == null || state.sessionId != sessionId) return;
     _fraseNaFila = guardada;
+    if (guardada.scope != state.btFraseQueAguarda &&
+        !state.btTrechos.any((trecho) => trecho.segmentId == guardada.scope)) {
+      return _esquecerAFrase();
+    }
     state = state.copyWith(btFraseGuardada: guardada.scope);
   }
 
@@ -11176,6 +11180,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                   },
               ],
             );
+            if (state.btFraseGuardada case final guardada?
+                when !frases.containsKey(guardada) &&
+                    guardada != snapshot.backTranslation.awaitingSegmentId) {
+              _esquecerAFrase();
+            }
           }
           final numeros = {
             for (final regravada in snapshot.backTranslation.stale)
