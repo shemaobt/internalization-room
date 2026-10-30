@@ -168,7 +168,7 @@ String? _anAnswerFromBeforeTheStationChangedChangedTheRoom(
     final (next, effects) = reduce(machine, event);
     world = world.after(event, effects);
     final older = machine.generation;
-    final moved = next.station != machine.station;
+    final moved = next.station != machine.station && next.generation != older;
     machine = next;
     if (!moved) continue;
     for (var stale = 0; stale < 4; stale++) {
