@@ -3000,6 +3000,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return;
       }
       _applyTheSessionRead(read, sent);
+      _keepTheStretchesAlreadyTold(read.backTranslation);
       unawaited(_learnWhetherAPartWasJoined(sessionId, generation));
       if (opened != null || read.opened) {
         return _landWhereTheyStopped(done: read.done);
@@ -4353,7 +4354,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _theGrainToldDuringATake = null;
-    final newGrain = state.grain != grain;
+    final newGrain = state.grain != null && state.grain != grain;
     state = state.copyWith(grainInForce: grain);
     if (!newGrain) return;
     bool leftBehind(String scope) => switch (grain) {
@@ -10378,8 +10379,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             sent > _stretchesAt &&
             state.sessionId == sessionId) {
       _stretchesAt = sent;
-      if (state.btTrechos.isEmpty) {
-        _keepTheStretchesAlreadyTold(lida.backTranslation);
+      if (state.btTrechos.any((trecho) => trecho.parte < 0)) {
+        state = state.copyWith(
+          btTrechos: _trechosFrom(lida.backTranslation.segments),
+        );
       }
       final aguardando = lida.backTranslation.awaitingSegmentId;
       state = state.copyWith(
