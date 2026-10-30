@@ -379,31 +379,34 @@ void main() {
   );
 
   test(
-    'the Wheel on screen is the one read in the language now chosen, however late '
-    'an earlier read lands',
+    'a language tapped while the Wheel is first read lets that read land and '
+    'relabels it, with no second read',
     () async {
-      const portuguese = [Passagem(pericope: 'P01', audioUrl: '/voice/pt')];
-      const english = [Passagem(pericope: 'P01', audioUrl: '/voice/en')];
+      const portuguese = [
+        Passagem(pericope: 'P01', audioUrl: '/voice/pt', book: 'Ruth'),
+      ];
       final it = _aTabletWithNothingChosen();
+      const english = [
+        Passagem(pericope: 'P01', audioUrl: '/voice/en', book: 'Ruth'),
+      ];
       it.harness.room.passagesIn = {'pt': portuguese, 'en': english};
+      it.harness.emAberto.rows['Ruth/P01/en'] = const ResumePoint(
+        sessionId: 'sessao-en',
+        stage: SalaStage.ensaio,
+      );
       final slow = it.harness.room.holdOneWheelRead();
       unawaited(it.sala.abrirEscolha());
       await settle();
 
       it.sala.chooseTheLanguage('en');
-      await waitFor(
-        'the English Wheel to be read',
-        () => it.harness.room.languagesAsked.contains('en'),
-      );
       await settle();
       slow.complete();
-      await waitFor(
-        'the Portuguese read to land',
-        () => it.harness.room.languagesAsked.contains('pt'),
-      );
+      await waitFor('the Wheel to land', () => it.estado.naRoda != null);
       await settle();
 
-      expect(it.estado.naRoda, english);
+      expect(it.estado.naRoda, portuguese);
+      expect(it.estado.comecadas, contains('P01'));
+      expect(it.harness.room.languagesAsked.toSet(), {'pt'});
     },
   );
 
