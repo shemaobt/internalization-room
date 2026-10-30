@@ -174,6 +174,38 @@ void main() {
     },
   );
 
+  test(
+    'a verdict whose clip never comes down is not handed to «ouvir a '
+    'resposta de novo», as her replay exists only once the audio arrived',
+    () async {
+      final harness = SalaHarness();
+      final container = await _inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      Object? before;
+
+      await _toTheVerdict(
+        harness,
+        notifier,
+        beforeTheVerdict: () {
+          before = read().lastSpoken;
+          harness.voice.succeeds = false;
+        },
+      );
+
+      expect(harness.voice.played, isNot(contains(_verdictUrl)));
+      expect(read().btRecusa, CheckRefusal.checkUnavailable);
+      expect(
+        identical(read().lastSpoken, before),
+        isTrue,
+        reason:
+            'o veredito cujo clipe nunca desceu era entregue ao ouvir de novo, '
+            'e o toque carregava de novo e chamava uma pessoa pela conversa',
+      );
+      expect(read().offersTheVerdictAgain, isFalse);
+    },
+  );
+
   test('a verdict whose clip the room refuses writes her «não deu para '
       'conferir» and calls nobody, as a refused check does', () async {
     final harness = SalaHarness();

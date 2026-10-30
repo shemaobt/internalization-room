@@ -10869,6 +10869,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       fixedLine: verdict.fixedLine,
       checkAt: verdict.checkAt,
     );
+    var arrived = false;
     try {
       final Said spoke;
       try {
@@ -10877,6 +10878,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           generation,
           asked: false,
           remember: !verdict.usedFailSafe,
+          loaded: () => arrived = true,
         );
       } on RoomFailure catch (failure) {
         if (_abandoned(generation)) return;
@@ -10896,7 +10898,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // `thinking` takes no tap and holds the finish button down — the team would be left
       // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
-        if (!verdict.usedFailSafe) state = state.copyWith(lastSpoken: line);
+        if (arrived && !verdict.usedFailSafe) {
+          state = state.copyWith(lastSpoken: line);
+        }
         return _theVerdictDidNotSound(pressedFrom);
       }
 
