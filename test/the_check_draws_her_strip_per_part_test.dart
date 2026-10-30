@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -70,24 +69,28 @@ Future<ProviderContainer> _voltaAoConferir(
     '${pasta.path}/$nome',
   )..writeAsBytesSync(fala ?? Uint8List.fromList([1, 2, 3]))).path;
   harness.playback.measured = const Duration(seconds: 10);
-  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      if (inteira)
-        KeptTake(
-          scopeId: KeptScope.whole,
-          path: arquivo('inteira.wav'),
-          takeId: 'gravacao-inteira',
-        )
-      else
-        for (final n in [1, 2])
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        if (inteira)
           KeptTake(
-            scopeId: KeptScope.parte(n),
-            path: arquivo('p$n.wav'),
-            takeId: 'gravacao-$n',
-          ),
-    ],
+            scopeId: KeptScope.whole,
+            path: arquivo('inteira.wav'),
+            takeId: 'gravacao-inteira',
+          )
+        else
+          for (final n in [1, 2])
+            KeptTake(
+              scopeId: KeptScope.parte(n),
+              path: arquivo('p$n.wav'),
+              takeId: 'gravacao-$n',
+            ),
+      ],
+    ),
+    language: lingua,
   );
   harness.room.retroSoFar = contado;
   final container = harness.container();
@@ -96,17 +99,16 @@ Future<ProviderContainer> _voltaAoConferir(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await tester.pump(const Duration(milliseconds: 100));
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'o conferir voltar com as frases que a sala guardou',
     () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
         container.read(salaSessionProvider).btTrechos.length ==
-            contado.segments.length,
+        contado.segments.length,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await tester.pump(const Duration(milliseconds: 100));
