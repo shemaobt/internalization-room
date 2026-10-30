@@ -1352,9 +1352,9 @@ class SalaSessionState {
           !needsPerson);
 
   /// The way back answers the finger only while the Wheel is quiet, and from any Step of
-  /// the scene rehearsal, its microphone open included.
+  /// the scene rehearsal, its microphone open and «terminei» in the air included.
   bool get theWayBackIsLive => sceneRehearsalIsOpen
-      ? !theSceneIsSending
+      ? !scene.wentToTheVoice
       : theWayBackIsOffered && voice == VoiceState.invite;
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
