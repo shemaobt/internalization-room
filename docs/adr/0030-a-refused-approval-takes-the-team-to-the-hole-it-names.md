@@ -52,6 +52,16 @@ has *terminei* lit at once when the room counts it heard, so the ENG-2028 senten
 listening the press silenced holds only for a room that names no list. A telling picked back
 up that stopped short of the end still waits for its untold rest to be heard (ADR 0140 rule 2).
 
+Amended by ENG-2109 (2026-10-30, the same rule): the room's count is one of two terms, as her
+`canCheck` reads `bReady && heardComplete` (`Drafting.tsx:2340`). Beside it, every part must
+have been played on this screen since the telling began — her record is forgotten where the tell
+line begins and on the quiet re-entry (`startTell` `:955`, `:1110`), and kept through a First
+listen that ends anywhere else — within her slack of 750 ms or half the part, or have its told
+ground reach its length (`computeBReady`, `:898-910`): a passage the room counted heard on an
+earlier day stays dark on a fresh screen until the parts play here in the telling, and a
+reopened checked passage is lit at once because its told frases cover every part. The line under *terminei*
+follows the same two terms. The silent landing's `btRestoPorOuvir` stays.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal
