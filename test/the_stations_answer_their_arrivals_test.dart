@@ -275,15 +275,6 @@ void main() {
     },
   );
 
-  test('the Rehearsal answers the telling-back picked up again on a reopening '
-      'with the Back-translation, whatever it weighed', () {
-    _expectTheArrival(
-      const Ensaio(),
-      const TheBackTranslationResumed(),
-      isA<Retro>(),
-    );
-  });
-
   test('the Rehearsal weighed with a part still on its way does not open the '
       'Back-translation', () {
     final (weighed, _) = reduce(

@@ -201,7 +201,7 @@ void main() {
   );
 
   group('a resume the network loses goes calmly back to the Choice, and the '
-      'entry opened again resumes where the row says', () {
+      'entry opened again resumes on its conversation', () {
     for (final stage in const [SalaStage.conversa, SalaStage.ensaio]) {
       test('on a ${stage.name} row', () async {
         final harness = SalaHarness();
@@ -230,7 +230,10 @@ void main() {
         await notifier.abrirEscolha();
         await settle();
         notifier.openTheEntry(entry);
-        await waitFor('the resume to land', () => read().stage == stage);
+        await waitFor(
+          'the resume to land on the conversation',
+          () => read().stage == SalaStage.conversa && !read().awaitingTheGuide,
+        );
 
         expect(read().sessionId, 'sessao-antiga');
         expect(harness.room.calls, isNot(contains('createSession')));

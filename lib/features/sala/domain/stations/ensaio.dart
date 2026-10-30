@@ -56,7 +56,6 @@ final class Ensaio extends Station {
               step == EnsaioStep.home
           ? const Retro()
           : this,
-    TheBackTranslationResumed() => const Retro(),
     TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,

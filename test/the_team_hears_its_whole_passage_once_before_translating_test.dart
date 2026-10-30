@@ -72,15 +72,10 @@ void _juntadas(Sala it) {
   }
 }
 
-Future<void> _reabrir(Sala it, {bool pelaEscolha = true}) async {
+Future<void> _reabrir(Sala it) async {
   it.container.dispose();
   it.container = it.harness.container();
   addTearDown(it.container.dispose);
-  if (pelaEscolha) {
-    await it.sala.abrirEscolha();
-    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    return;
-  }
   await it.sala.openTheRoom();
   await intoTheRecordingHome(it.sala, () => it.estado);
 }
@@ -90,7 +85,7 @@ Future<void> _reabrir(Sala it, {bool pelaEscolha = true}) async {
 Future<Sala> _juntadaNaCasa({SalaHarness? numaSala}) async {
   final it = await umEnsaioGravado(partesDoEnsaio, numaSala: numaSala);
   _juntadas(it);
-  await _reabrir(it, pelaEscolha: false);
+  await _reabrir(it);
   await waitFor(
     'a casa voltar com as três partes juntadas',
     () =>
@@ -2594,7 +2589,7 @@ void main() {
   );
 
   test(
-    'a relaunch on the back translation of a recording no join touched nobody '
+    'after a relaunch the back translation of a recording no join touched nobody '
     'heard plays P0 and the whole recording, not the telling',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
@@ -2609,6 +2604,7 @@ void main() {
       final tocadas = it.harness.playback.played.length;
 
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>
@@ -2664,7 +2660,8 @@ void main() {
   );
 
   test(
-    'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
+    'after a relaunch the back translation of a joined recording nobody heard '
+    'plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
       it.sala.startRetro();
@@ -2679,6 +2676,7 @@ void main() {
       final tocadas = it.harness.playback.played.length;
 
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>
@@ -2799,6 +2797,7 @@ void main() {
       _nadaOuvido(it);
       final tocadas = it.harness.playback.played.length;
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a primeira escuta pôr uma parte no ar',
         () =>

@@ -277,8 +277,8 @@ void main() {
   );
 
   test(
-    'reopening the passage in Portuguese resumes the Portuguese session where the '
-    'team stopped',
+    'reopening the passage in Portuguese resumes the Portuguese session on its '
+    'conversation',
     () async {
       final it = _aTabletWithNothingChosen();
       await _inThePassage(it, 'P01');
@@ -296,10 +296,11 @@ void main() {
 
       await enterThePassage(it.sala, () => it.estado, 'P01');
       await waitFor(
-        'the Portuguese session to stand where the team stopped',
+        'the Portuguese session to land on its conversation with its takes',
         () =>
             it.estado.sessionId == portuguese &&
-            it.estado.station is Ensaio &&
+            it.estado.station is Canvas &&
+            !it.estado.awaitingTheGuide &&
             it.estado.keptTakes.isNotEmpty,
       );
 
