@@ -49,6 +49,11 @@ void main() {
         'segments': <Object>[],
         'checked': false,
         'findings': _findings,
+        'named_nuance': {
+          'kind': 'nuance',
+          'frase': 1,
+          'segment_id': 'trecho-1',
+        },
       },
     });
 
@@ -56,6 +61,12 @@ void main() {
       _asRead(snapshot.backTranslation.findings),
       _read,
       reason: 'a leitura da sessão jogava fora a lista de achados',
+    );
+    final nuance = snapshot.backTranslation.namedNuance;
+    expect(
+      (nuance?.kind, nuance?.frase, nuance?.segmentId),
+      (BtFindingKind.nuance, 1, 'trecho-1'),
+      reason: 'a nuance que a voz nomeou não voltava com a leitura da sessão',
     );
   });
 
@@ -72,6 +83,7 @@ void main() {
 
     expect(verdict.findings, isEmpty);
     expect(snapshot.backTranslation.findings, isEmpty);
+    expect(snapshot.backTranslation.namedNuance, isNull);
   });
 
   test('the verdict answer hands over its round\'s stamp and the nuance the '
