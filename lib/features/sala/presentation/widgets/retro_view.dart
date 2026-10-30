@@ -379,6 +379,8 @@ class RetroView extends ConsumerWidget {
           : null,
       regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
       regravarArmado: session.armedTap?.control == 'rerecord:${trecho.frase}',
+      onRegravarFocusLeft: () =>
+          notifier.accessibilityFocusLeft('rerecord:${trecho.frase}'),
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,
@@ -420,6 +422,8 @@ class RetroView extends ConsumerWidget {
       },
       estadoDormindo: _dormindo('resend:${trecho.segmentId}', session),
       estadoArmado: session.armedTap?.control == 'resend:${trecho.segmentId}',
+      onEstadoFocusLeft: () =>
+          notifier.accessibilityFocusLeft('resend:${trecho.segmentId}'),
       onEstado:
           atua &&
               quieta &&
