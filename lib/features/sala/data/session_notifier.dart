@@ -3503,16 +3503,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
     state = state.copyWith(btTrechosRegravados: const []);
-    final sessionId = state.sessionId;
-    if (sessionId != null && told.stale.isNotEmpty) {
-      unawaited(_porCadaTrechoNaSuaParte(sessionId, told.stale, _generation));
+    if (!told.nothingTold) {
+      final trechos = _trechosFrom(told.segments);
+      state = state.copyWith(
+        btTrechos: trechos,
+        btFindings: _osAchadosQueFicam(told.findings, trechos),
+        btFraseQueAguarda: told.awaitingSegmentId,
+        clearBtFraseQueAguarda: told.awaitingSegmentId == null,
+      );
     }
-    if (told.nothingTold) return;
-    final trechos = _trechosFrom(told.segments);
-    state = state.copyWith(
-      btTrechos: trechos,
-      btFindings: _osAchadosQueFicam(told.findings, trechos),
-    );
+    final sessionId = state.sessionId;
+    if (sessionId != null && (told.stale.isNotEmpty || !told.nothingTold)) {
+      unawaited(
+        _porCadaTrechoNaSuaParte(
+          sessionId,
+          told.segments,
+          _generation,
+          regravados: told.stale,
+        ),
+      );
+    }
   }
 
   void conversaTap() => _gesture(() => _conversaTap());
@@ -11263,8 +11273,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ].where((trecho) => !deLado.contains(trecho.takeId)).toList();
   }
 
-  /// Which part of the rehearsal each stale stretch this tablet has no recording for
-  /// belongs to, asked of the room once, on a session picked back up.
+  /// Which part of the rehearsal each stretch this tablet has no recording for belongs
+  /// to, asked of the room once, on a session picked back up.
   ///
   /// A stretch addressed to a recording that is not here is what a session told back
   /// before the room stopped assembling passages looks like afterwards. Which part such a
@@ -11284,16 +11294,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// were.
   Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
-    List<SegmentView> regravados,
-    int generation,
-  ) async {
-    final regravadosFaltando = {
-      for (final segment in regravados)
+    List<SegmentView> segments,
+    int generation, {
+    List<SegmentView> regravados = const [],
+  }) async {
+    Set<String> semGravacao(List<SegmentView> lidos) => {
+      for (final segment in lidos)
         if (segment.takeId.isNotEmpty &&
             !state.keptTakes.any((take) => take.takeId == segment.takeId))
           segment.takeId,
     };
-    if (regravadosFaltando.isEmpty) return;
+    final faltando = semGravacao(segments);
+    final regravadosFaltando = semGravacao(regravados);
+    if (faltando.isEmpty && regravadosFaltando.isEmpty) return;
+    // The row of stretches as it stands before the listing waits. The rehearsal goes on
+    // playing under it, and a team that cuts a stretch inside that window has it in this
+    // list and nowhere else yet.
+    final eram = state.btTrechos;
     final life = _thisLife;
     final List<TakeView> guardadas;
     switch (await _room.takesOf(sessionId)) {
@@ -11313,7 +11330,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_abandoned(generation)) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
-      if (!regravadosFaltando.contains(guardada.takeId)) continue;
+      if (!faltando.contains(guardada.takeId) &&
+          !regravadosFaltando.contains(guardada.takeId)) {
+        continue;
+      }
       final numero = guardada.ordinal;
       final onde = state.partes.indexWhere(
         (parte) =>
@@ -11330,6 +11350,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (trecho.parte >= 0 || naParte.containsKey(trecho.takeId)) trecho,
       ],
     );
+    if (faltando.isEmpty) return;
+    if (!identical(state.btTrechos, eram)) {
+      state = state.copyWith(
+        btTrechos: [
+          for (final trecho in state.btTrechos)
+            if (naParte[trecho.takeId] case final parte?)
+              trecho.naParte(parte)
+            else
+              trecho,
+        ],
+      );
+      return;
+    }
+    // Only over a row nothing else has touched. This reading is built out of the answer
+    // the resume came in with, so writing it over a row that moved meanwhile would take
+    // the stretch the team just told back off the screen.
+    state = state.copyWith(btTrechos: _trechosFrom(segments, naParte: naParte));
   }
 
   void _leadThemToTheTrecho(
