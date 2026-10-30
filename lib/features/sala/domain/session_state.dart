@@ -473,6 +473,7 @@ class SalaSessionState {
   final bool btClipEnded;
   final bool? btOuvidaInteira;
   final bool btRestoPorOuvir;
+  final Set<String> btPartesOuvidasAqui;
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
@@ -669,6 +670,7 @@ class SalaSessionState {
     this.btClipEnded = false,
     this.btOuvidaInteira,
     this.btRestoPorOuvir = false,
+    this.btPartesOuvidasAqui = const {},
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
@@ -1435,8 +1437,36 @@ class SalaSessionState {
     return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
   }
 
+  /// How far into this recording the stretches somebody has explained reach.
+  ///
+  /// Not the notifier's cursor floor: that one counts every stretch, including a half
+  /// born of a division that nobody has told back yet — which is right for the cursor,
+  /// since that half is reached by the finding that names it, and wrong for stepping
+  /// over a part, which must not skip ground still waiting for its telling.
+  Duration btChaoContadoDe(int parte) {
+    var ate = Duration.zero;
+    for (final trecho in btTrechos) {
+      if (trecho.parte == parte && trecho.contado && trecho.lugarTo > ate) {
+        ate = trecho.lugarTo;
+      }
+    }
+    return ate;
+  }
+
+  bool _btOuvidaAquiOuContada(int parte) {
+    if (btPartesOuvidasAqui.contains(partes[parte].path)) return true;
+    final tamanho = btTamanhoDaParte(parte);
+    return tamanho == null ||
+        btChaoContadoDe(parte) + folgaDoFimDaParte >= tamanho;
+  }
+
+  bool get _btCadaParteOuvidaAqui =>
+      partes.indexed.every((parte) => _btOuvidaAquiOuContada(parte.$1));
+
   bool get _btOuvidaCoberta =>
-      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) && !btRestoPorOuvir;
+      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) &&
+      _btCadaParteOuvidaAqui &&
+      !btRestoPorOuvir;
 
   bool get btContadaInteira =>
       _btOuvidaCoberta &&
@@ -1843,6 +1873,7 @@ class SalaSessionState {
     bool? btClipEnded,
     bool? btOuvidaInteira,
     bool? btRestoPorOuvir,
+    Set<String>? btPartesOuvidasAqui,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
@@ -1995,6 +2026,7 @@ class SalaSessionState {
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btOuvidaInteira: btOuvidaInteira ?? this.btOuvidaInteira,
       btRestoPorOuvir: btRestoPorOuvir ?? this.btRestoPorOuvir,
+      btPartesOuvidasAqui: btPartesOuvidasAqui ?? this.btPartesOuvidasAqui,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,

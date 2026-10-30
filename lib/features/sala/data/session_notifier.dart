@@ -8071,22 +8071,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// How far into this recording the stretches somebody has explained reach.
-  ///
-  /// Not [_ondeParouNesteArquivo]: that one moves the cursor and counts every stretch,
-  /// including a half born of a division that nobody has told back yet — which is right
-  /// for the cursor, since that half is reached by the finding that names it, and wrong
-  /// for stepping over a part, which must not skip ground still waiting for its telling.
-  Duration _chaoExplicadoDe(int parte) {
-    var ate = Duration.zero;
-    for (final trecho in state.btTrechos) {
-      if (trecho.parte == parte && trecho.contado && trecho.lugarTo > ate) {
-        ate = trecho.lugarTo;
-      }
-    }
-    return ate;
-  }
-
   /// Play the rehearsal from the first ground nobody has told back yet.
   ///
   /// A retro entered over stretches already told — a team that went back to record the
@@ -8154,6 +8138,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.btTrechos.any((trecho) => trecho.contado);
     if ((ouvida != null || jaLidoNaVisita) &&
         (naoOuvidas == null || naoOuvidas.isEmpty && !deFora)) {
+      _aTraducaoContaDaqui();
       if (state.btFraseQueAguarda case final aguardando?) {
         return _voltarAFraseQueAguarda(aguardando, generation);
       }
@@ -8315,6 +8300,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _dizerComoTraduzir(bool Function() deixou) async {
+    _aTraducaoContaDaqui();
     await _dizer(tellLine);
     if (deixou()) return;
     _deixarDeSoOuvir();
@@ -8416,7 +8402,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // time as this walked, nothing past the first part still to be told could be measured.
     var parte = 0;
     while (parte < medidas.length - 1) {
-      final contadaAte = _chaoExplicadoDe(parte);
+      final contadaAte = state.btChaoContadoDe(parte);
       if (contadaAte == Duration.zero) break;
       final medido = _tamanhoDaParteMs[medidas[parte].path];
       if (medido == null ||
@@ -8436,7 +8422,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (emSilencio) {
-      final contadaAte = _chaoExplicadoDe(parte);
+      final contadaAte = state.btChaoContadoDe(parte);
       final medido = _tamanhoDaParteMs[medidas[parte].path];
       _parteTocando = parte;
       _trechoStart = _ondeParouNesteArquivo(parte);
@@ -8567,6 +8553,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ondeParou = _pontoNoColar(fim > _desdeMs ? fim : _desdeMs);
     }
     state = state.copyWith(btOuvidoMs: ondeParou);
+    _anotarAsPartesOuvidasAqui();
+  }
+
+  void _aTraducaoContaDaqui() {
+    _escuta.contarDaqui();
+    _anotarAsPartesOuvidasAqui();
+  }
+
+  void _anotarAsPartesOuvidasAqui() {
+    state = state.copyWith(
+      btPartesOuvidasAqui: {
+        for (final parte in state.partes)
+          if (_tamanhoDaParteMs[parte.path] case final tamanho?)
+            if (_escuta.ouvidaInteira(parte.path, tamanho, folgaDoFimDaParte))
+              parte.path,
+      },
+    );
   }
 
   int get _aCabecaMs => (_aCabecaDaParte ?? _playback.position).inMilliseconds;
