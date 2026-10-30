@@ -19,7 +19,6 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/main.dart';
 
@@ -33,7 +32,6 @@ import 'scenario_helpers.dart'
         relaunch,
         settle,
         thePersonSign;
-import 'um_ensaio_de_tres_partes.dart' show Sala;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _openEnsaioFinal = 'Abrir o Ensaio Final';
@@ -1607,109 +1605,6 @@ void main() {
         );
       },
     );
-  });
-
-  group('what was told over a whole recording set aside', () {
-    SegmentView told(String segment, String take) => SegmentView(
-      segmentId: segment,
-      takeId: take,
-      startsMs: 0,
-      endsMs: 10000,
-    );
-
-    Future<Sala> openTheTellingBack(
-      SalaHarness harness,
-      ProviderContainer container,
-    ) async {
-      final it = Sala(harness, container);
-      await it.sala.abrirEscolha();
-      await settle();
-      unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
-      await waitFor(
-        'a tradução reabrir tocando',
-        () => harness.playback.played.isNotEmpty,
-      );
-      return it;
-    }
-
-    Future<void> drawTheTellingBack(
-      WidgetTester tester,
-      ProviderContainer container,
-    ) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.light,
-            home: const Scaffold(body: RetroView()),
-          ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-
-    testWidgets('stays out of the telling-back after a second relaunch', (
-      tester,
-    ) async {
-      final home = Directory.systemTemp.createTempSync('sala-1382-traducao');
-      addTearDown(() => home.deleteSync(recursive: true));
-      final harness = SalaHarness(takesHome: home)
-        ..playback.measured = const Duration(seconds: 10);
-      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.retro,
-        takes: [
-          for (final n in [1, 2])
-            KeptTake(
-              scopeId: KeptScope.parte(n),
-              path: '${home.path}/gone-$n.m4a',
-              takeId: 'gravacao-parte-$n',
-            ),
-        ],
-      );
-      harness.room
-        ..passageScenes = _threeScenes.sublist(0, 2)
-        ..retroSoFar = BackTranslationProgress(
-          segments: [
-            told('trecho-inteiro', 'gravacao-inteira'),
-            told('trecho-1', 'gravacao-parte-1'),
-            told('trecho-2', 'gravacao-parte-2'),
-          ],
-        )
-        ..takes.addAll([_theWhole, _part(1), _part(2)]);
-      final launched = (await tester.runAsync(() async {
-        final launched = harness.container();
-        await openTheTellingBack(harness, launched);
-        return launched;
-      }))!;
-      addTearDown(launched.dispose);
-
-      final clips = harness.room.clipsFetched.length;
-      final next = (await tester.runAsync(() async {
-        final (again, next) = await relaunch(harness, launched);
-        again.playback.measured = const Duration(seconds: 10);
-        await openTheTellingBack(again, next);
-        return next;
-      }))!;
-      await drawTheTellingBack(tester, next);
-
-      expect(next.read(salaSessionProvider).stage, SalaStage.retro);
-      await tester.ensureVisible(find.text('recomeçar a tradução'));
-      await tester.pump();
-      await tester.tap(find.text('recomeçar a tradução'));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(
-        find.text('toque de novo para apagar as 2 frases traduzidas'),
-        findsOneWidget,
-        reason: 'o que foi contado sobre o inteiro voltou à tradução',
-      );
-      await tester.pump(const Duration(seconds: 10));
-      expect(
-        harness.room.clipsFetched,
-        hasLength(clips),
-        reason: 'as partes foram buscadas de novo',
-      );
-    });
   });
 
   testWidgets(

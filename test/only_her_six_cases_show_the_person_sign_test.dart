@@ -792,8 +792,10 @@ void main() {
       harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
       await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
-        'a Escolha voltar',
-        () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
+        'a retomada recusada deixar a passagem',
+        () =>
+            harness.room.failStateOnceWith == null &&
+            !room.state.awaitingTheGuide,
       );
     }
 

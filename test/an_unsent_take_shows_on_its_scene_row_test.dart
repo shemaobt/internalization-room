@@ -301,8 +301,9 @@ Future<void> _retomarComAParte1(
     takes: [
       KeptTake(
         scopeId: KeptScope.parte(1),
-        path: '${pasta.path}/p1.m4a',
+        path: (File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
         takeId: 'gravacao-1',
+        origin: origin,
       ),
     ],
   );
