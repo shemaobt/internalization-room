@@ -156,3 +156,9 @@ screen (`widgets/ouvir_tudo_view.dart`) that writes her title, «A gravação de
 parte por parte.», and ends with «fim da gravação», as hers does. It is an exception under
 the existing reason, her words the team reads; the button on the home is already inside her
 recording home's exception.
+
+Amended by ENG-1925 (2026-10-30): while the voice thinks, the Conversation and the Panorama
+write «pensando…» (`widgets/thinking_note.dart`) under the circle, in terracotta with her slow
+pulse, as hers does (`app/page.tsx:1005`, `app/globals.css:217-218`). It is an exception under
+the existing reason, her words the team reads; it shows only while no person sign stands, and
+VoiceOver reads it as a live region.

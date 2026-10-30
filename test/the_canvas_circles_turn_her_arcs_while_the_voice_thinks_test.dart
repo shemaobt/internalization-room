@@ -46,6 +46,14 @@ void main() {
           'os 6–10 s da abertura liam como nada acontecendo; o canvas dela '
           'gira os dois arcos em volta do círculo (globals.css:209-212)',
     );
+    expect(
+      find.descendant(
+        of: find.byType(ConversaView),
+        matching: find.text('pensando…'),
+      ),
+      findsOneWidget,
+      reason: 'embaixo do círculo ela escreve a espera (page.tsx:1005)',
+    );
 
     harness.room.finishHeldTurn();
     for (
@@ -87,6 +95,13 @@ void main() {
         findsNWidgets(2),
         reason:
             'o Panorama dela é desenhado no mesmo canvas, com os mesmos arcos',
+      );
+      expect(
+        find.descendant(
+          of: find.byType(PanoramaView),
+          matching: find.text('pensando…'),
+        ),
+        findsOneWidget,
       );
 
       harness.room.finishHeldTurn();

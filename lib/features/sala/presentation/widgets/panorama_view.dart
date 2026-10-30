@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import '../../domain/halt.dart';
+import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'mic_clock.dart';
+import 'thinking_note.dart';
 
 class PanoramaView extends ConsumerWidget {
   const PanoramaView({super.key});
@@ -31,6 +34,9 @@ class PanoramaView extends ConsumerWidget {
         ),
         if (session.takeRecordingSince case final since?)
           MicClock(circleSize: circleSize, since: since),
+        if (session.circleVoice == VoiceState.thinking &&
+            session.halt is! Blocking)
+          ThinkingNote(circleSize: circleSize, language: language),
       ],
     );
   }

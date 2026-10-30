@@ -108,6 +108,17 @@ void main() {
       );
     });
 
+    test('a spoken turn refused as a wordless telling brings the person sign, '
+        'on the Conversation and on a Panorama', () {
+      for (final station in _theSessionScreen) {
+        _decides(
+          const RoomRefused(RefusalCode.wordlessTelling),
+          _at(station, turn: _turn, rule: RefusalRule.aSpokenTurn),
+          const RoomRaisedAHalt(generation: 4),
+        );
+      }
+    });
+
     test('a spoken turn answered without a reply brings the person sign', () {
       _decides(
         const RoomAnsweredWithoutAReply(),

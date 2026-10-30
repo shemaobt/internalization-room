@@ -3,6 +3,7 @@ import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -63,6 +64,28 @@ void main() {
       expect(rested.halt, const NoHalt());
       expect(rested.channel, const Silence());
       expect(effects, contains(const StopCallingForAPerson()));
+    },
+  );
+
+  test(
+    'a turn refused as a wordless telling shows the sign, and a tap brings the room to rest',
+    () {
+      const machine = Machine(station: Canvas(), inFlight: _turn);
+      final (signed, _) = reduce(
+        machine,
+        FailurePolicy.decide(
+          const RoomRefused(RefusalCode.wordlessTelling),
+          FailureContext(
+            station: machine.station,
+            generation: machine.generation,
+            turn: _turn,
+            rule: RefusalRule.aSpokenTurn,
+          ),
+        ),
+      );
+
+      expect(signed.halt, isA<Blocking>());
+      expect(reduce(signed, const TeamTapped()).$1.halt, const NoHalt());
     },
   );
 
