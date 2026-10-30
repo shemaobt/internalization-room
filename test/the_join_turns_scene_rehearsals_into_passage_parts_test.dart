@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Tristate;
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -37,6 +38,7 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _retry = 'não deu para juntar esta cena — toquem para tentar de novo';
 const _retryEn = 'this scene could not be joined — tap to try again';
 const _tick = '✓';
+const _enviarAGravacao = 'Enviar a gravação';
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -176,6 +178,24 @@ class _Room {
     unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
     await settle();
   }
+
+  Future<void> aHandTakeGivenUp(int n) async {
+    await aHandTakeHeld(n);
+    await tester.runAsync(() async {
+      while (!(await harness.takes.entries()).any(
+        (row) => row.scope == KeptScope.parte(n) && row.exhausted,
+      )) {
+        await harness.takes.flush();
+      }
+    });
+    unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+    await settle();
+  }
+
+  Finder get sendNow => find.ancestor(
+    of: find.textContaining('enviar agora'),
+    matching: find.byType(TextButton),
+  );
 
   /// Every part a join wrote, landed in the room or still in the Outbox.
   Future<Set<String>> scopesJoined() async => {
@@ -1717,6 +1737,56 @@ void main() {
       );
       expect(it.container.read(salaSessionProvider).joinRows, isEmpty);
       expect(await it.scopesJoined(), isEmpty);
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "while a join runs, the notice's «enviar agora» of a take still on the "
+    'tablet rests, and a tap sends nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.aHandTakeGivenUp(3);
+      await it.openThePlan();
+      expect(find.text(_planLine), findsOneWidget);
+      expect(it.sendNow, findsOneWidget);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-1');
+
+      await it.tapJoin();
+      await it.until('a parte 1 ficar presa na sala', () => it.room.takeHeld);
+      final asked = it.room.takesAsked.length;
+
+      expect(
+        tester.widget<TextButton>(it.sendNow).onPressed,
+        isNull,
+        reason: 'o «enviar agora» ficava aceso no meio da junta',
+      );
+      expect(
+        tester
+            .getSemantics(byLabel(_enviarAGravacao))
+            .flagsCollection
+            .isEnabled,
+        Tristate.isFalse,
+        reason: 'o VoiceOver lia o botão como vivo no meio da junta',
+      );
+      await tester.tap(it.sendNow, warnIfMissed: false);
+      await it.beat();
+      expect(it.room.takesAsked.skip(asked), isEmpty);
+
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      expect(
+        it.room.takesAsked.skip(asked),
+        isNot(contains('ensaio/parte-3')),
+        reason: 'o toque no meio da junta mandava a parte 3 depois dela',
+      );
       closeTheRoom(it.container);
       semantics.dispose();
     },
