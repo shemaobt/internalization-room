@@ -4231,6 +4231,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.grainSwitching) {
       return;
     }
+    _relatarAEscuta();
     _handOff(
       _switchTheGrain(
         grain,
@@ -4282,7 +4283,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       needs: state.wholeSwitchArms,
       then: () {
         final reopens = state.overAnApprovedDraft;
-        if (state.station is Retro) _goEnsaio();
+        if (state.station is Retro) {
+          _goEnsaio();
+        } else {
+          _relatarAEscuta();
+        }
         _handOff(
           _switchTheGrain(Grain.whole, reopens: reopens, then: _toItsHome),
         );
@@ -4293,6 +4298,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Her plain «Gravar a passagem inteira» on a scene home no join touched: one tap.
   void recordTheWholePassageInstead() => _gesture(() {
     if (!_aGrainControlActs || _onThePlan || state.recordsTheWhole) return;
+    _relatarAEscuta();
     _handOff(_switchTheGrain(Grain.whole, reopens: true, then: _toItsHome));
   });
 
@@ -4303,6 +4309,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         !(_onThePlan || state.recordsTheWhole)) {
       return;
     }
+    _relatarAEscuta();
     _handOff(_switchTheGrain(Grain.scene, reopens: true, then: _toItsHome));
   });
 
