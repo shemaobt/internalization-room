@@ -6,7 +6,7 @@ amends: 0162
 
 # A nudged pause takes the held player with it, and «manter» keeps it there
 
-This amends ADR 0162 without editing its decision: it adds "amended by 0167" to its status line.
+This amends ADR 0162 without editing its decision: it adds "amended by 0168" to its status line.
 Her app is the bar, and it wins over our ADRs (João, 26 October). Settled on the ticket
 (ENG-2098).
 
