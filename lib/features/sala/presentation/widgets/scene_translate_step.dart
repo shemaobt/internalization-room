@@ -362,7 +362,8 @@ class ScenePlacesUnknown extends ConsumerWidget {
           mood: ButtonMood.dimmed,
           take: null,
           label: said('playPause'),
-          hint: (_) => null,
+          hint: (_) =>
+              sending && !scene.wentToTheVoice ? said('sending') : null,
         ),
         const SizedBox(height: 12),
         SceneStrip(
