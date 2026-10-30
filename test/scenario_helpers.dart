@@ -8,8 +8,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
+import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/person_sign.dart';
@@ -358,6 +364,57 @@ Future<void> _enterTheEntry(
   final entry = read().naRoda!.where(isIt);
   expect(entry, isNotEmpty, reason: 'a roda não tem essa entrada');
   notifier.openTheEntry(entry.first);
+}
+
+/// The tablet holds [row]'s session for [book] [pericope]: the next launch reopens it on its
+/// conversation.
+Future<void> holdTheSession(
+  SalaHarness harness,
+  ResumePoint row, {
+  String book = 'Ruth',
+  String pericope = 'P01',
+  String language = testLanguage,
+}) async {
+  harness.emAberto.rows['$book/$pericope/$language'] = row;
+  await harness.currentSession.hold(
+    CurrentSession(
+      sessionId: row.sessionId,
+      book: book,
+      pericope: pericope,
+      language: language,
+    ),
+  );
+}
+
+/// From the conversation the launch landed on to the recording home, with every part here.
+Future<void> intoTheRecordingHome(
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read, {
+  Future<void> Function()? step,
+}) async {
+  await waitFor(
+    'a sala pousar na conversa',
+    () => read().station is Canvas && !read().awaitingTheGuide,
+    step: step,
+  );
+  notifier.goEnsaio();
+  await waitFor(
+    'as partes chegarem à casa',
+    () => read().station is Ensaio && read().partsAway.isEmpty,
+    step: step,
+  );
+}
+
+/// From the conversation the launch landed on, through the recording home, into the
+/// telling-back.
+Future<void> intoTheBackTranslation(
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read, {
+  Future<void> Function()? step,
+}) async {
+  await intoTheRecordingHome(notifier, read, step: step);
+  notifier.startRetro();
+  await waitFor('a tradução abrir', () => read().station is Retro, step: step);
 }
 
 Finder linhaDoEnsaio(int cena) => find.descendant(
