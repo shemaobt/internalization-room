@@ -1411,14 +1411,7 @@ class TakeUploadQueue {
     ];
     if (old.isEmpty) return;
     for (final entry in old) {
-      try {
-        await _deleteTheCopy(entry);
-      } on FileSystemException catch (error) {
-        debugPrint(
-          'Uma tradução antiga não pôde ser apagada da fila (${entry.path}): '
-          '$error',
-        );
-      }
+      await _deleteTheCopy(entry);
     }
     await _mutate(
       (written) => [
