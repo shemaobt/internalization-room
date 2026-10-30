@@ -203,6 +203,33 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a verdict whose sound the player refuses twice says her «não deu para '
+    'conferir», calls nobody, and lights «terminei» again',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..voice.refuses.add(falaDoVeredito);
+      final container = await _duasFrasesNoTerminei(tester, harness);
+
+      await _recusado(tester, container);
+      await _passo(tester);
+
+      expect(
+        find.text('não deu para conferir agora — tentem de novo'),
+        findsOneWidget,
+        reason:
+            'o veredito que não soava voltava sem palavra na tela, e a '
+            'chamada por uma pessoa ficava esperando a conversa',
+      );
+      final estado = container.read(salaSessionProvider);
+      expect(estado.needsPerson, isFalse);
+      expect(estado.machine.aHaltWaitsForTheCanvas, isNull);
+      expect(estado.btPhase, BtPhase.playing);
+      expect(aceso(tester, conferir), isTrue);
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('a check whose session is gone takes the team back to the '
       'choice, not to her «não deu para conferir»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

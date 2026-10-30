@@ -2228,6 +2228,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (state.channel is Microphone) _dispatch(const MicDiscarded());
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
+          if (_closings.isNotEmpty) return;
           if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
               TapDecision.stop) {
             _handOff(_finishPanoramaListening());
@@ -3607,6 +3608,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _actOnConversaTap() {
     if (_recordingStarting) return;
     final isRecording = state.circleVoice == VoiceState.listening;
+    if (isRecording && _closings.isNotEmpty) return;
     switch (_captureGuard.decide(
       isRecording: isRecording,
       elapsed: _listenedFor,
@@ -3966,7 +3968,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// rehearsals only in the other language's session ask the grain while none is in
   /// force, and open that grain's recording home otherwise; a read that fails or runs out
   /// with the room's listing unread asks the grain whatever is in force, unless the room
-  /// has just named the grain, from the choice's whole home (ADR 0134).
+  /// has just named the grain: on the choice, in a listing that answered after it stood,
+  /// or from the choice's whole home (ADR 0134).
   Future<void> _readThePlan(String sessionId, {bool grainHeard = false}) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
@@ -4138,7 +4141,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// a read still in the air from before never decides over it.
   void _toTheGrainsHome(Grain grain, String sessionId) => switch (grain) {
     Grain.whole => _openTheRecordingHome(sessionId),
-    Grain.scene => _openThePlan(sessionId),
+    Grain.scene => _openThePlan(sessionId, grainHeard: true),
   };
 
   bool get _aGrainControlActs =>
@@ -8071,22 +8074,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  /// How far into this recording the stretches somebody has explained reach.
-  ///
-  /// Not [_ondeParouNesteArquivo]: that one moves the cursor and counts every stretch,
-  /// including a half born of a division that nobody has told back yet — which is right
-  /// for the cursor, since that half is reached by the finding that names it, and wrong
-  /// for stepping over a part, which must not skip ground still waiting for its telling.
-  Duration _chaoExplicadoDe(int parte) {
-    var ate = Duration.zero;
-    for (final trecho in state.btTrechos) {
-      if (trecho.parte == parte && trecho.contado && trecho.lugarTo > ate) {
-        ate = trecho.lugarTo;
-      }
-    }
-    return ate;
-  }
-
   /// Play the rehearsal from the first ground nobody has told back yet.
   ///
   /// A retro entered over stretches already told — a team that went back to record the
@@ -8154,6 +8141,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.btTrechos.any((trecho) => trecho.contado);
     if ((ouvida != null || jaLidoNaVisita) &&
         (naoOuvidas == null || naoOuvidas.isEmpty && !deFora)) {
+      _aTraducaoContaDaqui();
       if (state.btFraseQueAguarda case final aguardando?) {
         return _voltarAFraseQueAguarda(aguardando, generation);
       }
@@ -8315,6 +8303,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _dizerComoTraduzir(bool Function() deixou) async {
+    _aTraducaoContaDaqui();
     await _dizer(tellLine);
     if (deixou()) return;
     _deixarDeSoOuvir();
@@ -8416,7 +8405,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // time as this walked, nothing past the first part still to be told could be measured.
     var parte = 0;
     while (parte < medidas.length - 1) {
-      final contadaAte = _chaoExplicadoDe(parte);
+      final contadaAte = state.btChaoContadoDe(parte);
       if (contadaAte == Duration.zero) break;
       final medido = _tamanhoDaParteMs[medidas[parte].path];
       if (medido == null ||
@@ -8436,7 +8425,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (emSilencio) {
-      final contadaAte = _chaoExplicadoDe(parte);
+      final contadaAte = state.btChaoContadoDe(parte);
       final medido = _tamanhoDaParteMs[medidas[parte].path];
       _parteTocando = parte;
       _trechoStart = _ondeParouNesteArquivo(parte);
@@ -8567,6 +8556,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ondeParou = _pontoNoColar(fim > _desdeMs ? fim : _desdeMs);
     }
     state = state.copyWith(btOuvidoMs: ondeParou);
+    _anotarAsPartesOuvidasAqui();
+  }
+
+  void _aTraducaoContaDaqui() {
+    _escuta.contarDaqui();
+    _anotarAsPartesOuvidasAqui();
+  }
+
+  void _anotarAsPartesOuvidasAqui() {
+    state = state.copyWith(
+      btPartesOuvidasAqui: {
+        for (final parte in state.partes)
+          if (_tamanhoDaParteMs[parte.path] case final tamanho?)
+            if (_escuta.ouvidaInteira(parte.path, tamanho, folgaDoFimDaParte))
+              parte.path,
+      },
+    );
   }
 
   int get _aCabecaMs => (_aCabecaDaParte ?? _playback.position).inMilliseconds;
@@ -10268,6 +10274,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
       await _medirAsPartes(state.partes, generation);
+      if (_abandoned(generation)) return false;
+      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       return true;
     }
     return false;
@@ -10398,6 +10406,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
+    if (state.btFraseQueAguarda == guardada.scope) {
+      state = state.copyWith(
+        btRegravacao: RegravacaoDaFrase(
+          guardada.scope,
+          PassoDaRegravacao.revendo,
+          path: guardada.path,
+          reabre: reabre,
+        ),
+        clearBtFraseGuardada: true,
+      );
+      return;
+    }
     await _enviarAFrase(guardada, reabre: reabre);
   }
 
@@ -10811,6 +10831,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btSoOuvir: false,
     );
     _watchBusyState();
+    void theCheckFailed(RoomFailure failure) {
+      if (failure case NetworkFailed() || Refused()) {
+        state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+        _decideAt(failure, door: Door.verdict);
+        state = state.copyWith(btPhase: pressedFrom);
+        return;
+      }
+      state = state.copyWith(btPhase: pressedFrom);
+      _decideTheFailure(failure);
+    }
+
     final BackTranslationVerdict verdict;
     final asked = await _room.finishBackTranslation(
       sessionId,
@@ -10822,15 +10853,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final answer):
         verdict = answer;
       case final RoomFailure failure:
-        if (failure case NetworkFailed() || Refused()) {
-          state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
-          _decideAt(failure, door: Door.verdict);
-          state = state.copyWith(btPhase: pressedFrom);
-          return;
-        }
-        state = state.copyWith(btPhase: pressedFrom);
-        _decideTheFailure(failure);
-        return;
+        return theCheckFailed(failure);
     }
     if (verdict.refusal
         case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
@@ -10860,31 +10883,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         () => _abandoned(generation),
       );
     }
+    if (verdict.refusal == null &&
+        verdict.audioUrl.isEmpty &&
+        verdict.fixedLine.isEmpty) {
+      return _theVerdictDidNotSound(pressedFrom);
+    }
+    final line = SpokenLine(
+      url: verdict.audioUrl,
+      fixedLine: verdict.fixedLine,
+      checkAt: verdict.checkAt,
+    );
+    var arrived = false;
     try {
-      final spoke = await _sayTheReply(
-        SpokenLine(
-          url: verdict.audioUrl,
-          fixedLine: verdict.fixedLine,
-          checkAt: verdict.checkAt,
-        ),
-        remember: !verdict.usedFailSafe,
-      );
+      final Said spoke;
+      try {
+        spoke = await _loadTheReply(
+          line,
+          generation,
+          asked: false,
+          remember: !verdict.usedFailSafe,
+          loaded: () => arrived = true,
+        );
+      } on RoomFailure catch (failure) {
+        if (_abandoned(generation)) return;
+        return theCheckFailed(failure);
+      }
       if (_abandoned(generation)) return;
       if (verdict.unheardTakeIds.isNotEmpty &&
           verdict.refusal == CheckRefusal.partUnheard) {
         _esperarQueFalteOuvir(sessionId, generation);
         return;
       }
-      // It returns, as all five of its siblings do: when the halt fires, the lines below
-      // would overwrite the call for a person with the closing screen.
+      // It returns, as all five of its siblings do: the lines below would close the
+      // passage on a verdict the team never heard.
       //
       // Leaving `thinking` is not decoration. The five siblings never speak from inside
       // it, so the invitation they hand back is already a gesture; this one does, and
       // `thinking` takes no tap and holds the finish button down — the team would be left
       // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
-        state = state.copyWith(btPhase: pressedFrom);
-        return _registerUnplayableTurn();
+        if (arrived && !verdict.usedFailSafe) {
+          state = state.copyWith(lastSpoken: line);
+        }
+        return _theVerdictDidNotSound(pressedFrom);
       }
 
       if (verdict.checked) {
@@ -10934,6 +10975,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       _decideTheFailure(failure);
     }
+  }
+
+  void _theVerdictDidNotSound(BtPhase pressedFrom) {
+    state = state.copyWith(
+      btPhase: pressedFrom,
+      awaitingTheGuide: false,
+      btRecusa: CheckRefusal.checkUnavailable,
+    );
   }
 
   /// The team makes what it recorded its final draft.
