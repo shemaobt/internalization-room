@@ -1235,6 +1235,217 @@ void main() {
     closeTheRoom(container);
   });
 
+  List<SegmentView> semAPrimeira(SalaHarness harness) => [
+    for (final (antes, trecho) in harness.room.segments.skip(1).indexed)
+      SegmentView(
+        segmentId: trecho.segmentId,
+        takeId: trecho.takeId,
+        startsMs: trecho.startsMs,
+        endsMs: trecho.endsMs,
+        told: trecho.told,
+        frase: antes + 1,
+      ),
+  ];
+
+  Future<void> aSalaRenumera(
+    WidgetTester tester,
+    SalaHarness harness,
+    ProviderContainer container,
+  ) async {
+    harness.room.retroSoFar = BackTranslationProgress(
+      segments: semAPrimeira(harness),
+    );
+    await waitFor(
+      'a sala renumerar as frases',
+      () => container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+  }
+
+  List<int?> linhasEmRevisao(WidgetTester tester) => [
+    for (final linha in tester.widget<FraseList>(find.byType(FraseList)).rows)
+      if (linha.revisao != null) linha.n,
+  ];
+
+  testWidgets('a sentence under review while the room renumbers the frases '
+      'keeps its review on its own row, and «usar esta» sends it to its own '
+      'stretch, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await aSalaRenumera(tester, harness, container);
+
+    expect(
+      linhasEmRevisao(tester),
+      [2],
+      reason: 'a revisão da frase ia para a linha que herdou o número dela',
+    );
+
+    await tester.tap(naLinha('usar esta'));
+    await waitFor(
+      'a frase subir',
+      () => harness.room.sentencesSent.isNotEmpty,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.sentencesSent.last.segmentId,
+      'trecho-3',
+      reason: 'a frase regravada subia para o trecho que herdou o número dela',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence in the air while the room renumbers the frases keeps '
+      '«enviando…» and its pressed «regravar» on its own row, as hers', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+
+    await aSalaRenumera(tester, harness, container);
+
+    expect(
+      linhasCom(tester, 'enviando…'),
+      [2],
+      reason: '«enviando…» ia para a linha que herdou o número da frase',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravando) linha.n,
+      ],
+      [2],
+      reason:
+          'o regravar apertado ia para a linha que herdou o número da frase',
+    );
+    expect(_naLista('regravar a frase 2'), findsOneWidget);
+    for (final n in [1, 3]) {
+      expect(
+        _naLista('regravar a frase $n'),
+        findsNothing,
+        reason: 'regravar seguia oferecido com uma frase a caminho da sala',
+      );
+    }
+    harness.room.holdTheSentence!.complete();
+    await _passo(tester);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence waiting for its microphone while the room renumbers '
+      'the frases is recorded onto its own stretch and reviewed on its own '
+      'row, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await regravarAte(tester, harness, 3);
+
+    await aSalaRenumera(tester, harness, container);
+    await _tocarOCirculo(tester);
+    harness.recorder.rehearsalSpeaks = aSpokenWav(
+      length: const Duration(seconds: 2),
+    );
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+
+    final guardada = (harness.takes as FakeTakeQueue).rows.singleWhere(
+      (row) => row.kind == 'frase',
+    );
+    expect(
+      guardada.scope,
+      'trecho-3',
+      reason: 'a gravação era guardada no trecho que herdou o número da frase',
+    );
+    expect(
+      linhasEmRevisao(tester),
+      [2],
+      reason: 'a revisão da frase ia para a linha que herdou o número dela',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('over an approved draft, the armed «regravar a frase 3» keeps '
+      'its armed text on its own row while the room renumbers the frases, and '
+      'the second tap there opens its own stretch, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    await waitFor(
+      'o rascunho aprovado chegar',
+      () => container.read(salaSessionProvider).overAnApprovedDraft,
+      step: () => _passo(tester),
+    );
+    await tocar(tester, 'regravar a frase 3');
+    const armado = 'toquem de novo: isto abre de novo o rascunho aprovado';
+    expect(_naLista(armado), findsOneWidget);
+
+    await aSalaRenumera(tester, harness, container);
+
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravarArmado) linha.n,
+      ],
+      [2],
+      reason: 'o toque armado acendia na linha que herdou o número da frase',
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await tocar(tester, armado);
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.segmentId,
+      'trecho-3',
+      reason:
+          'o segundo toque abria a regravação no trecho que herdou o número',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravando) linha.n,
+      ],
+      [2],
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence too long keeps her line on its own row while the '
+      'room renumbers the frases, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+    harness.recorder
+      ..rehearsalSpeaks = Uint8List(4 * 1024 * 1024 + 1)
+      ..rehearsalSpeaksAs = 'wav';
+    await _tocarOCirculo(tester);
+    await _passo(tester);
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    const longa = 'frase longa demais — regravem a cena';
+    expect(linhasCom(tester, longa), [3]);
+
+    await aSalaRenumera(tester, harness, container);
+
+    expect(
+      linhasCom(tester, longa),
+      [2],
+      reason:
+          '«frase longa demais» ia para a linha que herdou o número da frase',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase the room told back without a name offers no '
       '«regravar», so no sentence is recorded that could not be kept', (
     tester,
@@ -2858,7 +3069,7 @@ void main() {
       isNull,
       reason: 'a linha abria a tradução de novo no meio da regravação da frase',
     );
-    expect(aqui.btRegravacao?.frase, 3);
+    expect(aqui.btRegravacao?.segmentId, 'trecho-3');
     closeTheRoom(container);
   });
 
@@ -2868,7 +3079,10 @@ void main() {
     final container = await quatroFrasesEmWav(tester, harness);
     await umAchadoNaFraseDois(tester, harness, container);
     await regravarAte(tester, harness, 3);
-    expect(container.read(salaSessionProvider).btRegravacao?.frase, 3);
+    expect(
+      container.read(salaSessionProvider).btRegravacao?.segmentId,
+      'trecho-3',
+    );
 
     for (var n = 1; n <= 4; n++) {
       expect(
@@ -3459,8 +3673,8 @@ void main() {
       await _passo(tester);
 
       expect(
-        container.read(salaSessionProvider).btRegravacao?.frase,
-        3,
+        container.read(salaSessionProvider).btRegravacao?.segmentId,
+        'trecho-3',
         reason: 'o toque em regravar com o microfone fechando largava a frase',
       );
       closeTheRoom(container);
