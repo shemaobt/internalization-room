@@ -7,7 +7,6 @@ import '../../domain/book_names.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/passagem.dart';
 import '../../domain/session_state.dart';
-import 'facilitator_circle.dart';
 import 'shema_mark.dart';
 
 const _rem = 16.0;
@@ -45,36 +44,10 @@ class EscolhaView extends ConsumerWidget {
               ),
             ),
             if (session.entriesOpen)
-              _Books(session: session, language: language)
-            else
-              _Circle(session: session, language: language),
+              _Books(session: session, language: language),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Circle extends ConsumerWidget {
-  final SalaSessionState session;
-  final String language;
-
-  const _Circle({required this.session, required this.language});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(salaSessionProvider.notifier);
-    return FacilitatorCircle(
-      size: facilitatorCircleSize,
-      halt: session.halt,
-      voice: session.voice,
-      semanticLabel: escolhaLabelFor(
-        session.livroInteiroFeito || session.wheelOffersNothing
-            ? 'allDone'
-            : 'readTheWheel',
-        language,
-      ),
-      onTap: notifier.escolhaTap,
     );
   }
 }
