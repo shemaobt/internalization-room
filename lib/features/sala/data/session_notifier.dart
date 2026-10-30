@@ -461,6 +461,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   late String? _openTurnId;
   late bool _openingOwed;
+  bool _wayBackTakenInFlight = false;
+  bool _openAnsweredAfterTheWayBack = false;
   late TurnClock? _pendingClock;
   late TurnClock? _coverageClock;
 
@@ -1745,6 +1747,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Kept keeps = const NothingKept(),
     RefusalRule rule = RefusalRule.aSpokenTurn,
     bool endsTheConversation = false,
+    bool restsOnAThrowingCall = false,
   }) async {
     final endedSession = state.stationSessionId;
     final before = _endOf(endedSession);
@@ -1761,7 +1764,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ..[turn] = (play: heard, gestures: _chain);
     _dispatch(TurnSent(turn, keeps: keeps));
     if (endsTheConversation) _keepTheLastLine(null);
-    final answer = await _theTakeGoes(send);
+    final RoomAnswer<TurnResult> answer;
+    try {
+      answer = await _theTakeGoes(send);
+    } on StateError catch (error, stack) {
+      if (!restsOnAThrowingCall) rethrow;
+      debugPrint('$error\n$stack');
+      if (_abandoned(generation) || state.machine.inFlight != turn) return;
+      _awaitedReplies.remove(turn);
+      _dispatch(TurnFailed(turn, generation: _generation));
+      return _registerUnplayableTurn();
+    }
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
       return;
@@ -1790,9 +1803,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       return await send();
     } on FileSystemException catch (error) {
-      return NetworkFailed('$error');
-    } on Error catch (error, stack) {
-      debugPrint('$error\n$stack');
       return NetworkFailed('$error');
     }
   }
@@ -2394,14 +2404,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _openedFromTheChoice(Future<void> Function() open) async {
-    final held = state.passageLeft?.session;
+  Future<void> _openedFromTheChoice(
+    Future<void> Function() open, {
+    String? kept,
+  }) async {
+    final held = kept ?? state.passageLeft?.session;
     final opening = open().catchError(
       (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
       test: (error) => error is Error && _theOpenBroughtNoSession,
     );
     final generation = _generation;
     await opening;
+    final adopt = _openAnsweredAfterTheWayBack;
+    _wayBackTakenInFlight = _openAnsweredAfterTheWayBack = false;
+    if (adopt && !_gone) return _openedFromTheChoice(open, kept: held);
     if (state.openingEntry != null) {
       state = state.copyWith(clearOpeningEntry: true);
     }
@@ -2470,6 +2486,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       () => _room.openSession(panorama, turnId: turnId),
       play: _restingOnAThrow(_voicePanorama, generation),
       failed: failed,
+      restsOnAThrowingCall: true,
     );
   }
 
@@ -2565,7 +2582,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> returnToTheLeftEntry() async => _gesture(_returnToTheLeftEntry);
 
   void _returnToTheLeftEntry() {
-    if (state.theWayBackIsLive) _returnTo(state.leftEntry!);
+    if (!state.theWayBackIsLive) return;
+    _wayBackTakenInFlight = state.openingEntry != null;
+    _returnTo(state.leftEntry!);
   }
 
   void _returnTo(LeftEntry left) {
@@ -2932,7 +2951,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       openingClock.mark('session');
     }
     final room = created!;
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) {
+      _openAnsweredAfterTheWayBack = _wayBackTakenInFlight;
+      return;
+    }
     final row = opened != null || waiting?.sessionId == room.sessionId
         ? waiting
         : null;
@@ -3188,6 +3210,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       () => _room.openSession(sessionId, turnId: turnId),
       play: _restingOnAThrow(play, generation),
       failed: failed,
+      restsOnAThrowingCall: true,
     );
   }
 

@@ -17,10 +17,12 @@ left keeps its kept retellings' audio while it waits, so one replays offline onc
 back; the audio goes when the passage is let go: another passage opens, or the room lets its
 session go.
 
-Amended by ENG-2112 (2026-10-30): while a pill's open is in flight the chevron does not answer,
-so the open is adopted when it answers (hers: `app/page.tsx:786-793`), never dropped for the
-passage left. An `Error` thrown by the room's call is a failed call like any other: it frees the
-flight and raises no person sign.
+Amended by ENG-2112 (2026-10-30): the chevron stays live while a pill's open is in flight (her
+app keeps its picker, `app/page.tsx:408`), and the passage that open answers is adopted whatever
+the team tapped meanwhile (`:786-793`): the chevron lays the passage left back at once, and the
+open lands over it when it answers. An `Error` thrown by the room's call that opens a passage
+frees the flight and raises no person sign: the team rests on the passage opened, unheard, as
+her app does after a kickoff that throws (`:756-758`). A spoken turn is unchanged.
 
 This amends ADR 0137 without editing its decision: it adds "amended by 0143" to its status
 line. Her app is the bar: the session stays in memory under her picker (`app/page.tsx:407`),

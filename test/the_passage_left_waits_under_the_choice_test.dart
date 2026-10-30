@@ -612,25 +612,51 @@ void main() {
     },
   );
 
-  test('an Error thrown in the open raises no person sign and frees the '
-      'flight', () async {
-    final tablet = await _onTheChoiceFromP01();
-    final harness = tablet.harness;
-    final read = tablet.read;
-    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
-    harness.room.throwOn['openSession'] = StateError('the player broke');
+  test(
+    'an Error thrown in the open raises no person sign and frees the '
+    'flight, resting on the new passage as hers does after a failed kickoff',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+      harness.room.throwOn['openSession'] = StateError('the player broke');
 
-    tablet.notifier.openTheEntry(p02);
+      tablet.notifier.openTheEntry(p02);
+      await waitFor(
+        'the open to rest on P02',
+        () =>
+            read().pericope == 'P02' &&
+            read().voice == VoiceState.invite &&
+            read().machine.inFlight == null,
+      );
+
+      expect(read().needsPerson, isFalse);
+      expect(read().openingEntry, isNull);
+      expect(harness.room.calls, isNot(contains('lookAtTheTurn')));
+    },
+  );
+
+  test('an Error thrown in a spoken turn still raises the person sign and '
+      'looks at nothing', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
     await waitFor(
-      'the open to be given up',
-      () => harness.room.calls.contains('openSession'),
+      'P01 to open',
+      () => read().sessionId != null && read().voice == VoiceState.invite,
     );
-    await settle();
-    await settle();
+    harness.room.throwOn['sendTurn'] = StateError('the build broke');
 
-    expect(read().needsPerson, isFalse);
-    expect(read().machine.inFlight, isNull);
-    expect(read().openingEntry, isNull);
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor('the person sign', () => read().needsPerson);
+
+    expect(harness.room.calls, isNot(contains('lookAtTheTurn')));
   });
 
   group('the way back from the Choice', () {
