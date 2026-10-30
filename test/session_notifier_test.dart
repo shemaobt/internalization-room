@@ -1055,7 +1055,7 @@ void main() {
     );
   });
 
-  test('the necklace is on only for the conversa and the fim', () {
+  test('the necklace is on only for the conversa', () {
     expect(
       SalaSessionState(
         machine: Machine(station: Station.stored(SalaStage.escolha)),
@@ -1085,12 +1085,6 @@ void main() {
       reason:
           'na retro as contas são os trechos contados; o colar da '
           'conversa por cima lia como a mesma fileira de novo',
-    );
-    expect(
-      SalaSessionState(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
-      ).colarOn,
-      isTrue,
     );
   });
 
@@ -3111,23 +3105,6 @@ void main() {
     },
   );
 
-  test('once the necklace has closed nothing is left to hear again', () {
-    final session = SalaSessionState(
-      machine: const Machine(station: Fim()),
-      roomSaysItAgain: true,
-    );
-
-    expect(session.voice, VoiceState.done);
-    expect(
-      session.canHearAgain,
-      isFalse,
-      reason:
-          'o botão fica montado em todas as telas; no fim do colar não há '
-          'círculo, e deixar o pronto valer como convite faria aparecer um '
-          'botão de ouvir de novo numa tela que só espera o toque',
-    );
-  });
-
   test('a tap on the circle at done still records, not a dead touch', () async {
     final harness = SalaHarness()..room.done = true;
     final container = await inConversa(harness);
@@ -4537,7 +4514,6 @@ void main() {
       greaterThan(playedBefore),
       reason: 'a parada calava o veredito, e o Drafting dela o diz',
     );
-    expect(after.stage, isNot(SalaStage.fim));
   });
 
   test('explaining for longer than the clip does not end the clip', () {

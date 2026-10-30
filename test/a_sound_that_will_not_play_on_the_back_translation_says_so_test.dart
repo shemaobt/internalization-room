@@ -42,7 +42,6 @@ const _everyOtherStation = [
   Ensaio(),
   ChecagemExterna(1),
   SceneRehearsal(),
-  Fim(),
 ];
 
 Future<void> _passo(WidgetTester tester) =>

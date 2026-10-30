@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0154 (the check waits for every part to reach the room)
+status: accepted, amended by 0154 (the check waits for every part to reach the room) and by ENG-1967 (a checked passage lands on its verdict)
 date: 2026-10-28
 amends: 0123
 ---
@@ -61,7 +61,7 @@ decision in a44568c2.
 
 ## Amendment (ENG-1967)
 
-- Rule 5 (rule 4 when ENG-1967 was written): a passage the room calls checked is not on
+- Rule 5: a passage the room calls checked is not on
   today's path. It lands on the verdict, with the last check's findings and named nuance as
   marks, only while the room still calls it checked. Hers: `restoreVerdict`,
   `Drafting.tsx:1010-1012`.

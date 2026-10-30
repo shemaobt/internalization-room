@@ -293,10 +293,6 @@ final class TheBackTranslationOpened extends StationEvent {
   const TheBackTranslationOpened();
 }
 
-final class TheNecklaceClosed extends StationEvent {
-  const TheNecklaceClosed();
-}
-
 final class TheRoomStartedOver extends StationEvent {
   const TheRoomStartedOver();
 }
