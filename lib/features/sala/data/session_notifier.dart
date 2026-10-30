@@ -533,6 +533,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _inTheRoomsLanguage => _lingua;
 
+  String _languageOf(String fixedLine) => isTheTabletsOwnLine(fixedLine)
+      ? _inTheRoomsLanguage
+      : _inTheSessionsLanguage;
+
   String get _inTheSessionsLanguage => switch (state.station) {
     Menu() => _lingua,
     Panorama() => state.machine.panorama?.language ?? _lingua,
@@ -1233,7 +1237,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     return fixedLine.isEmpty
         ? _voice.ready(url)
-        : _voice.readyFixedLine(fixedLine, _inTheSessionsLanguage);
+        : _voice.readyFixedLine(fixedLine, _languageOf(fixedLine));
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
@@ -1320,7 +1324,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!await loadAgain.future || _abandoned(generation)) return false;
     await (line.fixedLine.isEmpty
         ? _voice.forget(line.url)
-        : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
+        : _voice.forgetFixedLine(line.fixedLine, _languageOf(line.fixedLine)));
     return !_abandoned(generation);
   }
 
@@ -1344,7 +1348,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       url: fixedLine.isEmpty ? url : null,
       fixedLine: fixedLine.isEmpty
           ? null
-          : (name: fixedLine, language: _inTheSessionsLanguage),
+          : (name: fixedLine, language: _languageOf(fixedLine)),
       onSoundStart: onSoundStart,
     );
     if ((said, checkAt, session) case (
@@ -8475,17 +8479,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(partes);
   }
 
-  Future<void> _dizer(String? linha, {bool theRoomNamedIt = false}) async {
+  Future<void> _dizer(String? linha) async {
     if (linha == null) return;
     try {
       await _sayALine(
         LineKind.guide,
-        fixedLine: (
-          name: linha,
-          language: theRoomNamedIt
-              ? _inTheSessionsLanguage
-              : _inTheRoomsLanguage,
-        ),
+        fixedLine: (name: linha, language: _languageOf(linha)),
       );
     } on RoomFailure catch (failure) {
       _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
@@ -8571,7 +8570,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     }
     if (ouvida.automaticCheck) {
-      await _dizer(ouvida.fixedLine, theRoomNamedIt: true);
+      await _dizer(ouvida.fixedLine);
       if (deixou()) return;
       state = state.copyWith(btPhase: BtPhase.playing);
       return _finishBackTranslation();
@@ -8596,7 +8595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<UntranslatedPart> partes,
     bool Function() deixou,
   ) async {
-    await _dizer(linha, theRoomNamedIt: true);
+    await _dizer(linha);
     if (deixou()) return;
     _deixarDeSoOuvir();
     _sairDaEspera();

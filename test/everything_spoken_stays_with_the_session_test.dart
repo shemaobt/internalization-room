@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -38,6 +39,22 @@ Future<void> _backInTheSession(Sala it, String session) async {
     () => it.estado.sessionId == session,
   );
   await settle();
+}
+
+Future<Sala> _aPortugueseRehearsalReachedAgainInEnglish() async {
+  final it = await umEnsaioDeTresPartesContadoInteiro();
+  await pedirOVeredito(it);
+  final portuguese = it.estado.sessionId!;
+  it.sala.leaveThePassage();
+  await waitFor('the way back', () => it.estado.theWayBackIsLive);
+  it.sala.chooseTheLanguage('en');
+  await settle();
+  await _backInTheSession(it, portuguese);
+  await theClipOpens(it.harness);
+  it.harness.playback.finishPlayback();
+  await waitFor('the clip to end', () => it.estado.btClipEnded);
+  await pedirOVeredito(it);
+  return it;
 }
 
 void main() {
@@ -100,18 +117,7 @@ void main() {
   test(
     'the approval line is spoken in the room language, whatever language the session was opened in',
     () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      await pedirOVeredito(it);
-      final portuguese = it.estado.sessionId!;
-      it.sala.leaveThePassage();
-      await waitFor('the way back', () => it.estado.theWayBackIsLive);
-      it.sala.chooseTheLanguage('en');
-      await settle();
-      await _backInTheSession(it, portuguese);
-      await theClipOpens(it.harness);
-      it.harness.playback.finishPlayback();
-      await waitFor('the clip to end', () => it.estado.btClipEnded);
-      await pedirOVeredito(it);
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
       it.harness.voice.fixedLines.clear();
 
       await it.sala.aprovarRascunhoFinal();
@@ -122,6 +128,53 @@ void main() {
         it.harness.voice.fixedLines,
         isNot(contains((approvedLine, 'pt'))),
       );
+    },
+  );
+
+  test(
+    'the line the room names when a part is still unheard plays in the room language',
+    () async {
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.partUnheard
+        ..verdictFixedLine = 'P2'
+        ..verdictUnheardTakeIds = [it.estado.partes.first.takeId!];
+      it.harness.voice.fixedLines.clear();
+
+      await pedirOVeredito(it);
+
+      expect(it.harness.voice.fixedLines, contains(('P2', 'en')));
+    },
+  );
+
+  test(
+    'the line the room names when a told frase awaits plays in the room language',
+    () async {
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.fraseAwaiting
+        ..verdictFixedLine = 'N5'
+        ..verdictUntoldSegmentId = 'trecho-1';
+      it.harness.voice.fixedLines.clear();
+
+      await pedirOVeredito(it);
+
+      expect(it.harness.voice.fixedLines, contains(('N5', 'en')));
+    },
+  );
+
+  test(
+    'the line the room names when a stretch is untranslated plays in the room language',
+    () async {
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.stretchUntranslated
+        ..verdictFixedLine = 'N2';
+      it.harness.voice.fixedLines.clear();
+
+      await pedirOVeredito(it);
+
+      expect(it.harness.voice.fixedLines, contains(('N2', 'en')));
     },
   );
 
