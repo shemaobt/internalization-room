@@ -2180,4 +2180,80 @@ void main() {
       reason: 'a lista que chegava derrubava a tradução de vocês que descia',
     );
   });
+
+  test('the circle that sends a held frase during the team\'s translation '
+      'download lets it go: it never plays, as hers', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    await _listening(room);
+    room.harness.room.sceneAnswersFirst.add(
+      const Refused(RefusalCode.sceneRehearsalSending),
+    );
+    await _aFraseAt(room, _s(6.0));
+    room.harness.room
+      ..holdNextFrase()
+      ..holdNextClip();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    room.sala.tapTheTranslateCircle();
+    await settle();
+    expect(room.state.scene.waiting, isTrue);
+    room.harness.room.finishHeldClip();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      room.harness.playback.played.map((path) => path.split('/').last),
+      isNot(contains('cena-ensaio-da-cena-1-frase-f1.wav')),
+      reason: 'a tradução que chegava depois do círculo tocava sozinha',
+    );
+    room.harness.room.finishHeldFrase();
+    await settle();
+  });
+
+  test(
+    'play that waits for the room\'s list first during the team\'s translation '
+    'download lets it go: it never plays, as hers',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.harness.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      room.harness.room.frasesLandBeforeTheyFail = false;
+      await waitFor(
+        'a sala não saber se guardou',
+        () => room.state.sceneTranslationUnseen && !room.state.scene.waiting,
+      );
+      room.harness.room
+        ..holdNextSceneList()
+        ..holdNextClip();
+
+      room.sala.hearTheFraseTranslation('f2');
+      await settle();
+      room.sala.playTheSceneRehearsal();
+      await settle();
+      expect(room.state.scene.waiting, isTrue);
+      room.harness.room.finishHeldClip();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        isNot(contains('cena-ensaio-da-cena-1-frase-f2.wav')),
+        reason:
+            'a tradução que chegava enquanto a lista era lida tocava sozinha',
+      );
+      room.harness.room.finishHeldSceneList();
+      await settle();
+    },
+  );
 }
