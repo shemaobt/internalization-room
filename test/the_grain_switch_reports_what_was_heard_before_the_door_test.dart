@@ -121,4 +121,26 @@ void main() {
     it.harness.room.finishTheGrainSwitch();
     await waitFor('a troca acabar', () => !it.estado.grainSwitching);
   });
+
+  test(
+    'on a home no join touched, a part heard half-way reaches the room before '
+    '«Gravar a passagem inteira» calls the door',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      final segunda = it.partes[1].takeId!;
+      it.harness.playback.length = partesDoEnsaio[1];
+      await _ouvirAteOMeio(it, 2, const Duration(seconds: 3));
+      final relatos = it.harness.room.listeningReports.length;
+      it.harness.room.holdTheGrainSwitch();
+
+      it.sala.recordTheWholePassageInstead();
+
+      expect(it.harness.room.grainSwitches, hasLength(1));
+      expect(it.harness.room.listeningReports.skip(relatos), [
+        [_ouvida(segunda, 0, 3000, 8000)],
+      ]);
+      it.harness.room.finishTheGrainSwitch();
+      await waitFor('a troca acabar', () => !it.estado.grainSwitching);
+    },
+  );
 }
