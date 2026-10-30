@@ -288,6 +288,9 @@ class Pulse extends StatelessWidget {
   }
 }
 
+Duration herFade(BuildContext context, Duration span) =>
+    MediaQuery.disableAnimationsOf(context) ? Duration.zero : span;
+
 class FadeUp extends StatelessWidget {
   final Widget child;
 

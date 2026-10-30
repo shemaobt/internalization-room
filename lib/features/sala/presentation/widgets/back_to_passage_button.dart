@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
+import 'motion.dart';
 import 'way_back_chevron.dart';
 
 class BackToPassageButton extends ConsumerWidget {
@@ -31,7 +32,9 @@ class BackToPassageButton extends ConsumerWidget {
             child: SizedBox(
               width: 44,
               height: 44,
-              child: Opacity(
+              child: AnimatedOpacity(
+                duration: herFade(context, const Duration(milliseconds: 250)),
+                curve: Curves.ease,
                 opacity: !session.theWayBackIsLive
                     ? 0.2
                     : session.sceneRehearsalIsOpen

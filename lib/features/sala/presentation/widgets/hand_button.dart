@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/sala_colors.dart';
 import '../../domain/facilitator_script.dart';
+import 'circle_glyph.dart';
 import 'motion.dart';
 
 class HandButton extends StatelessWidget {
+  final bool visible;
   final bool noteMode;
   final bool hasUnheardReply;
   final bool playingReply;
@@ -14,6 +15,7 @@ class HandButton extends StatelessWidget {
 
   const HandButton({
     super.key,
+    required this.visible,
     required this.noteMode,
     required this.hasUnheardReply,
     required this.playingReply,
@@ -25,32 +27,56 @@ class HandButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SalaColors.of(context);
 
-    return Semantics(
-      button: true,
-      label: playingReply || hasUnheardReply
-          ? handLabelFor('hearTheAnswer', language)
-          : handLabelFor('leaveAQuestion', language),
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Center(
-            child: AnimatedOpacity(
-              opacity: noteMode ? 0.8 : 0.35,
-              duration: const Duration(milliseconds: 1200),
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(LucideIcons.hand, size: 26, color: colors.verde),
-                    if (hasUnheardReply)
-                      Positioned(top: 1, right: 1, child: _replyDot(colors)),
-                  ],
+    return ExcludeSemantics(
+      excluding: !visible,
+      child: IgnorePointer(
+        ignoring: !visible,
+        child: Semantics(
+          button: true,
+          label: playingReply || hasUnheardReply
+              ? handLabelFor('hearTheAnswer', language)
+              : handLabelFor('leaveAQuestion', language),
+          child: GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: !visible
+                      ? 0
+                      : noteMode
+                      ? 0.8
+                      : 0.35,
+                  duration: herFade(
+                    context,
+                    const Duration(milliseconds: 1200),
+                  ),
+                  curve: Curves.ease,
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        CustomPaint(
+                          size: const Size.square(26),
+                          painter: CircleGlyphPainter(
+                            glyph: CircleGlyph.hand,
+                            ink: colors.verde,
+                          ),
+                        ),
+                        if (visible && hasUnheardReply)
+                          Positioned(
+                            top: 1,
+                            right: 1,
+                            child: _replyDot(colors),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
