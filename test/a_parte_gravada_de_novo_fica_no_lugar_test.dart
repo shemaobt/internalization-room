@@ -566,6 +566,7 @@ void main() {
     await regravarAParte(it, 1);
     final nova = it.partes[1].path;
     final tocadas = it.harness.playback.played.length;
+    await waitFor('a sala guardar a parte 1', () => it.estado.ensaioDone);
 
     it.sala.startRetro();
     await waitFor(
@@ -704,6 +705,10 @@ void main() {
     await waitFor(
       'a gravação confirmada tomar o lugar da parte 2',
       () => it.partes[1].path == pendente,
+    );
+    await waitFor(
+      'a sala guardar a parte 2',
+      () => it.estado.canPlayTheRehearsal,
     );
 
     expect(

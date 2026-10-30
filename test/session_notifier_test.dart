@@ -1952,6 +1952,10 @@ void main() {
       notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
+      await waitFor(
+        'a porta da retro acender',
+        () => aPortaDaRetroAcendeu(container),
+      );
       notifier.startRetro();
       await settle();
       harness.playback.at = const Duration(seconds: 2);
@@ -4427,6 +4431,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'o ensaio poder tocar',
+      () => container.read(salaSessionProvider).canPlayTheRehearsal,
+    );
     notifier.playTheRehearsal();
 
     expect(container.read(salaSessionProvider).playPing, isTrue);
@@ -4455,6 +4463,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a porta da retro acender',
+      () => aPortaDaRetroAcendeu(container),
+    );
     notifier.startRetro();
     await settle(const Duration(milliseconds: 60));
 
@@ -4486,6 +4498,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a porta da retro acender',
+      () => aPortaDaRetroAcendeu(container),
+    );
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 2);
@@ -4536,6 +4552,10 @@ void main() {
           notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
+          await waitFor(
+            'a porta da retro acender',
+            () => aPortaDaRetroAcendeu(container!),
+          );
           notifier.startRetro();
           await settle(const Duration(milliseconds: 50));
 
@@ -5194,6 +5214,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a porta da retro acender',
+      () => aPortaDaRetroAcendeu(container),
+    );
     notifier.startRetro();
     await settle();
     harness.playback.finishPlayback();
@@ -5637,6 +5661,10 @@ void main() {
       notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
+      await waitFor(
+        'a porta da retro acender',
+        () => aPortaDaRetroAcendeu(container),
+      );
       notifier.startRetro();
       await settle();
 
@@ -6091,6 +6119,10 @@ void main() {
     notifier.goEnsaio();
     await gravaEGuardaAParte(container, 1);
     await gravaEGuardaAParte(container, 2);
+    await waitFor(
+      'o ensaio poder tocar',
+      () => container.read(salaSessionProvider).canPlayTheRehearsal,
+    );
 
     notifier.playTheRehearsal();
     await settle();

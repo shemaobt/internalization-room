@@ -630,6 +630,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _notQueued = {};
     _lengths = {};
     _newestCount = 0;
+    _appliedCount = 0;
     _fraseNaFila = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
@@ -7502,53 +7503,69 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       _ => null,
     };
-    if (keeping != null) _dispatch(AKeepBegan(keeping));
-    final audio = File(path);
-    if (!await audio.exists()) {
-      if (keeping != null && !_endedSince(life)) _dispatch(AKeepEnded(keeping));
-      if (!_endedSince(life)) {
-        _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
-      }
-      return null;
+    if (keeping != null) {
+      _dispatch(AKeepBegan(keeping));
+      _weighTheRehearsal();
     }
-    final PendingTake linha;
+    String? kept;
     try {
-      linha = await queue.enqueue(
-        audio,
-        sessionId: sessionId,
-        passage: passage,
-        kind: kind,
-        scope: scope,
-        passNumber: passNumber,
-        chunkIndex: chunkIndex,
-      );
-    } on Object {
-      if (keeping != null && !_endedSince(life)) _dispatch(AKeepEnded(keeping));
-      if (_endedSince(life)) return null;
-      _notInTheOutbox(path, kind, scope, passNumber, sessionId);
-      return null;
+      final audio = File(path);
+      if (!await audio.exists()) {
+        if (!_endedSince(life)) {
+          _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
+        }
+        return null;
+      }
+      final PendingTake linha;
+      try {
+        linha = await queue.enqueue(
+          audio,
+          sessionId: sessionId,
+          passage: passage,
+          kind: kind,
+          scope: scope,
+          passNumber: passNumber,
+          chunkIndex: chunkIndex,
+        );
+      } on Object {
+        if (_endedSince(life)) return null;
+        _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+        return null;
+      }
+      kept = linha.id;
+      if (_endedSince(life)) {
+        await queue.flush();
+        return null;
+      }
+      if (sessionId != null && _goneSessions.contains(sessionId)) {
+        await queue.letGoOfTheSession(sessionId, passage: passage);
+        return null;
+      }
+      if (kind == partTakeKind) {
+        _semNome[linha.id] = path;
+        _notQueued[sessionId]?.remove(scope);
+      }
+      await _countedFromNow(life);
+    } finally {
+      if (keeping != null && !_endedSince(life)) {
+        _dispatch(AKeepEnded(keeping, row: kept));
+        _weighTheRehearsal();
+      }
     }
-    if (keeping != null && !_endedSince(life)) {
-      _dispatch(AKeepEnded(keeping, row: linha.id));
-    }
-    if (_endedSince(life)) {
-      await queue.flush();
-      return null;
-    }
-    if (sessionId != null && _goneSessions.contains(sessionId)) {
-      await queue.letGoOfTheSession(sessionId, passage: passage);
-      return null;
-    }
-    if (kind == partTakeKind) {
-      _semNome[linha.id] = path;
-      _notQueued[sessionId]?.remove(scope);
-    }
-    await _countUnsentIn(life);
     await queue.flush();
     await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
-    return linha.id;
+    return kept;
   });
+
+  /// Counts the Outbox until a count started from here has been applied: one dropped
+  /// for a newer count or for a station change leaves the home on the count before it.
+  Future<void> _countedFromNow(int? life) async {
+    final from = _newestCount + 1;
+    while (_appliedCount < from && !_endedSince(life)) {
+      await _countUnsentIn(life, measures: false);
+    }
+  }
 
   void _notInTheOutbox(
     String path,
@@ -7608,6 +7625,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (row.id != sent &&
             (tapped.contains(row.id) || row.refusal == null)) {
           joined = joined || row.origin != null;
+          if (sessionId != null &&
+              tapped.contains(row.id) &&
+              !_endedSince(life)) {
+            _dispatch(
+              TheTapSent((session: sessionId, scope: row.scope), row.id),
+            );
+          }
           await queue.dueAgain(row.id, intoTheSession: sessionId);
         }
       }
@@ -7784,9 +7808,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// question, and still asked.
   late int _newestCount;
 
+  late int _appliedCount;
+
   Future<void> _countUnsent() => _countUnsentIn(_thisLife);
 
-  Future<void> _countUnsentIn(int? life) => _apart(() async {
+  Future<void> _countUnsentIn(
+    int? life, {
+    bool measures = true,
+  }) => _apart(() async {
     if (_endedSince(life)) return;
     final generation = _waitOnTheGeneration;
     final counting = ++_newestCount;
@@ -7812,12 +7841,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       },
     );
     _weighTheRehearsal();
+    _appliedCount = counting;
     if (sessionId != null) {
       state = state.copyWith(
         unsentTakes: _unsentTakesOf(tally, speaking),
         unsentChunks: tally.unsentChunks,
       );
     }
+    if (!measures) return;
     if (await _measured(speaking, life) &&
         !_abandoned(generation) &&
         counting == _newestCount) {
@@ -7914,6 +7945,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final row in newest) {
       if (row.lost) return SendFailure.failed;
       if (row.exhausted) return row.failure;
+      if (row.waits > 0) return SendFailure.failed;
     }
     for (final row in ofThePart) {
       if (row.exhausted && row.refusal == null) return SendFailure.failed;

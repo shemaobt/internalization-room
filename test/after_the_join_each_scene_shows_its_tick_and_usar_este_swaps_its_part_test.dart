@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -48,6 +49,8 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _retry = 'não deu para juntar esta cena — toquem para tentar de novo';
 const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _tick = '✓';
+const _failed = 'falhou — toque para tentar de novo';
+const _sending = 'enviando…';
 const _recordAgain = 'gravar esta cena de novo';
 const _question = 'Qual cena vocês vão ensaiar?';
 const _houseBack = 'Voltar para a passagem atual';
@@ -2110,6 +2113,67 @@ void main() {
         it.pressed(it.listen(s2b)),
         Tristate.isFalse,
         reason: 'e a folha voltava em pausa sobre o silêncio',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a swap in flight makes the home busy', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+
+    await it.openTheSheet(2, _swap);
+    it.holdTheTake('parte-2');
+    await it.swapIn(s2b);
+    await it.theHeldTakeArrives();
+
+    expect(it.container.read(salaSessionProvider).homeBusy, isTrue);
+    it.room.finishHeldTake();
+    await it.swapLands();
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'a join row that fell on the network reads «falhou — toque para tentar de '
+    'novo», never «enviando…» without a tap, and its tap sends it',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.room.unreachableTake = 'ensaio/parte-2';
+      it.list(const [s1a, s2a, s3a, s2b]);
+      await it.held(const [s1a, s2a, s3a, s2b]);
+      await it.openThePlan();
+      await it.tapThe(byLabel(_join));
+      await it.wait(joinQuietWait + const Duration(seconds: 5));
+      await it.until(
+        'a junta da cena 2 desistir de esperar',
+        () => find.text(_retry).evaluate().isNotEmpty,
+      );
+      await it.tapThe(find.text(_sceneByScene));
+      await it.until('a casa abrir', it.showsTheHome);
+      await it.until('a junta da cena 2 cair na rede', () {
+        final row = it.container
+            .read(salaSessionProvider)
+            .sceneRows
+            .firstWhere((row) => row.number == 2);
+        return row.inTheAir == null && row.unsent != null;
+      });
+      final before = it.received(2).length;
+      await it.settle();
+
+      expect(it.onRow(2, find.text(_failed)), findsOneWidget);
+      expect(it.onRow(2, find.text(_sending)), findsNothing);
+      await it.wait(const Duration(seconds: 10));
+      expect(it.onRow(2, find.text(_failed)), findsOneWidget);
+      expect(it.onRow(2, find.text(_sending)), findsNothing);
+
+      it.room.unreachableTake = null;
+      await it.tapThe(it.onRow(2, find.text(_failed)));
+      await it.within(
+        const Duration(seconds: 30),
+        'a troca chegar à sala',
+        () => it.received(2).length > before,
       );
       semantics.dispose();
     },

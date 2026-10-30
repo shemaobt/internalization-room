@@ -41,6 +41,8 @@ const _scenes = [
 
 const _aviso = 'Uma gravação ainda está neste computador e não foi enviada.';
 const _falhou = 'falhou — toque para tentar de novo';
+const _enviando = 'enviando…';
+const _salvo = '✓ salvo';
 const _enviarAGravacao = 'Enviar a gravação';
 const _tentarDeNovo = 'Tentar enviar de novo';
 const _gravar = 'Gravar';
@@ -1287,6 +1289,123 @@ void main() {
         reason:
             'a cena 4 chegou à sala sem o tablet saber o nome dela, e a '
             'conferência ficava fechada a visita toda',
+      );
+    },
+  );
+
+  testWidgets(
+    'a keep the Outbox has taken but not yet counted keeps the advance disc '
+    'dark',
+    (tester) async {
+      late QueueHeldOnTheNextTally fila;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          lingua: 'pt',
+          takesOverride: (room, home, recordings) =>
+              fila = QueueHeldOnTheNextTally(
+                room: room,
+                home: () async => home,
+                recordings: recordings,
+              ),
+        ),
+      );
+      for (final n in [1, 2, 3]) {
+        await casa.guardar(n);
+      }
+      await casa.gravar(4);
+      final contagem = fila.holdTheNextTally();
+      casa.room.holdNextTake('parte-4');
+      await casa.emTempoReal(() async {
+        casa.sala.takeKeep();
+        await waitFor(
+          'a contagem da cena 4 começar',
+          () => contagem.asking.isCompleted,
+          limit: const Duration(seconds: 5),
+        );
+      });
+
+      expect(_oDisco(tester), ButtonMood.dimmed, reason: 'a cena 4 sem conta');
+      casa.sala.startRetro();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(casa.estado.stage, SalaStage.ensaio);
+
+      await casa.emTempoReal(() async {
+        contagem.answer.complete();
+        await waitFor('a cena 4 chegar à porta', () => casa.room.takeHeld);
+        await settle();
+      });
+      expect(_oDisco(tester), ButtonMood.dimmed, reason: 'a cena 4 subindo');
+      casa.sala.startRetro();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(casa.estado.stage, SalaStage.ensaio);
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await waitFor(
+          'o disco acender com a cena 4 na sala',
+          () => casa.estado.ensaioDone,
+          limit: const Duration(seconds: 30),
+        );
+      });
+      expect(_oDisco(tester), ButtonMood.beckoning);
+    },
+  );
+
+  testWidgets(
+    'a take of an earlier visit sent by «enviar agora» reads «✓ salvo» once '
+    'the room holds it, as a take of this visit does',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      await casa.relancar();
+      casa.room.unreachableTake = null;
+
+      await casa.tocarAte(
+        find.text(_enviarAgora(2, '0:48')),
+        'a sala guardar a cena 2',
+        () => casa.naSala.contains('ensaio/parte-2') && casa.enviada(2),
+      );
+      await casa.emTempoReal(settle);
+
+      expect(casa.naLinha(2, find.text(_salvo)), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a take the room turned the tablet away on reads «falhou — toque para '
+    'tentar de novo», never «enviando…» without a tap, and its tap sends it',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room
+        ..refuseTake = 'ensaio/parte-2'
+        ..refuseTakeCode = 'UNAUTHORIZED';
+      await casa.gravar(2);
+      await casa.emTempoReal(() async {
+        final antes = casa.envios;
+        casa.sala.takeKeep();
+        await waitFor('a cena 2 subir', () => casa.envios > antes);
+        await waitFor('a cena 2 descer do ar', () {
+          final linha = casa.estado.sceneRows.firstWhere(
+            (row) => row.number == 2,
+          );
+          return linha.inTheAir == null && linha.unsent != null;
+        });
+        await settle(const Duration(milliseconds: 600));
+      });
+
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      expect(casa.naLinha(2, find.text(_enviando)), findsNothing);
+      await casa.emTempoReal(() => settle(const Duration(seconds: 3)));
+      expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
+      expect(casa.naLinha(2, find.text(_enviando)), findsNothing);
+
+      casa.room.refuseTake = null;
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'a sala guardar a cena 2',
+        () => casa.naSala.contains('ensaio/parte-2'),
       );
     },
   );

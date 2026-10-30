@@ -1630,7 +1630,8 @@ void main() {
 
   testWidgets(
     'an earlier-visit take of a part beyond the last scene reads on its own '
-    'numbered row, its tap sends it, and the row leaves',
+    'numbered row, its tap sends it, and the row reads «✓ salvo» for the '
+    'visit, as a take of this visit does',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.unreachableTake = 'ensaio/parte-4';
@@ -1641,14 +1642,14 @@ void main() {
       casa.room.unreachableTake = null;
       await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
       await casa.ate(
-        'a quarta subir e sair',
+        'a quarta subir e ficar salva',
         () =>
             casa.room.takesKept.contains('ensaio/parte-4') &&
-            _aQuarta.evaluate().isEmpty,
+            _naQuarta(find.text(_salvo)).evaluate().isNotEmpty,
       );
 
       expect(casa.room.takesKept, contains('ensaio/parte-4'));
-      expect(_aQuarta, findsNothing);
+      expect(_naQuarta(find.text(_salvo)), findsOneWidget);
     },
   );
 
