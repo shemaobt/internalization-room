@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0146, 0155, and by 0087's amendment of 28 October (ENG-1777: the ladder, the codeless drain and the relaunch send are gone; a join row left waiting at a drop waits for its scene row's tap)
+status: accepted, amended by 0146, 0155, and by 0087's amendment of 28 October (ENG-1777: the ladder, the codeless drain and the relaunch send are gone; a join row left waiting at a drop waits for its scene row's tap), amended by 0166 (a row whose send ended on a wait reads failed with its tap)
 date: 2026-10-22
 amends: 0087, 0103, 0014, 0102
 ---

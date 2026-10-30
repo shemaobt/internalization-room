@@ -6,8 +6,8 @@ amends: 0154 (what counts as a part waiting), 0103 and 0131 (in part: the row of
 
 # The recording home's controls wait for a part from its keep until the room holds it
 
-This amends ADRs 0154 and 0103 without editing their decisions; it adds "amended by 0166" to
-their status lines. It also touches ADR 0131's row states. The Definer settled it on the
+This amends ADRs 0154, 0103 and 0131 without editing their decisions; it adds "amended by
+0166" to their status lines. The Definer settled it on the
 ticket (ENG-1985) on 29 October. Her frozen app wins: «Ouvir tudo» shows only once the server
 holds every part (`allRecorded`, `app/components/Drafting.tsx:795`, :2541, at 18fa7c4), and a
 take is held until its upload answers (:563-596), so a fresh part is never counted as sent.
@@ -46,8 +46,7 @@ read «enviando…» with no tap for good. An earlier visit's take sent by its t
 - After a relaunch the check opens only through the advance disc, so it never opens while a
   part has not landed. ADR 0154's "Unchanged" line names `TheBackTranslationResumed`; that
   event no longer exists.
-
+- A part that landed while the app was closed, and that the room's listing could not name,
+  still reaches the check unnamed and counts as unheard there (ADR 0154, ADR 0163).
 - The disc and «Ouvir tudo» stay dark for as long as the tablet takes to copy and count a
   take, which is longer on a slow tablet.
-- A take of an earlier visit tapped and then failed leaves the notice and reads on its row as
-  a take of this visit.

@@ -4345,6 +4345,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   /// recordings were still here can be made to arrive after a newer one.
   void holdTheNextReading() => _armed = Completer<void>();
 
+  /// The next reading of the queue fails, the way a disk that cannot be read would.
+  bool failsTheNextReading = false;
+
   /// Whether a reading is parked in the hold with its numbers already taken. Waiting on
   /// a duration here instead would let the queue change first, and the older reading
   /// would come back as fresh as the newer one — a race the case never ran.
@@ -4369,6 +4372,10 @@ class FakeTakeQueue implements TakeUploadQueue {
     required String? sessionId,
     String? passage,
   }) async {
+    if (failsTheNextReading) {
+      failsTheNextReading = false;
+      throw const FileSystemException('o disco não leu a fila');
+    }
     unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
@@ -4443,6 +4450,13 @@ class FakeTakeQueue implements TakeUploadQueue {
 /// and a pumped clock never advances that. The room answers with the name it gave the
 /// recording across the same stretch of time, and a told-back stretch cannot name a
 /// recording the room has not answered for yet.
+Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 150)),
+  );
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 /// Until the advance disc lights: every scene has its part and the room holds every one.
 Future<void> untilTheAdvanceDiscLights(
   SalaSessionNotifier sala, {
@@ -4462,13 +4476,6 @@ Future<void> untilTheWoodPlayLights(
   () => sala.state.canPlayTheRehearsal,
   step: step,
 );
-
-Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 150)),
-  );
-  await tester.pump(const Duration(milliseconds: 100));
-}
 
 Future<void> theRoomNamesTheParts(
   WidgetTester tester,

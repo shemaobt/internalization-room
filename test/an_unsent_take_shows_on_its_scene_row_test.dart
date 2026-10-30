@@ -1470,6 +1470,43 @@ void main() {
       expect(find.text('Ouvir tudo'), findsNothing);
     },
   );
+  testWidgets(
+    'a take of an earlier visit whose tapped send fails still offers «Cena 2 · '
+    '0:48 — enviar agora»',
+    (tester) async {
+      final casa = await _naCasa(tester);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      await casa.relancar();
+      final antes = casa.envios;
+
+      await casa.tocarAte(
+        find.text(_enviarAgora(2, '0:48')),
+        'o envio da cena 2 cair',
+        () => casa.envios > antes && casa.estado.sceneRows[1].inTheAir == null,
+      );
+      await casa.emTempoReal(() async {
+        await settle(const Duration(seconds: 2));
+        casa.sala.leaveTheRecording();
+        await settle();
+        casa.sala.goEnsaio();
+        await waitFor(
+          'a casa voltar com as cenas',
+          () =>
+              casa.estado.stage == SalaStage.ensaio &&
+              casa.estado.sceneRows.length == _cenas.length,
+        );
+        await settle(const Duration(seconds: 1));
+      });
+
+      expect(casa.naSala, isNot(contains('ensaio/parte-2')));
+      expect(
+        casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))),
+        findsOneWidget,
+      );
+      expect(casa.naLinha(2, find.text(_falhou)), findsNothing);
+    },
+  );
 }
 
 class _QueueThatRefusesOnce extends TakeUploadQueue {

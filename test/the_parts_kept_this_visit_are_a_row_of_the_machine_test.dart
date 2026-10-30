@@ -92,4 +92,15 @@ void main() {
     expect(failed.beingKept('s1', 'parte-2'), isFalse);
     expect(failed.keptThisVisit, isEmpty);
   });
+
+  test('a take of an earlier visit sent by its tap is saved once the room '
+      'holds it, as a take this visit kept', () {
+    final (held, _) = reduce(
+      _after(_inThePassage, const [TheTapSent(_partTwo, 'linha-antiga')]),
+      const OutboxChanged({'linha-antiga': PartFact.sent}),
+    );
+
+    expect(held.savedParts('s1'), {'parte-2'});
+    expect(held.beingKept('s1', 'parte-2'), isFalse);
+  });
 }

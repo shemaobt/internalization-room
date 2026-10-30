@@ -1798,4 +1798,63 @@ void main() {
       closeTheRoom(container);
     },
   );
+
+  testWidgets(
+    'a keep whose session goes while it is being kept leaves no part being kept',
+    (tester) async {
+      final (harness, container) = await _aQuartaGuardadaDevagar(tester);
+      final sessao = _estado(container).sessionId!;
+      harness.room.forgetTheSession(sessao);
+
+      container.read(salaSessionProvider.notifier).goEnsaio();
+      await waitFor(
+        'a sala largar a sessão',
+        () => _estado(container).sessionId != sessao,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      (harness.takes as FakeTakeQueue).finishHeldKeep();
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(_estado(container).machine.keeping, isEmpty);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a keep whose count fails lights the advance disc again and leaves no part '
+    'being kept',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      for (final n in [1, 2, 3]) {
+        await _gravarNaLinha(tester, n);
+      }
+      await theRoomNamesTheParts(tester, container, parts: 3);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final fila = harness.takes as FakeTakeQueue;
+      final falhas = <Object>[];
+      notifier
+        ..gravarACena(4)
+        ..gravarACena(4);
+      await waitFor(
+        'a cena 4 esperar o visto',
+        () => _estado(container).ensaio == EnsaioStatus.recorded,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+
+      fila.failsTheNextReading = true;
+      runZonedGuarded(notifier.takeKeep, (falha, _) => falhas.add(falha));
+      await waitFor(
+        'a contagem da cena 4 falhar',
+        () => falhas.isNotEmpty,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(falhas.single, isA<FileSystemException>());
+      expect(_estado(container).machine.keeping, isEmpty);
+      expect(_discoAceso(tester), isTrue);
+      closeTheRoom(container);
+    },
+  );
 }
