@@ -6,7 +6,7 @@ amends: 0113 (in part: the «tentar de novo» of a held sentence over a frase th
 
 # A held sentence whose frase awaits opens its review on retry, and never re-sends by itself
 
-This amends ADR 0113 without editing its decision; it adds "amended by 0166" to its status
+This amends ADR 0113 without editing its decision; it adds "amended by 0168" to its status
 line. Her frozen app wins (ENG-2102): the retry of a held recording whose frase now awaits
 another computer's sentence never re-sends by itself. Hers reaches that through the clip's
 stamp — the landing moves it, the retry's POST answers `moved`, and `rereadAction`
