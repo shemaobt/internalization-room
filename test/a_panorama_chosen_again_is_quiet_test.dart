@@ -160,6 +160,86 @@ void main() {
     expect(read().canHearAgain, isTrue);
   });
 
+  test('a passage pill that cannot open after a said Panorama was left lays '
+      'that Panorama back in silence', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the Panorama to be said',
+      () => read().panoramaSaid && read().voice == VoiceState.invite,
+    );
+    final panorama = read().panoramaSessionId;
+    notifier.leaveThePassage();
+    await waitFor('the way back', () => read().theWayBackIsLive);
+    harness.room.reachable = false;
+    final playedBefore = harness.voice.played.length;
+
+    notifier.openTheEntry(
+      read().naRoda!.firstWhere((entry) => entry.pericope == 'P01'),
+    );
+    await waitFor(
+      'the Panorama to be back',
+      () => read().station is Panorama && !read().awaitingTheGuide,
+    );
+    await settle();
+
+    expect(read().panoramaSessionId, panorama);
+    expect(read().panoramaSaid, isTrue);
+    expect(read().canHearAgain, isTrue);
+    expect(harness.voice.played.skip(playedBefore), isEmpty);
+  });
+
+  test('its own pill that cannot open offline lays the said Panorama back in '
+      'silence', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the Panorama to be said',
+      () => read().panoramaSaid && read().voice == VoiceState.invite,
+    );
+    notifier.leaveThePassage();
+    await waitFor('the way back', () => read().theWayBackIsLive);
+    harness.room.reachable = false;
+
+    notifier.openTheEntry(read().naRoda!.firstWhere((e) => e.isPanorama));
+    await waitFor(
+      'the Panorama to be back',
+      () => read().station is Panorama && !read().awaitingTheGuide,
+    );
+    await settle();
+
+    expect(read().panoramaSaid, isTrue);
+    expect(read().canHearAgain, isTrue);
+  });
+
+  test('the Panorama pill that cannot open offline after a passage was left '
+      'lays that passage back', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await _theSaidPanoramaLeftForAPassage(notifier, read);
+    await waitFor('the way back to P01', () => read().theWayBackIsLive);
+    final p01 = read().passageLeft!.session;
+    harness.room.reachable = false;
+
+    notifier.openTheEntry(read().naRoda!.firstWhere((e) => e.isPanorama));
+    await waitFor('P01 to be back', () => read().station is Canvas);
+    await settle();
+
+    expect(read().pericope, 'P01');
+    expect(read().sessionId, p01);
+  });
+
   test('the ≡ way back to a Panorama whose line was said still comes back in '
       'silence, asking the room nothing', () async {
     final harness = SalaHarness()..room.passages = _theBook;

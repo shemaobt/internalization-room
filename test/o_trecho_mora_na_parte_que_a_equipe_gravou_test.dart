@@ -105,6 +105,98 @@ void main() {
     },
   );
 
+  for (final listaPorUltimo in [true, false]) {
+    test('a stretch on a recording this tablet lacks keeps its part whatever '
+        'order the two reads land in (listing last: $listaPorUltimo)', () async {
+      final harness = SalaHarness();
+      harness.room
+        ..openedSessions.add('sessao-antiga')
+        ..takes.add(
+          const TakeView(
+            takeId: 'de-fora',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        )
+        ..listeningUnheardTakeIds = const [];
+      if (listaPorUltimo) harness.room.holdNextTakesList();
+      final it = await _reabrir(
+        harness,
+        partes: 2,
+        contado: BackTranslationProgress(
+          segments: [
+            _contadoDaqui.segments.first,
+            const SegmentView(
+              segmentId: 'trecho-2',
+              takeId: 'de-fora',
+              startsMs: 0,
+              endsMs: 10000,
+            ),
+          ],
+          checked: true,
+        ),
+      );
+      it.sala.openTheEnsaioFinal();
+      await settle();
+      it.sala.startRetro();
+      await settle();
+      if (listaPorUltimo) harness.room.finishHeldTakesList();
+      await settle();
+
+      expect(
+        [for (final trecho in it.estado.btTrechos) trecho.parte],
+        [0, 1],
+        reason:
+            'a listagem que chegava depois da entrada não punha o trecho na parte',
+      );
+    });
+  }
+
+  test('a listing of the passage the team left lands in the next one with '
+      'none of its stretches', () async {
+    final harness = SalaHarness();
+    harness.room
+      ..takes.add(
+        const TakeView(
+          takeId: 'velha-de-fora',
+          kind: 'ensaio',
+          scope: 'inteiro',
+        ),
+      )
+      ..holdNextTakesList();
+    final it = await _reabrir(
+      harness,
+      partes: 2,
+      contado: BackTranslationProgress(
+        segments: [_contadoDaqui.segments.first],
+        stale: const [
+          SegmentView(
+            segmentId: 'velho',
+            takeId: 'velha-de-fora',
+            startsMs: 0,
+            endsMs: 10000,
+            frase: 1,
+          ),
+        ],
+      ),
+    );
+    harness.room.retroSoFar = null;
+    await it.sala.abrirEscolha();
+    await settle();
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+    await settle();
+    harness.room.finishHeldTakesList();
+    await settle();
+
+    expect(
+      it.estado.btTrechosRegravados,
+      isEmpty,
+      reason:
+          'a listagem da passagem deixada gravava os trechos dela na seguinte',
+    );
+  });
+
   test('a resposta da sala pode ainda trazer composed_take_id', () {
     final trocado = TellingAgain.fromJson({
       'segments': [
