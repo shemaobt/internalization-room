@@ -8,6 +8,9 @@ const languages = ['pt', 'en'];
 
 const floorLanguage = 'pt';
 
+bool isTheTabletsOwnLine(String name) =>
+    name.isNotEmpty && 'FPXN'.contains(name[0]);
+
 const instantAckLines = ['F0', 'F1', 'F2'];
 
 const startLine = 'P0';

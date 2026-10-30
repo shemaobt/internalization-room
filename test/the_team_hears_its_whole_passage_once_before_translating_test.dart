@@ -2694,6 +2694,25 @@ void main() {
     },
   );
 
+  testWidgets('her N0 plays in the room language when the room language '
+      'changed after the session was opened', (tester) async {
+    final it = await _naTela(tester, _juntadaNaCasa);
+    it.container.read(roomLanguageProvider.notifier).choose('en');
+    await tester.pump();
+    final linhas = it.harness.voice.fixedLines.length;
+    await _ate(tester, () async {
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await theClipOpens(it.harness);
+      it.harness.playback
+        ..length = const Duration(seconds: 10)
+        ..at = const Duration(seconds: 2);
+    });
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(it.harness.voice.fixedLines.skip(linhas), [('N0', 'en')]);
+  });
+
   testWidgets('an English session hears N0 in English and reads her English', (
     tester,
   ) async {
