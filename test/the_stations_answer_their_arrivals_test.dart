@@ -100,7 +100,7 @@ void main() {
   });
 
   test('the Menu ignores an event that is not its own', () {
-    for (final event in [..._notTheirOwn, const TheNecklaceClosed()]) {
+    for (final event in _notTheirOwn) {
       _expectItStays(const Menu(), event, isA<Menu>());
     }
   });
@@ -136,7 +136,7 @@ void main() {
   });
 
   test('the Canvas ignores an event that is not its own', () {
-    for (final event in [..._notTheirOwn, const TheNecklaceClosed()]) {
+    for (final event in _notTheirOwn) {
       _expectItStays(const Canvas(), event, isA<Canvas>());
     }
   });
@@ -169,11 +169,6 @@ void main() {
         const TheRoomStartedOver(),
         isA<Menu>(),
       );
-      _expectItStays(
-        const Panorama('OV-Ruth'),
-        const TheNecklaceClosed(),
-        isA<Panorama>(),
-      );
     });
 
     test('the Rehearsal', () {
@@ -189,11 +184,9 @@ void main() {
         const TheRoomStartedOver(),
         isA<Menu>(),
       );
-      _expectItStays(const Ensaio(), const TheNecklaceClosed(), isA<Ensaio>());
     });
 
     test('the Back-translation', () {
-      _expectTheArrival(const Retro(), const TheNecklaceClosed(), isA<Fim>());
       _expectTheArrival(
         const Retro(),
         const TheRehearsalOpened(),
@@ -213,18 +206,6 @@ void main() {
       );
       _expectTheArrival(const Retro(), const TheRecordingLeft(), isA<Canvas>());
     });
-
-    test('the Closing', () {
-      _expectTheArrival(const Fim(), const TheRoomStartedOver(), isA<Menu>());
-      _expectTheArrival(const Fim(), const TheChoiceOpened(), isA<Menu>());
-      _expectTheArrival(const Fim(), const PassageChosen(), isA<Canvas>());
-      _expectTheArrival(const Fim(), const TheRehearsalOpened(), isA<Ensaio>());
-      _expectTheArrival(
-        const Fim(),
-        const TheBackTranslationOpened(),
-        isA<Retro>(),
-      );
-    });
   });
 
   test('an arrival at the Station already held moves nothing', () {
@@ -242,7 +223,6 @@ void main() {
       const TheBackTranslationOpened(),
       isA<Retro>(),
     );
-    _expectItStays(const Fim(), const TheNecklaceClosed(), isA<Fim>());
   });
 
   test(
@@ -357,7 +337,6 @@ void main() {
       Menu(),
       Panorama('OV-Ruth'),
       Retro(),
-      Fim(),
       ChecagemExterna(1),
     ]) {
       _expectItStays(station, const TheSceneRehearsalOpened(), equals(station));
@@ -414,7 +393,6 @@ void main() {
       Menu(),
       Panorama('OV-Ruth'),
       Canvas(),
-      Fim(),
       SceneRehearsal(),
     ]) {
       _expectItStays(station, const TheExternalCheckOpened(3), equals(station));
@@ -430,7 +408,6 @@ void main() {
         Canvas(),
         Ensaio(),
         Retro(),
-        Fim(),
         SceneRehearsal(),
       ]) {
         _expectItStays(station, const TheExternalCheckLeft(), equals(station));
@@ -571,7 +548,6 @@ void main() {
       Canvas(),
       Ensaio(),
       Retro(),
-      Fim(),
       ChecagemExterna(1),
     ];
     for (final station in everyStation) {

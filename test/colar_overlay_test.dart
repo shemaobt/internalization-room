@@ -241,7 +241,7 @@ void main() {
 
   testWidgets('the necklace closes in stillness, not a loop', (tester) async {
     final session = SalaSessionState(
-      machine: Machine(station: Station.stored(SalaStage.fim)),
+      machine: Machine(station: Station.stored(SalaStage.conversa)),
       coverage: Coverage(engaged: 5, surfaced: 5, total: 5),
     );
     await pumpColar(tester, session);
@@ -269,7 +269,7 @@ void main() {
     await pumpColar(
       tester,
       conversing.copyWith(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
+        machine: Machine(station: Station.stored(SalaStage.conversa)),
       ),
     );
     await tester.pump(const Duration(seconds: 2));
@@ -290,7 +290,7 @@ void main() {
     'and in the conversation',
     (tester) async {
       final closing = SalaSessionState(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
+        machine: Machine(station: Station.stored(SalaStage.conversa)),
         coverage: const Coverage(engaged: 0, surfaced: 0, total: 1),
       );
       const conversing = SalaSessionState(
@@ -323,7 +323,7 @@ void main() {
     for (final session in [
       conversing,
       conversing.copyWith(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
+        machine: Machine(station: Station.stored(SalaStage.conversa)),
       ),
     ]) {
       await pumpColar(tester, session);
@@ -357,7 +357,7 @@ void main() {
     });
     return closing
         ? SalaSessionState(
-            machine: Machine(station: Station.stored(SalaStage.fim)),
+            machine: Machine(station: Station.stored(SalaStage.conversa)),
             coverage: coverage,
           )
         : SalaSessionState(coverage: coverage);
