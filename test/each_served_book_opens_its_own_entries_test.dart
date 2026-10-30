@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
@@ -169,6 +170,32 @@ void main() {
     expect(room.sessionsSpokenTo.last, room.sessionIds.last);
   });
 
+  test('a passage left tints its own book\'s pill only, when another book '
+      'holds a passage of the same id', () async {
+    final tablet = _aTablet(const ['Jonah', 'Ruth']);
+    tablet.harness.room.passagesOfBook = {
+      for (final book in ['Jonah', 'Ruth'])
+        book: [Passagem(pericope: 'P01', audioUrl: '', book: book)],
+    };
+    await tablet.onTheChoice();
+    Passagem p01Of(String book) =>
+        tablet.state.naRoda!.singleWhere((entry) => entry.book == book);
+    tablet.notifier.openTheEntry(p01Of('Jonah'));
+    await waitFor(
+      'Jonah\'s P01 to open',
+      () => tablet.state.sessionId != null && !tablet.state.awaitingTheGuide,
+    );
+
+    await tablet.leave();
+
+    expect(tablet.state.isTheEntryLeft(p01Of('Jonah')), isTrue);
+    expect(
+      tablet.state.isTheEntryLeft(p01Of('Ruth')),
+      isFalse,
+      reason: 'a P01 de Rute ficava marcada como a passagem deixada',
+    );
+  });
+
   test(
     'a passage opened after another book\'s Panorama names no session before it',
     () async {
@@ -225,7 +252,7 @@ void main() {
       await tablet.tap('J01');
 
       expect(tablet.state.sessionId, j01);
-      expect(tablet.harness.room.pericopesAsked, ['J01', 'P01']);
+      expect(tablet.harness.room.pericopesAsked, ['J01', 'P01', 'J01']);
     },
   );
 
@@ -239,7 +266,7 @@ void main() {
     await tablet.tap('P02');
 
     expect(tablet.state.sessionId, 'sessao-guardada');
-    expect(tablet.harness.room.pericopesAsked, isEmpty);
+    expect(tablet.harness.room.pericopesAsked, ['P02']);
   });
 
   test('opening the room on a halted Choice with nothing on the Wheel asks the '

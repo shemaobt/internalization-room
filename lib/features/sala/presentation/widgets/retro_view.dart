@@ -347,21 +347,10 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear:
-          quieta &&
-              session.canHearAFrase &&
-              switch (session.aParteDoTrecho(trecho)) {
-                null => true,
-                final parte =>
-                  session.partsAway[parte.takeId] == PartAway.missed,
-              }
+      onHear: quieta && session.canHearAFrase
           ? () => notifier.ouvirOTrechoContado(onde)
           : null,
-      onRetell:
-          quieta &&
-              session.canRetellAFrase &&
-              trecho.segmentId != null &&
-              session.aParteDoTrechoEstaAqui(trecho)
+      onRetell: quieta && session.canRetellAFrase && trecho.segmentId != null
           ? () => notifier.traduzirAFraseDeNovo(onde)
           : null,
       mark: aguarda(trecho)

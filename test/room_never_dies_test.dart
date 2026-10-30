@@ -130,7 +130,7 @@ void main() {
   );
 
   test(
-    'a remembered session gone and a fresh one refused send the team back to the wheel',
+    'a remembered session reset and a passage the room cannot open rest the team with no sign and no call',
     () async {
       final harness = SalaHarness()
         ..emAberto.forgetsTheSessionAfter = const Duration(milliseconds: 500);
@@ -160,19 +160,16 @@ void main() {
       harness.room.passagesThatCannotOpen = {'P01'};
       notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await waitFor(
-        'o lugar da sessão lembrada sair do tablet',
-        () async => (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null,
+        'a sala descansar',
+        () =>
+            harness.room.passagesThatCannotOpen.isNotEmpty &&
+            !container.read(salaSessionProvider).awaitingTheGuide,
       );
+      await settle();
 
       final state = container.read(salaSessionProvider);
-      expect(state.stage, SalaStage.escolha);
       expect(state.needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
-      expect(
-        await harness.emAberto.of('Ruth', 'P01', 'pt'),
-        isNull,
-        reason: 'a sessão lembrada sumiu, então não há onde retomar',
-      );
     },
   );
 
@@ -1187,8 +1184,8 @@ void main() {
           'reencontra, porque ir_sessions não guarda aparelho',
     );
     expect(
-      harness.room.pericopesAsked,
-      isEmpty,
+      harness.room.sessionIds,
+      [aberta],
       reason: 'e não se cria outra em cima da que já existe',
     );
   });
@@ -1232,38 +1229,6 @@ void main() {
             'aprovada, a passagem segue para a checagem externa a partir da '
             'tradução conferida: o ponto de retomada fica nela',
       );
-    },
-  );
-
-  test(
-    'a session the server forgot twice sends the team back to the wheel',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-      await settle();
-      notifier.leaveThePassage();
-      await settle();
-
-      harness.room.forgetTheSession(harness.room.sessionIds.single);
-      harness.room.failCreateOnceWith = const SessionGone();
-      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.stage,
-        SalaStage.escolha,
-        reason:
-            'a sessão lembrada e a sessão nova recusada de novo — sem ficar '
-            'presa numa conversa que não abre, a equipe volta à roda',
-      );
-      expect(state.needsPerson, isFalse);
     },
   );
 

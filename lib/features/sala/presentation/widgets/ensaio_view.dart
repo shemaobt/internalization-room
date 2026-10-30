@@ -365,9 +365,7 @@ class _SceneRowView extends StatelessWidget {
         frozen;
     final mood = another ? ButtonMood.dimmed : ButtonMood.lit;
     final listens =
-        row.away == PartAway.coming ||
-            row.away == PartAway.lost ||
-            session.needsPerson ||
+        session.needsPerson ||
             session.ensaio == EnsaioStatus.recording ||
             frozen
         ? ButtonMood.dimmed

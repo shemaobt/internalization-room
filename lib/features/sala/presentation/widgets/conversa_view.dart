@@ -12,6 +12,7 @@ import 'kept_retelling_buttons.dart';
 import 'mic_clock.dart';
 import 'moment_label.dart';
 import 'motion.dart';
+import 'thinking_note.dart';
 
 class ConversaView extends ConsumerWidget {
   const ConversaView({super.key});
@@ -42,6 +43,8 @@ class ConversaView extends ConsumerWidget {
         ),
         if (session.takeRecordingSince case final since?)
           MicClock(circleSize: circleSize, since: since),
+        if (session.writesTheThinkingNote)
+          ThinkingNote(circleSize: circleSize, language: language),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(
             parts: session.partsToReplay,

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show Tristate;
 
@@ -16,7 +15,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle, voiceOverTap;
+import 'scenario_helpers.dart'
+    show byLabel, holdTheSession, intoTheBackTranslation, settle, voiceOverTap;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aprovar,
@@ -97,19 +97,22 @@ Future<ProviderContainer> _voltaATraducao(
   addTearDown(tester.view.reset);
   final pasta = Directory.systemTemp.createTempSync('sala-1223');
   addTearDown(() => pasta.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in [1, 2])
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${pasta.path}/p$n.m4a',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'gravacao-$n',
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in [1, 2])
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${pasta.path}/p$n.m4a',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'gravacao-$n',
+          ),
+      ],
+    ),
   );
   harness.room.retroSoFar = BackTranslationProgress(segments: frases);
   final container = harness.container();
@@ -117,16 +120,14 @@ Future<ProviderContainer> _voltaATraducao(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'a tradução voltar com as frases que a sala guardou',
-    () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
-        container.read(salaSessionProvider).btTrechos.length == frases.length,
+    () => container.read(salaSessionProvider).btTrechos.length == frases.length,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
@@ -230,6 +231,11 @@ void main() {
       final harness = SalaHarness();
       final container = await _voltaATraducao(tester, harness, _quatroFrases);
 
+      await waitFor(
+        '«$_recomecar» acender',
+        () => _enabledAt(tester, _recomecar) == Tristate.isTrue,
+        step: () => _passo(tester),
+      );
       voiceOverTap(tester, _recomecar);
       await _passo(tester);
 
