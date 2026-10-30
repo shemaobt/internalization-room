@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -538,9 +539,75 @@ void main() {
           isTrue,
           reason: 'a passagem acabada voltava sem o ponto aceso',
         );
+        expect(tablet.state.orangeDotLook, OrangeDotLook.bright);
+      });
+
+      test('the dot stays shut while the room is read, and the room\'s phase '
+          'lands when it answers', () async {
+        final harness = SalaHarness();
+        harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+          sessionId: _held,
+          stage: SalaStage.ensaio,
+          takes: [_aPartHere()],
+        );
+        harness.room
+          ..openedSessions.add(_held)
+          ..done = true;
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final tablet = _Tablet(harness, container);
+        await tablet.notifier.openTheRoom();
+        await _theChoiceShowsItsWheel(tablet);
+        harness.room.holdNextState();
+        await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+        await waitFor(
+          'the session to open',
+          () => tablet.state.sessionId == _held,
+        );
+        await settle();
+
+        tablet.notifier.openTheEnsaioFinal();
+        await settle();
+
+        expect(
+          tablet.state.station,
+          isA<Canvas>(),
+          reason:
+              'o ponto laranja abria a casa com a leitura da sala ainda no ar, '
+              'e a leitura era abandonada',
+        );
+        harness.room.finishHeldState();
+        await waitFor('the read to land', () => !tablet.state.awaitingTheGuide);
+        expect(tablet.state.endOfThePassage, isTrue);
+        expect(tablet.state.orangeDotLook, OrangeDotLook.bright);
       });
     },
   );
+
+  test('a relaunch lands on the read its launch made, and reads the room '
+      'only once', () async {
+    final tablet = _aTabletHolding(SalaStage.ensaio, takes: [_aPartHere()]);
+    tablet.harness.room.holdNextState();
+    unawaited(tablet.notifier.openTheRoom());
+    await waitFor(
+      'the launch read to be in the air',
+      () => tablet.asked('fetchState') == 1,
+    );
+    tablet.harness.room
+      ..failStateOnceWith = const NetworkFailed('sem rede')
+      ..finishHeldState();
+    await _landsOn(tablet, _held);
+
+    expect(tablet.state.station, isA<Canvas>());
+    expect(tablet.state.needsPerson, isFalse);
+    expect(
+      tablet.asked('fetchState'),
+      1,
+      reason:
+          'o relançamento lia a sessão de novo depois da leitura da '
+          'abertura, e essa segunda leitura podia falhar o pouso',
+    );
+  });
 
   test(
     'a relaunch in the Back-translation lands on its conversation at rest and '

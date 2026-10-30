@@ -213,7 +213,7 @@ typedef _AListagem = ({
 
 /// What a reopening found where the team left off.
 enum _Resume {
-  /// The station they left, standing again, with the rehearsal under it.
+  /// The takes the tablet still holds are loaded, and the team lands on its conversation.
   landed,
 
   /// Nothing behind this passage to come back to: it opens at the conversa.
@@ -2907,7 +2907,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (onde == _Resume.landed) {
         final SessionSnapshot snapshot;
         final sent = ++_readsSent;
-        if (opened != null) {
+        if (opened != null && opened.sessionId == sessionId) {
           snapshot = opened;
         } else {
           switch (await _room.fetchState(sessionId)) {
@@ -2929,13 +2929,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           moment: snapshot.moment,
           clearMoment: snapshot.moment == null,
         );
-        if (onde == _Resume.landed &&
-            await _landedOnTheApprovedDraft(
-              snapshot,
-              sent,
-              generation,
-              landed,
-            )) {
+        if (await _landedOnTheApprovedDraft(
+          snapshot,
+          sent,
+          generation,
+          landed,
+        )) {
           _aLeituraDecidiu = true;
           return;
         }
@@ -2946,13 +2945,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _resumeFailures.remove(theResume);
         _applyTheSessionRead(snapshot, sent);
         _aLeituraDecidiu = true;
-        _asPartesPerdidasSaem();
         _landWhereTheyStopped(done: snapshot.done);
         return;
       }
       final SessionSnapshot read;
       final sent = ++_readsSent;
-      if (opened != null) {
+      if (opened != null && opened.sessionId == sessionId) {
         read = opened;
       } else {
         switch (await _room.fetchState(sessionId)) {
@@ -3205,9 +3203,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final stage = Station.stored(waiting.stage);
     final anEmptyEnsaio = stage is Ensaio && waiting.takes.isEmpty;
-    final aPartlessRetro = stage is Retro && waiting.takes.isEmpty;
-    if (stage is Canvas ||
-        (waiting.takes.isEmpty && !anEmptyEnsaio && !aPartlessRetro)) {
+    if (stage is Canvas || (waiting.takes.isEmpty && !anEmptyEnsaio)) {
       return _Resume.nothingToRestore;
     }
     final aSceneHasItsPart = waiting.takes.any(
@@ -3237,7 +3233,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     landed();
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
-      awaitingTheGuide: false,
       keptTakes: takes,
       wholeHeldByTheRoom: heldByTheRoom,
       grainInForce: waiting.grain,
