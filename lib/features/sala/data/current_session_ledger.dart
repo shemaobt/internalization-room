@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/ports.dart';
+import '../domain/spoken_line.dart';
 import 'staged_write.dart';
 
 const _folder = 'guardadas';
@@ -57,6 +58,10 @@ class CurrentSessionLedger {
           'book': session.book,
           'pericope': session.pericope,
           'language': session.language,
+          if (session.lastLine case final line?) ...{
+            'last_url': line.url,
+            'last_fixed_line': line.fixedLine,
+          },
         }),
       );
     });
@@ -74,6 +79,12 @@ class CurrentSessionLedger {
         book: json['book']! as String,
         pericope: json['pericope']! as String,
         language: json['language']! as String,
+        lastLine: json['last_url'] == null
+            ? null
+            : SpokenLine(
+                url: json['last_url']! as String,
+                fixedLine: json['last_fixed_line']! as String,
+              ),
       );
     } on Object {
       return null;

@@ -3,6 +3,7 @@ import 'failure_policy.dart';
 import 'machine.dart';
 import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
+import 'spoken_line.dart';
 import 'turn_result.dart';
 
 /// The room client's doors and the person-call inbox. Today it carries the one look, the
@@ -155,10 +156,14 @@ class CurrentSession {
   final String pericope;
   final String language;
 
+  /// The last clip the Guide said, while the conversation still ends on it.
+  final SpokenLine? lastLine;
+
   const CurrentSession({
     required this.sessionId,
     required this.book,
     required this.pericope,
     required this.language,
+    this.lastLine,
   });
 }
