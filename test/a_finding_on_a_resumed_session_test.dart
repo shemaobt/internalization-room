@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show holdTheSession, intoTheBackTranslation;
 
 const _contado = 'gravacao-1@0-30000';
 
@@ -32,27 +33,31 @@ Future<ProviderContainer> _retomadaNoAchado(SalaHarness harness) async {
         ),
       ],
     );
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
-        takeId: 'gravacao-1',
-      ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    ),
   );
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await notifier.openTheRoom();
+  await intoTheBackTranslation(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await waitFor(
     'a tradução retomada pôr a parte no ar',
-    () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
-        harness.playback.sounding,
+    () => harness.playback.sounding,
   );
   harness.playback.finishPlayback();
   await waitFor(

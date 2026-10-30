@@ -61,7 +61,6 @@ Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
         ),
       ],
     ),
-    language: 'pt',
   );
   final container = harness.container();
   addTearDown(container.dispose);
