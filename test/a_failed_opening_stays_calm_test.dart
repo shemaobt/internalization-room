@@ -175,6 +175,7 @@ void main() {
       );
       await _theRoomRests(room);
       harness.voice.refuses.clear();
+      harness.voice.missing.add(turnoUrl);
       final session = room.read().sessionId;
 
       room.notifier.leaveThePassage();

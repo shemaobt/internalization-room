@@ -259,6 +259,45 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the label stays lit while the recorder has not answered and after a stop '
+    'it fails, and dims only while a take records',
+    (tester) async {
+      final (harness, container) = await _theOpeningSays(
+        tester,
+        const Moment(at: MomentAt.familiarization, parts: 3),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(_opacity(tester), 1.0);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      harness.recorder.holdNextStart();
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        _opacity(tester),
+        1.0,
+        reason: 'o rótulo esmaecia antes de o gravador dizer que começou',
+      );
+
+      harness.recorder.finishStart();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_opacity(tester), 0.6);
+
+      harness.recorder.stopThrows = true;
+      notifier.conversaTap();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        _opacity(tester),
+        1.0,
+        reason:
+            'o gravador falhou ao parar, o círculo repousava e o rótulo '
+            'seguia esmaecido',
+      );
+      harness.recorder.stopThrows = false;
+    },
+  );
+
   testWidgets('the label goes while the screen calls for a person', (
     tester,
   ) async {

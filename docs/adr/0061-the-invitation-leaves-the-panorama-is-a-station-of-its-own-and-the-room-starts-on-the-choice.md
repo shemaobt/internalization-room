@@ -11,6 +11,10 @@ Amended by ENG-1819 (2026-10-27): "It shows the circle only, with the hand" belo
 leaves out the Shema mark and the claquete, which the Panorama shows as the conversation
 does (ADR 0014).
 
+Amended by ENG-1867 (2026-10-30): "It shows the circle only, with the hand" also leaves out the
+team glyph, which the circle shows at rest after a Panorama reply the room marked with
+`peer_cue`, as on the Conversation; her canvas has no Panorama guard.
+
 This amends ADRs 0053 and 0040 without editing them; it adds "amended by 0061" to 0053's
 status line. Henok decided on 6 October, and the Definer settled it on the ticket
 (ENG-1282), that the app opens on the passage choice and always opens the passage the team

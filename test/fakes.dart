@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:internalization_room/features/sala/domain/spoken_line.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -200,6 +201,9 @@ class FakeVoice implements FacilitatorVoiceService {
     _looking?.complete();
     _looking = null;
   }
+
+  @override
+  bool arrives(String url) => false;
 
   @override
   Future<bool> holds(String url) async {
@@ -402,6 +406,7 @@ class FakeRecorder implements RecordingRepository {
 
   bool? answersPermission = true;
   bool startThrows = false;
+  final List<String> starts = [];
 
   /// Whether closing the microphone fails, the way a recorder that lost its file does.
   bool stopThrows = false;
@@ -439,15 +444,22 @@ class FakeRecorder implements RecordingRepository {
     MicOwner owner = MicOwner.conversation,
   }) async {
     lastOwner = owner;
+    starts.add(fileName);
     sounds.add('recorder:start');
     final held = _startsTaken < _holdingStarts.length
         ? _holdingStarts[_startsTaken++]
         : null;
     if (held != null) await held.future;
+    final stopping = _stopping;
+    if (stopping != null) await stopping;
     captures++;
+    _named = null;
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
     _recording = true;
+    _named = home.listSync().any((it) => it.path.contains('/$fileName.'))
+        ? null
+        : fileName;
     return Capture.started;
   }
 
@@ -469,35 +481,46 @@ class FakeRecorder implements RecordingRepository {
 
   Future<void>? _stopping;
 
+  /// The take a stop that threw left on the platform, until a discard removes it.
+  String? _lost;
+
+  /// The name the open microphone was started under, which the real recorder gives its file;
+  /// a name a take already holds, as a frozen clock repeats, falls back to a count.
+  String? _named;
+
   @override
   Future<String?> stop() async {
+    final named = '${home.path}/${_named ?? 'captura-$captures'}';
+    final owner = lastOwner;
+    final count = captures;
     final held = _holdingStop;
     if (held != null) await (_stopping = held.future);
     _stopping = null;
     _recording = false;
     if (stopThrows) {
+      _lost = '$named.m4a';
       throw const FileSystemException('o gravador perdeu o arquivo');
     }
     if (returnsNothing) return null;
     final deliverable =
-        lastOwner == MicOwner.rehearsal ||
-        lastOwner == MicOwner.scene ||
-        lastOwner == MicOwner.frase ||
-        lastOwner == MicOwner.listener;
+        owner == MicOwner.rehearsal ||
+        owner == MicOwner.scene ||
+        owner == MicOwner.frase ||
+        owner == MicOwner.listener;
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
-        '${home.path}/captura-$captures.'
+        '$named.'
         '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
       )..writeAsBytesSync(fala);
       return lastPath = take.path;
     }
-    final file = File('${home.path}/captura-$captures.m4a')
+    final file = File('$named.m4a')
       ..writeAsStringSync(
         returnsEmpty
             ? ''
-            : lastOwner == MicOwner.frase
-            ? '$_aWholeTake$captures'
+            : owner == MicOwner.frase
+            ? '$_aWholeTake$count'
             : deliverable
             ? _aWholeTake
             : 'a equipe falou',
@@ -516,6 +539,11 @@ class FakeRecorder implements RecordingRepository {
     sounds.add('recorder:discard');
     final stopping = _stopping;
     if (stopping != null) await stopping;
+    if (_lost case final lost?) {
+      _lost = null;
+      deleted.add(lost);
+      return;
+    }
     if (!_recording) return;
     final path = await stop();
     if (path != null) deleted.add(path);
@@ -903,6 +931,19 @@ class FakeCurrentSessionLedger implements CurrentSessionLedger {
   Future<void> letGo({String? only}) async {
     if (only == null || held?.sessionId == only) held = null;
   }
+
+  final Map<String, SpokenLine?> _ends = {};
+
+  @override
+  Future<({SpokenLine? line})?> endOf(String session) async =>
+      _ends.containsKey(session) ? (line: _ends[session]) : null;
+
+  @override
+  Future<void> holdTheEnd(String session, SpokenLine? line) async =>
+      _ends[session] = line;
+
+  @override
+  Future<void> letGoOfTheEnd(String session) async => _ends.remove(session);
 }
 
 class FakeRoomLanguageLedger implements RoomLanguageLedger {
@@ -962,6 +1003,13 @@ class FakeWorkInProgress implements WorkInProgress {
     _heldRead = null;
     _holdingRead = null;
   }
+
+  String? sessionOf(String? pericope, String language) => [
+    for (final MapEntry(:key, :value) in rows.entries)
+      if (key.split('/')[1] == pericope &&
+          (key.endsWith('/$language') || value.language == language))
+        value.sessionId,
+  ].firstOrNull;
 
   @override
   Future<ResumePoint?> of(String book, String pericope, String language) async {
@@ -1523,6 +1571,11 @@ class FakeRoom implements RoomRepository {
   bool createdOpened = false;
 
   bool resumesTheLatest = false;
+
+  /// The session the tablet's row names for a passage and language. The server holds
+  /// that one for the team until the facilitator resets it, so `createSession` resumes
+  /// it, and mints a new one once it is forgotten.
+  Future<String?> Function(String? pericope, String language)? heldByTheTeam;
 
   final Map<String, String> latestSessions = {};
 
@@ -2465,12 +2518,23 @@ class FakeRoom implements RoomRepository {
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;
+      if (failure is SessionGone && afterSession == null) {
+        return const Refused(RefusalCode.notFound);
+      }
       return failure;
     }
     pericopesAsked.add(pericope);
     metBefore.add(afterSession != null);
     languagesSent.add(language);
     final key = '$pericope/$language';
+    final ours = await heldByTheTeam?.call(pericope, language);
+    if (ours != null && !forgottenSessions.contains(ours)) {
+      if (serverHalt == HaltKind.blocking) {
+        serverHalt = HaltKind.unnamed;
+        serverStatus = null;
+      }
+      return Answered(_theStateOf(ours));
+    }
     final latest = resumesTheLatest ? latestSessions[key] : null;
     final resumed = latest != null && !forgottenSessions.contains(latest);
     final sessionId = resumed
@@ -2544,6 +2608,26 @@ class FakeRoom implements RoomRepository {
         Answered(passagesOfBook[book] ?? passagesIn[language] ?? passages);
   }
 
+  SessionSnapshot _theStateOf(String sessionId) => SessionSnapshot(
+    sessionId: sessionId,
+    pericope: 'rute-1',
+    status: serverStatus ?? ((readsDone ?? done) ? 'done' : 'in_progress'),
+    coverage: silentAboutCoverage ? null : (settledCoverage ?? nextCoverage),
+    done: readsDone ?? done,
+    halt: serverHalt,
+    opened: openedSessions.contains(sessionId),
+    moment: nextMoment,
+    keptRetellings: keptRetellings,
+    backTranslation:
+        retroSoFar ??
+        BackTranslationProgress(
+          segments: _numbered,
+          checked: readsChecked,
+          awaitingSegmentId: awaitingSegmentId,
+        ),
+    approved: approvedDraft,
+  );
+
   @override
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
     if (_guard('fetchState') case final failure?) {
@@ -2564,29 +2648,7 @@ class FakeRoom implements RoomRepository {
     }
     final held = _holdingState;
     if (held != null) await held.future;
-    final answer = Answered(
-      SessionSnapshot(
-        sessionId: sessionId,
-        pericope: 'rute-1',
-        status: serverStatus ?? ((readsDone ?? done) ? 'done' : 'in_progress'),
-        coverage: silentAboutCoverage
-            ? null
-            : (settledCoverage ?? nextCoverage),
-        done: readsDone ?? done,
-        halt: serverHalt,
-        opened: openedSessions.contains(sessionId),
-        moment: nextMoment,
-        keptRetellings: keptRetellings,
-        backTranslation:
-            retroSoFar ??
-            BackTranslationProgress(
-              segments: _numbered,
-              checked: readsChecked,
-              awaitingSegmentId: awaitingSegmentId,
-            ),
-        approved: approvedDraft,
-      ),
-    );
+    final answer = Answered(_theStateOf(sessionId));
     if (_readsToHold > 0) {
       _readsToHold--;
       final reply = Completer<void>();
@@ -3150,6 +3212,7 @@ class FakeRoom implements RoomRepository {
         pass: passNumber,
         origin: origin,
         setAsideAt: leftBehind ? grainSwitchedAt : null,
+        sha256: held,
       ),
     );
     takeAudio[id] = origin == null
@@ -4518,7 +4581,23 @@ class SalaHarness {
            takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
-       vinculo = FakeLinkedTeam(remembered: linkedAs);
+       vinculo = FakeLinkedTeam(remembered: linkedAs) {
+    this.room.heldByTheTeam = _theRowsSession;
+  }
+
+  Future<String?> _theRowsSession(String? pericope, String language) async {
+    final ledger = emAbertoNoDisco ?? emAberto;
+    if (ledger is FakeWorkInProgress) {
+      return ledger.sessionOf(pericope, language);
+    }
+    if (pericope == null) return null;
+    for (final book in room.books) {
+      if (await ledger.of(book, pericope, language) case final row?) {
+        return row.sessionId;
+      }
+    }
+    return null;
+  }
 
   final Duration? linkPoll;
 

@@ -713,7 +713,7 @@ void main() {
           reason: 'o take sem medida voltava para a equipe tentar de novo',
         );
       },
-      createFile: (path) => unreadable && path.contains('captura-')
+      createFile: (path) => unreadable && path.contains('/cena_')
           ? _UnmeasurableTake(path)
           : _realFile(path),
     );

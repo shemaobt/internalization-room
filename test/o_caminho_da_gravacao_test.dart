@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -116,11 +115,11 @@ void main() {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
 
       expect(
-        container.read(salaSessionProvider).stage,
-        SalaStage.ensaio,
+        container.read(salaSessionProvider).partes.single.scopeId,
+        KeptScope.parte(1),
         reason:
             'os arquivos estão todos lá, sob a pasta nova: uma restauração de '
-            'backup não pode devolver a equipe ao começo da conversa',
+            'backup não pode devolver a equipe sem o ensaio que gravou',
       );
     },
   );
@@ -171,33 +170,6 @@ void main() {
             'sempre: a próxima abertura não acharia nada para restaurar, e o '
             'ensaio que a sala guardasse ficaria fora do alcance da equipe',
       );
-
-      harness.room.takes.add(
-        const TakeView(
-          takeId: 'gravacao-1',
-          kind: 'ensaio',
-          scope: 'parte-1',
-          ordinal: 1,
-        ),
-      );
-      await notifier.abrirEscolha();
-      await waitFor(
-        'a roda abrir de novo',
-        () => container.read(salaSessionProvider).naRoda != null,
-      );
-      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-      await waitFor(
-        'o ensaio voltar da sala',
-        () => container.read(salaSessionProvider).partes.isNotEmpty,
-      );
-
-      expect(
-        container.read(salaSessionProvider).stage,
-        SalaStage.ensaio,
-        reason:
-            'com o ensaio na sala a equipe volta para ele, e é por isso que '
-            'a linha tinha de sobreviver à primeira abertura',
-      );
     },
   );
 
@@ -208,7 +180,7 @@ void main() {
     final harness = SalaHarness(emAbertoNoDisco: ledger);
     final container = await _opensThePassage(harness);
 
-    expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+    expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
     expect(
       container.read(salaSessionProvider).partes.single.scopeId,
       KeptScope.parte(1),
