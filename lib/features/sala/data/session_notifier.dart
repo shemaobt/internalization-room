@@ -6716,9 +6716,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     final generation = _waitOnTheGeneration;
     bool movedOn() =>
-        _abandoned(generation) ||
-        state.channel is Microphone ||
-        !identical(_theTranslationAsked, waiting);
+        _abandoned(generation) || !identical(_theTranslationAsked, waiting);
     final path = await _fetchASceneClip(
       'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
       RoomRepository.sceneFraseAudioUrl(
