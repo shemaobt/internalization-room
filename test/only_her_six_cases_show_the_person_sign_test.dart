@@ -159,7 +159,6 @@ Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
         ),
       ],
     ),
-    language: 'pt',
   );
   final container = harness.container();
   addTearDown(container.dispose);
