@@ -2193,7 +2193,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures.clear();
     _openTurnId = null;
     _openingOwed = false;
-    state = state.copyWith(awaitingTheGuide: false, panoramaSaid: true);
+    state = state.copyWith(
+      awaitingTheGuide: false,
+      panoramaSaid: true,
+      peerCue: played == Said.said ? turn.peerCue : null,
+    );
   }
 
   void panoramaTap() => _gesture(() => _panoramaTap());
@@ -3619,23 +3623,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// leave-and-return later.
   void _keepTheStretchesAlreadyTold(BackTranslationProgress told) {
     state = state.copyWith(btTrechosRegravados: const []);
+    if (!told.nothingTold) {
+      final trechos = _trechosFrom(told.segments);
+      state = state.copyWith(
+        btTrechos: trechos,
+        btFindings: _osAchadosQueFicam(told.findings, trechos),
+        btFraseQueAguarda: told.awaitingSegmentId,
+        clearBtFraseQueAguarda: told.awaitingSegmentId == null,
+      );
+    }
     final sessionId = state.sessionId;
-    if (sessionId != null && told.stale.isNotEmpty) {
+    if (sessionId != null && (told.stale.isNotEmpty || !told.nothingTold)) {
       unawaited(
         _porCadaTrechoNaSuaParte(
           sessionId,
-          const [],
+          told.segments,
           _generation,
           regravados: told.stale,
         ),
       );
     }
-    if (told.nothingTold) return;
-    final trechos = _trechosFrom(told.segments);
-    state = state.copyWith(
-      btTrechos: trechos,
-      btFindings: _osAchadosQueFicam(told.findings, trechos),
-    );
   }
 
   void conversaTap() => _gesture(() => _conversaTap());
