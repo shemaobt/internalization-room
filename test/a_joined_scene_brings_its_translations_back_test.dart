@@ -28,7 +28,8 @@ import 'scenario_helpers.dart'
         holdTheSession,
         intoTheBackTranslation,
         offTheRows,
-        thePersonSign;
+        thePersonSign,
+        voiceOverFocusLeaves;
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -727,6 +728,38 @@ void main() {
 
     expect(it.room.bringBacksAsked, isEmpty);
     expect(it.control(2, _bringBackArmed), findsOneWidget);
+    await it.wait(const Duration(seconds: 7));
+    semantics.dispose();
+  });
+
+  testWidgets('VoiceOver focus leaving the armed bring-back disarms it, and '
+      'the next tap only arms', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _onTheHome(tester);
+
+    await it.tapThe(it.control(2, _bringBack));
+    await it.wait(const Duration(seconds: 1));
+    expect(it.control(2, _bringBackArmed), findsOneWidget);
+
+    voiceOverFocusLeaves(tester, it.control(2, _bringBackArmed));
+    await it.wait(const Duration(milliseconds: 100));
+
+    expect(
+      it.control(2, _bringBack),
+      findsOneWidget,
+      reason: 'o trazer de volta seguia armado depois que o foco saiu dele',
+    );
+    expect(it.control(2, _bringBackArmed), findsNothing);
+
+    await it.tapThe(it.control(2, _bringBack));
+    await it.settle();
+
+    expect(it.control(2, _bringBackArmed), findsOneWidget);
+    expect(
+      it.room.bringBacksAsked,
+      isEmpty,
+      reason: 'o toque seguinte trazia de volta em vez de só armar',
+    );
     await it.wait(const Duration(seconds: 7));
     semantics.dispose();
   });

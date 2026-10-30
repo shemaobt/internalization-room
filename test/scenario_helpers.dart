@@ -53,6 +53,15 @@ void voiceOverTap(WidgetTester tester, String label) =>
       ),
     );
 
+void voiceOverFocusLeaves(WidgetTester tester, Finder control) =>
+    tester.binding.performSemanticsAction(
+      SemanticsActionEvent(
+        type: SemanticsAction.didLoseAccessibilityFocus,
+        viewId: tester.view.viewId,
+        nodeId: tester.getSemantics(control).id,
+      ),
+    );
+
 List<String> labelsHeard(WidgetTester tester) {
   final labels = <String>[];
   bool visit(SemanticsNode node) {
