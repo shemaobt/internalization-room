@@ -10404,6 +10404,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
+    if (state.btFraseQueAguarda == guardada.scope) {
+      state = state.copyWith(
+        btRegravacao: RegravacaoDaFrase(
+          guardada.scope,
+          PassoDaRegravacao.revendo,
+          path: guardada.path,
+          reabre: reabre,
+        ),
+        clearBtFraseGuardada: true,
+      );
+      return;
+    }
     await _enviarAFrase(guardada, reabre: reabre);
   }
 
