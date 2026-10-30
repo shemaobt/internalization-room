@@ -10,7 +10,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheBackTranslation, intoTheRecordingHome, settle;
 
 /// A tablet reopening straight into a kept part, with one take already on disk.
 /// Copied from `a_halt_in_the_middle_of_a_capture_leaves_the_microphone_open_test.dart`:
@@ -25,7 +26,7 @@ Future<ProviderContainer> _reopensInto(
     '${Directory.systemTemp.createTempSync('sala-982').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: stage,
     takes: [
@@ -36,13 +37,17 @@ Future<ProviderContainer> _reopensInto(
       ),
     ],
   );
+  await holdTheSession(harness, row);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
+  await notifier.openTheRoom();
+  await (stage == SalaStage.retro
+      ? intoTheBackTranslation
+      : intoTheRecordingHome)(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   return container;
 }
 
@@ -58,6 +63,7 @@ _capturingWithAWarningArmed(SalaHarness harness) async {
   SalaSessionState read() => container.read(salaSessionProvider);
 
   await waitFor('o aviso chegar', () => read().warning);
+  await waitFor('a parte tocar', () => read().btPhase == BtPhase.playing);
   harness.playback.at = const Duration(seconds: 2);
   notifier.retroTap();
   notifier.retroTap();

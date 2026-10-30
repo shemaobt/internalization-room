@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +11,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _duasCenas = [
@@ -37,22 +37,22 @@ Future<Sala> _reabertaNaCasa(
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.passageScenes = _duasCenas
     ..room.takes.addAll(naSala);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.ensaio,
-    takes: takes(pasta),
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.ensaio,
+      takes: takes(pasta),
+    ),
   );
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
-  await it.sala.abrirEscolha();
-  await settle();
-  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
   await waitFor(
     'a casa do ensaio reabrir com as partes',
-    () =>
-        it.estado.stage == SalaStage.ensaio &&
-        it.estado.partes.length == naSala.length,
+    () => it.estado.partes.length == naSala.length,
   );
   await settle();
   return it;
