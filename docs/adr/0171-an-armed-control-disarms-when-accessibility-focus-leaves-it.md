@@ -6,7 +6,7 @@ amends: 0113 (the Armed tap gains a fourth disarm: focus loss)
 
 # An armed control disarms when accessibility focus leaves it
 
-This amends ADR 0113 without editing its decision; it adds "amended by 0168" to its status
+This amends ADR 0113 without editing its decision; it adds "amended by 0171" to its status
 line. Her frozen app at Tripod-Internalization 18fa7c4 wins: every armed button drawn by
 `armedBtn` carries `onBlur: () => { if (armedId.current === id) disarm(); }`
 (`Drafting.tsx:2228`), the sheet's «usar este» carries the same (`EnsaioFinalSheet.tsx:81`),
