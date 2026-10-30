@@ -1461,6 +1461,108 @@ void main() {
     closeTheRoom(container);
   });
 
+  Future<void> aSalaPerdeOTrecho(
+    WidgetTester tester,
+    SalaHarness harness,
+    ProviderContainer container,
+  ) async {
+    harness.room.retroSoFar = BackTranslationProgress(
+      segments: [
+        for (final (antes, trecho)
+            in harness.room.segments
+                .where((trecho) => trecho.segmentId != 'trecho-3')
+                .indexed)
+          SegmentView(
+            segmentId: trecho.segmentId,
+            takeId: trecho.takeId,
+            startsMs: trecho.startsMs,
+            endsMs: trecho.endsMs,
+            told: trecho.told,
+            frase: antes + 1,
+          ),
+      ],
+    );
+    await waitFor(
+      'a sala ler as frases sem o trecho da regravação',
+      () => container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+  }
+
+  testWidgets('a sentence under review whose stretch the room no longer has '
+      'is let go when the telling is read, and «regravar» comes back to '
+      'every row', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+
+    await aSalaPerdeOTrecho(tester, harness, container);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao,
+      isNull,
+      reason:
+          'a regravação de um trecho que a sala não tem mais ficava aberta '
+          'sem linha nenhuma',
+    );
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a gravação de um trecho que a sala não tem mais ficava na fila',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.onRegravar != null) linha.n,
+      ],
+      [1, 2, 3],
+      reason: 'a regravação aberta sem linha tirava o regravar de todas',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence being recorded whose stretch the room no longer has '
+      'is let go with its microphone when the telling is read, and nothing '
+      'is queued', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true, watchesWithoutAHalt: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await regravarAte(tester, harness, 3);
+    await _tocarOCirculo(tester);
+    expect(harness.recorder.sounds.last, 'recorder:start');
+
+    await aSalaPerdeOTrecho(tester, harness, container);
+
+    expect(
+      container.read(salaSessionProvider).btRegravacao,
+      isNull,
+      reason:
+          'a regravação de um trecho que a sala não tem mais seguia gravando '
+          'sem linha nenhuma',
+    );
+    expect(
+      harness.recorder.sounds.last,
+      'recorder:discard',
+      reason: 'o microfone ficava aberto numa frase que a sala não tem mais',
+    );
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a gravação de um trecho que a sala não tem mais ia para a fila',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.onRegravar != null) linha.n,
+      ],
+      [1, 2, 3],
+      reason: 'a regravação aberta sem linha tirava o regravar de todas',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase the room told back without a name offers no '
       '«regravar», so no sentence is recorded that could not be kept', (
     tester,

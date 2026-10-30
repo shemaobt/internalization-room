@@ -1543,6 +1543,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _stretchesAt = max(_stretchesAt, sent);
     state = state.copyWith(btTrechos: _trechosFrom(told.segments));
+    _largarARegravacaoSemTrecho();
   }
 
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
@@ -10445,6 +10446,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _largarARegravacao();
   }
 
+  void _largarARegravacaoSemTrecho() {
+    if (state.btRegravacao case final aberta?
+        when aberta.passo != PassoDaRegravacao.enviando &&
+            _aFraseChamada(aberta.segmentId) == null) {
+      _regravacoes++;
+      _silenceTheRoom();
+      if (aberta.passo == PassoDaRegravacao.gravando) {
+        _dispatch(const MicDiscarded());
+      }
+      _esquecerAFrase();
+    }
+  }
+
   void _largarARegravacao() {
     _regravacoes++;
     final aberta = state.btRegravacao;
@@ -11199,6 +11213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                 when !frases.containsKey(guardada)) {
               _esquecerAFrase();
             }
+            _largarARegravacaoSemTrecho();
           }
           final numeros = {
             for (final regravada in snapshot.backTranslation.stale)
