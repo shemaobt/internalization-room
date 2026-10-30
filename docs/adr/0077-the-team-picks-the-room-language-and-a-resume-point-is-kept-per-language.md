@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1866 and ENG-1988
+status: accepted, amended by ENG-1866, ENG-1988 and ENG-1987
 ---
 # The team picks the room language, and a Resume point is kept per passage and language
 
@@ -26,6 +26,12 @@ tapped while the Wheel's first read is in flight, or while the room is launching
 to the machine: the generation stays, the read lands and its started passages are read again
 in the language chosen, and a launch goes on to its landing. As in her app, the toggle never
 abandons a read. The machine cannot see a launch, so this guard stays in the notifier.
+
+Amended by ENG-1987 (2026-10-30): the Resume point bullet of the Decision. A Resume point
+is still kept per passage and language, but at a passage's pill it no longer picks the
+session: the room is asked for the passage in that language and its answer is entered. The
+Resume point keeps what the tablet holds of that session, and is let go when the room
+answers another one (ADR 0033).
 
 ## Context
 

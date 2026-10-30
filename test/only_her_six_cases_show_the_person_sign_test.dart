@@ -679,7 +679,7 @@ void main() {
     await waitFor('o sinal da pessoa', () => room.state.needsPerson);
   });
 
-  group('a resume whose Session read fails goes calmly back to the passage '
+  group('a resume the room fails to answer goes calmly back to the passage '
       'menu', () {
     for (final (how, failure) in <(String, RoomFailure)>[
       ('refused', Refused(RefusalCode.unnamed(500))),
@@ -688,13 +688,13 @@ void main() {
       test(how, () async {
         final harness = SalaHarness();
         final room = await _aPassageToResume(harness);
-        final reads = room.asked('fetchState');
-        harness.room.failStateOnceWith = failure;
+        final reads = room.asked('createSession');
+        harness.room.failCreateOnceWith = failure;
 
         await enterThePassage(room.sala, () => room.state, 'P01');
         await waitFor(
           'a leitura da retomada falhar',
-          () => room.asked('fetchState') > reads,
+          () => room.asked('createSession') > reads,
         );
         await waitFor(
           'a Escolha voltar',
@@ -710,16 +710,16 @@ void main() {
       'sign, no sound and no call', () async {
     final harness = SalaHarness();
     final room = await _aPassageToResume(harness);
-    final reads = room.asked('fetchState');
+    final reads = room.asked('createSession');
     final played = harness.voice.played.length;
     final fixedLines = harness.voice.fixedLines.length;
     final assets = harness.voice.assets.length;
-    harness.room.failStateOnceWith = _theCanonIsGone;
+    harness.room.failCreateOnceWith = _theCanonIsGone;
 
     await enterThePassage(room.sala, () => room.state, 'P01');
     await waitFor(
       'a leitura da retomada falhar',
-      () => room.asked('fetchState') > reads,
+      () => room.asked('createSession') > reads,
     );
     await waitFor(
       'a Escolha voltar',
@@ -744,12 +744,12 @@ void main() {
     final room = await _aPassageToResume(harness);
     final stored = harness.emAberto.rows['Ruth/P01/pt']?.sessionId;
     for (var tap = 0; tap < 2; tap++) {
-      final reads = room.asked('fetchState');
-      harness.room.failStateOnceWith = _theCanonIsGone;
+      final reads = room.asked('createSession');
+      harness.room.failCreateOnceWith = _theCanonIsGone;
       await enterThePassage(room.sala, () => room.state, 'P01');
       await waitFor(
         'a leitura da retomada falhar',
-        () => room.asked('fetchState') > reads,
+        () => room.asked('createSession') > reads,
       );
       await waitFor(
         'a Escolha voltar',
@@ -789,12 +789,12 @@ void main() {
     final room = _Room(harness, container);
     await room.sala.abrirEscolha();
     Future<void> aResumeIsRefused() async {
-      harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
+      harness.room.failCreateOnceWith = Refused(RefusalCode.unnamed(500));
       await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
         'a retomada recusada deixar a passagem',
         () =>
-            harness.room.failStateOnceWith == null &&
+            harness.room.failCreateOnceWith == null &&
             !room.state.awaitingTheGuide,
       );
     }
@@ -819,7 +819,7 @@ void main() {
     addTearDown(() => debugPrint = print);
     final harness = SalaHarness();
     final room = await _aPassageToResume(harness);
-    harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
+    harness.room.failCreateOnceWith = Refused(RefusalCode.unnamed(500));
 
     await enterThePassage(room.sala, () => room.state, 'P01');
     await waitFor(
@@ -900,10 +900,10 @@ void main() {
     expect(room.state.needsPerson, isFalse);
   });
 
-  test('a resume into the Back-translation whose Session read is refused goes '
+  test('a resume into the Back-translation the room refuses goes '
       'calmly back to the passage menu', () async {
     final harness = SalaHarness()
-      ..room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
+      ..room.failCreateOnceWith = Refused(RefusalCode.unnamed(500));
     final casa = Directory.systemTemp.createTempSync('sala-1355-retro');
     addTearDown(() => casa.deleteSync(recursive: true));
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
@@ -928,7 +928,7 @@ void main() {
       () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
     );
 
-    expect(room.asked('fetchState'), 1);
+    expect(room.asked('createSession'), 1);
     expect(room.state.needsPerson, isFalse);
   });
 
