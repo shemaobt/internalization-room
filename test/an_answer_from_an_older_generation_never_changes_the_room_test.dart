@@ -201,7 +201,13 @@ String? _theWorldKeptTheMicrophoneOpenAfterTheMachineClosedIt(
         event is MicAnswered &&
         event.answer != MicAnswer.started &&
         event.because == null &&
-        machine.channel is Microphone;
+        switch (machine.channel) {
+          Microphone(:final owner) =>
+            event.answer != MicAnswer.closed ||
+                event.owner == null ||
+                event.owner == owner,
+          _ => false,
+        };
     final (next, effects) = reduce(machine, event);
     world = world.after(event, effects);
     machine = next;

@@ -17,6 +17,7 @@ class World {
   final bool serverHoldsAWarning;
   final bool playerBusy;
   final bool micOpen;
+  final MicOwner? micOwner;
   final bool looking;
 
   const World({
@@ -25,6 +26,7 @@ class World {
     this.serverHoldsAWarning = false,
     this.playerBusy = false,
     this.micOpen = false,
+    this.micOwner,
     this.looking = false,
   });
 
@@ -43,7 +45,11 @@ class World {
         !(event is MicAnswered &&
             event.generation != theOlderGeneration &&
             event.answer != MicAnswer.started &&
-            event.because == null);
+            event.because == null &&
+            (event.answer != MicAnswer.closed ||
+                event.owner == null ||
+                event.owner == micOwner));
+    var owner = micOwner;
     var looks =
         looking &&
         event is! LookFound &&
@@ -62,8 +68,9 @@ class World {
           busy = true;
         case SilenceTheRoom() || StopTheSound():
           busy = false;
-        case OpenTheMic():
+        case OpenTheMic(owner: final opened):
           mic = true;
+          owner = opened;
         case CloseAndDiscardTheMic():
           mic = false;
         case LookAtTheSession() || LookAgain():
@@ -77,6 +84,7 @@ class World {
       callOutstanding: calling,
       playerBusy: busy,
       micOpen: mic,
+      micOwner: mic ? owner : null,
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
