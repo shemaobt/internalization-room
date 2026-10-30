@@ -6320,7 +6320,10 @@ void main() {
     notifier.goEnsaio();
     await gravaParte(notifier, 1);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'a retro tocar',
+      () => container.read(salaSessionProvider).btPhase == BtPhase.playing,
+    );
 
     harness.playback.at = const Duration(seconds: 6);
     notifier.ouvirGravacao();

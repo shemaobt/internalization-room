@@ -149,7 +149,7 @@ class ConversaView extends ConsumerWidget {
 
   double _momentOpacity(SalaSessionState session) {
     if (session.needsPerson || session.noteMode) return 0;
-    return switch (session.voice) {
+    return switch (session.circleVoice) {
       VoiceState.listening || VoiceState.thinking || VoiceState.speaking => 0.6,
       _ => 1,
     };
