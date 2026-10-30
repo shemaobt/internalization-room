@@ -288,6 +288,31 @@ class Pulse extends StatelessWidget {
   }
 }
 
+class HerFade extends StatelessWidget {
+  final double opacity;
+  final Duration span;
+  final Widget child;
+
+  const HerFade({
+    super.key,
+    required this.opacity,
+    required this.span,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.disableAnimationsOf(context);
+    return AnimatedOpacity(
+      key: ValueKey(still),
+      opacity: opacity,
+      duration: still ? Duration.zero : span,
+      curve: Curves.ease,
+      child: child,
+    );
+  }
+}
+
 class FadeUp extends StatelessWidget {
   final Widget child;
 
