@@ -10926,15 +10926,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           resposta = answer.over(standing);
         case final RoomFailure failure:
           if (!_abandoned(generation)) _saysWhy(CheckRefusal.checkUnavailable);
+          if (fromTheHome && failure is NetworkFailed) return;
           return failed(failure);
       }
       if (_abandoned(generation)) return;
       if (!resposta.minted && fromTheHome) {
-        final recusa = _recusaDaCasa(resposta.blockers);
-        state = state.copyWith(
-          btChecked: recusa != CheckRefusal.notConferida,
-          btRecusa: recusa,
-        );
+        _saysWhy(_recusaDaCasa(resposta.blockers));
         return;
       }
       if (!resposta.minted) {
