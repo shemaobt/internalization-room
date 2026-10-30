@@ -1822,8 +1822,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ladder[step < ladder.length ? step : ladder.length - 1];
   }
 
-  void beginAgain() => _gesture(() => _handOff(_startOver()));
-
   void teamTapped() => _gesture(() {
     if (state.needsPerson) _dispatch(const TeamTapped());
   });
@@ -2774,9 +2772,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _stringTheNecklaceEarly(passage.pericope);
   }
 
-  /// Enter a passage, resuming the session this tablet left in it when there is one.
+  /// Enter a passage on the session the room returns for it, resuming what this tablet
+  /// kept there when the room returns the session the tablet's row names (ADR 0033).
   ///
-  /// `fresh` skips the resume.
+  /// `fresh` skips the row.
   ///
   /// `opened` is a session the room already holds for this passage, entered as it came
   /// back rather than asked for again, and never asked its Opening: the launch hands it
@@ -2821,7 +2820,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingClock = openingClock;
     openingClock.mark('health');
     // Only the passages the wheel already said have work waiting are looked up on disk,
-    // so entering a fresh one through the wheel costs no read at all. A door the room
+    // so entering a fresh one through the wheel costs no disk read. A door the room
     // opened, and an entry that brings its own language (the way back, a retry, a
     // relaunch), have no wheel of that language behind them, so the row is looked up
     // there whatever the list says (ADR 0033, ADR 0077).
@@ -2835,7 +2834,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ? await _emAberto.of(book, pericope, speaking)
         : null;
     if (_abandoned(generation)) return;
-    _listenerInProgress = waiting?.listener;
     final theResume = '$book/$pericope/$speaking';
     void failed(
       RoomFailure failure, {
@@ -2861,25 +2859,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _decideTheFailure(failure, rule: rule, door: door);
     }
 
-    final resumed = waiting != null;
-    var created = resumed ? null : opened;
-    if (!resumed && opened == null) {
-      switch (await _createThePassage(book, pericope, speaking, generation)) {
+    var created = opened;
+    if (opened == null) {
+      final answer = waiting == null
+          ? await _createThePassage(book, pericope, speaking, generation)
+          : await _room.createSession(pericope: pericope, language: speaking);
+      switch (answer) {
         case Answered(value: final session):
           created = session;
+        case final RoomFailure failure when waiting != null:
+          return failed(
+            failure,
+            rule: RefusalRule.keepsTheResume,
+            door: Door.resume,
+          );
         case final RoomFailure failure:
           return failed(failure);
       }
       openingClock.mark('session');
     }
-    final sessionId = waiting?.sessionId ?? created!.sessionId;
+    final room = created!;
     if (_abandoned(generation)) return;
+    final row = opened != null || waiting?.sessionId == room.sessionId
+        ? waiting
+        : null;
+    if (waiting != null && row == null) {
+      _letGoOf(waiting.sessionId, kept: waiting.takes, passage: theResume);
+    }
+    final resumed = row != null;
+    _listenerInProgress = row?.listener;
+    final sessionId = row?.sessionId ?? room.sessionId;
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
     if (!resumed) _startTheSessionClean((book: book, pericope: pericope));
     state = state.copyWith(
       pericope: pericope,
-      coverage: created?.coverage,
-      moment: created?.moment,
+      coverage: resumed ? null : room.coverage,
+      moment: resumed ? null : room.moment,
       clearLeftEntry: true,
     );
     _dispatch(TheSessionOpened(sessionId, generation: generation));
@@ -2889,7 +2904,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (pericope != null) {
       _holdTheCurrentSession(sessionId, book, pericope, speaking);
     }
-    _sessionSavedAt = resumed ? waiting.savedAt : clock.now();
+    _sessionSavedAt = row?.savedAt ?? clock.now();
     _warmHerLines();
     if (pericope != null && !resumed) {
       unawaited(
@@ -2915,34 +2930,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       if (end != null) _endsOf[sessionId] = end.line;
     }
-    if (resumed) {
+    Future<SessionSnapshot?> theRowsRead() async {
+      if (room.sessionId == sessionId) return room;
+      switch (await _room.fetchState(sessionId)) {
+        case Answered(value: final read):
+          return read;
+        case final SessionGone gone:
+          failed(gone);
+        case final RoomFailure failure:
+          failed(failure, rule: RefusalRule.keepsTheResume, door: Door.resume);
+      }
+      return null;
+    }
+
+    if (row != null) {
       final onde = await _backToWhereTheyStopped(
-        waiting,
+        row,
         generation,
         landed: landed,
       );
       if (_abandoned(generation)) return;
       if (onde == _Resume.abandoned) return;
       if (onde == _Resume.landed) {
-        final SessionSnapshot snapshot;
         final sent = ++_readsSent;
-        if (opened != null && opened.sessionId == sessionId) {
-          snapshot = opened;
-        } else {
-          switch (await _room.fetchState(sessionId)) {
-            case Answered(value: final read):
-              snapshot = read;
-            case final SessionGone gone:
-              return failed(gone);
-            case final RoomFailure failure:
-              return failed(
-                failure,
-                rule: RefusalRule.keepsTheResume,
-                door: Door.resume,
-              );
-          }
-        }
-        if (_abandoned(generation)) return;
+        final snapshot = await theRowsRead();
+        if (snapshot == null || _abandoned(generation)) return;
         state = state.copyWith(
           coverage: snapshot.coverage,
           moment: snapshot.moment,
@@ -2965,25 +2977,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _landWhereTheyStopped(done: snapshot.done);
         return;
       }
-      final SessionSnapshot read;
       final sent = ++_readsSent;
-      if (opened != null && opened.sessionId == sessionId) {
-        read = opened;
-      } else {
-        switch (await _room.fetchState(sessionId)) {
-          case Answered(value: final snapshot):
-            read = snapshot;
-          case final SessionGone gone:
-            return failed(gone);
-          case final RoomFailure failure:
-            return failed(
-              failure,
-              rule: RefusalRule.keepsTheResume,
-              door: Door.resume,
-            );
-        }
-      }
-      if (_abandoned(generation)) return;
+      final read = await theRowsRead();
+      if (read == null || _abandoned(generation)) return;
       state = state.copyWith(
         coverage: read.coverage,
         moment: read.moment,
@@ -3000,12 +2996,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     } else {
       final sent = ++_readsSent;
-      if (await _landedOnTheApprovedDraft(created!, sent, generation, landed)) {
+      if (await _landedOnTheApprovedDraft(room, sent, generation, landed)) {
         return;
       }
-      if (opened != null || created.opened) {
-        _applyTheSessionRead(created, sent);
-        return _landWhereTheyStopped(done: created.done);
+      if (opened != null || room.opened) {
+        _applyTheSessionRead(room, sent);
+        return _landWhereTheyStopped(done: room.done);
       }
     }
     await _askForTheOpening(
@@ -11574,25 +11570,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Ensaio());
   }
 
-  Future<void> _startOver() {
-    _clearAll();
-    _forgetThePassage();
-    state = SalaSessionState(
-      machine: _gesturesOnTheirWay.withTheOutboxOf(state.machine),
-    );
-    _arriveAt(const TheRoomStartedOver());
-    return abrirEscolha();
-  }
-
   /// Everything a passage leaves behind that the next one must not inherit.
   ///
   /// Mostly counters and latches with no home in the state object, so nothing about them
   /// is reset by rebuilding it; the cursor, the cut, the stretch being told again and the
   /// pending translation live in the state and are let go here too, the pending file with
-  /// them. `leaveThePassage` reset none of them and `_startOver` reset most: the stretch
-  /// being told again — armed when the team asks to tell one again and let go only by a
-  /// telling that lands — made the very first stretch of the next back translation upload
-  /// as a correction of a stretch that does not exist.
+  /// them. The stretch being told again — armed when the team asks to tell one again and
+  /// let go only by a telling that lands — would make the very first stretch of the next
+  /// back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
     _relatarAEscuta();
     state = state.copyWith(btSoOuvir: false);
