@@ -90,35 +90,33 @@ void main() {
     });
 
     test(
-      '«Ouvir de novo» after coming back plays the room\'s last line said again',
+      '«Ouvir de novo» after coming back plays the clip held, asking the room '
+      'for nothing',
       () async {
         expect(read().canHearAgain, isTrue);
+        final asked = harness.room.turnIdsAsked.length;
+        final played = harness.voice.played.length;
 
         await notifier.hearAgain();
         await waitFor(
-          'the last line to be said again',
-          () => harness.voice.played.contains(deNovoUrl),
+          'the clip to be played again',
+          () => harness.voice.played.length == played + 1,
         );
 
-        expect(harness.room.sessionsSaidAgain, [session]);
-        expect(
-          harness.room.turnIdsAsked.last,
-          allOf(isNotNull, isNot(harness.room.turnIdsAsked.first)),
-          reason: 'o dito de novo vai sob um turn id próprio (ADR 0097)',
-        );
-
+        expect(harness.voice.played.last, turnoUrl);
         await waitFor(
           'the room to rest again',
           () => read().voice == VoiceState.invite,
         );
         await notifier.hearAgain();
         await waitFor(
-          'the line to be said again from memory',
-          () =>
-              harness.voice.played.where((url) => url == deNovoUrl).length == 2,
+          'the clip to be played from memory again',
+          () => harness.voice.played.length == played + 2,
         );
 
-        expect(harness.room.sessionsSaidAgain, [session]);
+        expect(harness.voice.played.last, turnoUrl);
+        expect(harness.room.sessionsSaidAgain, isEmpty);
+        expect(harness.room.turnIdsAsked, hasLength(asked));
       },
     );
   });
@@ -294,7 +292,7 @@ void main() {
 
   test(
     'a stored Rehearsal whose session read fell with the network goes back to '
-    'the Choice, and opened again lands on the Rehearsal',
+    'the Choice, and opened again lands on its conversation',
     () async {
       final home = Directory.systemTemp.createTempSync('sala-ensaio-lembrado');
       addTearDown(() => home.deleteSync(recursive: true));
@@ -321,7 +319,7 @@ void main() {
         () => stateReads(harness) == 2,
       );
       await settle();
-      expect(read().stage, SalaStage.ensaio);
+      expect(read().stage, SalaStage.conversa);
       expect(read().sessionId, _rememberedSession);
     },
   );

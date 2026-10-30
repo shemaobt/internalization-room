@@ -19,14 +19,19 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, settle, thePersonSign;
-import 'um_ensaio_de_tres_partes.dart' show Sala;
+import 'scenario_helpers.dart'
+    show
+        byLabel,
+        holdTheSession,
+        intoTheRecordingHome,
+        relaunch,
+        settle,
+        thePersonSign;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _openEnsaioFinal = 'Abrir o Ensaio Final';
@@ -534,11 +539,13 @@ Future<_Home> _reopenOverTheWholeSetAside(
     ..room.openedSessions.add('sessao-antiga')
     ..room.takes.addAll([_theWhole, _part(1), _part(2), _part(3)])
     ..playback.measured = _onePart;
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final held = takes(guardadas);
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.ensaio,
-    takes: takes(guardadas),
+    takes: held,
   );
+  await holdTheSession(harness, row);
   final container = (await tester.runAsync(
     () async => harness.container()..read(salaSessionProvider),
   ))!;
@@ -546,9 +553,8 @@ Future<_Home> _reopenOverTheWholeSetAside(
   await tester.pumpWidget(_theHome(container));
   final it = _Home(tester, home, harness, container);
   await it.inRealTime(() async {
-    await it.sala.abrirEscolha();
-    await settle();
-    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await it.sala.openTheRoom();
+    await intoTheRecordingHome(it.sala, () => it.read);
     await it._theRowsStand();
   });
   return it;
@@ -1548,6 +1554,7 @@ void main() {
 
         expect(it.takeReads, 0, reason: 'a sala foi lida');
         expect(it.room.clipsFetched, isEmpty);
+        expect(it.read.wholeHeldByTheRoom, ['gravacao-inteira']);
         it.expectThreeRecordedRows();
       },
     );
@@ -1600,109 +1607,6 @@ void main() {
     );
   });
 
-  group('what was told over a whole recording set aside', () {
-    SegmentView told(String segment, String take) => SegmentView(
-      segmentId: segment,
-      takeId: take,
-      startsMs: 0,
-      endsMs: 10000,
-    );
-
-    Future<Sala> openTheTellingBack(
-      SalaHarness harness,
-      ProviderContainer container,
-    ) async {
-      final it = Sala(harness, container);
-      await it.sala.abrirEscolha();
-      await settle();
-      unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
-      await waitFor(
-        'a tradução reabrir tocando',
-        () => harness.playback.played.isNotEmpty,
-      );
-      return it;
-    }
-
-    Future<void> drawTheTellingBack(
-      WidgetTester tester,
-      ProviderContainer container,
-    ) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.light,
-            home: const Scaffold(body: RetroView()),
-          ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-
-    testWidgets('stays out of the telling-back after a second relaunch', (
-      tester,
-    ) async {
-      final home = Directory.systemTemp.createTempSync('sala-1382-traducao');
-      addTearDown(() => home.deleteSync(recursive: true));
-      final harness = SalaHarness(takesHome: home)
-        ..playback.measured = const Duration(seconds: 10);
-      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.retro,
-        takes: [
-          for (final n in [1, 2])
-            KeptTake(
-              scopeId: KeptScope.parte(n),
-              path: '${home.path}/gone-$n.m4a',
-              takeId: 'gravacao-parte-$n',
-            ),
-        ],
-      );
-      harness.room
-        ..passageScenes = _threeScenes.sublist(0, 2)
-        ..retroSoFar = BackTranslationProgress(
-          segments: [
-            told('trecho-inteiro', 'gravacao-inteira'),
-            told('trecho-1', 'gravacao-parte-1'),
-            told('trecho-2', 'gravacao-parte-2'),
-          ],
-        )
-        ..takes.addAll([_theWhole, _part(1), _part(2)]);
-      final launched = (await tester.runAsync(() async {
-        final launched = harness.container();
-        await openTheTellingBack(harness, launched);
-        return launched;
-      }))!;
-      addTearDown(launched.dispose);
-
-      final clips = harness.room.clipsFetched.length;
-      final next = (await tester.runAsync(() async {
-        final (again, next) = await relaunch(harness, launched);
-        again.playback.measured = const Duration(seconds: 10);
-        await openTheTellingBack(again, next);
-        return next;
-      }))!;
-      await drawTheTellingBack(tester, next);
-
-      expect(next.read(salaSessionProvider).stage, SalaStage.retro);
-      await tester.ensureVisible(find.text('recomeçar a tradução'));
-      await tester.pump();
-      await tester.tap(find.text('recomeçar a tradução'));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(
-        find.text('toque de novo para apagar as 2 frases traduzidas'),
-        findsOneWidget,
-        reason: 'o que foi contado sobre o inteiro voltou à tradução',
-      );
-      await tester.pump(const Duration(seconds: 10));
-      expect(
-        harness.room.clipsFetched,
-        hasLength(clips),
-        reason: 'as partes foram buscadas de novo',
-      );
-    });
-  });
-
   testWidgets(
     '«Gravar cena por cena» on the plan opens the recording home in one tap, '
     'and the plan is never where a relaunch lands',
@@ -1725,9 +1629,10 @@ void main() {
 
       expect(find.text(_homeLine), findsOneWidget);
 
-      await _relaunchOnTheApp(tester, harness, again);
+      final third = await _relaunchOnTheApp(tester, harness, again);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(third.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(find.text(_homeLine), findsNothing);
     },
   );
 

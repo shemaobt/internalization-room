@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle)
+status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen), amended by ENG-1854 (2026-10-30: a list naming no part this tablet holds is N0)
 date: 2026-10-23
 ---
 
@@ -20,7 +20,9 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    - some part heard: her P2, then only the unheard parts, each from its beginning;
    - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
      keeps the listen for it;
-   - none unheard, no answer, or an older room: today's path.
+   - none unheard, or an older room: today's path. An entry the room does not answer at all, with nothing the room said earlier in the visit, is the First listen (ENG-1859 amendment below).
+   - *Pointer, ENG-1854:* the third bullet above no longer holds; see the Amendment of 2026-10-30
+     (ENG-1854): N0 and every part.
 2. **A recording no join touched has the First listen too** (ENG-1206, 26 October), as hers
    does (`listenPlan`, `afterFullListen`): every entry asks the room in the same way; every
    part unheard is her P0 and the whole recording, listen-only, and so is a part recorded
@@ -98,3 +100,23 @@ when the listen ends, on whichever exit of rule 7 leaves it, and the rest of rul
 
 This retires «The circle hidden» under *Considered and rejected*: the Definer's answer (Q45)
 gives way to her app.
+
+## Amendment · 2026-10-30 (ENG-1859)
+
+On her app an entry whose read of the passage fails falls back to the passage it last held and,
+holding no telling read, takes the listen step: `Drafting.tsx:1082-1103`, at 18fa7c4. Rule 1's
+«no answer» no longer takes today's path: **an entry the room does not answer, with nothing the
+room said earlier in the visit, starts the First listen from the first part**: N0 on a joined
+recording, P0 on one no join touched, then every part in passage order, never the telling.
+When the visit already holds a told stretch, a frase awaiting or a verdict, the entry goes on
+as it does today. An older room's answer that names no parts still takes today's path.
+Nothing is written or said for the failure itself.
+
+## Amendment · 2026-10-30 (ENG-1854)
+
+On her app the unheard list is cut to the parts the tablet holds, and an empty cut is the
+First listen of a join: the unheard list intersected with the tablet's parts, and an empty
+result gives N0 and the whole passage (`ensaioFinal.ts:380-381`, at 18fa7c4). Rule 1's third
+bullet no longer holds: **a joined recording whose unheard list names no part this tablet holds
+opens with N0 and plays every part from its beginning**, not P2. Rule 7.1 is unchanged: after
+the listen, a part the room names that this tablet does not hold still keeps the listen.

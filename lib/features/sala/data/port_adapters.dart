@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/spoken_line.dart';
 import '../domain/channel.dart';
 import '../domain/failure_policy.dart';
 import '../domain/machine.dart';
@@ -175,6 +176,18 @@ class ProviderStorePort implements StorePort {
   @override
   Future<void> letGoOfTheSession({String? only}) =>
       _ref.read(currentSessionLedgerProvider).letGo(only: only);
+
+  @override
+  Future<({SpokenLine? line})?> endOf(String session) =>
+      _ref.read(currentSessionLedgerProvider).endOf(session);
+
+  @override
+  Future<void> holdTheEnd(String session, SpokenLine? line) =>
+      _ref.read(currentSessionLedgerProvider).holdTheEnd(session, line);
+
+  @override
+  Future<void> letGoOfTheEnd(String session) =>
+      _ref.read(currentSessionLedgerProvider).letGoOfTheEnd(session);
 }
 
 final roomPortProvider = Provider<RoomPort>(ProviderRoomPort.new);

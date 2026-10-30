@@ -184,7 +184,6 @@ Future<ProviderContainer> _voltaAUmaTraducao(
       stage: SalaStage.retro,
       takes: partes,
     ),
-    language: 'pt',
   );
   harness.room.retroSoFar = BackTranslationProgress(
     checked: conferida,
@@ -1140,71 +1139,6 @@ void main() {
       reason: 'a segunda frase tocada apagava o caminho de volta à conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);
-    closeTheRoom(container);
-  });
-
-  testWidgets('a conferida session picked back up with no rehearsal on this '
-      'tablet opens no frase and calls nobody', (tester) async {
-    _telaAlta(tester);
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.retro,
-    );
-    harness.room.retroSoFar = const BackTranslationProgress(
-      checked: true,
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-1',
-          takeId: 'gravacao-1',
-          startsMs: 0,
-          endsMs: 5000,
-          frase: 1,
-        ),
-        SegmentView(
-          segmentId: 'trecho-2',
-          takeId: 'gravacao-1',
-          startsMs: 5000,
-          endsMs: 9000,
-          frase: 2,
-        ),
-      ],
-    );
-    final container = harness.container();
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await _passo(tester);
-    unawaited(
-      container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth', pericope: 'P01'),
-    );
-    await waitFor(
-      'a tradução conferida voltar sem gravação neste tablet',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
-      step: () => _passo(tester),
-    );
-    await _passo(tester);
-    expect(container.read(salaSessionProvider).partes, isEmpty);
-
-    await tocar(tester, _barra(1));
-    for (var passo = 0; passo < 5; passo++) {
-      await _passo(tester);
-    }
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason: 'tocar numa frase sem gravação neste tablet parava a sala',
-    );
-    expect(harness.room.personsAsked, 0);
-    expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
-    expect(
-      tester.widget<Semantics>(byLabel(_barra(1))).properties.enabled,
-      isFalse,
-      reason: 'a frase se oferecia ao toque sem nada para tocar',
-    );
     closeTheRoom(container);
   });
 

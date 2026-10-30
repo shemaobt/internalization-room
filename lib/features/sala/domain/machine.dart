@@ -293,11 +293,6 @@ final class TheBackTranslationOpened extends StationEvent {
   const TheBackTranslationOpened();
 }
 
-/// A reopened passage lands back on the telling-back the team had already started.
-final class TheBackTranslationResumed extends StationEvent {
-  const TheBackTranslationResumed();
-}
-
 final class TheNecklaceClosed extends StationEvent {
   const TheNecklaceClosed();
 }

@@ -39,7 +39,6 @@ void main() {
         ThePlanOpened(),
         StepLeft(),
         TheRehearsalOpened(),
-        TheBackTranslationResumed(),
         StepLeft(),
         TheRehearsalOpened(),
         TheRecordingLeft(),

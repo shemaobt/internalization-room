@@ -363,28 +363,29 @@ void main() {
     final harness = _umaSala()
       ..room.serverStatus = 'needs_person'
       ..room.serverHalt = HaltKind.warning;
-    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.ensaio,
-      takes: [
-        KeptTake(
-          scopeId: KeptScope.parte(1),
-          path: gravada.path,
-          takeId: 'gravacao-1',
-        ),
-      ],
+    await holdTheSession(
+      harness,
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: gravada.path,
+            takeId: 'gravacao-1',
+          ),
+        ],
+      ),
     );
     final container = harness.container();
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const SalaApp()),
     );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = container.read(salaSessionProvider.notifier);
-    await tester.runAsync(notifier.abrirEscolha);
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(
-      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    await intoTheRecordingHome(
+      container.read(salaSessionProvider.notifier),
+      () => _estado(container),
+      step: () => letTheRehearsalReachTheRoom(tester),
     );
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(seconds: 1));
@@ -473,21 +474,13 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(container: reaberta, child: const SalaApp()),
     );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = reaberta.read(salaSessionProvider.notifier);
-    await tester.runAsync(notifier.abrirEscolha);
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(
-      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    await intoTheRecordingHome(
+      reaberta.read(salaSessionProvider.notifier),
+      () => _estado(reaberta),
+      step: () => letTheRehearsalReachTheRoom(tester),
     );
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(seconds: 1));
-    }
-    for (var i = 0; i < 20 && _estado(reaberta).partes.length < 3; i++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
     }
     expect(
       (_estado(reaberta).stage, _estado(reaberta).partes.length),

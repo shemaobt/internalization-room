@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:internalization_room/features/sala/domain/spoken_line.dart';
 import 'package:internalization_room/features/sala/data/connectivity_service.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -200,6 +201,9 @@ class FakeVoice implements FacilitatorVoiceService {
     _looking?.complete();
     _looking = null;
   }
+
+  @override
+  bool arrives(String url) => false;
 
   @override
   Future<bool> holds(String url) async {
@@ -913,6 +917,19 @@ class FakeCurrentSessionLedger implements CurrentSessionLedger {
   Future<void> letGo({String? only}) async {
     if (only == null || held?.sessionId == only) held = null;
   }
+
+  final Map<String, SpokenLine?> _ends = {};
+
+  @override
+  Future<({SpokenLine? line})?> endOf(String session) async =>
+      _ends.containsKey(session) ? (line: _ends[session]) : null;
+
+  @override
+  Future<void> holdTheEnd(String session, SpokenLine? line) async =>
+      _ends[session] = line;
+
+  @override
+  Future<void> letGoOfTheEnd(String session) async => _ends.remove(session);
 }
 
 class FakeRoomLanguageLedger implements RoomLanguageLedger {

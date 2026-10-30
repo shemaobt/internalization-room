@@ -19,6 +19,7 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
@@ -139,8 +140,6 @@ Future<void> _terminei(_Room room) async {
   await waitFor('o ensaio ir', () => room.harness.room.scenesSent.isNotEmpty);
 }
 
-/// A tablet reopening straight into an unchecked telling-back. Copied from
-/// `every_door_that_falls_takes_the_room_out_of_reach_test.dart`.
 Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
   final casa = Directory.systemTemp.createTempSync('sala-1355');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -161,7 +160,6 @@ Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
         ),
       ],
     ),
-    language: 'pt',
   );
   final container = harness.container();
   addTearDown(container.dispose);
@@ -621,42 +619,6 @@ void main() {
     expect(room.state.needsPerson, isFalse);
   });
 
-  test('a resume the room refuses goes back to the passage menu, and the next '
-      'open asks again', () async {
-    final harness = SalaHarness()
-      ..room.failTakesWith = const Refused('BAD_REQUEST');
-    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-      sessionId: 'sessao-velha',
-      stage: SalaStage.retro,
-      takes: [
-        KeptTake(
-          scopeId: KeptScope.parte(1),
-          path: '${Directory.systemTemp.path}/sala-1355-que-nao-existe.m4a',
-          takeId: 'gravacao-1',
-        ),
-      ],
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final room = _Room(harness, container);
-    await room.sala.abrirEscolha();
-    await theChoiceOffersAPassage(container);
-
-    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor('a retomada ser pedida', () => room.asked('takesOf') == 1);
-    await waitFor(
-      'a sala voltar à Escolha',
-      () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
-    );
-    expect(room.state.needsPerson, isFalse);
-
-    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'a retomada ser pedida de novo',
-      () => room.asked('takesOf') == 2,
-    );
-  });
-
   test('a Session read in which the server says a person is needed raises no '
       'sign', () async {
     final harness = SalaHarness(watchesWithoutAHalt: true);
@@ -830,17 +792,18 @@ void main() {
       harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(500));
       await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
-        'a Escolha voltar',
-        () => room.state.stage == SalaStage.escolha && room.state.entriesOpen,
+        'a retomada recusada deixar a passagem',
+        () =>
+            harness.room.failStateOnceWith == null &&
+            !room.state.awaitingTheGuide,
       );
     }
 
     await aResumeIsRefused();
     await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
     await waitFor(
-      'a retomada pousar no ensaio',
-      () =>
-          room.state.stage == SalaStage.ensaio && !room.state.awaitingTheGuide,
+      'a retomada pousar na conversa',
+      () => room.state.station is Canvas && !room.state.awaitingTheGuide,
     );
     room.sala.leaveThePassage();
     await waitFor('a Escolha abrir', () => room.state.entriesOpen);

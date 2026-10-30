@@ -209,8 +209,8 @@ void main() {
   );
 
   test('case (c): a Resume point of a session the server deleted forgets the '
-      'row and the session\'s files at takesOf, and opens the Choice with no '
-      'fresh session', () async {
+      'row and the session\'s files at the session read, and opens the Choice '
+      'with no fresh session', () async {
     final harness = SalaHarness()
       ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     final aqui = harness.recorder.aFile('parte-1-guardada').path;
@@ -239,7 +239,7 @@ void main() {
           harness.recorder.deleted.contains(aqui),
     );
 
-    expect(harness.room.askedOfTheForgotten, contains('takesOf'));
+    expect(harness.room.askedOfTheForgotten, contains('fetchState'));
     expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(harness.recorder.deleted, contains(aqui));
     expect(

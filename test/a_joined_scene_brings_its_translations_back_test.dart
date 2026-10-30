@@ -324,12 +324,7 @@ Future<_Home> _inTheBackTranslation(
         ),
     ],
   );
-  final fromTheChoice = heldSentence != null;
-  if (fromTheChoice) {
-    harness.emAberto.rows['Ruth/P01/pt'] = row;
-  } else {
-    await holdTheSession(harness, row, language: 'pt');
-  }
+  await holdTheSession(harness, row);
   harness.room.retroSoFar = BackTranslationProgress(
     segments: [
       for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
@@ -337,15 +332,11 @@ Future<_Home> _inTheBackTranslation(
   );
   final it = await _mount(tester, harness, _threeScenes);
   it.joinedInTheRoom(sessionId);
-  if (fromTheChoice) {
-    unawaited(it.notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  } else {
-    await intoTheBackTranslation(
-      it.notifier,
-      () => it.container.read(salaSessionProvider),
-      step: it.beat,
-    );
-  }
+  await intoTheBackTranslation(
+    it.notifier,
+    () => it.container.read(salaSessionProvider),
+    step: it.beat,
+  );
   await it.until(
     'a tradução voltar',
     () =>
