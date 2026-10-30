@@ -10473,10 +10473,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       passage: _thePassage,
     );
     if (guardada == null || state.sessionId != sessionId) return;
-    _fraseNaFila = guardada;
     if (!state.btTrechos.any((trecho) => trecho.segmentId == guardada.scope)) {
-      return _esquecerAFrase();
+      return _takes.withdraw(guardada);
     }
+    _fraseNaFila = guardada;
     state = state.copyWith(btFraseGuardada: guardada.scope);
   }
 

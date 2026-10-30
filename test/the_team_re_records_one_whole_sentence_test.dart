@@ -1564,6 +1564,40 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a held sentence over a stretch no longer listed is let go on '
+      'entering, and the frase that awaits stays', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-1964-frase');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: 'trecho-regravado',
+    );
+    final container = await _voltaATraducao(
+      tester,
+      harness,
+      aguardando: 'trecho-3',
+    );
+    await waitFor(
+      'a frase guardada fora da lista sair da fila',
+      () async => await harness.takes.sentenceHeldIn('sessao-antiga') == null,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btFraseQueAguarda,
+      'trecho-3',
+      reason:
+          'deixar a frase guardada de um trecho que saiu da lista apagava '
+          'também a frase que aguarda',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a relaunch with a frase awaiting and another take unheard plays '
       'the listen first, not the frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
