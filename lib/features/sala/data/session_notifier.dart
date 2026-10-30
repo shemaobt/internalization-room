@@ -2340,6 +2340,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _openTheEntry(Passagem entry) {
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
     _silenceTheRoom();
+    state = state.copyWith(openingEntry: entry);
     if (entry.isPanorama) {
       _leaveTheStepFor(Panorama(entry.pericope));
       _clearAll();
@@ -2366,6 +2367,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final generation = _generation;
     await opening;
+    if (state.openingEntry != null) {
+      state = state.copyWith(clearOpeningEntry: true);
+    }
     if (_generation == generation &&
         !state.needsPerson &&
         _theOpenBroughtNoSession) {
@@ -2391,7 +2395,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _leaveTheStepFor(const Menu());
     _clearAll();
     _arriveAt(const TheChoiceOpened());
-    state = state.copyWith(arrivedAtTheChoice: true);
+    state = state.copyWith(arrivedAtTheChoice: true, clearOpeningEntry: true);
   }
 
   /// Open the Panorama's session and voice its opening. It has no foreseen end, and
