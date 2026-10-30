@@ -8,7 +8,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show enterThePassage, settle;
 
 const _p01 = Passagem(
   pericope: 'P01',
@@ -21,6 +21,12 @@ const _p02 = Passagem(
   audioUrl: '/voice/p02',
   book: 'Ruth',
   reference: 'Ruth 1:6–14',
+);
+const _panorama = Passagem(
+  pericope: 'panorama',
+  audioUrl: '/voice/panorama',
+  kind: PassagemKind.panorama,
+  book: 'Ruth',
 );
 const _tapped = 'Rute 1:6–14';
 const _other = 'Rute 1:1–5';
@@ -62,9 +68,13 @@ void main() {
     expect(find.text(_tapped), findsOneWidget);
     expect(_opacityOf(tester, _other), contains(0.45));
 
-    final before = _opacityOf(tester, _tapped).first;
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(_opacityOf(tester, _tapped).first, isNot(before));
+    final seen = <double>{};
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+      seen.add(_opacityOf(tester, _tapped).first);
+    }
+    expect(seen.length, greaterThan(1));
+    expect(seen, everyElement(inInclusiveRange(0.62, 1.0)));
     expect(_opacityOf(tester, _tapped), isNot(contains(0.45)));
 
     final asked = harness.room.calls.where((c) => c == 'createSession').length;
@@ -101,8 +111,48 @@ void main() {
     expect(read.station, isA<Menu>());
     expect(read.stage, SalaStage.escolha);
     expect(read.theEntryOpening, isNull);
-    expect(_opacityOf(tester, _tapped), isNot(contains(0.45)));
-    expect(_opacityOf(tester, _other), isNot(contains(0.45)));
     expect(_opacityOf(tester, _tapped), everyElement(1.0));
+    expect(_opacityOf(tester, _other), everyElement(1.0));
   });
+
+  testWidgets('a Panorama pill tapped breathes on the Choice too until its '
+      'session lands', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.passages = [_panorama, _p01, _p02];
+    final container = await pumpSala(tester, harness);
+    await _catchUp(tester);
+    harness.room.holdNextCreate();
+    await tester.tap(find.text('◈ Panorama do Livro'));
+    await _catchUp(tester);
+    final read = container.read(salaSessionProvider);
+
+    expect(read.theEntryOpening, _panorama);
+    expect(read.stage, SalaStage.escolha);
+    expect(_opacityOf(tester, _other), contains(0.45));
+  });
+
+  test(
+    'a passage the room refuses leaves no entry marked as opening',
+    () async {
+      final harness = SalaHarness()
+        ..room.passages = [_p01, _p02]
+        ..room.passagesThatCannotOpen = {'P02'};
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+
+      await enterThePassage(notifier, read, 'P02');
+      await waitFor(
+        'the Choice to come back',
+        () =>
+            harness.room.calls.contains('createSession') &&
+            read().station is Menu &&
+            read().entriesOpen,
+      );
+      await settle();
+
+      expect(read().openingEntry, isNull);
+    },
+  );
 }

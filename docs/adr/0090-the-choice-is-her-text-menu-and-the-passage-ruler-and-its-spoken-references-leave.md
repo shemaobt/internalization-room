@@ -53,8 +53,9 @@ therefore decides: her menu ships. The teams learned the ruler, so this changes 
   included (amended 29 October, ENG-2034; it used to be tinted only when its Session
   language was the Room language). Nothing else is tinted, so nothing on the menu marks a
   passage as started.
-- **One tap opens an entry.** There is no confirmation step and no «opening» state on the
-  pill: the tap leaves the Choice at once.
+- **One tap opens an entry.** There is no confirmation step (amended 30 October, ENG-1898; it
+  used to add «no opening state on the pill: the tap leaves the Choice at once»: the tapped
+  pill now breathes on the Choice until its session lands).
 - **While no entry can be opened, nothing stands where the books were** (amended 30 October,
   ENG-1899; it used to be the circle, which read the Wheel again on a tap). The mark and the
   title stay over an empty list, as in her app.

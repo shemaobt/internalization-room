@@ -7,6 +7,7 @@ import '../../domain/book_names.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/passagem.dart';
 import '../../domain/session_state.dart';
+import 'motion.dart';
 import 'shema_mark.dart';
 
 const _rem = 16.0;
@@ -186,19 +187,8 @@ class _Pill extends ConsumerStatefulWidget {
   ConsumerState<_Pill> createState() => _PillState();
 }
 
-class _PillState extends ConsumerState<_Pill>
-    with SingleTickerProviderStateMixin {
+class _PillState extends ConsumerState<_Pill> {
   bool _pressed = false;
-  late final AnimationController _breath = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
-
-  @override
-  void dispose() {
-    _breath.dispose();
-    super.dispose();
-  }
 
   void _press(bool pressed) => setState(() => _pressed = pressed);
 
@@ -213,12 +203,6 @@ class _PillState extends ConsumerState<_Pill>
     const size = 0.95 * _rem;
     const dot = 0.66 * size;
     final opening = widget.opening == _Opening.thisOne;
-    final breathing = opening && !MediaQuery.disableAnimationsOf(context);
-    if (breathing && !_breath.isAnimating) {
-      _breath.repeat(reverse: true);
-    } else if (!breathing && _breath.isAnimating) {
-      _breath.stop();
-    }
     return MergeSemantics(
       child: Semantics(
         button: true,
@@ -226,81 +210,84 @@ class _PillState extends ConsumerState<_Pill>
           opacity: widget.opening == _Opening.another ? 0.45 : 1,
           child: IgnorePointer(
             ignoring: widget.opening != _Opening.none,
-            child: AnimatedBuilder(
-              animation: _breath,
-              builder: (context, child) => Opacity(
-                opacity: breathing
-                    ? 0.62 + 0.38 * Curves.easeInOut.transform(_breath.value)
-                    : 1,
-                child: child,
-              ),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (_) => _press(true),
-                onTapUp: (_) => _press(false),
-                onTapCancel: () => _press(false),
-                onTap: () =>
-                    ref.read(salaSessionProvider.notifier).openTheEntry(entry),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      width: 1.5,
-                      color: switch (entry) {
-                        _ when opening || panorama || tinted => colors.azul,
-                        Passagem(approved: true) => colors.claquete,
-                        _ => colors.areia,
+            child: Loop(
+              animate: opening,
+              period: const Duration(milliseconds: 1400),
+              builder: (context, t) => Opacity(
+                opacity: 1 - 0.38 * t,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) => _press(true),
+                  onTapUp: (_) => _press(false),
+                  onTapCancel: () => _press(false),
+                  onTap: () => ref
+                      .read(salaSessionProvider.notifier)
+                      .openTheEntry(entry),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        width: 1.5,
+                        color: switch (entry) {
+                          _ when opening || panorama || tinted => colors.azul,
+                          Passagem(approved: true) => colors.claquete,
+                          _ => colors.areia,
+                        },
+                      ),
+                      color: switch (panorama) {
+                        _ when opening => ShemaBrand.azul.withValues(
+                          alpha: 0.28,
+                        ),
+                        _ when _pressed => colors.azul,
+                        _ when tinted => ShemaBrand.azul.withValues(
+                          alpha: 0.18,
+                        ),
+                        true => ShemaBrand.azul.withValues(alpha: 0.10),
+                        false => null,
                       },
                     ),
-                    color: switch (panorama) {
-                      _ when opening => ShemaBrand.azul.withValues(alpha: 0.28),
-                      _ when _pressed => colors.azul,
-                      _ when tinted => ShemaBrand.azul.withValues(alpha: 0.18),
-                      true => ShemaBrand.azul.withValues(alpha: 0.10),
-                      false => null,
-                    },
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 0.6 * _rem,
-                      horizontal: 1.05 * _rem,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            panorama ? '◈ $words' : words,
-                            semanticsLabel: words,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: size,
-                              fontWeight: panorama ? FontWeight.w600 : null,
-                              letterSpacing: panorama ? 0.02 * size : null,
-                              color: _pressed
-                                  ? colors.branco
-                                  : colors.momentoInk,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 0.6 * _rem,
+                        horizontal: 1.05 * _rem,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              panorama ? '◈ $words' : words,
+                              semanticsLabel: words,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: size,
+                                fontWeight: panorama ? FontWeight.w600 : null,
+                                letterSpacing: panorama ? 0.02 * size : null,
+                                color: _pressed
+                                    ? colors.branco
+                                    : colors.momentoInk,
+                              ),
                             ),
                           ),
-                        ),
-                        if (entry.approved && !panorama)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 0.45 * dot),
-                            child: Semantics(
-                              label: escolhaLabelFor('approved', language),
-                              child: ExcludeSemantics(
-                                child: Text(
-                                  '●',
-                                  style: TextStyle(
-                                    fontSize: dot,
-                                    color: colors.telha,
+                          if (entry.approved && !panorama)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 0.45 * dot),
+                              child: Semantics(
+                                label: escolhaLabelFor('approved', language),
+                                child: ExcludeSemantics(
+                                  child: Text(
+                                    '●',
+                                    style: TextStyle(
+                                      fontSize: dot,
+                                      color: colors.telha,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
