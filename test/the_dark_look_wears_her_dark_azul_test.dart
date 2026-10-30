@@ -16,6 +16,10 @@ import 'scenario_helpers.dart' show settle;
 
 const _looks = [('light', Color(0xFF89AAA3)), ('dark', Color(0xFF8FB1A9))];
 
+const _branco = {'light': Color(0xFFF6F5EB), 'dark': Color(0xFF1E1B15)};
+const _areia = {'light': Color(0xFFC5C29F), 'dark': Color(0xFF6E6A57)};
+const _verdeClaro = {'light': Color(0xFF777D45), 'dark': Color(0xFFAAB07E)};
+
 ThemeData _theme(String look) =>
     look == 'dark' ? AppTheme.dark : AppTheme.light;
 
@@ -83,6 +87,65 @@ void main() {
           hasLength(2),
           reason: 'no escuro o escolhido era pintado com o azul claro',
         );
+      },
+    );
+
+    testWidgets(
+      'in the $look look the selected chip writes her $look branco and the other her verde-claro',
+      (tester) async {
+        await _atTheChoice(tester, look);
+
+        final inks = tester
+            .widgetList<DefaultTextStyle>(
+              find.descendant(
+                of: find.byType(LanguageAndLook),
+                matching: find.byType(DefaultTextStyle),
+              ),
+            )
+            .map((it) => it.style.color)
+            .whereType<Color>();
+        expect(inks.where((c) => c == _branco[look]), hasLength(2));
+        expect(inks.where((c) => c == _verdeClaro[look]), hasLength(2));
+      },
+    );
+
+    testWidgets('in the $look look the chip clusters are edged in her areia', (
+      tester,
+    ) async {
+      await _atTheChoice(tester, look);
+
+      expect(
+        _paintedUnder<DecoratedBox>(tester, find.byType(LanguageAndLook))
+            .where((paint) => paint.border is Border)
+            .map((paint) => (paint.border as Border).top.color),
+        everyElement(_areia[look]),
+      );
+    });
+
+    testWidgets(
+      'in the $look look a pressed passage pill fills azul and writes her branco',
+      (tester) async {
+        await _atTheChoice(tester, look);
+        final pill = find.ancestor(
+          of: find.textContaining('1:1'),
+          matching: find.byType(GestureDetector),
+        );
+        final press = await tester.startGesture(tester.getCenter(pill.first));
+        await tester.pump();
+
+        expect(
+          _paintedUnder<DecoratedBox>(
+            tester,
+            pill.first,
+          ).where((paint) => paint.color == azul),
+          isNotEmpty,
+        );
+        expect(
+          tester.widget<Text>(find.textContaining('1:1')).style?.color,
+          _branco[look],
+        );
+        await press.cancel();
+        await tester.pump();
       },
     );
 
