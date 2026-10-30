@@ -273,6 +273,41 @@ void main() {
     });
 
     test(
+      'the open sweep goes on past a copy the disk will not delete',
+      () async {
+        final folder = Directory('${home.path}/guardadas')..createSync();
+        final orphans = [
+          for (final n in [1, 2, 3])
+            '${folder.path}/ensaio-parte-$n-176173000000000$n-0.m4a',
+        ];
+        for (final orphan in orphans) {
+          File(orphan).writeAsStringSync('a equipe contou a passagem');
+        }
+        var refusals = 0;
+        final outside = Zone.current;
+        await IOOverrides.runZoned(
+          queueOn(FakeRoom()).sweepTheCopiesLeftBehind,
+          createFile: (path) {
+            final real = outside.run(() => File(path));
+            if (!orphans.contains(path)) return real;
+            return _ACopyTheDiskWillNotDelete(
+              real,
+              whenRefused: () => refusals++,
+            );
+          },
+        );
+
+        expect(
+          refusals,
+          3,
+          reason:
+              'a primeira cópia que o disco recusava apagar parava a varredura, '
+              'e as órfãs atrás dela ficavam na pasta',
+        );
+      },
+    );
+
+    test(
       'a take being kept while the Outbox opens keeps its copy and its row',
       () async {
         final queue = queueOn(FakeRoom()..reachable = false);
@@ -3182,8 +3217,11 @@ class _ATakeWhoseCopyIsHeld implements File {
 
 class _ACopyTheDiskWillNotDelete implements File {
   final File _real;
+  final void Function() whenRefused;
 
-  _ACopyTheDiskWillNotDelete(this._real);
+  _ACopyTheDiskWillNotDelete(this._real, {this.whenRefused = _nothing});
+
+  static void _nothing() {}
 
   @override
   String get path => _real.path;
@@ -3211,8 +3249,10 @@ class _ACopyTheDiskWillNotDelete implements File {
       _real.openRead(start, end);
 
   @override
-  Future<FileSystemEntity> delete({bool recursive = false}) =>
-      Future.error(const FileSystemException('o disco recusou'));
+  Future<FileSystemEntity> delete({bool recursive = false}) {
+    whenRefused();
+    return Future.error(const FileSystemException('o disco recusou'));
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

@@ -679,11 +679,12 @@ class TakeUploadQueue {
     _lifeEnded = true;
     try {
       await _mutate((_) => const []);
-      await _inTurn(
+      final kept = await _inTurn(
         () => _deleteTheCopies(
           (copy) async => !_copiesBeingMade.containsKey(copy.path),
         ),
       );
+      if (kept.isNotEmpty) return false;
       await _recordings().deleteEveryRecording();
       return true;
     } on FileSystemException {
@@ -740,12 +741,21 @@ class TakeUploadQueue {
     r'-.+-\d+-\d+(\.[^.]+)?$',
   );
 
-  Future<void> _deleteTheCopies(Future<bool> Function(File copy) leaves) async {
+  Future<List<File>> _deleteTheCopies(
+    Future<bool> Function(File copy) leaves,
+  ) async {
+    final kept = <File>[];
     await for (final entity in (await _dir()).list()) {
       if (!_aCopy.hasMatch(p.basename(entity.path))) continue;
       final copy = File(entity.path);
-      if (await leaves(copy)) await copy.delete();
+      if (!await leaves(copy)) continue;
+      try {
+        await copy.delete();
+      } on FileSystemException {
+        kept.add(copy);
+      }
     }
+    return kept;
   }
 
   /// [step] in a turn of its own on the manifest's write chain.
