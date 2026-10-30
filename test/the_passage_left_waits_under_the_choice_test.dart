@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -584,5 +585,66 @@ void main() {
       expect(reduce(waiting, gone).$1.waiting, isNull);
     }
     expect(reduce(waiting, const TheSessionLetGo('s2')).$1.waiting, left);
+  });
+
+  group('the way back from the Choice', () {
+    const held = LeftEntry(pericope: 'P01', book: 'Ruth', session: 's1');
+    const noSession = LeftEntry(pericope: 'P01', book: 'Ruth');
+
+    SalaSessionState choice({
+      LeftEntry entry = held,
+      bool holding = true,
+      bool wheelRead = false,
+      bool voiceBusy = false,
+      Halt halt = const NoHalt(),
+    }) => SalaSessionState(
+      leftEntry: entry,
+      awaitingTheGuide: voiceBusy,
+      naRoda: wheelRead
+          ? const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
+          : null,
+      machine: Machine(waiting: holding ? entry : null, halt: halt),
+    );
+
+    test('a held passage shows it at once and keeps it live while the voice '
+        'is busy', () {
+      for (final busy in [false, true]) {
+        final state = choice(voiceBusy: busy);
+
+        expect(state.theWayBackIsOffered, isTrue);
+        expect(state.theWayBackIsLive, isTrue, reason: 'voiceBusy: $busy');
+      }
+    });
+
+    test('the person sign hides it, held or not', () {
+      for (final holding in [true, false]) {
+        final state = choice(
+          entry: holding ? held : noSession,
+          holding: holding,
+          wheelRead: true,
+          halt: const Blocking(),
+        );
+
+        expect(state.theWayBackIsOffered, isFalse, reason: 'held: $holding');
+        expect(state.theWayBackIsLive, isFalse, reason: 'held: $holding');
+      }
+    });
+
+    test('an entry left with no session waits for the Wheel, then for the '
+        'voice at rest', () {
+      final unread = choice(entry: noSession, holding: false);
+      final busy = choice(
+        entry: noSession,
+        holding: false,
+        wheelRead: true,
+        voiceBusy: true,
+      );
+      final quiet = choice(entry: noSession, holding: false, wheelRead: true);
+
+      expect(unread.theWayBackIsOffered, isFalse);
+      expect(busy.theWayBackIsOffered, isTrue);
+      expect(busy.theWayBackIsLive, isFalse);
+      expect(quiet.theWayBackIsLive, isTrue);
+    });
   });
 }
