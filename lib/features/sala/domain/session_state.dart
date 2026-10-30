@@ -1448,17 +1448,15 @@ class SalaSessionState {
     return ate;
   }
 
-  bool _btContadaInteira(int parte) {
+  bool _btOuvidaAquiOuContada(int parte) {
+    if (btPartesOuvidasAqui.contains(partes[parte].path)) return true;
     final tamanho = btTamanhoDaParte(parte);
-    return tamanho != null &&
+    return tamanho == null ||
         btChaoContadoDe(parte) + folgaDoFimDaParte >= tamanho;
   }
 
-  bool get _btCadaParteOuvidaAqui => partes.indexed.every(
-    (parte) =>
-        btPartesOuvidasAqui.contains(parte.$2.path) ||
-        _btContadaInteira(parte.$1),
-  );
+  bool get _btCadaParteOuvidaAqui =>
+      partes.indexed.every((parte) => _btOuvidaAquiOuContada(parte.$1));
 
   bool get _btOuvidaCoberta =>
       (btOuvidaInteira ?? (btClipEnded && _btParteContada)) &&
