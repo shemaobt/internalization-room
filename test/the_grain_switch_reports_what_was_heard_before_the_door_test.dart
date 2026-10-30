@@ -3,10 +3,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -178,6 +181,34 @@ void main() {
       [_ouvida('gravacao-inteira', 0, 4000, 12000)],
     ]);
     it.harness.room.finishTheGrainSwitch();
+    await waitFor('a troca acabar', () => !it.estado.grainSwitching);
+  });
+
+  test('on the grain choice, a part heard on the home before reaches the room '
+      'before «A passagem inteira» calls the door', () async {
+    final it = await _numaCasaJuntada();
+    it.harness.playback.length = const Duration(seconds: 8);
+    await _ouvirAteOMeio(it, 2, const Duration(seconds: 5));
+    it.sala.leaveTheRecording();
+    await waitFor('a conversa voltar', () => it.estado.station is Canvas);
+    it.harness.room.holdNextTakesList();
+    it.sala.openTheEnsaioFinal();
+    await waitFor(
+      'a escolha do grão aparecer',
+      () => it.estado.ensaioFinalPlan is GrainAsked,
+      limit: const Duration(seconds: 12),
+    );
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room.holdTheGrainSwitch();
+
+    it.sala.chooseTheGrain(Grain.whole);
+
+    expect(it.harness.room.grainSwitches, hasLength(1));
+    expect(it.harness.room.listeningReports.skip(relatos), [
+      [_ouvida('gravacao-2', 0, 5000, 8000)],
+    ]);
+    it.harness.room.finishTheGrainSwitch();
+    it.harness.room.finishHeldTakesList();
     await waitFor('a troca acabar', () => !it.estado.grainSwitching);
   });
 }

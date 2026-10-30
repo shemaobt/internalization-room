@@ -4202,6 +4202,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.grainSwitching) {
       return;
     }
+    _relatarAEscuta();
     _handOff(
       _switchTheGrain(
         grain,
