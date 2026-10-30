@@ -3016,6 +3016,20 @@ void main() {
     });
   });
 
+  test('a read of an Outbox whose folder does not exist returns empty and '
+      'leaves no folder', () async {
+    final queue = queueOn(FakeRoom());
+
+    final read = [
+      ...await queue.entries(),
+      ...await queue.pending(),
+      ...await queue.waiting(),
+    ];
+
+    expect(read, isEmpty);
+    expect(Directory('${home.path}/guardadas').existsSync(), isFalse);
+  });
+
   test(
     'an enqueue still copying when the container is disposed lands its row '
     'once the Outbox is drained, and the deleted folder is not made again',

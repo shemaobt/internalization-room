@@ -361,8 +361,10 @@ class TakeUploadQueue {
   }) : _home = home ?? getApplicationSupportDirectory,
        _now = now ?? clock.now;
 
+  Future<String> _folderPath() async => p.join((await _home()).path, _folder);
+
   Future<Directory> _dir() async {
-    final dir = Directory(p.join((await _home()).path, _folder));
+    final dir = Directory(await _folderPath());
     await dir.create(recursive: true);
     return dir;
   }
@@ -379,7 +381,7 @@ class TakeUploadQueue {
   /// nothing about where the audio is, and answering "nothing pending" to that told the
   /// team their recordings were safe on the word of a file we had just failed to read.
   Future<List<PendingTake>?> _written() async {
-    final folder = (await _dir()).path;
+    final folder = await _folderPath();
     final file = File(p.join(folder, _manifest));
     final stat = await file.stat();
     if (stat.type == FileSystemEntityType.notFound) {
