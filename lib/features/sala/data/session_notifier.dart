@@ -8336,7 +8336,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final nomes = ouvida?.unheardTakeIds;
     final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
     final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
-    if (ouvida != null &&
+    final jaLidoNaVisita =
+        state.btFraseQueAguarda != null ||
+        conferida ||
+        state.btChecked ||
+        state.btTrechos.any((trecho) => trecho.contado);
+    if ((ouvida != null || jaLidoNaVisita) &&
         (naoOuvidas == null || naoOuvidas.isEmpty && !deFora)) {
       if (state.btFraseQueAguarda case final aguardando?) {
         return _voltarAFraseQueAguarda(aguardando, generation);

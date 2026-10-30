@@ -20,7 +20,7 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    - some part heard: her P2, then only the unheard parts, each from its beginning;
    - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
      keeps the listen for it;
-   - none unheard, or an older room: today's path. An entry the room does not answer at all is the First listen (ENG-1859 amendment below).
+   - none unheard, or an older room: today's path. An entry the room does not answer at all, with nothing the room said earlier in the visit, is the First listen (ENG-1859 amendment below).
 2. **A recording no join touched has the First listen too** (ENG-1206, 26 October), as hers
    does (`listenPlan`, `afterFullListen`): every entry asks the room in the same way; every
    part unheard is her P0 and the whole recording, listen-only, and so is a part recorded
@@ -105,6 +105,7 @@ On her app an entry whose read of the passage fails falls back to the passage it
 holding no telling read, takes the listen step: `Drafting.tsx:1082-1103`, at 18fa7c4. Rule 1's
 «no answer» no longer takes today's path: **an entry the room does not answer, with nothing the
 room said earlier in the visit, starts the First listen from the first part**: N0 on a joined
-recording, P0 on one no join touched, then every part in passage order, never the telling. An
-older room's answer that names no parts still takes today's path. Nothing is written or said for
-the failure itself.
+recording, P0 on one no join touched, then every part in passage order, never the telling.
+When the visit already holds a told stretch, a frase awaiting or a verdict, the entry goes on
+as it does today. An older room's answer that names no parts still takes today's path.
+Nothing is written or said for the failure itself.

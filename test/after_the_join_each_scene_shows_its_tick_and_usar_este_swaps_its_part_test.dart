@@ -752,7 +752,6 @@ void main() {
             'como na dela',
       );
       expect(it.toldFrase(3), findsOneWidget);
-      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
