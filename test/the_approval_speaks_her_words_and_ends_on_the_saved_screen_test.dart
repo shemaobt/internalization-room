@@ -1389,7 +1389,7 @@ void main() {
     );
 
     testWidgets(
-      'an approval from the home lost on the network writes «não deu para conferir agora — tentem de novo», keeps the button, calls no person and is decided by no failure policy',
+      'an approval from the home lost on the network writes «não deu para conferir agora — tentem de novo», keeps the button and calls no person; the failure policy decides it at the approval door and lets nothing go',
       (tester) async {
         final logged = <String>[];
         final print = debugPrint;
@@ -1404,7 +1404,10 @@ void main() {
           expect(byLabel(_aprovar), findsOneWidget);
           expect(it.container.read(salaSessionProvider).needsPerson, isFalse);
           expect(it.harness.room.personsAsked, 0);
-          expect(logged.where((l) => l.contains('Falha decidida')), isEmpty);
+          expect(
+            logged.where((l) => l.contains('Falha decidida na porta approval')),
+            hasLength(1),
+          );
           closeTheRoom(it.container);
         } finally {
           debugPrint = print;

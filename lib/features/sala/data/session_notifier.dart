@@ -10915,7 +10915,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ? _backToBeforeTerminei()
             : _aEscutaCortadaAcaba(cortaAEscuta);
       }
-      _decideTheFailure(failure);
+      _decideTheFailure(failure, door: fromTheHome ? Door.approval : Door.step);
     }
 
     try {
@@ -10926,7 +10926,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           resposta = answer.over(standing);
         case final RoomFailure failure:
           if (!_abandoned(generation)) _saysWhy(CheckRefusal.checkUnavailable);
-          if (fromTheHome && failure is NetworkFailed) return;
           return failed(failure);
       }
       if (_abandoned(generation)) return;

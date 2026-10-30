@@ -36,5 +36,5 @@ approve door on the recording home, whatever the mode, ending in the Saved scree
 As hers (`Drafting.tsx:709-717`), which refreshes nothing after a refused approval:
 
 - A refusal because the telling is not conferida writes «para aprovar, a tradução precisa estar conferida» and the offer stays: the button and «✓ traduzida e conferida» are no longer withdrawn by the refusal. Only a Session read that says the passage is not checked takes them away.
-- An approval from the home lost on the network writes «não deu para conferir agora — tentem de novo» and goes to no Failure policy.
+- An approval from the home lost on the network writes «não deu para conferir agora — tentem de novo» and the Failure policy decides it at the approval's own door: her line only, no person, no Step let go.
 - A gone session and a refused request still take the Failure policy.
