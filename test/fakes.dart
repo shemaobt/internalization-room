@@ -744,7 +744,8 @@ class FakePlayback implements PlaybackRepository {
   Duration _abertaEm = Duration.zero;
 
   @override
-  Duration? get playingLength => _aberto ? length : null;
+  Duration? get playingLength =>
+      !_aberto || length == null ? null : _fimDoClipe ?? length;
 
   bool get open => _aberto && !_abrindo;
 
