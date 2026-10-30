@@ -158,6 +158,7 @@ class GrainChange extends StatelessWidget {
   final bool open;
   final VoidCallback onTap;
   final bool? toggled;
+  final VoidCallback? onFocusLeft;
 
   const GrainChange({
     super.key,
@@ -165,6 +166,7 @@ class GrainChange extends StatelessWidget {
     required this.open,
     required this.onTap,
     this.toggled,
+    this.onFocusLeft,
   });
 
   @override
@@ -176,6 +178,7 @@ class GrainChange extends StatelessWidget {
       toggled: toggled,
       label: label,
       onTap: open ? onTap : null,
+      onDidLoseAccessibilityFocus: onFocusLeft,
       excludeSemantics: true,
       child: Opacity(
         opacity: open ? 1 : 0.4,
@@ -202,6 +205,7 @@ GrainChange wholeAtOnce(
   String language,
   VoidCallback onTap, {
   bool? open,
+  void Function(String control)? onFocusLeft,
 }) => _armed(
   session,
   'whole',
@@ -212,19 +216,22 @@ GrainChange wholeAtOnce(
   needs: session.wholeSwitchArms,
   open: open,
   onTap: onTap,
+  onFocusLeft: onFocusLeft,
 );
 
 /// «Ensaio Final: juntar os ensaios das cenas», armed only over an approved draft.
 GrainChange backToJoin(
   SalaSessionState session,
   String language,
-  VoidCallback onTap,
-) => _armed(
+  VoidCallback onTap, {
+  void Function(String control)? onFocusLeft,
+}) => _armed(
   session,
   'backToJoin',
   recordingHomeLabelFor('backToJoin', language),
   armed: retroLabelFor('reopenArmed', language),
   onTap: onTap,
+  onFocusLeft: onFocusLeft,
 );
 
 GrainChange _armed(
@@ -235,6 +242,7 @@ GrainChange _armed(
   required VoidCallback onTap,
   bool? open,
   bool needs = false,
+  void Function(String control)? onFocusLeft,
 }) {
   final arm = session.armedTap;
   final mine = arm?.control == control;
@@ -245,6 +253,7 @@ GrainChange _armed(
         (open ?? !session.nothingStartsNow) &&
         !(mine && arm?.phase == BtRecomeco.armado),
     onTap: onTap,
+    onFocusLeft: onFocusLeft == null ? null : () => onFocusLeft(control),
   );
 }
 
@@ -262,7 +271,12 @@ class GrainControls extends ConsumerWidget {
       children: [
         if (!session.recordsTheWhole)
           if (session.aPartWasJoined)
-            wholeAtOnce(session, language, notifier.recordTheWholePassage)
+            wholeAtOnce(
+              session,
+              language,
+              notifier.recordTheWholePassage,
+              onFocusLeft: notifier.accessibilityFocusLeft,
+            )
           else
             GrainChange(
               label: recordingHomeLabelFor('wholeInstead', language),
@@ -276,7 +290,12 @@ class GrainControls extends ConsumerWidget {
             onTap: notifier.recordSceneByScene,
           ),
           if (session.offersTheWayBackToTheJoin)
-            backToJoin(session, language, notifier.joinTheScenesAgain),
+            backToJoin(
+              session,
+              language,
+              notifier.joinTheScenesAgain,
+              onFocusLeft: notifier.accessibilityFocusLeft,
+            ),
         ],
       ],
     );
