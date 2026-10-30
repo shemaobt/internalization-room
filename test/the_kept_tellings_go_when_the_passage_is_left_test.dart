@@ -52,21 +52,6 @@ void main() {
     );
   });
 
-  testWidgets('starting over takes the kept tellings off the tablet', (
-    tester,
-  ) async {
-    final (harness, container) = await _withATellingOnTheTablet(tester);
-
-    container.read(salaSessionProvider.notifier).beginAgain();
-    await _pumpUntil(tester, () => _keptOnTheTablet(harness).isEmpty);
-
-    expect(
-      _keptOnTheTablet(harness),
-      isEmpty,
-      reason: 'o take baixado ficou no tablet depois de recomeçar',
-    );
-  });
-
   testWidgets(
     'a session the room lost takes its kept tellings off the tablet',
     (tester) async {

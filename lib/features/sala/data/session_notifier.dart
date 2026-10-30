@@ -1822,8 +1822,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ladder[step < ladder.length ? step : ladder.length - 1];
   }
 
-  void beginAgain() => _gesture(() => _handOff(_startOver()));
-
   void teamTapped() => _gesture(() {
     if (state.needsPerson) _dispatch(const TeamTapped());
   });
@@ -3886,10 +3884,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.station is! Canvas ||
         state.machine.inFlight != null ||
         state.awaitingTheGuide ||
-        state.orangeDotLook == OrangeDotLook.gone ||
-        (state.noteOnItsWay != null &&
-            state.channel is Microphone &&
-            !state.noteMode)) {
+        state.orangeDotLook == OrangeDotLook.gone) {
       return;
     }
     if (state.partes.any(
@@ -11579,25 +11574,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Ensaio());
   }
 
-  Future<void> _startOver() {
-    _clearAll();
-    _forgetThePassage();
-    state = SalaSessionState(
-      machine: _gesturesOnTheirWay.withTheOutboxOf(state.machine),
-    );
-    _arriveAt(const TheRoomStartedOver());
-    return abrirEscolha();
-  }
-
   /// Everything a passage leaves behind that the next one must not inherit.
   ///
   /// Mostly counters and latches with no home in the state object, so nothing about them
   /// is reset by rebuilding it; the cursor, the cut, the stretch being told again and the
   /// pending translation live in the state and are let go here too, the pending file with
-  /// them. `leaveThePassage` reset none of them and `_startOver` reset most: the stretch
-  /// being told again — armed when the team asks to tell one again and let go only by a
-  /// telling that lands — made the very first stretch of the next back translation upload
-  /// as a correction of a stretch that does not exist.
+  /// them. The stretch being told again — armed when the team asks to tell one again and
+  /// let go only by a telling that lands — would make the very first stretch of the next
+  /// back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
     _relatarAEscuta();
     state = state.copyWith(btSoOuvir: false);
@@ -11657,7 +11641,6 @@ class _HandHost implements HandHost {
       atTheTeamsIdleTurn: state.atTheTeamsIdleTurn,
       aQuestionRecords: state.aQuestionRecords,
       oldestUnheardReply: state.oldestUnheardReply,
-      noteOnItsWay: state.noteOnItsWay,
     );
   }
 
@@ -11685,14 +11668,6 @@ class _HandHost implements HandHost {
   @override
   void leaveNoteMode() =>
       _notifier._current = _notifier._current.copyWith(noteMode: false);
-
-  @override
-  void markNoteOnItsWay(int note) => _notifier._current = _notifier._current
-      .copyWith(noteMode: false, noteOnItsWay: note);
-
-  @override
-  void clearNoteOnItsWay() =>
-      _notifier._current = _notifier._current.copyWith(clearNoteOnItsWay: true);
 
   @override
   bool get gone => _notifier._gone;

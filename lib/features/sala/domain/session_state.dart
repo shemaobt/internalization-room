@@ -17,16 +17,7 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage {
-  panorama,
-  escolha,
-  conversa,
-  ensaio,
-  retro,
-  fim,
-  cena,
-  checagem,
-}
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, cena, checagem }
 
 enum OrangeDotLook { gone, faint, bright }
 
@@ -441,9 +432,6 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
 
-  /// The note the team sent that is still on its way to the facilitator, by the number
-  /// the raised hand gave it.
-  final int? noteOnItsWay;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -657,7 +645,6 @@ class SalaSessionState {
     this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
-    this.noteOnItsWay,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -754,7 +741,7 @@ class SalaSessionState {
     this.grainSwitching = false,
   });
 
-  bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
+  bool get colarOn => stage == SalaStage.conversa;
 
   bool get entriesOpen =>
       stage == SalaStage.escolha &&
@@ -1029,7 +1016,6 @@ class SalaSessionState {
       !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
-      stage != SalaStage.fim &&
       stage != SalaStage.checagem &&
       !sceneRehearsalIsOpen;
 
@@ -1277,7 +1263,6 @@ class SalaSessionState {
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||
-        stage == SalaStage.fim ||
         (stage == SalaStage.retro && btPhase == BtPhase.conferida)) {
       return VoiceState.done;
     }
@@ -1824,8 +1809,6 @@ class SalaSessionState {
     List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
-    int? noteOnItsWay,
-    bool clearNoteOnItsWay = false,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -1971,9 +1954,6 @@ class SalaSessionState {
       keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      noteOnItsWay: clearNoteOnItsWay
-          ? null
-          : (noteOnItsWay ?? this.noteOnItsWay),
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null

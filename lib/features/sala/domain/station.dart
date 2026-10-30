@@ -5,7 +5,6 @@ part 'stations/canvas.dart';
 part 'stations/checagem_externa.dart';
 part 'stations/panorama.dart';
 part 'stations/ensaio.dart';
-part 'stations/fim.dart';
 part 'stations/menu.dart';
 part 'stations/retro.dart';
 part 'stations/scene_rehearsal.dart';
@@ -20,7 +19,6 @@ sealed class Station {
     SalaStage.conversa => const Canvas(),
     SalaStage.ensaio => const Ensaio(),
     SalaStage.retro => const Retro(),
-    SalaStage.fim => const Fim(),
     SalaStage.cena => const Canvas(),
     SalaStage.checagem => const Ensaio(),
   };

@@ -17,6 +17,7 @@ class World {
   final bool serverHoldsAWarning;
   final bool playerBusy;
   final bool micOpen;
+  final MicOwner? micOwner;
   final bool looking;
 
   const World({
@@ -25,6 +26,7 @@ class World {
     this.serverHoldsAWarning = false,
     this.playerBusy = false,
     this.micOpen = false,
+    this.micOwner,
     this.looking = false,
   });
 
@@ -43,7 +45,11 @@ class World {
         !(event is MicAnswered &&
             event.generation != theOlderGeneration &&
             event.answer != MicAnswer.started &&
-            event.because == null);
+            event.because == null &&
+            (event.answer != MicAnswer.closed ||
+                event.owner == null ||
+                event.owner == micOwner));
+    var owner = micOwner;
     var looks =
         looking &&
         event is! LookFound &&
@@ -62,8 +68,9 @@ class World {
           busy = true;
         case SilenceTheRoom() || StopTheSound():
           busy = false;
-        case OpenTheMic():
+        case OpenTheMic(owner: final opened):
           mic = true;
+          owner = opened;
         case CloseAndDiscardTheMic():
           mic = false;
         case LookAtTheSession() || LookAgain():
@@ -77,6 +84,7 @@ class World {
       callOutstanding: calling,
       playerBusy: busy,
       micOpen: mic,
+      micOwner: mic ? owner : null,
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
@@ -292,7 +300,6 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheRehearsalOpened() => 'TheRehearsalOpened',
   ThePlanOpened() => 'ThePlanOpened',
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
-  TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
   ThePanoramaChosen(:final id) => 'ThePanoramaChosen($id)',
   TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
@@ -433,7 +440,6 @@ enum EventKind {
   theRehearsalOpened,
   thePlanOpened,
   theBackTranslationOpened,
-  theNecklaceClosed,
   theRoomStartedOver,
   thePanoramaChosen,
   theSceneRehearsalOpened,
@@ -518,7 +524,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheRehearsalOpened() => EventKind.theRehearsalOpened,
   ThePlanOpened() => EventKind.thePlanOpened,
   TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
-  TheNecklaceClosed() => EventKind.theNecklaceClosed,
   TheRoomStartedOver() => EventKind.theRoomStartedOver,
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
   TheSceneRehearsalOpened() => EventKind.theSceneRehearsalOpened,
@@ -602,7 +607,6 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theRehearsalOpened ||
   EventKind.thePlanOpened ||
   EventKind.theBackTranslationOpened ||
-  EventKind.theNecklaceClosed ||
   EventKind.theRoomStartedOver ||
   EventKind.thePanoramaChosen ||
   EventKind.theSceneRehearsalOpened ||
@@ -836,7 +840,6 @@ MachineEvent _draw(
   EventKind.theRehearsalOpened => const TheRehearsalOpened(),
   EventKind.thePlanOpened => const ThePlanOpened(),
   EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
-  EventKind.theNecklaceClosed => const TheNecklaceClosed(),
   EventKind.theRoomStartedOver => const TheRoomStartedOver(),
   EventKind.thePanoramaChosen => ThePanoramaChosen(
     _servedPanoramas[random.nextInt(_servedPanoramas.length)],

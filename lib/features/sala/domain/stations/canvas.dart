@@ -18,7 +18,6 @@ final class Canvas extends Station {
     TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
-    TheNecklaceClosed() => this,
     TheExternalCheckOpened() ||
     TheExternalCheckLeft() ||
     TheRecordingLeft() => this,
