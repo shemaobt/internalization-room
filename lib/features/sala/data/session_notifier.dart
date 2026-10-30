@@ -9497,13 +9497,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ondeCabe = _ondeAPausaCabe();
     if (ondeCabe == null) return;
     final (envelope, :lo, :hi) = ondeCabe;
-    _semOTrechoNoAr();
-    _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
+    final pausa = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
+    _semOTrechoNoAr(pausa);
+    _trechoEnd = pausa;
   }
 
-  void _semOTrechoNoAr() {
-    final segurada = _tirarAParteDoPlayer();
-    if (segurada != null) _dispatch(TheHeldPartReturns(segurada));
+  void _semOTrechoNoAr(Duration pausa) {
+    if (_tirarAParteDoPlayer() case Paused(what: final PartSound parte)) {
+      _dispatch(
+        TheHeldPartReturns(
+          Paused(
+            PartSound(parte.part, parte.path, from: pausa),
+            started: false,
+          ),
+        ),
+      );
+    }
   }
 
   void ouvirAPausa() => _gesture(() => _ouvirAPausa());
