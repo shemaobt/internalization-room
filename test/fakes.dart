@@ -401,6 +401,7 @@ class FakeRecorder implements RecordingRepository {
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
   String? rehearsalSpeaksAs;
+  Uint8List? questionSpeaks;
 
   bool permitted = true;
 
@@ -489,7 +490,12 @@ class FakeRecorder implements RecordingRepository {
   String? _named;
 
   @override
-  Future<String?> stop() async {
+  Future<String?> stop() {
+    sounds.add('recorder:stop');
+    return _stop();
+  }
+
+  Future<String?> _stop() async {
     final named = '${home.path}/${_named ?? 'captura-$captures'}';
     final owner = lastOwner;
     final count = captures;
@@ -507,6 +513,11 @@ class FakeRecorder implements RecordingRepository {
         owner == MicOwner.scene ||
         owner == MicOwner.frase ||
         owner == MicOwner.listener;
+    final question = questionSpeaks;
+    if (question != null && owner == MicOwner.question) {
+      final take = File('$named.m4a')..writeAsBytesSync(question);
+      return lastPath = take.path;
+    }
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -545,7 +556,7 @@ class FakeRecorder implements RecordingRepository {
       return;
     }
     if (!_recording) return;
-    final path = await stop();
+    final path = await _stop();
     if (path != null) deleted.add(path);
   }
 
@@ -772,7 +783,8 @@ class FakePlayback implements PlaybackRepository {
   Duration _abertaEm = Duration.zero;
 
   @override
-  Duration? get playingLength => _aberto ? length : null;
+  Duration? get playingLength =>
+      !_aberto || length == null ? null : _fimDoClipe ?? length;
 
   bool get open => _aberto && !_abrindo;
 
@@ -784,7 +796,6 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     playedFrom.add(from);
     sounds.add('playback:play');
-    _fimDoClipe = null;
     return _soundUntilItStops(from);
   }
 
@@ -793,10 +804,9 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
     sounds.add('playback:play');
-    _fimDoClipe = to - from;
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
-    return _soundUntilItStops(Duration.zero);
+    return _soundUntilItStops(Duration.zero, fim: to - from);
   }
 
   @override
@@ -855,7 +865,7 @@ class FakePlayback implements PlaybackRepository {
   // just_audio only completes the future of `play` when the sound stops: at the end
   // of the clip, on a pause or on a stop. A double that returns at once hides
   // everything hung off that future.
-  Future<void> _soundUntilItStops(Duration from) {
+  Future<void> _soundUntilItStops(Duration from, {Duration? fim}) {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
@@ -879,6 +889,7 @@ class FakePlayback implements PlaybackRepository {
       if (geracao != _opens) return;
       _abrindo = false;
       at = _abertaEm = from;
+      _fimDoClipe = fim;
       _aberto = paradas == stops;
       // Announced either way, held or stopped: the listening ceiling and the measure of
       // the part in the air both hang off this, and a clip that never announces itself
@@ -1601,6 +1612,7 @@ class FakeRoom implements RoomRepository {
   String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  Completer<void>? holdingTheCredential;
   RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
@@ -1775,6 +1787,7 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
     if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
+    await holdingTheCredential?.future;
     final refusal = refuseCredentialWith;
     if (refusal != null) return refusal;
     return Answered(credential);

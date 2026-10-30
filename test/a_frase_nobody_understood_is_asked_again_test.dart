@@ -1174,18 +1174,17 @@ void main() {
           contains(isIn(instantAckLines)),
         );
 
+        final replies = screen.replies;
         await _theVoiceAnswers(screen);
         expect(byLabel(_wentToTheVoice), findsOneWidget);
         expect(find.text(_sending), findsNothing);
         expect(byLabel(_sending), findsNothing);
         expect(byLabel(_terminei), findsNothing);
-        final replies = screen.replies;
+        await screen.until(() => screen.replies > replies);
         await screen.beat(1300);
         expect(screen.state.stage, SalaStage.cena);
-        expect(screen.replies, replies);
         await screen.beat(200);
         expect(screen.state.stage, SalaStage.conversa);
-        await screen.until(() => screen.replies > replies);
         expect(screen.replies, replies + 1);
       },
     );
@@ -1194,11 +1193,13 @@ void main() {
       tester,
     ) async {
       final (screen, _) = await _sendingTheScene(tester);
-      await _theVoiceAnswers(screen);
       final replies = screen.replies;
+      await _theVoiceAnswers(screen);
       await screen.until(
         () =>
-            screen.replies > replies && screen.state.voice == VoiceState.invite,
+            screen.replies > replies &&
+            screen.state.stage == SalaStage.conversa &&
+            screen.state.voice == VoiceState.invite,
       );
       expect(screen.state.canHearAgain, isTrue);
 

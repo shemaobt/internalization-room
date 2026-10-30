@@ -1081,6 +1081,36 @@ void main() {
   );
 
   testWidgets(
+    'the sheet opens with VoiceOver on «Cena 1 — A fome em Belém», announced '
+    'as a heading, not on two mute lines of text',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      final heading = byLabel('Cena 1 — A fome em Belém');
+      expect(
+        heading,
+        findsOneWidget,
+        reason: 'o título da folha era texto mudo, sem nome para o VoiceOver',
+      );
+      final data = tester.getSemantics(heading).getSemanticsData();
+      expect(
+        data.flagsCollection.isHeader,
+        isTrue,
+        reason: 'o título não era anunciado como cabeçalho, como o h1 dela',
+      );
+      expect(
+        data.flagsCollection.isFocused,
+        Tristate.isTrue,
+        reason: 'a folha abria sem levar o VoiceOver ao seu título',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
     (tester) async {

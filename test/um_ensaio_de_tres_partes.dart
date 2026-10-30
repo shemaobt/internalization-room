@@ -153,6 +153,33 @@ Future<Sala> umEnsaioContadoInteiro(
   return it;
 }
 
+Future<void> ouvidaInteiraPelaSala(Sala it) async {
+  it.harness.room.listeningUnheardTakeIds = [
+    for (final parte in it.partes) parte.takeId!,
+  ];
+  it.sala.startRetro();
+  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
+    await waitFor(
+      'a parte ${onde + 1} entrar no ar',
+      () =>
+          it.harness.playback.played.isNotEmpty &&
+          it.harness.playback.played.last == it.partes[onde].path &&
+          it.harness.playback.sounding,
+    );
+    if (onde == partesDoEnsaio.length - 1) {
+      it.harness.room.listeningUnheardTakeIds = const [];
+    }
+    await ouvirAteOFim(it, partesDoEnsaio[onde]);
+  }
+  await waitFor(
+    'a primeira escuta acabar e a primeira parte voltar ao ar',
+    () =>
+        !it.estado.btSoOuvir &&
+        it.estado.btPhase == BtPhase.playing &&
+        it.harness.playback.sounding,
+  );
+}
+
 /// The part in the air played to its own end, [quanto] long.
 Future<void> ouvirAteOFim(Sala it, Duration quanto) async {
   await theClipOpens(it.harness);

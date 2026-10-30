@@ -275,7 +275,7 @@ The wood disc with no glyph that leads from one station to the next: to the Back
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
-A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one too short for the capture guard is dropped unsent.
+A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one whose file is under 800 bytes is dropped unsent, however long it ran: a Knot is held to no time floor (ADR 0067).
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
@@ -335,10 +335,6 @@ _Avoid_: waveform, timeline, ruler (the Ensaio's)
 **Scene row**:
 One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N. A row with a take shows «✓»; a row offers its Rehearsal sheet with «trocar o ensaio desta cena» when its part is joined and its scene has another rehearsal, or «usar o ensaio desta cena» when none of its takes came from a join and a Usable rehearsal exists.
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
-
-**Part on its way**:
-A current Part the room holds that this tablet does not, on a Rehearsal reopened without its recordings. Its Scene row shows it from the moment the room's takes list answers, with its listen dark until its recording is here; the parts on their way come down one at a time, in part order. A fetch that fails leaves the row as it is, and the next tap on its listen fetches it again. Its own listen stays dark until it is here, and the wood play and the advance disc wait until every part is here; recording the scene again is never held back by it.
-_Avoid_: placeholder, missing part (a part the room no longer has), pending part, unsent take (the other direction)
 
 **Joined recording** (`origin`):
 A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final», and the Back-translation's into «Ensaio Final»; entering it starts the First listen while the room counts every part unheard. The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
