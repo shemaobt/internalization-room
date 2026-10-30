@@ -860,6 +860,32 @@ void main() {
   );
 
   testWidgets(
+    'a revocation while a sent note\'s microphone still closes sends nothing '
+    'and leaves no note on the tablet',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      harness.room.failWith = const Refused(RefusalCode.deviceRevoked);
+      unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
+      await _pumpUntil(
+        tester,
+        () => !container.read(deviceLinkProvider).linked,
+      );
+
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+
+      expect(harness.inbox.questionsSent, isEmpty);
+      expect(
+        harness.recorder.deleted,
+        contains(harness.recorder.lastPath),
+        reason: 'a pergunta de um tablet revogado ficou no disco',
+      );
+    },
+  );
+
+  testWidgets(
     'a touch on the dot while a second note records, the first still going '
     'out, throws the second away and opens the plan',
     (tester) async {

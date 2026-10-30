@@ -454,6 +454,9 @@ class FakeRecorder implements RecordingRepository {
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
     _recording = true;
+    _named = home.listSync().any((it) => it.path.contains('/$fileName.'))
+        ? null
+        : fileName;
     return Capture.started;
   }
 
@@ -478,6 +481,12 @@ class FakeRecorder implements RecordingRepository {
   /// The take a stop that threw left on the platform, until a discard removes it.
   String? _lost;
 
+  /// The name the open microphone was started under, which the real recorder gives its file;
+  /// a name a take already holds, as a frozen clock repeats, falls back to a count.
+  String? _named;
+
+  String get _take => '${home.path}/${_named ?? 'captura-$captures'}';
+
   @override
   Future<String?> stop() async {
     final held = _holdingStop;
@@ -485,7 +494,7 @@ class FakeRecorder implements RecordingRepository {
     _stopping = null;
     _recording = false;
     if (stopThrows) {
-      _lost = '${home.path}/captura-$captures.m4a';
+      _lost = '$_take.m4a';
       throw const FileSystemException('o gravador perdeu o arquivo');
     }
     if (returnsNothing) return null;
@@ -497,12 +506,12 @@ class FakeRecorder implements RecordingRepository {
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
-        '${home.path}/captura-$captures.'
+        '$_take.'
         '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
       )..writeAsBytesSync(fala);
       return lastPath = take.path;
     }
-    final file = File('${home.path}/captura-$captures.m4a')
+    final file = File('$_take.m4a')
       ..writeAsStringSync(
         returnsEmpty
             ? ''
