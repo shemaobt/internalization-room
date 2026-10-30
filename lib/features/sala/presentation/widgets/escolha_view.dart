@@ -181,7 +181,7 @@ class _Book extends StatelessWidget {
   }
 }
 
-class _Pill extends ConsumerWidget {
+class _Pill extends ConsumerStatefulWidget {
   final Passagem entry;
   final String words;
   final bool tinted;
@@ -195,7 +195,20 @@ class _Pill extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Pill> createState() => _PillState();
+}
+
+class _PillState extends ConsumerState<_Pill> {
+  bool _pressed = false;
+
+  void _press(bool pressed) => setState(() => _pressed = pressed);
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final words = widget.words;
+    final tinted = widget.tinted;
+    final language = widget.language;
     final colors = SalaColors.of(context);
     final panorama = entry.isPanorama;
     const size = 0.95 * _rem;
@@ -205,6 +218,9 @@ class _Pill extends ConsumerWidget {
         button: true,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => _press(true),
+          onTapUp: (_) => _press(false),
+          onTapCancel: () => _press(false),
           onTap: () =>
               ref.read(salaSessionProvider.notifier).openTheEntry(entry),
           child: DecoratedBox(
@@ -215,10 +231,11 @@ class _Pill extends ConsumerWidget {
                 color: switch (entry) {
                   _ when panorama || tinted => colors.azul,
                   Passagem(approved: true) => colors.claquete,
-                  _ => ShemaBrand.areia,
+                  _ => colors.areia,
                 },
               ),
               color: switch (panorama) {
+                _ when _pressed => colors.azul,
                 _ when tinted => ShemaBrand.azul.withValues(alpha: 0.18),
                 true => ShemaBrand.azul.withValues(alpha: 0.10),
                 false => null,
@@ -242,7 +259,7 @@ class _Pill extends ConsumerWidget {
                         fontSize: size,
                         fontWeight: panorama ? FontWeight.w600 : null,
                         letterSpacing: panorama ? 0.02 * size : null,
-                        color: colors.momentoInk,
+                        color: _pressed ? colors.branco : colors.momentoInk,
                       ),
                     ),
                   ),
