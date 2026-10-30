@@ -2601,6 +2601,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (sessionId != null && state.passageLeft?.session == sessionId) {
       state = state.copyWith(clearPassageLeft: true);
+      _forgetTheKeptRetellings(sessionId);
     }
     unawaited(
       _mindingThePlace(
