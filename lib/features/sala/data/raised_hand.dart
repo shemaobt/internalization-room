@@ -79,6 +79,8 @@ class RaisedHand {
 
   Future<void>? _inboxRead;
 
+  bool _sendingAQuestion = false;
+
   final _failures = <(String, String), int>{};
 
   HandView get _state => host.view;
@@ -129,6 +131,7 @@ class RaisedHand {
 
   void tap() {
     if (_state.aQuestionRecords) return cancelQuestion();
+    if (_sendingAQuestion) return;
     if (!_state.atTheTeamsIdleTurn) return;
     if (_state.playingReplyId != null || _state.channel is PartPlaying) {
       host.silenceTheRoom();
@@ -335,7 +338,13 @@ class RaisedHand {
   void _sendQuestion() {
     if (!_state.noteMode) return;
     host.leaveNoteMode();
-    host.handOff(_deliver(host.thisLife, host.listenedFor));
+    _sendingAQuestion = true;
+    host.handOff(
+      _deliver(
+        host.thisLife,
+        host.listenedFor,
+      ).whenComplete(() => _sendingAQuestion = false),
+    );
   }
 
   Future<void> _deliver(int? life, Duration listenedFor) async {
