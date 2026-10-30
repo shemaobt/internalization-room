@@ -25,6 +25,8 @@ import 'fakes.dart';
 import 'scenario_helpers.dart'
     show
         enterThePanorama,
+        holdTheSession,
+        intoTheBackTranslation,
         settle,
         stateReads,
         withDiskThatAnswersAtOnce,
@@ -7116,7 +7118,7 @@ Future<ProviderContainer> _umaGravacaoRetomada(
   harness.playback
     ..measured = const Duration(seconds: 10)
     ..length = const Duration(seconds: 10);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -7131,6 +7133,7 @@ Future<ProviderContainer> _umaGravacaoRetomada(
         ),
     ],
   );
+  await holdTheSession(harness, row);
   harness.room.retroSoFar = BackTranslationProgress(
     checked: false,
     segments: [
@@ -7146,9 +7149,11 @@ Future<ProviderContainer> _umaGravacaoRetomada(
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await notifier.openTheRoom();
+  await intoTheBackTranslation(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await waitFor(
     'a primeira parte voltar a tocar',
     () => container.read(salaSessionProvider).btClipRodando,

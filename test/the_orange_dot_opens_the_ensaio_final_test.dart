@@ -25,7 +25,14 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, settle, thePersonSign;
+import 'scenario_helpers.dart'
+    show
+        byLabel,
+        holdTheSession,
+        intoTheRecordingHome,
+        relaunch,
+        settle,
+        thePersonSign;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
@@ -534,11 +541,20 @@ Future<_Home> _reopenOverTheWholeSetAside(
     ..room.openedSessions.add('sessao-antiga')
     ..room.takes.addAll([_theWhole, _part(1), _part(2), _part(3)])
     ..playback.measured = _onePart;
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final held = takes(guardadas);
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.ensaio,
-    takes: takes(guardadas),
+    takes: held,
   );
+  final pelaEscolha = held.any(
+    (take) => take.scopeId != KeptScope.whole && !File(take.path).existsSync(),
+  );
+  if (pelaEscolha) {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  } else {
+    await holdTheSession(harness, row);
+  }
   final container = (await tester.runAsync(
     () async => harness.container()..read(salaSessionProvider),
   ))!;
@@ -546,9 +562,14 @@ Future<_Home> _reopenOverTheWholeSetAside(
   await tester.pumpWidget(_theHome(container));
   final it = _Home(tester, home, harness, container);
   await it.inRealTime(() async {
-    await it.sala.abrirEscolha();
-    await settle();
-    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    if (pelaEscolha) {
+      await it.sala.abrirEscolha();
+      await settle();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    } else {
+      await it.sala.openTheRoom();
+      await intoTheRecordingHome(it.sala, () => it.read);
+    }
     await it._theRowsStand();
   });
   return it;

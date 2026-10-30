@@ -29,7 +29,7 @@ Future<ProviderContainer> _reopensIntoRetro(
   addTearDown(() => pasta.deleteSync(recursive: true));
   final gravada = File('${pasta.path}/p1.m4a');
   if (theFileIsHere) gravada.writeAsBytesSync([1, 2, 3]);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -40,12 +40,25 @@ Future<ProviderContainer> _reopensIntoRetro(
       ),
     ],
   );
+  if (theFileIsHere) {
+    await holdTheSession(harness, row);
+  } else {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  }
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  if (theFileIsHere) {
+    await notifier.openTheRoom();
+    await intoTheBackTranslation(
+      notifier,
+      () => container.read(salaSessionProvider),
+    );
+  } else {
+    await notifier.abrirEscolha();
+    await settle();
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  }
   await settle();
   return container;
 }
