@@ -152,11 +152,7 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
       ),
     ],
   );
-  if (aguarda) {
-    harness.emAberto.rows['Ruth/P01/pt'] = row;
-  } else {
-    await holdTheSession(harness, row);
-  }
+  await holdTheSession(harness, row);
   harness.room
     ..segments.addAll(daSala)
     ..takes.add(
@@ -176,19 +172,11 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  if (aguarda) {
-    unawaited(
-      container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth', pericope: 'P01'),
-    );
-  } else {
-    await intoTheBackTranslation(
-      container.read(salaSessionProvider.notifier),
-      () => container.read(salaSessionProvider),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-  }
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   await waitFor(
     aguarda
         ? 'a frase 2 voltar esperando a tradução'
