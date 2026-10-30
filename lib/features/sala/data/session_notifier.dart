@@ -377,7 +377,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late bool _personAsked;
   late int _lastAcknowledgement;
   final _random = Random();
-  late DateTime? _listeningSince;
   late bool _recordingStarting;
 
   /// The attempt of a «Novo ouvinte» no answer has landed for, with the version it asks
@@ -558,7 +557,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _stretchKeys = {};
     _personAsked = false;
     _lastAcknowledgement = 0;
-    _listeningSince = null;
     _recordingStarting = false;
     _listenerAttempt = null;
     _listenerLineAwaited = false;
@@ -3633,7 +3631,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _listen(MachineEvent opening) {
     _recordingStarting = true;
-    _listeningSince = clock.now();
     state = state.copyWith(clearRecorderStartedAt: true);
     _dispatch(opening);
     if (state.channel is! Microphone) {
@@ -11764,17 +11761,11 @@ class _HandHost implements HandHost {
   int get waitOnTheGeneration => _notifier._waitOnTheGeneration;
 
   @override
-  Duration get listenedFor => switch (_notifier._listeningSince) {
-    final since? => clock.now().difference(since),
-    null => Duration.zero,
-  };
-
-  @override
   String stamp() => _notifier._stamp();
 
   @override
-  bool theGuardKeeps(String path, Duration listenedFor) =>
-      _notifier._theGuardKeeps(path, listenedFor);
+  bool theGuardKeeps(String path) =>
+      _notifier._captureGuard.acceptsAQuestion(bytes: _notifier._bytesAt(path));
 
   @override
   void dispatch(MachineEvent event) => _notifier._dispatch(event);
