@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Back-translation, the one Station the Closing is reached from.
+/// The Back-translation.
 final class Retro extends Station {
   const Retro();
 
@@ -17,7 +17,6 @@ final class Retro extends Station {
     ThePlanOpened() => this,
     TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
-    TheNecklaceClosed() => const Fim(),
     TheExternalCheckOpened(:final version) => ChecagemExterna(version),
     TheExternalCheckLeft() => this,
     TheRecordingLeft() => const Canvas(),
