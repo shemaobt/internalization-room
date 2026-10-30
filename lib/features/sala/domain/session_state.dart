@@ -426,6 +426,7 @@ class SalaSessionState {
 
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
+  final Passagem? openingEntry;
   final PassageLeft? passageLeft;
   final bool endOfThePassage;
 
@@ -646,6 +647,7 @@ class SalaSessionState {
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
     this.leftEntry,
+    this.openingEntry,
     this.passageLeft,
     this.endOfThePassage = false,
     this.panoramaSaid = false,
@@ -1174,7 +1176,17 @@ class SalaSessionState {
 
   Station get station => machine.station;
 
-  SalaStage get stage => station.stage;
+  /// The entry tapped on the Choice whose session has not landed: the team stays on the
+  /// Choice until it does.
+  Passagem? get theEntryOpening => switch (station) {
+    _ when !awaitingTheGuide => null,
+    Canvas() when sessionId == null => openingEntry,
+    Panorama() when panoramaSessionId == null => openingEntry,
+    _ => null,
+  };
+
+  SalaStage get stage =>
+      theEntryOpening != null ? SalaStage.escolha : station.stage;
 
   Halt get halt => machine.halt;
 
@@ -1799,6 +1811,8 @@ class SalaSessionState {
     bool? arrivedAtTheChoice,
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
+    Passagem? openingEntry,
+    bool clearOpeningEntry = false,
     PassageLeft? passageLeft,
     bool clearPassageLeft = false,
     bool? endOfThePassage,
@@ -1945,6 +1959,9 @@ class SalaSessionState {
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
+      openingEntry: clearOpeningEntry
+          ? null
+          : (openingEntry ?? this.openingEntry),
       passageLeft: clearPassageLeft ? null : (passageLeft ?? this.passageLeft),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
