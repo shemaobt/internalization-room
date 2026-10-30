@@ -148,25 +148,29 @@ Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
   harness.room.retroSoFar = const BackTranslationProgress(segments: []);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
-        takeId: 'gravacao-1',
-      ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    ),
+    language: 'pt',
   );
   final container = harness.container();
   addTearDown(container.dispose);
   final room = _Room(harness, container);
-  await room.sala.abrirEscolha();
-  await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await room.sala.openTheRoom();
+  await intoTheBackTranslation(room.sala, () => room.state);
   await waitFor(
-    'a tradução retomada pôr a parte no ar',
-    () => room.state.stage == SalaStage.retro && harness.playback.sounding,
+    'a tradução pôr a parte no ar',
+    () => harness.playback.sounding,
   );
   return room;
 }

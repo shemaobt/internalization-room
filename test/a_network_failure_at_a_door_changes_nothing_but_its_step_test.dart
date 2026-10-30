@@ -13,7 +13,12 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart'
+    show
+        holdTheSession,
+        intoTheBackTranslation,
+        settle,
+        traduzirOApontadoDeNovo;
 import 'session_notifier_test.dart' show inConversa;
 
 const _aLadderThatWaits = [Duration(hours: 1)];
@@ -58,6 +63,7 @@ Future<void> _keepARehearsalPart(_Room room) async {
 Future<_Room> _aResumedBackTranslation(
   SalaHarness harness, {
   List<SegmentView> told = const [],
+  bool fromTheChoice = false,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-alcance');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -65,7 +71,7 @@ Future<_Room> _aResumedBackTranslation(
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
   harness.room.retroSoFar = BackTranslationProgress(segments: told);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -76,14 +82,28 @@ Future<_Room> _aResumedBackTranslation(
       ),
     ],
   );
+  if (fromTheChoice) {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  } else {
+    await holdTheSession(harness, row, language: 'pt');
+  }
   final container = harness.container();
   addTearDown(container.dispose);
   final room = _Room(harness, container);
-  await room.sala.abrirEscolha();
-  await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  if (fromTheChoice) {
+    await room.sala.abrirEscolha();
+    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a tradução retomada pôr a parte no ar',
+      () => room.estado.stage == SalaStage.retro && harness.playback.sounding,
+    );
+    return room;
+  }
+  await room.sala.openTheRoom();
+  await intoTheBackTranslation(room.sala, () => room.estado);
   await waitFor(
-    'a tradução retomada pôr a parte no ar',
-    () => room.estado.stage == SalaStage.retro && harness.playback.sounding,
+    'a tradução pôr a parte no ar',
+    () => harness.playback.sounding,
   );
   return room;
 }
@@ -551,6 +571,7 @@ void main() {
 
     final room = await _aResumedBackTranslation(
       harness,
+      fromTheChoice: true,
       told: const [
         SegmentView(
           segmentId: 'trecho-de-fora',
