@@ -81,7 +81,7 @@ class _Pill extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: ShemaBrand.areia, width: 1.4),
+        border: Border.all(color: SalaColors.of(context).areia, width: 1.4),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: children),
     );
@@ -103,6 +103,8 @@ class _Choice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    final ink = selected ? colors.branco : colors.verdeClaro;
     return Semantics(
       button: true,
       selected: selected,
@@ -115,19 +117,13 @@ class _Choice extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 48, minHeight: 44),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: selected
-                  ? SalaColors.of(context).azul
-                  : Colors.transparent,
+              color: selected ? colors.azul : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
             ),
             child: IconTheme.merge(
-              data: IconThemeData(
-                color: selected ? ShemaBrand.branco : ShemaBrand.verdeClaro,
-              ),
+              data: IconThemeData(color: ink),
               child: DefaultTextStyle.merge(
-                style: TextStyle(
-                  color: selected ? ShemaBrand.branco : ShemaBrand.verdeClaro,
-                ),
+                style: TextStyle(color: ink),
                 child: child,
               ),
             ),
