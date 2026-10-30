@@ -32,6 +32,20 @@ const _livroComPanorama = [
   Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
 ];
 
+class _AnEnglishReadHeldOnTheDisk extends FakeWorkInProgress {
+  Completer<void>? _gate;
+
+  void hold() => _gate = Completer<void>();
+
+  void release() => _gate?.complete();
+
+  @override
+  Future<Set<String>> startedIn(String book, String language) async {
+    if (language == 'en') await _gate?.future;
+    return super.startedIn(book, language);
+  }
+}
+
 Sala _aTabletWithNothingChosen({FakeRoomLanguageLedger? chosen}) {
   final harness = SalaHarness(lingua: null, roomLanguage: chosen);
   final container = harness.container();
@@ -263,8 +277,8 @@ void main() {
   );
 
   test(
-    'reopening the passage in Portuguese resumes the Portuguese session where the '
-    'team stopped',
+    'reopening the passage in Portuguese resumes the Portuguese session on its '
+    'conversation',
     () async {
       final it = _aTabletWithNothingChosen();
       await _inThePassage(it, 'P01');
@@ -282,10 +296,11 @@ void main() {
 
       await enterThePassage(it.sala, () => it.estado, 'P01');
       await waitFor(
-        'the Portuguese session to stand where the team stopped',
+        'the Portuguese session to land on its conversation with its takes',
         () =>
             it.estado.sessionId == portuguese &&
-            it.estado.station is Ensaio &&
+            it.estado.station is Canvas &&
+            !it.estado.awaitingTheGuide &&
             it.estado.keptTakes.isNotEmpty,
       );
 
@@ -379,31 +394,74 @@ void main() {
   );
 
   test(
-    'the Wheel on screen is the one read in the language now chosen, however late '
-    'an earlier read lands',
+    'a language tapped while the Wheel is first read lets that read land and '
+    'relabels it, with no second read',
     () async {
-      const portuguese = [Passagem(pericope: 'P01', audioUrl: '/voice/pt')];
-      const english = [Passagem(pericope: 'P01', audioUrl: '/voice/en')];
+      const portuguese = [
+        Passagem(pericope: 'P01', audioUrl: '/voice/pt', book: 'Ruth'),
+      ];
       final it = _aTabletWithNothingChosen();
+      const english = [
+        Passagem(pericope: 'P01', audioUrl: '/voice/en', book: 'Ruth'),
+      ];
       it.harness.room.passagesIn = {'pt': portuguese, 'en': english};
+      it.harness.emAberto.rows['Ruth/P01/en'] = const ResumePoint(
+        sessionId: 'sessao-en',
+        stage: SalaStage.ensaio,
+      );
       final slow = it.harness.room.holdOneWheelRead();
       unawaited(it.sala.abrirEscolha());
       await settle();
 
       it.sala.chooseTheLanguage('en');
-      await waitFor(
-        'the English Wheel to be read',
-        () => it.harness.room.languagesAsked.contains('en'),
-      );
       await settle();
       slow.complete();
-      await waitFor(
-        'the Portuguese read to land',
-        () => it.harness.room.languagesAsked.contains('pt'),
-      );
+      await waitFor('the Wheel to land', () => it.estado.naRoda != null);
       await settle();
 
-      expect(it.estado.naRoda, english);
+      expect(it.estado.naRoda, portuguese);
+      expect(it.estado.comecadas, contains('P01'));
+      expect(it.harness.room.languagesAsked, ['pt']);
+    },
+  );
+
+  test(
+    'a language tapped while the launch reads the Wheel, then another once the '
+    'Wheel lands and its marks are still being read, leave the marks in the '
+    'language last chosen',
+    () async {
+      const book = [
+        Passagem(pericope: 'P01', audioUrl: '/voice/p01', book: 'Ruth'),
+        Passagem(pericope: 'P02', audioUrl: '/voice/p02', book: 'Ruth'),
+      ];
+      final disk = _AnEnglishReadHeldOnTheDisk()
+        ..rows['Ruth/P01/en'] = const ResumePoint(
+          sessionId: 'sessao-en',
+          stage: SalaStage.ensaio,
+        )
+        ..rows['Ruth/P02/pt'] = const ResumePoint(
+          sessionId: 'sessao-pt',
+          stage: SalaStage.ensaio,
+        );
+      final harness = SalaHarness(lingua: null, emAbertoNoDisco: disk)
+        ..room.passages = book;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      final slow = harness.room.holdOneWheelRead();
+      unawaited(it.sala.openTheRoom());
+      await settle();
+
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      disk.hold();
+      slow.complete();
+      await waitFor('the Wheel to land', () => it.estado.naRoda != null);
+      it.sala.chooseTheLanguage('pt');
+      disk.release();
+      await settle();
+
+      expect(it.estado.comecadas, {'P02'});
     },
   );
 

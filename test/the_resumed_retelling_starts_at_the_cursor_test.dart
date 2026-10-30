@@ -9,7 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show intoTheBackTranslation, settle;
 
 /// A tablet opened again on a passage the team was part-way through telling back.
 ///
@@ -44,6 +44,10 @@ Future<ProviderContainer> _retomar(
   await notifier.abrirEscolha();
   await settle();
   await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await intoTheBackTranslation(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await settle();
   return container;
 }

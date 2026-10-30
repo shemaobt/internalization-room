@@ -272,6 +272,9 @@ abstract final class FailurePolicy {
       RoomRefused(code: RefusalCode.passageCannotOpen) => ThePassageCannotOpen(
         generation: generation,
       ),
+      RoomRefused(code: RefusalCode.wordlessTelling)
+          when rule == RefusalRule.aSpokenTurn =>
+        halt,
       RoomRefused(code: RefusalCode.wordlessTelling) => TheTellingCameBackEmpty(
         generation: generation,
       ),

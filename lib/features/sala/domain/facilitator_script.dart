@@ -8,6 +8,9 @@ const languages = ['pt', 'en'];
 
 const floorLanguage = 'pt';
 
+bool isTheTabletsOwnLine(String name) =>
+    name.isNotEmpty && 'FPXN'.contains(name[0]);
+
 const instantAckLines = ['F0', 'F1', 'F2'];
 
 const startLine = 'P0';
@@ -72,6 +75,7 @@ String handLabelFor(String state, String language) =>
     handLabels[state]![language] ?? handLabels[state]![floorLanguage]!;
 
 const roomLabels = {
+  'thinking': {'pt': 'pensando…', 'en': 'thinking…'},
   'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear that again'},
   'leavePassage': {
     'pt': 'Escolher outra passagem',
@@ -85,7 +89,6 @@ const roomLabels = {
     'pt': 'Voltar para a gravação',
     'en': 'Back to recording',
   },
-  'beginAgain': {'pt': 'Começar de novo', 'en': 'Begin again'},
   'recordEnsaio': {
     'pt': 'Gravar o ensaio de vocês',
     'en': 'Record your rehearsal',
@@ -838,14 +841,6 @@ String findingLabelFor(String control, String language) =>
 const escolhaLabels = {
   'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
   'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
-  'allDone': {
-    'pt': 'Todas as passagens foram trabalhadas',
-    'en': 'Every passage has been worked through',
-  },
-  'readTheWheel': {
-    'pt': 'Tocar para procurar as passagens',
-    'en': 'Tap to look for the passages',
-  },
   'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
   'light': {'pt': 'Claro', 'en': 'Light'},
   'dark': {'pt': 'Escuro', 'en': 'Dark'},
