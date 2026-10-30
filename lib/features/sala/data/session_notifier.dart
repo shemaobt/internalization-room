@@ -10869,8 +10869,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _esperarQueFalteOuvir(sessionId, generation);
         return;
       }
-      // It returns, as all five of its siblings do: when the halt fires, the lines below
-      // would overwrite the call for a person with the closing screen.
+      // It returns, as all five of its siblings do: the lines below would close the
+      // passage on a verdict the team never heard.
       //
       // Leaving `thinking` is not decoration. The five siblings never speak from inside
       // it, so the invitation they hand back is already a gesture; this one does, and
