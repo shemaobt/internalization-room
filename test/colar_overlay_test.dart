@@ -6,7 +6,6 @@ import 'package:internalization_room/features/sala/domain/coverage.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/motion.dart';
 
@@ -45,45 +44,43 @@ void main() {
               .decoration
           as BoxDecoration;
 
+  bool isFilled(BoxDecoration d) =>
+      d.color == SalaColors.light.verdeClaro.withValues(alpha: 0.92);
+
   int litBeads(WidgetTester tester) {
     var lit = 0;
     final drawn = find.byType(AnimatedContainer).evaluate().length;
     for (var i = 0; i < drawn; i++) {
-      if (decorationAt(tester, i).gradient == BeadStyles.wood) lit++;
+      if (isFilled(decorationAt(tester, i))) lit++;
     }
     return lit;
   }
 
-  testWidgets('a bead nobody has spoken into waits, whatever the guide surfaced', (
-    tester,
-  ) async {
-    final session = SalaSessionState(
-      coverage: answer({
-        'engaged': 0,
-        'surfaced': 10,
-        'total': 29,
-        'beads_total': 12,
-        'beads_filled': 0,
-      }),
-    );
-    await pumpColar(tester, session);
+  testWidgets(
+    'a bead nobody has spoken into waits, whatever the guide surfaced',
+    (tester) async {
+      final session = SalaSessionState(
+        coverage: answer({
+          'engaged': 0,
+          'surfaced': 10,
+          'total': 29,
+          'beads_total': 12,
+          'beads_filled': 0,
+        }),
+      );
+      await pumpColar(tester, session);
 
-    expect(find.byType(AnimatedContainer), findsNWidgets(12));
-    for (var i = 0; i < 12; i++) {
-      expect(
-        decorationAt(tester, i).gradient,
-        isNot(isA<LinearGradient>()),
-        reason:
-            'a conta $i não pode desenhar o gradiente dividido do surfacedOnly',
-      );
-      expect(
-        decorationAt(tester, i).gradient,
-        BeadStyles.oat(SalaColors.light),
-        reason:
-            'uma conta que o time não falou é uma conta vazia, mesmo surfaced',
-      );
-    }
-  });
+      expect(find.byType(AnimatedContainer), findsNWidgets(12));
+      for (var i = 0; i < 12; i++) {
+        expect(
+          decorationAt(tester, i).color,
+          SalaColors.light.areia.withValues(alpha: 0.55),
+          reason:
+              'uma conta que o time não falou é uma conta vazia, mesmo surfaced',
+        );
+      }
+    },
+  );
 
   testWidgets('exactly the beads the room names come back filled', (
     tester,
@@ -228,16 +225,16 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 700));
     expect(
-      renderedDecorationAt(tester, 0).gradient,
-      isNot(BeadStyles.wood),
+      isFilled(renderedDecorationAt(tester, 0)),
+      isFalse,
       reason:
           'em 700ms a conta já teria assentado — o settle é de 1,3s, não 700ms',
     );
 
     await tester.pump(const Duration(milliseconds: 600));
     expect(
-      renderedDecorationAt(tester, 0).gradient,
-      BeadStyles.wood,
+      isFilled(renderedDecorationAt(tester, 0)),
+      isTrue,
       reason: 'em 1,3s a conta acabou de assentar no cheio, sem pulo de escala',
     );
   });
@@ -366,46 +363,52 @@ void main() {
         : SalaSessionState(coverage: coverage);
   }
 
-  BoxShadow? woodGlow(BoxDecoration decoration) => decoration.boxShadow
-      ?.where((shadow) => shadow.spreadRadius > 0)
-      .firstOrNull;
-
-  void expectFiveLitBeadsGlowAndSevenDoNot(
+  void expectFiveFilledAndSevenAtRest(
     WidgetTester tester, {
     SalaColors colors = SalaColors.light,
   }) {
     for (var i = 0; i < 12; i++) {
-      final decoration = decorationAt(tester, i);
-      final glow = woodGlow(decoration);
+      final color = decorationAt(tester, i).color!;
       if (i < 5) {
-        expect(glow, isNotNull, reason: 'a conta $i está acesa e brilha');
-        expect(glow!.spreadRadius, 3);
-        expect(glow.blurRadius, 0);
-        expect(glow.offset, Offset.zero);
-        expect(glow.color.toARGB32() & 0x00FFFFFF, 0xC9A26B);
-        expect(glow.color.a, closeTo(0.25, 0.005));
-        expect(decoration.boxShadow, containsAll(BeadStyles.matte));
+        expect(color.a, closeTo(0.92, 0.005), reason: 'a conta $i está cheia');
+        expect(
+          color.toARGB32() & 0x00FFFFFF,
+          colors.verdeClaro.toARGB32() & 0x00FFFFFF,
+        );
       } else {
-        expect(glow, isNull, reason: 'a conta $i está apagada e não brilha');
-        expect(decoration.gradient, BeadStyles.oat(colors));
-        expect(decoration.border!.top.color, colors.line);
+        expect(
+          color.a,
+          closeTo(0.55, 0.005),
+          reason: 'a conta $i está em repouso',
+        );
+        expect(
+          color.toARGB32() & 0x00FFFFFF,
+          colors.areia.toARGB32() & 0x00FFFFFF,
+        );
       }
     }
   }
 
-  testWidgets('a lit bead glows and an unlit one does not', (tester) async {
-    await pumpReducedColar(tester, fiveOfTwelve());
+  testWidgets(
+    'a filled bead is verde-claro at .92, a resting one areia at .55',
+    (tester) async {
+      await pumpReducedColar(tester, fiveOfTwelve());
 
-    expectFiveLitBeadsGlowAndSevenDoNot(tester);
-  });
+      expectFiveFilledAndSevenAtRest(tester);
+    },
+  );
 
-  testWidgets('the lit beads keep their glow at the Closing', (tester) async {
+  testWidgets('the filled beads keep their colour at the Closing', (
+    tester,
+  ) async {
     await pumpReducedColar(tester, fiveOfTwelve(closing: true));
 
-    expectFiveLitBeadsGlowAndSevenDoNot(tester);
+    expectFiveFilledAndSevenAtRest(tester);
   });
 
-  testWidgets('the dark necklace reads: glow, dark oat', (tester) async {
+  testWidgets('the dark necklace reads her dark areia and verde-claro', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
@@ -416,7 +419,61 @@ void main() {
       ),
     );
 
-    expectFiveLitBeadsGlowAndSevenDoNot(tester, colors: SalaColors.dark);
+    expectFiveFilledAndSevenAtRest(tester, colors: SalaColors.dark);
+  });
+
+  testWidgets('the growing edge scales 1.1 and a just-filled bead 1.2', (
+    tester,
+  ) async {
+    double scaleOf(int i) =>
+        tester.widget<AnimatedScale>(find.byType(AnimatedScale).at(i)).scale;
+
+    await pumpReducedColar(tester, fiveOfTwelve());
+    expect([for (var i = 0; i < 7; i++) scaleOf(i)], [1, 1, 1, 1, 1.1, 1, 1]);
+
+    await pumpReducedColar(
+      tester,
+      fiveOfTwelve().copyWith(
+        coverage: answer({
+          'engaged': 6,
+          'surfaced': 6,
+          'total': 29,
+          'beads_total': 12,
+          'beads_filled': 6,
+        }),
+      ),
+    );
+    expect(scaleOf(5), 1.2);
+    expect(scaleOf(4), 1);
+
+    await tester.pump(const Duration(milliseconds: 1300));
+    expect(scaleOf(5), 1.1);
+  });
+
+  testWidgets('the row sits 9% of the canvas box above its bottom edge', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(800, 1000),
+            disableAnimations: true,
+          ),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 800,
+              height: 500,
+              child: ColarOverlay(session: fiveOfTwelve()),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getBottomLeft(find.byType(ThreadIn).first).dy, 500 * 0.91);
   });
 
   testWidgets(
@@ -439,8 +496,8 @@ void main() {
       await pumpReducedColar(tester, filled);
 
       expect(
-        renderedDecorationAt(tester, 0).gradient,
-        BeadStyles.wood,
+        isFilled(renderedDecorationAt(tester, 0)),
+        isTrue,
         reason:
             'com o movimento reduzido o preenchimento ainda levava 1,3s para assentar — '
             'o primeiro frame mostrava a conta a meio caminho do cheio',
