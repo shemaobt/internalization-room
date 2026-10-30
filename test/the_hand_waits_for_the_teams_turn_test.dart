@@ -31,7 +31,34 @@ const _panorama = Passagem(
   kind: PassagemKind.panorama,
 );
 
-final _hand = find.byType(HandButton);
+bool _reachableBy(Element hand, bool Function(Widget) stops) {
+  var reached = false;
+  void visit(Element element) {
+    final widget = element.widget;
+    if (stops(widget)) return;
+    if (widget is Semantics && (widget.properties.button ?? false)) {
+      reached = true;
+    }
+    element.visitChildren(visit);
+  }
+
+  hand.visitChildElements(visit);
+  return reached;
+}
+
+bool _reachable(Element hand) =>
+    _reachableBy(
+      hand,
+      (widget) => widget is IgnorePointer && widget.ignoring,
+    ) ||
+    _reachableBy(
+      hand,
+      (widget) => widget is ExcludeSemantics && widget.excluding,
+    );
+
+final _hand = find.byElementPredicate(
+  (element) => element.widget is HandButton && _reachable(element),
+);
 
 final _handInTheCircle = find.descendant(
   of: find.byType(FacilitatorCircle),
@@ -529,6 +556,53 @@ void main() {
     );
   });
 
+  testWidgets(
+    'While a reply plays that the desk no longer lists as unheard the hand is '
+    'named for a question, not for the reply',
+    (tester) async {
+      final room = await _inConversaWithAReply(tester);
+      room.harness.voice.holdNextLine();
+      room.sala.handTap();
+      await room.until(
+        'a resposta tocar',
+        () => room.estado.playingReplyId != null,
+      );
+      room.harness.inbox.replies = const [];
+      room.sala.lookForReplies();
+      await room.until('a lista esvaziar', () => !room.estado.hasUnheardReply);
+
+      expect(room.estado.playingReplyId, isNotNull);
+      expect(room.handLabel, _raise);
+      room.harness.voice.finishHeldLine();
+    },
+  );
+
+  testWidgets(
+    'A tap on the hand while a sent question is still going out arms nothing',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.harness.inbox.holdNextQuestion();
+      room.sala.handTap();
+      await room.beat(300);
+      room.sala.conversaTap();
+      await room.until(
+        'o microfone abrir',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      await room.beat(2000);
+      room.sala.conversaTap();
+      await room.beat(300);
+
+      room.sala.handTap();
+      await room.beat(300);
+
+      expect(room.estado.noteMode, isFalse);
+      room.harness.inbox.finishHeldQuestion();
+      await room.beat(300);
+      expect(room.harness.inbox.questionsSent, hasLength(1));
+    },
+  );
+
   testWidgets('While a reply plays the hand stays drawn', (tester) async {
     final room = await _inConversa(
       tester,
@@ -621,6 +695,7 @@ void main() {
       await room.atTheInvite();
 
       expect(room.handLabel, _raise);
+      await room.beat(1000);
       expect(_handInTheCircle, findsNothing);
       await room.theNextCircleTapIsATurnNotAKnot();
       closeTheRoom(room.container);

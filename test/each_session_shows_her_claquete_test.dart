@@ -23,7 +23,8 @@ import 'package:internalization_room/main.dart' show SalaApp;
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show relaunch, withRealLetters;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheBackTranslation, relaunch, withRealLetters;
 
 const _sessionId = 'fia-fixture-0001';
 const _herEightCharacters = 'fia-fixt';
@@ -223,19 +224,22 @@ Future<ProviderContainer> _resumedOnTheCheckScreenOfAnSE(
   final folder = Directory.systemTemp.createTempSync('sala-1817');
   addTearDown(() => folder.deleteSync(recursive: true));
   final harness = SalaHarness(filaEmMemoria: true);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: _sessionId,
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in [1, 2])
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${folder.path}/p$n.m4a',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'take-$n',
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: _sessionId,
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in [1, 2])
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${folder.path}/p$n.m4a',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'take-$n',
+          ),
+      ],
+    ),
   );
   harness.room.retroSoFar = BackTranslationProgress(
     segments: [
@@ -254,10 +258,10 @@ Future<ProviderContainer> _resumedOnTheCheckScreenOfAnSE(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await tester.pump(const Duration(milliseconds: 100));
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'the check screen to come back with its four frases',

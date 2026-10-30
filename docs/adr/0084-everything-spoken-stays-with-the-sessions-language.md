@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0103
+status: accepted, amended by 0103, and by ENG-1868 on 2026-10-30 (her app wins: the instant acknowledgement and every P, N, X and F line the tablet plays itself follow the Room language, warmed and played in the same one, including the lines the room names after the First listen and on «terminei» (N-2, N-3, N-6, P-unheard); only the Guide's replies, the lines the room names inside a turn as fail-safes and the verdict clips stay in the Session language)
 date: 2026-10-15
 supersedes: 0077 (in part: the last bullet of its Decision, «Fixed and process lines stay on the Room language»)
 ---
@@ -25,6 +25,14 @@ the other, and warmed one language while playing the other.
   the Room language, whether the way back is live or not. A session left open does not
   decide what the Choice says.
 - The screen still follows the Room language (ADR 0077).
+
+## Amended by ENG-1868 (2026-10-30)
+
+The first bullet above no longer holds for every line. Her app wins: the instant
+acknowledgement and every F, P, X and N line the tablet plays itself, including those the
+room names after the First listen and on «terminei» (N-2, N-3, N-6, P-unheard), follow the
+Room language, warmed and played in the same one. D and A lines, the Guide's replies and the
+verdict clips stay in the Session language.
 
 ## Consequences
 

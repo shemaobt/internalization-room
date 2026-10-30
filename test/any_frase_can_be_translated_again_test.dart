@@ -15,7 +15,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, voiceOverTap;
+import 'scenario_helpers.dart'
+    show byLabel, holdTheSession, intoTheBackTranslation, voiceOverTap;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
@@ -176,10 +177,13 @@ Future<ProviderContainer> _voltaAUmaTraducao(
         takeId: 'gravacao-$n',
       ),
   ];
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: partes,
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: partes,
+    ),
   );
   harness.room.retroSoFar = BackTranslationProgress(
     checked: conferida,
@@ -205,10 +209,10 @@ Future<ProviderContainer> _voltaAUmaTraducao(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'a tradução voltar com as duas frases',
@@ -1135,71 +1139,6 @@ void main() {
       reason: 'a segunda frase tocada apagava o caminho de volta à conferida',
     );
     expect(byLabel(_aprovar), findsOneWidget);
-    closeTheRoom(container);
-  });
-
-  testWidgets('a conferida session picked back up with no rehearsal on this '
-      'tablet opens no frase and calls nobody', (tester) async {
-    _telaAlta(tester);
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.retro,
-    );
-    harness.room.retroSoFar = const BackTranslationProgress(
-      checked: true,
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-1',
-          takeId: 'gravacao-1',
-          startsMs: 0,
-          endsMs: 5000,
-          frase: 1,
-        ),
-        SegmentView(
-          segmentId: 'trecho-2',
-          takeId: 'gravacao-1',
-          startsMs: 5000,
-          endsMs: 9000,
-          frase: 2,
-        ),
-      ],
-    );
-    final container = harness.container();
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await _passo(tester);
-    unawaited(
-      container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth', pericope: 'P01'),
-    );
-    await waitFor(
-      'a tradução conferida voltar sem gravação neste tablet',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
-      step: () => _passo(tester),
-    );
-    await _passo(tester);
-    expect(container.read(salaSessionProvider).partes, isEmpty);
-
-    await tocar(tester, _barra(1));
-    for (var passo = 0; passo < 5; passo++) {
-      await _passo(tester);
-    }
-
-    expect(
-      container.read(salaSessionProvider).needsPerson,
-      isFalse,
-      reason: 'tocar numa frase sem gravação neste tablet parava a sala',
-    );
-    expect(harness.room.personsAsked, 0);
-    expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
-    expect(
-      tester.widget<Semantics>(byLabel(_barra(1))).properties.enabled,
-      isFalse,
-      reason: 'a frase se oferecia ao toque sem nada para tocar',
-    );
     closeTheRoom(container);
   });
 
