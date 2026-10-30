@@ -8,23 +8,16 @@ class ReplayArcPainter extends CustomPainter {
   static const _viewBox = 24.0;
   static const stroke = 1.4;
 
-  static final _arc = Path()
-    ..moveTo(3, 12)
+  static final _path = Path()
+    ..moveTo(5, 9)
     ..arcToPoint(
-      const Offset(12, 3),
-      radius: const Radius.circular(9),
+      const Offset(4, 12.5),
+      radius: const Radius.circular(7),
       largeArc: true,
-      clockwise: false,
     )
-    ..arcToPoint(
-      const Offset(5.26, 5.74),
-      radius: const Radius.circular(9.75),
-      clockwise: false,
-    )
-    ..lineTo(3, 8)
-    ..moveTo(3, 3)
-    ..relativeLineTo(0, 5)
-    ..relativeLineTo(5, 0);
+    ..moveTo(5, 4.5)
+    ..lineTo(5, 9)
+    ..relativeLineTo(4.5, 0);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -32,7 +25,7 @@ class ReplayArcPainter extends CustomPainter {
       ..save()
       ..scale(size.width / _viewBox, size.height / _viewBox)
       ..drawPath(
-        _arc,
+        _path,
         Paint()
           ..color = ink
           ..style = PaintingStyle.stroke
