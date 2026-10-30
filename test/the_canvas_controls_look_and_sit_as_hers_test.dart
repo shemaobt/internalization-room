@@ -9,9 +9,12 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/replay_arc.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/moment_label.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
@@ -56,6 +59,20 @@ void _sits(Rect rect, Size size, {required Offset center, String? reason}) {
   expect(rect.center.dx, closeTo(center.dx, 0.01), reason: reason);
   expect(rect.center.dy, closeTo(center.dy, 0.01), reason: reason);
 }
+
+final _herArrow = find.descendant(
+  of: find.byType(HearAgainButton),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is ReplayArcPainter,
+  ),
+);
+
+Finder get _herHand => find.descendant(
+  of: find.byType(HandButton),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is CircleGlyphPainter,
+  ),
+);
 
 Finder _barsOf(String label) => find.descendant(
   of: byLabel(label),
@@ -382,12 +399,23 @@ void main() {
         );
         final arrow = find.descendant(
           of: byLabel(label),
-          matching: find.byType(Icon),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint && widget.painter is ReplayArcPainter,
+          ),
         );
-        final icon = tester.widget<Icon>(arrow);
-        expect(icon.icon, LucideIcons.rotateCcw);
-        expect(icon.size, 22);
-        expect(icon.color, verde, reason: 'a seta dela é --verde');
+        final painter = tester.widget<CustomPaint>(arrow).painter!;
+        expect(tester.getSize(arrow), const Size(22, 22));
+        expect(
+          (painter as ReplayArcPainter).ink,
+          verde,
+          reason: 'a seta dela é --verde',
+        );
+        expect(
+          ReplayArcPainter.stroke,
+          1.4,
+          reason: 'a seta dela tem traço 1,4',
+        );
         expect(
           _seenOpacity(tester, arrow),
           closeTo(0.42, 0.001),
@@ -422,14 +450,15 @@ void main() {
           findsNothing,
           reason: 'a mão era um cartão de 60 px com borda',
         );
-        final glyph = find.descendant(
-          of: byLabel(label),
-          matching: find.byType(Icon),
+        final glyph = _herHand;
+        final painter = tester.widget<CustomPaint>(glyph).painter!;
+        expect(tester.getSize(glyph), const Size(26, 26));
+        expect(
+          (painter as CircleGlyphPainter).glyph,
+          CircleGlyph.hand,
+          reason: 'a mão dela é o glifo do círculo, não o do Lucide',
         );
-        final icon = tester.widget<Icon>(glyph);
-        expect(icon.icon, LucideIcons.hand);
-        expect(icon.size, 26);
-        expect(icon.color, verde, reason: 'a mão dela é --verde');
+        expect(painter.ink, verde, reason: 'a mão dela é --verde');
         expect(
           _seenOpacity(tester, glyph),
           closeTo(0.35, 0.001),
@@ -461,16 +490,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1300));
 
       expect(container.read(salaSessionProvider).noteMode, isTrue);
-      final glyph = find.descendant(
-        of: byLabel(label),
-        matching: find.byType(Icon),
-      );
+      final glyph = _herHand;
       expect(
         _paintedUnder(label),
         findsNothing,
         reason: 'a mão acendia um halo azul no modo de recado',
       );
-      expect(tester.widget<Icon>(glyph).color, const Color(0xFF3F3E20));
+      expect(
+        (tester.widget<CustomPaint>(glyph).painter! as CircleGlyphPainter).ink,
+        const Color(0xFF3F3E20),
+      );
       expect(
         _seenOpacity(tester, glyph),
         closeTo(0.8, 0.001),
@@ -484,30 +513,114 @@ void main() {
     (tester) async {
       _on(tester, _se, bar: 20);
       final (harness, container) = await atRestAfterATurn(tester, const []);
-      const label = 'Hear that again';
-      final arrow = find.descendant(
-        of: byLabel(label),
-        matching: find.byType(Icon),
-      );
+      final arrow = _herArrow;
 
       harness.voice.holdNextLine();
       container.read(salaSessionProvider.notifier).hearAgain();
-      await _pumpUntil(tester, () => byLabel(label).evaluate().isEmpty);
-      expect(byLabel(label), findsNothing);
+      await _pumpUntil(
+        tester,
+        () => !container.read(salaSessionProvider).canHearAgain,
+      );
+      await tester.pump(const Duration(milliseconds: 1300));
+      expect(_seenOpacity(tester, arrow), 0);
       harness.voice.finishHeldLine();
-      await _pumpUntil(tester, () => byLabel(label).evaluate().isNotEmpty);
-      expect(byLabel(label), findsOneWidget);
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).canHearAgain,
+      );
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(
         _seenOpacity(tester, arrow),
-        closeTo(0.21, 0.02),
+        closeTo(0.42 * Curves.ease.transform(0.5), 0.01),
         reason: 'a seta surgia em 700 ms subindo, não no 1,2 s dela',
       );
       await tester.pump(const Duration(milliseconds: 700));
       expect(_seenOpacity(tester, arrow), closeTo(0.42, 0.001));
     },
   );
+
+  for (final (what, glyph, rest) in [
+    ('hearing again', () => _herArrow, 0.42),
+    ('the hand', () => _herHand, 0.35),
+  ]) {
+    testWidgets(
+      '$what, when it hides, is still mounted at mid-fade and gone after her '
+      '1.2 s',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        final (harness, container) = await atRestAfterATurn(tester, const []);
+
+        harness.voice.holdNextLine();
+        container.read(salaSessionProvider.notifier).hearAgain();
+        await _pumpUntil(
+          tester,
+          () => !container.read(salaSessionProvider).canHearAgain,
+        );
+        await tester.pump(const Duration(milliseconds: 600));
+
+        expect(glyph(), findsOneWidget, reason: 'sumia sem desvanecer');
+        expect(_seenOpacity(tester, glyph()), inExclusiveRange(0, rest));
+        await tester.pump(const Duration(milliseconds: 700));
+        expect(_seenOpacity(tester, glyph()), 0);
+        harness.voice.finishHeldLine();
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    testWidgets(
+      '$what stops fading the moment the tablet asks for less motion',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        final (harness, container) = await atRestAfterATurn(tester, const []);
+
+        harness.voice.holdNextLine();
+        container.read(salaSessionProvider.notifier).hearAgain();
+        await _pumpUntil(
+          tester,
+          () => !container.read(salaSessionProvider).canHearAgain,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(_seenOpacity(tester, glyph()), greaterThan(0));
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 20));
+
+        expect(_seenOpacity(tester, glyph()), 0);
+        harness.voice.finishHeldLine();
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    testWidgets('$what hides at once when the tablet asks for less motion', (
+      tester,
+    ) async {
+      _on(tester, _se, bar: 20);
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final (harness, container) = await atRestAfterATurn(tester, const []);
+
+      harness.voice.holdNextLine();
+      container.read(salaSessionProvider.notifier).hearAgain();
+      await _pumpUntil(
+        tester,
+        () => !container.read(salaSessionProvider).canHearAgain,
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(_seenOpacity(tester, glyph()), 0);
+      harness.voice.finishHeldLine();
+      await tester.pump(const Duration(seconds: 2));
+    });
+  }
 
   for (final (look, verdeClaro) in [
     ('light', const Color(0xFF777D45)),
@@ -718,4 +831,28 @@ void main() {
       });
     }
   }
+
+  testWidgets('the ≡ eases out over her .4 s when the microphone opens', (
+    tester,
+  ) async {
+    _on(tester, _se, bar: 20);
+    final (_, container) = await atRestAfterATurn(tester, const []);
+    final bars = _barsOf('Choose another passage');
+    expect(_seenOpacity(tester, bars), closeTo(0.22, 0.001));
+
+    container.read(salaSessionProvider.notifier).conversaTap();
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).voice == VoiceState.listening,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      _seenOpacity(tester, bars),
+      closeTo(0.22 * (1 - Curves.ease.transform(0.5)), 0.01),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_seenOpacity(tester, bars), 0);
+  });
 }

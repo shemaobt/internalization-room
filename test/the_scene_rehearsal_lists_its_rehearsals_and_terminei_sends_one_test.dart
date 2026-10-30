@@ -935,6 +935,45 @@ void main() {
     });
   });
 
+  testWidgets('terminei eases the way back from .6 to .2 over her .25 s', (
+    tester,
+  ) async {
+    final (harness, container) = await _theScreenShows(tester, [
+      _sentOne,
+      _unsentTwoWithAFrase,
+    ], when: (state) => state.scene.step == SceneStep.translate);
+    final chevron = find.descendant(
+      of: byLabel('Voltar para a passagem atual'),
+      matching: find.byType(CustomPaint),
+    );
+    double seen() {
+      var opacity = 1.0;
+      chevron.evaluate().first.visitAncestorElements((ancestor) {
+        final widget = ancestor.widget;
+        if (widget is FadeTransition) opacity *= widget.opacity.value;
+        return true;
+      });
+      return opacity;
+    }
+
+    expect(seen(), closeTo(0.6, 0.001));
+    harness.room.holdNextTurn();
+    await tester.tap(_terminei);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 125));
+
+    expect(seen(), closeTo(0.6 - 0.4 * Curves.ease.transform(0.5), 0.02));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(seen(), closeTo(0.2, 0.001));
+
+    harness.room.finishHeldTurn();
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+    );
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets(
     'terminei keeps the screen open and waits while the send is in the air',
     (tester) async {

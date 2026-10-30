@@ -27,6 +27,23 @@ Finder byLabel(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
 );
 
+bool isHeard(Element element) {
+  var heard = true;
+  element.visitAncestorElements((ancestor) {
+    final above = ancestor.widget;
+    if (above is ExcludeSemantics && above.excluding) heard = false;
+    return heard;
+  });
+  return heard;
+}
+
+Finder offered(String label) => find.byElementPredicate(
+  (element) =>
+      element.widget is Semantics &&
+      (element.widget as Semantics).properties.label == label &&
+      isHeard(element),
+);
+
 void voiceOverTap(WidgetTester tester, String label) =>
     tester.binding.performSemanticsAction(
       SemanticsActionEvent(
