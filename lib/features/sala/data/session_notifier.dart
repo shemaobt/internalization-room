@@ -2417,7 +2417,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Turn(panorama, turnId),
       generation,
       () => _room.openSession(panorama, turnId: turnId),
-      play: _voicePanorama,
+      play: _restingOnAThrow(_voicePanorama, generation),
       failed: failed,
     );
   }
@@ -3155,9 +3155,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Turn(sessionId, turnId),
       generation,
       () => _room.openSession(sessionId, turnId: turnId),
-      play: play,
+      play: _restingOnAThrow(play, generation),
       failed: failed,
     );
+  }
+
+  Future<void> Function(TurnResult opening) _restingOnAThrow(
+    Future<void> Function(TurnResult opening) play,
+    int generation,
+  ) {
+    final life = _thisLife;
+    return (opening) async {
+      try {
+        await play(opening);
+      } on Error catch (error, stack) {
+        if (_endedSince(life)) return;
+        debugPrint('$error\n$stack');
+        if (_abandoned(generation)) return;
+        _registerUnplayableTurn();
+      }
+    };
   }
 
   void _stringTheNecklaceEarly(String? pericope) {
@@ -3835,7 +3852,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _listen(MachineEvent opening) {
     _recordingStarting = true;
     _listeningSince = clock.now();
-    state = state.copyWith(peerCue: false, clearRecorderStartedAt: true);
+    state = state.copyWith(clearRecorderStartedAt: true);
     _dispatch(opening);
     if (state.channel is! Microphone) {
       _recordingStarting = false;

@@ -648,6 +648,7 @@ void main() {
       await room.atTheInvite();
 
       expect(room.handLabel, _raise);
+      await room.beat(1000);
       expect(_handInTheCircle, findsNothing);
       await room.theNextCircleTapIsATurnNotAKnot();
       closeTheRoom(room.container);

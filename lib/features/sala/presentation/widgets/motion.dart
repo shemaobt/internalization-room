@@ -313,6 +313,34 @@ class HerFade extends StatelessWidget {
   }
 }
 
+class Presence extends StatelessWidget {
+  final double opacity;
+  final Duration span;
+  final Widget child;
+
+  const Presence({
+    super.key,
+    required this.opacity,
+    required this.span,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.disableAnimationsOf(context);
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(still),
+      tween: Tween(end: opacity),
+      duration: still ? Duration.zero : span,
+      curve: Curves.ease,
+      child: child,
+      builder: (context, shown, child) => shown == 0
+          ? const SizedBox.shrink()
+          : Opacity(opacity: shown, child: child),
+    );
+  }
+}
+
 class FadeUp extends StatelessWidget {
   final Widget child;
 
