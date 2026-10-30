@@ -147,6 +147,14 @@ abstract interface class StorePort {
 
   /// Lets go of the Current session, or only of the session [only] names.
   Future<void> letGoOfTheSession({String? only});
+
+  /// The end of the conversation of [session] as the tablet saw it: the clip the Guide said
+  /// last, or null for a turn of the team's; absent when the tablet never saw it end.
+  Future<({SpokenLine? line})?> endOf(String session);
+
+  Future<void> holdTheEnd(String session, SpokenLine? line);
+
+  Future<void> letGoOfTheEnd(String session);
 }
 
 /// The session this tablet was in when it last stood in a passage.
