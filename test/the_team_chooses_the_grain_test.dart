@@ -478,6 +478,31 @@ void main() {
   );
 
   testWidgets(
+    'after «A passagem inteira» the room answered, a plan read that runs out '
+    'with the listing unread opens the whole home, not the choice again',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.holdNextTakesList();
+
+      await _tap(tester, _whole);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches, [(grain: Grain.whole, reopens: true)]);
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a sala já tinha dito o grão na troca, e a leitura que esgotou '
+            'perguntava a escolha de novo; o dela, sem plano, abre a casa',
+      );
+      expect(find.text(_how), findsNothing);
+      harness.room.finishHeldTakesList();
+      await _settles(tester);
+    },
+  );
+
+  testWidgets(
     '3. a passage the room answers with no scenes shows the choice without the '
     '6 s wait',
     (tester) async {

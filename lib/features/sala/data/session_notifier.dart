@@ -4048,7 +4048,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The Ensaio Final plan, «pensando…» while the room is read.
-  void _openThePlan(String sessionId) {
+  void _openThePlan(String sessionId, {bool grainHeard = false}) {
     const plan = Ensaio(step: EnsaioStep.plan);
     _plansOpened++;
     _leaveTheStepFor(plan);
@@ -4067,7 +4067,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
     );
     unawaited(_countUnsent());
-    _handOff(_readThePlan(sessionId));
+    _handOff(_readThePlan(sessionId, grainHeard: grainHeard));
   }
 
   /// The plan stands only over a passage the room says has scenes and whose every take
@@ -4077,11 +4077,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// fails or has not answered within [planReadWait], a passage with no scenes and
   /// rehearsals only in the other language's session ask the grain while none is in
   /// force, and open that grain's recording home otherwise; a read that fails or runs out
-  /// with the room's listing unread asks the grain whatever is in force (ADR 0134).
-  Future<void> _readThePlan(String sessionId) async {
+  /// with the room's listing unread asks the grain whatever is in force, unless the room
+  /// has just answered a switch to the whole (ADR 0134).
+  Future<void> _readThePlan(String sessionId, {bool grainHeard = false}) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
-    var listingRead = false;
+    var listingRead = grainHeard;
     final reads = (
       _takes.pending(),
       _room.takesListingOf(sessionId).then((listing) {
@@ -4206,7 +4207,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _switchTheGrain(
         grain,
         reopens: true,
-        then: () => _openThePlan(sessionId),
+        then: () => _openThePlan(sessionId, grainHeard: grain == Grain.whole),
         fromTheChoice: true,
       ),
     );
