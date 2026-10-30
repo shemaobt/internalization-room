@@ -126,4 +126,49 @@ void main() {
       expect(state.ensaioFinalPlan, isA<PlanRead>());
     },
   );
+
+  test(
+    'a clear of the grain lays the frases under no grain, never under the one just cleared',
+    () {
+      final antes = SalaSessionState(
+        grainInForce: Grain.whole,
+        keptTakes: const [_inteiro],
+        btTrechos: [_trecho('trecho-do-inteiro', 0)],
+      );
+      final depois = antes.copyWith(
+        keptTakes: [_inteiro, _parte(1)],
+        clearGrainInForce: true,
+      );
+      expect(
+        depois.btTrechos,
+        isEmpty,
+        reason:
+            'as frases eram recolocadas sob o grão que a mesma chamada limpava, e a frase '
+            'do inteiro passava a ler «parte 1» com o grão já nulo',
+      );
+    },
+  );
 }
+
+const _inteiro = KeptTake(
+  scopeId: KeptScope.whole,
+  path: 'inteiro.m4a',
+  takeId: 'gravacao-inteira',
+);
+
+KeptTake _parte(int n) => KeptTake(
+  scopeId: KeptScope.parte(n),
+  path: 'parte-$n.m4a',
+  takeId: 'gravacao-$n',
+);
+
+Trecho _trecho(String nome, int parte) => Trecho(
+  segmentId: nome,
+  takeId: 'gravacao-de-$nome',
+  parte: parte,
+  from: Duration.zero,
+  to: const Duration(seconds: 4),
+  contado: true,
+  lugarFrom: Duration.zero,
+  lugarTo: const Duration(seconds: 4),
+);
