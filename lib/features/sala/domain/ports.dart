@@ -159,19 +159,25 @@ class CurrentSession {
   /// The last clip the Guide said, while the conversation still ends on it.
   final SpokenLine? lastLine;
 
+  /// Whether the conversation ends on a turn of the team's, which hers offers no replay for.
+  final bool teamSpokeLast;
+
   const CurrentSession({
     required this.sessionId,
     required this.book,
     required this.pericope,
     required this.language,
     this.lastLine,
+    this.teamSpokeLast = false,
   });
 
+  /// The end of the conversation: on [line], or, with none, on a turn of the team's.
   CurrentSession withLine(SpokenLine? line) => CurrentSession(
     sessionId: sessionId,
     book: book,
     pericope: pericope,
     language: language,
     lastLine: line,
+    teamSpokeLast: line == null,
   );
 }

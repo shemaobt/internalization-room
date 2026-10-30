@@ -389,7 +389,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late String? _sessionLanguage;
   late CurrentSession? _landingOn;
   late CurrentSession? _heldSession;
-  late ({String session, SpokenLine line})? _endsOn;
+  late ({String session, SpokenLine? line})? _endsOn;
 
   /// What plays the reply of the turn the machine holds in flight, and the gestures that
   /// wait on it, until the look the machine asks for comes back (ENG-1444 moves it).
@@ -2088,8 +2088,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// across a wait would miss a halt the room raised meanwhile.
   Future<void> _landOn(CurrentSession held) async {
     final generation = _waitOnTheGeneration;
-    if (held.lastLine case final line?) {
-      _endsOn = (session: held.sessionId, line: line);
+    if (held.lastLine != null || held.teamSpokeLast) {
+      _endsOn = (session: held.sessionId, line: held.lastLine);
     }
     final read = await _room.fetchState(held.sessionId);
     if (_abandoned(generation)) return;
@@ -2131,6 +2131,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       pericope: pericope,
       language: language,
       lastLine: _endsOn?.session == sessionId ? _endsOn?.line : null,
+      teamSpokeLast: _endsOn?.session == sessionId && _endsOn?.line == null,
     ),
   );
 
@@ -2140,14 +2141,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The clip the conversation ends on, kept on the tablet for a relaunch; a turn of
-  /// the team's ends the conversation on them instead, so nothing is kept.
+  /// the team's ([line] null) ends the conversation on them instead.
   void _keepTheLastLine(SpokenLine? line) {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    _endsOn = line == null ? null : (session: sessionId, line: line);
+    _endsOn = (session: sessionId, line: line);
     final held = _heldSession;
     if (held == null || held.sessionId != sessionId) return;
-    if (held.lastLine == null && line == null) return;
     _hold(held.withLine(line));
   }
 
@@ -3133,13 +3133,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _landWhereTheyStopped({required bool done}) {
     _resumeFailures.clear();
-    final kept = _endsOn;
-    final stored = kept?.session == state.sessionId ? kept?.line : null;
+    final end = _endsOn?.session == state.sessionId ? _endsOn : null;
     state = state.copyWith(
       awaitingTheGuide: false,
       peerCue: false,
+      roomSaysItAgain: end == null || end.line != null,
       endOfThePassage: done,
-      lastSpoken: state.station is Retro ? null : stored,
+      lastSpoken: state.station is Retro ? null : end?.line,
     );
   }
 

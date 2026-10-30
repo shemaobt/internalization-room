@@ -62,6 +62,7 @@ class CurrentSessionLedger {
             'last_url': line.url,
             'last_fixed_line': line.fixedLine,
           },
+          if (session.teamSpokeLast) 'team_spoke_last': true,
         }),
       );
     });
@@ -85,6 +86,7 @@ class CurrentSessionLedger {
                 url: json['last_url']! as String,
                 fixedLine: json['last_fixed_line']! as String,
               ),
+        teamSpokeLast: json['team_spoke_last'] == true,
       );
     } on Object {
       return null;

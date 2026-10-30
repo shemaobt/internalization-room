@@ -447,6 +447,7 @@ class SalaSessionState {
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
   final SpokenLine? lastSpoken;
+  final bool roomSaysItAgain;
   final EnsaioStatus ensaio;
   final bool micTaken;
 
@@ -662,6 +663,7 @@ class SalaSessionState {
     this.playingReplyId,
     this.keptTakes = const [],
     this.lastSpoken,
+    this.roomSaysItAgain = false,
     this.ensaio = EnsaioStatus.idle,
     this.micTaken = false,
     this.btPhase = BtPhase.playing,
@@ -1031,7 +1033,7 @@ class SalaSessionState {
       btRegravacao == null;
 
   bool get canHearAgain =>
-      lastSpoken != null &&
+      (lastSpoken != null || roomSaysItAgain) &&
       (voice == VoiceState.invite || voice == VoiceState.done) &&
       !needsPerson &&
       !noteMode &&
@@ -1842,6 +1844,7 @@ class SalaSessionState {
     List<KeptTake>? keptTakes,
     SpokenLine? lastSpoken,
     bool clearLastSpoken = false,
+    bool? roomSaysItAgain,
     EnsaioStatus? ensaio,
     bool? micTaken,
     BtPhase? btPhase,
@@ -1987,6 +1990,7 @@ class SalaSessionState {
           : (playingReplyId ?? this.playingReplyId),
       keptTakes: keptTakes ?? this.keptTakes,
       lastSpoken: clearLastSpoken ? null : (lastSpoken ?? this.lastSpoken),
+      roomSaysItAgain: roomSaysItAgain ?? this.roomSaysItAgain,
       ensaio: ensaio ?? this.ensaio,
       micTaken: micTaken ?? this.micTaken,
       btPhase: btPhase ?? this.btPhase,

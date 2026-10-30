@@ -465,7 +465,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento voltava para a retrotradução',
       );
-      expect(tablet.state.lastSpoken, isNull);
+      expect(tablet.state.roomSaysItAgain, isTrue);
       expect(tablet.harness.playback.played, isEmpty);
       expect(tablet.said, isEmpty);
     },
@@ -473,7 +473,7 @@ void main() {
 
   test(
     'a relaunch onto a checked Back-translation the room holds no parts for '
-    'lands on its conversation, not on the check, with no «Ouvir de novo»',
+    'lands on its conversation with «Ouvir de novo», not on the check',
     () async {
       final tablet = _aTabletHolding(SalaStage.retro);
       tablet.harness.room.retroSoFar = const BackTranslationProgress(
@@ -500,7 +500,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento abria a retrotradução conferida',
       );
-      expect(tablet.state.lastSpoken, isNull);
+      expect(tablet.state.roomSaysItAgain, isTrue);
       expect(tablet.said, isEmpty);
     },
   );
@@ -518,7 +518,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento abria o ensaio vazio',
       );
-      expect(tablet.state.lastSpoken, isNull);
+      expect(tablet.state.roomSaysItAgain, isTrue);
     },
   );
 

@@ -26,11 +26,12 @@ heard, and a relaunch needed the network.
 - **The last clip is kept on disk with the Current session**, one clip only, and dropped as
   soon as the team takes a turn: it survives a relaunch only while the conversation ends on a
   Guide turn.
-- **A conversation that ends on a turn of the team's offers no «Ouvir de novo»**, as hers:
+- **A conversation the tablet saw end on a turn of the team's offers no «Ouvir de novo»**, as hers:
   `lastGuideAudioUrl` is null unless the last turn is the Guide's (`page.tsx:107-112`), and
   `onReplay` returns on a null clip (:901-905).
 - **Only when a stored clip is not on the tablet does «Ouvir de novo» ask the room to say it
-  again**, under ADR 0097's turn id. A clip still arriving counts as held.
+  again**, under ADR 0097's turn id. A clip still arriving counts as held. A session whose
+  end the tablet never saw (a record written before this ADR) asks the room as before.
 
 ## Consequences
 

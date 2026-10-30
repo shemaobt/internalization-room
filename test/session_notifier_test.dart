@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/spoken_line.dart';
 import 'package:internalization_room/features/sala/data/facilitator_voice_service.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -3083,7 +3082,7 @@ void main() {
   test('once the necklace has closed nothing is left to hear again', () {
     final session = SalaSessionState(
       machine: const Machine(station: Fim()),
-      lastSpoken: const SpokenLine(url: 'x'),
+      roomSaysItAgain: true,
     );
 
     expect(session.voice, VoiceState.done);
