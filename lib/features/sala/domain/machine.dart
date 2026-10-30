@@ -607,7 +607,9 @@ final class CloseAndDiscardTheMic extends Effect {
 }
 
 final class CloseTheMic extends Effect {
-  const CloseTheMic();
+  final MicOwner? owner;
+
+  const CloseTheMic({this.owner});
 }
 
 final class DiscardTheMic extends Effect {
@@ -1275,7 +1277,17 @@ const _watch = ArmTheWatch();
   MicClosed() => _closeTheMic(machine),
   MicAnswered(:final answer, :final take, :final because, :final owner) =>
     _heard(machine, answer, take, because, owner),
-  MicClosing() => (machine, const [CloseTheMic()]),
+  MicClosing() => (
+    machine,
+    [
+      CloseTheMic(
+        owner: switch (machine.channel) {
+          Microphone(:final owner) => owner,
+          _ => null,
+        },
+      ),
+    ],
+  ),
   MicDiscarded() => _discardTheMic(machine),
   BeadTapped(:final sounds, :final beneath) => _tapped(
     machine,
@@ -1948,7 +1960,15 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
   Object? because,
   MicOwner? owner,
 ) {
-  final (answered, effects) = answer == MicAnswer.started || because != null
+  final theirs = switch (machine.channel) {
+    Microphone(owner: final open) =>
+      answer != MicAnswer.closed || owner == null || owner == open,
+    _ => true,
+  };
+  final (
+    answered,
+    effects,
+  ) = answer == MicAnswer.started || because != null || !theirs
       ? (machine, const <Effect>[])
       : _closeTheMic(machine);
   return (
@@ -1959,7 +1979,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
         because: because,
         owner: owner,
         cut: switch ((answer, machine.channel)) {
-          (MicAnswer.closed, Microphone(:final cut)) => cut,
+          (MicAnswer.closed, Microphone(:final cut)) when theirs => cut,
           _ => null,
         },
       ),
