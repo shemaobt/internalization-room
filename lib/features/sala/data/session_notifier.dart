@@ -8289,13 +8289,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!await _medirAsPartesDaRetro(generation)) return;
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
-    if ((juntada || conferida || entrando) && state.sessionId != null) {
-      final sessionId = state.sessionId!;
+    final sessionId = state.sessionId;
+    if ((juntada || conferida) && sessionId != null) {
       final falha = await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
       if (falha == null) conferida = state.btChecked;
-      if (entrando) await _lembrarDaFraseGuardada(sessionId);
+    } else if (entrando && sessionId != null) {
+      await _readWhatAwaits(sessionId);
       if (_abandoned(generation) || _endedSince(life)) return;
+    }
+    if (entrando && sessionId != null) {
+      unawaited(_lembrarDaFraseGuardada(sessionId));
     }
     bool deixou() => _abandoned(generation) || _endedSince(life);
     final ouvida = await _oQueASalaOuviu(generation);
@@ -10441,6 +10445,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       },
       onFailed: quiet,
     );
+  }
+
+  /// The frase that awaits its translation, as the room reads it on entering the
+  /// telling-back.
+  Future<void> _readWhatAwaits(String sessionId) async {
+    final sent = ++_readsSent;
+    if (await _room.fetchState(sessionId) case Answered(
+      value: final lida,
+    ) when sent > _stretchesAt && state.sessionId == sessionId) {
+      final aguardando = lida.backTranslation.awaitingSegmentId;
+      state = state.copyWith(
+        btFraseQueAguarda: aguardando,
+        clearBtFraseQueAguarda: aguardando == null,
+      );
+    }
   }
 
   Future<void> _lembrarDaFraseGuardada(String sessionId) async {
