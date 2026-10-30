@@ -257,12 +257,13 @@ Future<Sala> _reabrirComOInteiro({
   required SalaStage parouEm,
   required bool comACena1,
   List<BtFinding> achados = const [_achadoNoInteiro],
+  bool pelaEscolha = false,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-1406-achado');
   addTearDown(() => casa.deleteSync(recursive: true));
   final harness = SalaHarness()
     ..playback.measured = const Duration(seconds: 10);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: _sessao,
     stage: parouEm,
     takes: [
@@ -280,6 +281,11 @@ Future<Sala> _reabrirComOInteiro({
         ),
     ],
   );
+  if (pelaEscolha) {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  } else {
+    await holdTheSession(harness, row);
+  }
   harness.room
     ..passageScenes = _duasCenas
     ..retroSoFar = BackTranslationProgress(
@@ -290,10 +296,15 @@ Future<Sala> _reabrirComOInteiro({
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
-  await it.sala.abrirEscolha();
-  await settle();
-  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
-  await waitFor('a passagem reabrir', () => it.estado.stage == parouEm);
+  if (pelaEscolha) {
+    await it.sala.abrirEscolha();
+    await settle();
+    unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+    await waitFor('a passagem reabrir', () => it.estado.stage == parouEm);
+  } else {
+    await it.sala.openTheRoom();
+    await intoTheRecordingHome(it.sala, () => it.estado);
+  }
   await settle();
   return it;
 }
@@ -1431,6 +1442,7 @@ void main() {
       final it = await _reabrirComOInteiro(
         parouEm: SalaStage.retro,
         comACena1: true,
+        pelaEscolha: true,
       );
 
       expect(it.estado.btTrechos, isEmpty);

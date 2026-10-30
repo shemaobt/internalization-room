@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show holdTheSession, intoTheRecordingHome;
 
 void main() {
   testWidgets(
@@ -25,32 +26,32 @@ void main() {
       addTearDown(() => gravada.parent.deleteSync(recursive: true));
       final harness = SalaHarness(filaEmMemoria: true, lingua: 'en')
         ..room.serverHalt = HaltKind.warning;
-      harness.emAberto.rows['Ruth/P01/en'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.ensaio,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(1),
-            path: gravada.path,
-            takeId: 'gravacao-1',
-          ),
-        ],
+      await holdTheSession(
+        harness,
+        ResumePoint(
+          sessionId: 'sessao-antiga',
+          stage: SalaStage.ensaio,
+          takes: [
+            KeptTake(
+              scopeId: KeptScope.parte(1),
+              path: gravada.path,
+              takeId: 'gravacao-1',
+            ),
+          ],
+        ),
+        language: 'en',
       );
       final container = harness.container();
       addTearDown(container.dispose);
       await tester.pumpWidget(
         UncontrolledProviderScope(container: container, child: const SalaApp()),
       );
-      await tester.pump(const Duration(milliseconds: 100));
       final notifier = container.read(salaSessionProvider.notifier);
-      await tester.runAsync(notifier.abrirEscolha);
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.runAsync(
-        () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+      await intoTheRecordingHome(
+        notifier,
+        () => container.read(salaSessionProvider),
+        step: () => letTheRehearsalReachTheRoom(tester),
       );
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(seconds: 1));
-      }
 
       expect(
         container.read(salaSessionProvider).stage,
@@ -81,6 +82,7 @@ void main() {
         ),
         findsNothing,
       );
+      closeTheRoom(container);
       handle.dispose();
     },
   );
