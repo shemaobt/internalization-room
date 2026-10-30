@@ -55,7 +55,6 @@ Future<ProviderContainer> _voltaAUmaTraducao(
           ),
       ],
     ),
-    language: 'pt',
   );
   harness.room.retroSoFar = const BackTranslationProgress(
     checked: true,

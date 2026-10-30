@@ -85,7 +85,7 @@ Future<_Room> _aResumedBackTranslation(
   if (fromTheChoice) {
     harness.emAberto.rows['Ruth/P01/pt'] = row;
   } else {
-    await holdTheSession(harness, row, language: 'pt');
+    await holdTheSession(harness, row);
   }
   final container = harness.container();
   addTearDown(container.dispose);

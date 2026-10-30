@@ -21,7 +21,13 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart'
-    show byLabel, relaunch, thePersonSign, voiceOverTap;
+    show
+        byLabel,
+        holdTheSession,
+        intoTheRecordingHome,
+        relaunch,
+        thePersonSign,
+        voiceOverTap;
 
 const _how = 'Como vocês querem gravar?';
 const _whole = 'A passagem inteira';
@@ -200,15 +206,32 @@ Future<(SalaHarness, ProviderContainer)> _reopened(
     ..room.openedSessions.add('sessao-antiga')
     ..room.takes.addAll(roomTakes);
   before?.call(harness);
-  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: stage,
     language: lingua,
     takes: keptTakes,
   );
+  final pelaEscolha =
+      stage != SalaStage.ensaio ||
+      keptTakes.any((take) => !File(take.path).existsSync());
+  if (pelaEscolha) {
+    harness.emAberto.rows['Ruth/P01/$lingua'] = row;
+  } else {
+    await holdTheSession(harness, row, language: lingua);
+  }
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
+  if (!pelaEscolha) {
+    await intoTheRecordingHome(
+      notifier,
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    return (harness, container);
+  }
   await notifier.abrirEscolha();
   await tester.pump(const Duration(milliseconds: 300));
   unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
@@ -367,12 +390,10 @@ Future<ProviderContainer> _relaunchOnTheApp(
   );
   await tester.pump(const Duration(milliseconds: 100));
   final notifier = next.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  await _pumpUntil(
-    tester,
-    () => !next.read(salaSessionProvider).awaitingTheGuide,
+  await intoTheRecordingHome(
+    notifier,
+    () => next.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   for (var vez = 0; vez < 10; vez++) {
     await tester.pump(const Duration(milliseconds: 500));
