@@ -56,6 +56,10 @@ const _wordsThatSendTheTeamToTheStore = {
   'lib/features/sala/presentation/widgets/update_view.dart',
 };
 
+const _theWordTheVoiceThinksBy = {
+  'lib/features/sala/presentation/widgets/thinking_note.dart',
+};
+
 const _digitsTheTakeIsTimedBy = {
   'lib/features/sala/presentation/widgets/mic_clock.dart',
 };
@@ -69,6 +73,7 @@ const _wordyExceptions = {
   ..._numeralsThePartsAreCalledBy,
   ..._wordsThatSendTheTeamToTheStore,
   ..._digitsTheTakeIsTimedBy,
+  ..._theWordTheVoiceThinksBy,
 };
 
 final _textWidgetPattern = RegExp(r'\bText\(');

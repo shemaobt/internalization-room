@@ -5,6 +5,7 @@ import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import 'facilitator_circle.dart';
 import 'mic_clock.dart';
+import 'thinking_note.dart';
 
 class PanoramaView extends ConsumerWidget {
   const PanoramaView({super.key});
@@ -24,6 +25,7 @@ class PanoramaView extends ConsumerWidget {
             halt: session.halt,
             voice: session.circleVoice,
             noteMode: session.noteMode,
+            peerCue: session.peerCue,
             canvas: true,
             semanticLabel: circleLabelFor('default', language),
             onTap: notifier.panoramaTap,
@@ -31,6 +33,8 @@ class PanoramaView extends ConsumerWidget {
         ),
         if (session.takeRecordingSince case final since?)
           MicClock(circleSize: circleSize, since: since),
+        if (session.writesTheThinkingNote)
+          ThinkingNote(circleSize: circleSize, language: language),
       ],
     );
   }

@@ -168,7 +168,9 @@ String? _anAnswerFromBeforeTheStationChangedChangedTheRoom(
     final (next, effects) = reduce(machine, event);
     world = world.after(event, effects);
     final older = machine.generation;
-    final moved = next.station != machine.station;
+    final moved =
+        next.station != machine.station &&
+        !(event is TheSceneRehearsalLeft && machine.holdsATurn);
     machine = next;
     if (!moved) continue;
     for (var stale = 0; stale < 4; stale++) {
@@ -201,7 +203,13 @@ String? _theWorldKeptTheMicrophoneOpenAfterTheMachineClosedIt(
         event is MicAnswered &&
         event.answer != MicAnswer.started &&
         event.because == null &&
-        machine.channel is Microphone;
+        switch (machine.channel) {
+          Microphone(:final owner) =>
+            event.answer != MicAnswer.closed ||
+                event.owner == null ||
+                event.owner == owner,
+          _ => false,
+        };
     final (next, effects) = reduce(machine, event);
     world = world.after(event, effects);
     machine = next;

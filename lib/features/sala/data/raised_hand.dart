@@ -20,7 +20,6 @@ typedef HandView = ({
   bool atTheTeamsIdleTurn,
   bool aQuestionRecords,
   HandReply? oldestUnheardReply,
-  int? noteOnItsWay,
 });
 
 abstract interface class HandHost {
@@ -39,11 +38,6 @@ abstract interface class HandHost {
   void enterNoteMode();
 
   void leaveNoteMode();
-
-  /// The room leaves note mode and holds [note] as the one on its way, in one write.
-  void markNoteOnItsWay(int note);
-
-  void clearNoteOnItsWay();
 
   bool get gone;
 
@@ -85,8 +79,9 @@ class RaisedHand {
 
   Future<void>? _inboxRead;
 
+  bool _sendingAQuestion = false;
+
   final _failures = <(String, String), int>{};
-  var _notesSent = 0;
 
   HandView get _state => host.view;
 
@@ -136,6 +131,7 @@ class RaisedHand {
 
   void tap() {
     if (_state.aQuestionRecords) return cancelQuestion();
+    if (_sendingAQuestion) return;
     if (!_state.atTheTeamsIdleTurn) return;
     if (_state.playingReplyId != null || _state.channel is PartPlaying) {
       host.silenceTheRoom();
@@ -341,31 +337,22 @@ class RaisedHand {
 
   void _sendQuestion() {
     if (!_state.noteMode) return;
-    final note = ++_notesSent;
-    host.markNoteOnItsWay(note);
-    host.handOff(_deliverQuestion(note, host.thisLife, host.listenedFor));
+    host.leaveNoteMode();
+    _sendingAQuestion = true;
+    host.handOff(
+      _deliver(
+        host.thisLife,
+        host.listenedFor,
+      ).whenComplete(() => _sendingAQuestion = false),
+    );
   }
 
-  Future<void> _deliverQuestion(
-    int note,
-    int? life,
-    Duration listenedFor,
-  ) async {
-    try {
-      await _deliver(listenedFor);
-    } finally {
-      if (!host.endedSince(life) && _state.noteOnItsWay == note) {
-        host.clearNoteOnItsWay();
-      }
-    }
-  }
-
-  Future<void> _deliver(Duration listenedFor) async {
+  Future<void> _deliver(int? life, Duration listenedFor) async {
     final generation = host.waitOnTheGeneration;
-    final path = (await host.closeTheMicrophone()).take;
-    if (host.abandoned(generation)) return;
     final sessionId = _state.stationSessionId;
+    final path = (await host.closeTheMicrophone()).take;
     if (path == null ||
+        host.endedSince(life) ||
         !host.theGuardKeeps(path, listenedFor) ||
         sessionId == null) {
       if (path != null) unawaited(recorder().delete(path));

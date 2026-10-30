@@ -26,7 +26,6 @@ void main() {
       Menu(),
       Panorama('OV-Ruth'),
       Retro(),
-      Fim(),
       SceneRehearsal(),
     ]) {
       final (machine, _) = reduce(_at(from), const ThePlanOpened());
@@ -76,7 +75,6 @@ void main() {
       _at(_thePlan),
       const TheRehearsalWeighed(
         everySceneHasItsPart: true,
-        everyPartIsHere: true,
         everyPartIsSent: true,
       ),
     );

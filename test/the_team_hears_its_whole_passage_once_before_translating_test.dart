@@ -27,7 +27,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
@@ -76,8 +76,8 @@ Future<void> _reabrir(Sala it) async {
   it.container.dispose();
   it.container = it.harness.container();
   addTearDown(it.container.dispose);
-  await it.sala.abrirEscolha();
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
 }
 
 /// A Joined recording of three parts on the recording home: nothing told back, nothing
@@ -1538,7 +1538,7 @@ void main() {
   );
 
   test(
-    'on entry, a take the room names that this tablet does not hold starts the listen with P2 and the whole passage',
+    'on entry, a take the room names that this tablet does not hold starts the listen with N0 and the whole passage',
     () async {
       final it = await _juntadaNaCasa();
       it.harness.room.listeningUnheardTakeIds = const ['de-outro-tablet'];
@@ -1548,7 +1548,7 @@ void main() {
       final microfones = _microfones(it);
 
       await _oDisco(it);
-      expect(it.harness.voice.fixedLines.skip(linhas), [('P2', testLanguage)]);
+      expect(it.harness.voice.fixedLines.skip(linhas), [('N0', testLanguage)]);
       await _ouvirAte(it);
 
       expect(
@@ -2254,6 +2254,34 @@ void main() {
   );
 
   test(
+    'entering the Back-translation with the room unreachable starts the first '
+    'listen from the first part, never the telling',
+    () async {
+      final it = await _juntadaNaCasa();
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      it.harness.room.failListeningWith = const NetworkFailed('sem rede');
+
+      it.sala.startRetro();
+      await _ouvirAte(it);
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N0', testLanguage)],
+        reason: 'sem resposta da sala, a entrada dizia como traduzir',
+      );
+      expect(it.estado.btSoOuvir, isTrue);
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+      closeTheRoom(it.container);
+    },
+  );
+
+  test(
     'a stretch the room last named untranslated is still said and played on a '
     'return it can no longer answer, not left silent',
     () async {
@@ -2561,7 +2589,7 @@ void main() {
   );
 
   test(
-    'a relaunch on the back translation of a recording no join touched nobody '
+    'after a relaunch the back translation of a recording no join touched nobody '
     'heard plays P0 and the whole recording, not the telling',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
@@ -2576,6 +2604,7 @@ void main() {
       final tocadas = it.harness.playback.played.length;
 
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>
@@ -2631,7 +2660,8 @@ void main() {
   );
 
   test(
-    'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
+    'after a relaunch the back translation of a joined recording nobody heard '
+    'plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
       it.sala.startRetro();
@@ -2646,6 +2676,7 @@ void main() {
       final tocadas = it.harness.playback.played.length;
 
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>
@@ -2662,6 +2693,25 @@ void main() {
       );
     },
   );
+
+  testWidgets('her N0 plays in the room language when the room language '
+      'changed after the session was opened', (tester) async {
+    final it = await _naTela(tester, _juntadaNaCasa);
+    it.container.read(roomLanguageProvider.notifier).choose('en');
+    await tester.pump();
+    final linhas = it.harness.voice.fixedLines.length;
+    await _ate(tester, () async {
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await theClipOpens(it.harness);
+      it.harness.playback
+        ..length = const Duration(seconds: 10)
+        ..at = const Duration(seconds: 2);
+    });
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(it.harness.voice.fixedLines.skip(linhas), [('N0', 'en')]);
+  });
 
   testWidgets('an English session hears N0 in English and reads her English', (
     tester,
@@ -2747,6 +2797,7 @@ void main() {
       _nadaOuvido(it);
       final tocadas = it.harness.playback.played.length;
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a primeira escuta pôr uma parte no ar',
         () =>

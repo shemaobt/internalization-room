@@ -37,7 +37,7 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   Choice, her check screen with its numbered frase list, the scene rehearsal's translate step,
   the numerals of her kept-retelling buttons, her recording home, the Ensaio Final plan,
   her Rehearsal sheet, her Saved screen, her Checagem externa screen, her grain choice, and the update screen (ADR 0014),
-  and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR 0014), and the red microphone's take state with her «parar» (ADR 0131).
+  and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR 0014), and the red microphone's take state with her «parar» (ADR 0131), and the «pensando…» under a thinking circle (ENG-1925).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
@@ -73,6 +73,9 @@ UI and hands effects to the runner. A change to the lifecycle (opening a passage
 person sign, resuming, an upload, a Station) lands as an event and a transition, with its test
 at the machine level and in the generator (`test/machine_generator.dart`). It never lands as a
 new field or branch in the notifier.
+One exception, by the ticket (ENG-1898): the entry tapped on the Choice is a state field, kept
+until its session lands or the open ends, and `stage` reads it so the Choice stays on screen
+while the session is asked, as her picker does.
 
 Every field of `SalaSessionNotifier` is declared `late`, never `late final`, with no
 initializer, and is assigned in `_aNewLife()` or `build()`, so a relink begins a whole new

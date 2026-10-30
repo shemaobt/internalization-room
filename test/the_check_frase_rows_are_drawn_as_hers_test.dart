@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show holdTheSession, intoTheBackTranslation;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
@@ -34,19 +35,22 @@ Future<ProviderContainer> voltaATraducao(
   addTearDown(tester.view.reset);
   final pasta = Directory.systemTemp.createTempSync('sala-1937');
   addTearDown(() => pasta.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in partes)
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${pasta.path}/p$n.m4a',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'gravacao-$n',
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in partes)
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${pasta.path}/p$n.m4a',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'gravacao-$n',
+          ),
+      ],
+    ),
   );
   harness.room.retroSoFar = contado;
   final container = harness.container();
@@ -54,17 +58,16 @@ Future<ProviderContainer> voltaATraducao(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'a tradução voltar com as frases que a sala guardou',
     () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
         container.read(salaSessionProvider).btTrechos.length ==
-            contado.segments.length,
+        contado.segments.length,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);

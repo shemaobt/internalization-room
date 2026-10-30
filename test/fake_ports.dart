@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:internalization_room/features/sala/domain/spoken_line.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
@@ -193,6 +194,19 @@ class AStorePort implements StorePort {
   Future<void> letGoOfTheSession({String? only}) async {
     if (only == null || _held?.sessionId == only) _held = null;
   }
+
+  final Map<String, SpokenLine?> _ends = {};
+
+  @override
+  Future<({SpokenLine? line})?> endOf(String session) async =>
+      _ends.containsKey(session) ? (line: _ends[session]) : null;
+
+  @override
+  Future<void> holdTheEnd(String session, SpokenLine? line) async =>
+      _ends[session] = line;
+
+  @override
+  Future<void> letGoOfTheEnd(String session) async => _ends.remove(session);
 }
 
 Ports fakePorts(

@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
@@ -208,9 +209,9 @@ void main() {
     },
   );
 
-  test('case (c): a Resume point of a session the server deleted forgets the '
-      'row and the session\'s files at takesOf, and opens the Choice with no '
-      'fresh session', () async {
+  test('case (c): a Resume point of a session the facilitator reset forgets the '
+      'row and the session\'s files, and the passage opens on the session the '
+      'room returns', () async {
     final harness = SalaHarness()
       ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     final aqui = harness.recorder.aFile('parte-1-guardada').path;
@@ -231,29 +232,33 @@ void main() {
     await settle();
 
     await sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await _naEscolha(container);
     await waitFor(
-      'o lugar e a gravação guardada saírem do tablet',
+      'a gravação guardada sair do tablet e a passagem abrir',
       () async =>
-          (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null &&
-          harness.recorder.deleted.contains(aqui),
+          harness.recorder.deleted.contains(aqui) &&
+          _estado(container).voice == VoiceState.invite &&
+          (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId !=
+              'sessao-apagada',
     );
 
-    expect(harness.room.askedOfTheForgotten, contains('takesOf'));
-    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
     expect(harness.recorder.deleted, contains(aqui));
     expect(
-      harness.room.calls,
-      isNot(contains('createSession')),
-      reason: 'a retomada de uma sessão apagada não abre uma sessão nova',
+      _estado(container).sessionId,
+      harness.room.sessionIds.single,
+      reason:
+          'a sessão zerada pela facilitadora voltava em vez da que a sala deu',
     );
-    expect(_estado(container).stage, SalaStage.escolha);
+    expect(_estado(container).station, isA<Canvas>());
+    expect(_estado(container).keptTakes, isEmpty);
     expect(_estado(container).needsPerson, isFalse);
+    expect(
+      (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId,
+      harness.room.sessionIds.single,
+    );
   });
 
-  test('case (c): a Resume point of a session the server deleted, reopened in '
-      'the conversation, meets gone at the session read and opens the Choice '
-      'with no fresh session', () async {
+  test('case (c): a Resume point of a session the facilitator reset, left in '
+      'the conversation, opens on the session the room returns', () async {
     final harness = SalaHarness()
       ..emAberto.forgetsTheSessionAfter = _slowerThanAnyWait;
     harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
@@ -268,16 +273,21 @@ void main() {
     await settle();
 
     await sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await _naEscolha(container);
     await waitFor(
-      'o lugar da sessão esquecida sair do tablet',
-      () async => (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null,
+      'a passagem abrir na sessão nova',
+      () => _estado(container).voice == VoiceState.invite,
+    );
+    await waitFor(
+      'o lugar nomear a sessão nova',
+      () async =>
+          (await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId !=
+          'sessao-apagada',
     );
 
-    expect(harness.room.askedOfTheForgotten, contains('fetchState'));
-    expect(await harness.emAberto.of('Ruth', 'P01', 'pt'), isNull);
-    expect(harness.room.calls, isNot(contains('createSession')));
-    expect(_estado(container).stage, SalaStage.escolha);
+    final nova = harness.room.sessionIds.single;
+    expect(_estado(container).sessionId, nova);
+    expect(_estado(container).station, isA<Canvas>());
+    expect((await harness.emAberto.of('Ruth', 'P01', 'pt'))?.sessionId, nova);
   });
 
   test('case (d): gone while the microphone is open in the conversation closes '

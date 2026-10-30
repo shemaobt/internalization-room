@@ -3,6 +3,7 @@ import 'failure_policy.dart';
 import 'machine.dart';
 import 'scene_rehearsal.dart';
 import 'session_snapshot.dart';
+import 'spoken_line.dart';
 import 'turn_result.dart';
 
 /// The room client's doors and the person-call inbox. Today it carries the one look, the
@@ -146,6 +147,14 @@ abstract interface class StorePort {
 
   /// Lets go of the Current session, or only of the session [only] names.
   Future<void> letGoOfTheSession({String? only});
+
+  /// The end of the conversation of [session] as the tablet saw it: the clip the Guide said
+  /// last, or null for a turn of the team's; absent when the tablet never saw it end.
+  Future<({SpokenLine? line})?> endOf(String session);
+
+  Future<void> holdTheEnd(String session, SpokenLine? line);
+
+  Future<void> letGoOfTheEnd(String session);
 }
 
 /// The session this tablet was in when it last stood in a passage.
@@ -155,10 +164,30 @@ class CurrentSession {
   final String pericope;
   final String language;
 
+  /// The last clip the Guide said, while the conversation still ends on it.
+  final SpokenLine? lastLine;
+
+  /// Whether the conversation ends on a turn of the team's, which hers offers no replay for.
+  final bool teamSpokeLast;
+
   const CurrentSession({
     required this.sessionId,
     required this.book,
     required this.pericope,
     required this.language,
+    this.lastLine,
+    this.teamSpokeLast = false,
   });
+
+  /// The end of the conversation: on [line], or, with none, on a turn of the team's, unless
+  /// the tablet never saw it end ([known] false).
+  CurrentSession withLine(SpokenLine? line, {bool known = true}) =>
+      CurrentSession(
+        sessionId: sessionId,
+        book: book,
+        pericope: pericope,
+        language: language,
+        lastLine: line,
+        teamSpokeLast: known && line == null,
+      );
 }

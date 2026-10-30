@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 void main() {
   test(
@@ -176,6 +178,25 @@ void main() {
     final back = await ledger.of('Ruth', 'P03', 'pt');
 
     expect(back!.takes.single.path, '${gravacoes.path}/p1.m4a');
+  });
+
+  test('a row stored on the closing stage of an older build resumes on the '
+      'conversation canvas, where a finished passage stays', () {
+    final linha = ResumePoint.fromJson(
+      jsonDecode('{"session_id":"sessao-1","stage":"fim","takes":[]}')
+          as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+
+    final session = SalaSessionState(
+      machine: Machine(station: Station.stored(linha.stage)),
+      endOfThePassage: true,
+    );
+
+    expect(session.station, isA<Canvas>());
+    expect(session.stage, SalaStage.conversa);
+    expect(session.voice, VoiceState.done);
+    expect(session.orangeDotLook, OrangeDotLook.bright);
   });
 
   test('a resume point keeps the wholes the room holds set aside through '
