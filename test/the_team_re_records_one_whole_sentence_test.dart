@@ -2441,6 +2441,166 @@ void main() {
     closeTheRoom(container);
   });
 
+  Future<ProviderContainer> comAFraseGuardadaSobreAQueAguarda(
+    WidgetTester tester,
+    SalaHarness harness, {
+    bool aprovado = false,
+  }) async {
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 2);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    harness.room.awaitingSegmentId = 'trecho-2';
+    if (aprovado) {
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+    }
+    await deNovoNaTraducao(tester, container);
+    await waitFor(
+      'a leitura dizer que a frase 2 aguarda, com a frase guardada de volta',
+      () {
+        final aqui = container.read(salaSessionProvider);
+        return aqui.btFraseQueAguarda == 'trecho-2' &&
+            aqui.btFraseGuardada == 'trecho-2' &&
+            aqui.theFraseListIsIdle;
+      },
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    return container;
+  }
+
+  const falhou = 'não deu para guardar a frase — tentar de novo';
+
+  testWidgets('«tentar de novo» on a held sentence whose frase now awaits '
+      'another computer\'s sentence opens its review and sends nothing, as '
+      'hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await comAFraseGuardadaSobreAQueAguarda(tester, harness);
+
+    await tocar(tester, falhou);
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent,
+      hasLength(1),
+      reason:
+          'a frase guardada subia por cima da frase do outro computador sem '
+          'ninguém ouvir nenhuma das duas',
+    );
+    expect(
+      naLinha('usar esta'),
+      findsOneWidget,
+      reason: 'a equipe não tinha como ouvir a gravação e decidir',
+    );
+    expect(naLinha('gravar de novo'), findsOneWidget);
+    expect(_naLista('Ouvir — 2'), findsOneWidget);
+    expect(_naLista(falhou), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the review a held sentence opens on its awaiting frase sends '
+      'that same recording on «usar esta», laid in once', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await comAFraseGuardadaSobreAQueAguarda(tester, harness);
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    await tester.tap(naLinha('usar esta'));
+    await waitFor(
+      'a frase guardada subir da revisão',
+      () => harness.room.sentencesSent.length == 2,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    final enviadas = harness.room.sentencesSent;
+    expect(
+      enviadas.last,
+      enviadas.first,
+      reason: 'a revisão mandava outra gravação, não a frase guardada',
+    );
+    expect(harness.room.sentencesLaid, [enviadas.first.sentenceId]);
+    expect(naLinha('usar esta'), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the review a held sentence opens on its awaiting frase takes '
+      'the held recording off the tablet on «gravar de novo», and the circle '
+      'records over it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await comAFraseGuardadaSobreAQueAguarda(tester, harness);
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    await tester.tap(naLinha('gravar de novo'));
+    await _passo(tester);
+
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a gravação que a equipe largou seguia guardada na fila',
+    );
+    expect(harness.room.sentencesSent, hasLength(1));
+    expect(naLinha('usar esta'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.text('gravem a frase inteira'),
+      ),
+      findsOneWidget,
+      reason: 'o círculo não se oferecia para gravar a frase de novo',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('over an approved draft the held sentence\'s «tentar de novo» '
+      'still arms, the confirmed tap opens the review instead of sending, and '
+      'its «usar esta» goes up reopening the draft', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await comAFraseGuardadaSobreAQueAguarda(
+      tester,
+      harness,
+      aprovado: true,
+    );
+
+    await tocar(tester, falhou);
+    const armado = 'toquem de novo: isto abre de novo o rascunho aprovado';
+    expect(
+      linhasCom(tester, armado),
+      [2],
+      reason: 'o toque sobre um rascunho aprovado abria a revisão sem armar',
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await tocar(tester, armado);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent,
+      hasLength(1),
+      reason: 'o toque confirmado subia por cima da frase que aguarda',
+    );
+    expect(naLinha('usar esta'), findsOneWidget);
+
+    await tester.tap(naLinha('usar esta'));
+    await waitFor(
+      'a frase guardada subir da revisão',
+      () => harness.room.sentencesSent.length == 2,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.sentencesSentReopening,
+      [harness.room.sentencesSent.first.sentenceId],
+      reason:
+          'a revisão aberta pelo toque armado mandava a frase sem reabrir o '
+          'rascunho aprovado',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a «terminei» the room refuses because a frase awaits marks '
       'that frase as re-recorded and takes «regravar» off the others', (
     tester,
