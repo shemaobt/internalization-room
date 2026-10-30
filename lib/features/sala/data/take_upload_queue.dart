@@ -979,6 +979,20 @@ class TakeUploadQueue {
   /// read the empty answer as "the room has this" and never asked again. It now waits on
   /// the flush already running and, if anything was asked for while it waited, that flush
   /// takes one more pass before either caller is told it is done.
+  Future<void> drained() async {
+    while (true) {
+      final writes = _writes;
+      await _flushInFlight?.then((_) {}, onError: (_) {});
+      await Future.wait(_copiesBeingMade.values);
+      await writes;
+      if (identical(writes, _writes) &&
+          _flushInFlight == null &&
+          _copiesBeingMade.isEmpty) {
+        return;
+      }
+    }
+  }
+
   Future<int> flush() {
     final running = _flushInFlight;
     if (running != null) {

@@ -25,6 +25,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart'
     show holdTheSession, intoTheBackTranslation, relaunch, withRealLetters;
+import 'support/temp.dart';
 
 const _sessionId = 'fia-fixture-0001';
 const _herEightCharacters = 'fia-fixt';
@@ -221,8 +222,7 @@ Future<ProviderContainer> _resumedOnTheCheckScreenOfAnSE(
     ..physicalSize = const Size(375, 667)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final folder = Directory.systemTemp.createTempSync('sala-1817');
-  addTearDown(() => folder.deleteSync(recursive: true));
+  final folder = aTempDir('sala-1817');
   final harness = SalaHarness(filaEmMemoria: true);
   await holdTheSession(
     harness,

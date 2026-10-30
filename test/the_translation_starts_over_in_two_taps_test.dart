@@ -30,6 +30,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocarNoCirculo;
 import 'session_notifier_test.dart'
     show inConversaWithoutPausing, tellTwoStretches;
+import 'support/temp.dart';
 
 const _recomecar = 'recomeçar a tradução';
 const _armado = 'toque de novo para apagar as 4 frases traduzidas';
@@ -95,8 +96,7 @@ Future<ProviderContainer> _voltaATraducao(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1223');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1223');
   await holdTheSession(
     harness,
     ResumePoint(

@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _parteLen = Duration(seconds: 10);
 
@@ -53,8 +54,7 @@ Future<_Retomada> _reabrir(
   required BackTranslationProgress contado,
   int partes = 3,
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-trecho-na-parte');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-trecho-na-parte');
   final gravadas = [
     for (var n = 1; n <= partes; n++)
       (File('${casa.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,

@@ -44,7 +44,7 @@ void _aTake(
   SalaHarness? harness,
 }) {
   fakeAsync((clock) {
-    final room = harness ?? SalaHarness();
+    final room = (harness ?? SalaHarness())..onAFakeClock();
     ProviderContainer? container;
     unawaited(inConversa(room).then((opened) => container = opened));
     clock.elapse(const Duration(seconds: 1));

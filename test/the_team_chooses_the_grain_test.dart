@@ -29,6 +29,7 @@ import 'scenario_helpers.dart'
         relaunch,
         thePersonSign,
         voiceOverTap;
+import 'support/temp.dart';
 
 const _how = 'Como vocês querem gravar?';
 const _whole = 'A passagem inteira';
@@ -354,8 +355,7 @@ Future<PendingTake> _aHandTakeHeld(
 }
 
 File _anAudioFile(String scope) {
-  final folder = Directory.systemTemp.createTempSync('sala-2078');
-  addTearDown(() => folder.deleteSync(recursive: true));
+  final folder = aTempDir('sala-2078');
   return File('${folder.path}/$scope.m4a')..writeAsBytesSync([1, 2, 3, 4]);
 }
 

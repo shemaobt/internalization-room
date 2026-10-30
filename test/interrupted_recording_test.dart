@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 
 import 'a_wav_take.dart';
+import 'support/temp.dart';
 
 class RecorderSpy extends RecordPlatform {
   RecordConfig? openedWith;
@@ -231,7 +232,7 @@ void main() {
   late Directory documents;
 
   setUp(() {
-    documents = Directory.systemTemp.createTempSync('sala-documentos');
+    documents = aTempDir('sala-documentos');
     messenger.setMockMethodCallHandler(
       pathProvider,
       (call) async => documents.path,
@@ -244,7 +245,6 @@ void main() {
     messenger.setMockMethodCallHandler(pathProvider, null);
     RecordPlatform.instance = platformBefore;
     unawaited(microphone.states.close());
-    documents.deleteSync(recursive: true);
   });
 
   test(

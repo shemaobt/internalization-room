@@ -32,6 +32,7 @@ import 'scenario_helpers.dart'
         stateReads,
         withDiskThatAnswersAtOnce,
         traduzirOApontadoDeNovo;
+import 'support/temp.dart';
 
 bool aPortaDaRetroAcendeu(ProviderContainer container) {
   final state = container.read(salaSessionProvider);
@@ -278,10 +279,8 @@ class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
 void main() {
   test('resuming past the conversa does not reopen the conversa', () async {
     final harness = SalaHarness();
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-retomada').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-retomada').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,
@@ -314,10 +313,7 @@ void main() {
     'a rehearsal with one part missing comes back to the conversa',
     () async {
       final harness = SalaHarness();
-      final gravadas = Directory.systemTemp.createTempSync(
-        'sala-ensaio-partido',
-      );
-      addTearDown(() => gravadas.deleteSync(recursive: true));
+      final gravadas = aTempDir('sala-ensaio-partido');
       final partes = [
         for (var parte = 1; parte <= 3; parte++)
           KeptTake(
@@ -367,10 +363,8 @@ void main() {
 
   test('a row saved a week ago is resumed, not thrown away', () async {
     final harness = SalaHarness();
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-semana-passada').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-semana-passada').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-velha',
       stage: SalaStage.ensaio,
@@ -418,10 +412,8 @@ void main() {
     'a passage entered afresh carries nothing of the session before it',
     () async {
       final harness = SalaHarness();
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-recomeco').path}/p1.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-recomeco').path}/p1.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.retro,
@@ -602,10 +594,8 @@ void main() {
 
   test('the next passage opens with nothing of the one before it', () async {
     final harness = SalaHarness();
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-passagem-anterior').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-passagem-anterior').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
@@ -708,10 +698,8 @@ void main() {
     'a stored id created in pt does not post a turn to it from a device now in en',
     () async {
       final harness = SalaHarness(lingua: 'en');
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-outra-lingua').path}/p2.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-outra-lingua').path}/p2.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       harness.emAberto.rows['Ruth/P02/en'] = ResumePoint(
         sessionId: 'sessao-p02',
         stage: SalaStage.ensaio,
@@ -4784,8 +4772,7 @@ void main() {
   test('a part recorded for the first time after a resume is its own first '
       'recording', () async {
     final harness = SalaHarness();
-    final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-passada');
-    addTearDown(() => gravadas.deleteSync(recursive: true));
+    final gravadas = aTempDir('sala-ensaio-passada');
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-regravada',
       stage: SalaStage.ensaio,
@@ -6999,8 +6986,7 @@ void main() {
     () async {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
-      final library = Directory.systemTemp.createTempSync('sala-voz-chegando');
-      addTearDown(() => library.deleteSync(recursive: true));
+      final library = aTempDir('sala-voz-chegando');
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
           lineAt: noFixedLine,
@@ -7049,8 +7035,7 @@ void main() {
     () async {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
-      final library = Directory.systemTemp.createTempSync('sala-voz-cabecalho');
-      addTearDown(() => library.deleteSync(recursive: true));
+      final library = aTempDir('sala-voz-cabecalho');
       var answered = false;
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
@@ -7103,8 +7088,7 @@ void main() {
 
   test('lines the team never hears halt the room for a person', () async {
     final player = SpeakingPlayer()..stopsBeforeTheEnd = true;
-    final library = Directory.systemTemp.createTempSync('sala-voz-parada');
-    addTearDown(() => library.deleteSync(recursive: true));
+    final library = aTempDir('sala-voz-parada');
     final harness = SalaHarness(
       voiceService: FacilitatorVoiceService(
         lineAt: noFixedLine,
@@ -7144,8 +7128,7 @@ Future<ProviderContainer> _umaGravacaoRetomada(
   required Set<int> juntas,
   int partes = 2,
 }) async {
-  final pasta = Directory.systemTemp.createTempSync('sala-1747');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1747');
   harness.playback
     ..measured = const Duration(seconds: 10)
     ..length = const Duration(seconds: 10);

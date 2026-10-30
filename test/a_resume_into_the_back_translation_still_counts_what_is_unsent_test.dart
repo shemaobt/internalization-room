@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 void main() {
   test(
@@ -18,10 +19,8 @@ void main() {
     () async {
       final harness = SalaHarness(filaEmMemoria: true);
       final fila = harness.takes as FakeTakeQueue;
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-1446').path}/p1.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-1446').path}/p1.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.retro,

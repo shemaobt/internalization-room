@@ -15,6 +15,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _aPart = Duration(seconds: 30);
 
@@ -28,8 +29,7 @@ Future<(SalaHarness, ProviderContainer)> reopenedInto(
     ..playback.length = _aPart
     ..playback.measured = _aPart
     ..playback.walkWhilePlaying();
-  final home = Directory.systemTemp.createTempSync('sala-circulo');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-circulo');
   await holdTheSession(
     harness,
     ResumePoint(

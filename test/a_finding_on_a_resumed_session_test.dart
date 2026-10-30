@@ -10,12 +10,12 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show holdTheSession, intoTheBackTranslation;
+import 'support/temp.dart';
 
 const _contado = 'gravacao-1@0-30000';
 
 Future<ProviderContainer> _retomadaNoAchado(SalaHarness harness) async {
-  final casa = Directory.systemTemp.createTempSync('sala-achado-retomado');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-achado-retomado');
   harness.playback
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);

@@ -7,16 +7,16 @@ import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 
 import 'fakes.dart';
+import 'support/temp.dart';
 
 void main() {
   late Directory home;
   late DateTime now;
 
   setUp(() {
-    home = Directory.systemTemp.createTempSync('fila-alcance');
+    home = aTempDir('fila-alcance');
     now = DateTime.utc(2026, 10, 1, 9);
   });
-  tearDown(() => home.deleteSync(recursive: true));
 
   TakeUploadQueue queueOn(FakeRoom room) => TakeUploadQueue(
     room: room,

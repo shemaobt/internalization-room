@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/staged_write.dart';
 import 'package:path/path.dart' as p;
 
+import 'support/temp.dart';
+
 final _commentPattern = RegExp(r'//.*$', multiLine: true);
 
 String _sourceWithoutComments(File file) =>
@@ -11,8 +13,7 @@ String _sourceWithoutComments(File file) =>
 
 void main() {
   test('a ledger write that dies halfway leaves the last whole file', () async {
-    final home = Directory.systemTemp.createTempSync('sala-livro');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-livro');
     final ledger = File(p.join(home.path, 'fila.json'))
       ..writeAsStringSync('["a tomada de ontem"]');
     Directory('${ledger.path}.novo').createSync();

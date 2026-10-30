@@ -20,6 +20,7 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _quickPoll = Duration(milliseconds: 20);
 
@@ -34,11 +35,7 @@ String _anyAnswer() => jsonEncode({
   'credential': 'credencial-1',
 });
 
-Directory _tempHome() {
-  final home = Directory.systemTemp.createTempSync('sala-cofre');
-  addTearDown(() => home.deleteSync(recursive: true));
-  return home;
-}
+Directory _tempHome() => aTempDir('sala-cofre');
 
 File _ledgerFile(Directory home) => File('${home.path}/guardadas/vinculo.json');
 

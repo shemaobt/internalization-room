@@ -35,6 +35,7 @@ import 'scenario_helpers.dart'
         pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
+import 'support/temp.dart';
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -164,8 +165,7 @@ Future<ProviderContainer> _voltaATraducao(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1221');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1221');
   final partes = [
     for (final n in [1, 2])
       KeptTake(
@@ -789,8 +789,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-1221-frase');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1221-frase');
     final guardada = await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -821,8 +820,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-2067');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-2067');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -858,8 +856,7 @@ void main() {
   testWidgets('under a person call the held sentence rests, and a tap on its '
       'line sends nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-2067');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-2067');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -902,8 +899,7 @@ void main() {
       'line sends nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     harness.room.listeningUnheardTakeIds = const ['gravacao-1'];
-    final pasta = Directory.systemTemp.createTempSync('sala-2067');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-2067');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -965,7 +961,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = aTempHome('sala-frase-perdida');
+    final pasta = aTempDir('sala-frase-perdida');
     final guardada = await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -1557,8 +1553,7 @@ void main() {
   testWidgets('a held sentence over a stretch no longer listed is let go on '
       'entering, and the frase that awaits stays', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-1964-frase');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1964-frase');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -1592,8 +1587,7 @@ void main() {
     WidgetTester tester,
     SalaHarness harness,
   ) async {
-    final pasta = Directory.systemTemp.createTempSync('sala-1964-guardada');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1964-guardada');
     final guardada = await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -1750,8 +1744,7 @@ void main() {
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-1964-de-lado');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1964-de-lado');
     const doInteiro = SegmentView(
       segmentId: 'trecho-do-inteiro',
       takeId: 'gravacao-inteira-velha',
@@ -1815,8 +1808,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _voltaATraducao(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
-    final pasta = Directory.systemTemp.createTempSync('sala-1964-lida');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1964-lida');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -3763,8 +3755,7 @@ void main() {
     required BackTranslationProgress theRoomNow,
     void Function(ProviderContainer)? whileTheReplaceIsHeld,
   }) async {
-    final pasta = Directory.systemTemp.createTempSync('sala-1789');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1789');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -3815,8 +3806,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-2067');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-2067');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -3935,8 +3925,7 @@ void main() {
   testWidgets('a read of the stretches in the air never takes the translation '
       'that landed after it back to the old stretch', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-1789');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-1789');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
@@ -4152,8 +4141,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final pasta = Directory.systemTemp.createTempSync('sala-2067');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-2067');
     await harness.takes.enqueue(
       File('${pasta.path}/frase.wav')
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),

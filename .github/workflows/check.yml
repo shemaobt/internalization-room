@@ -48,6 +48,13 @@ jobs:
             exit 1
           fi
 
+      - name: Every test temp folder comes from aTempDir
+        run: |
+          if grep -rn "createTempSync\|createTemp(" test/ | grep -v "^test/support/temp.dart:"; then
+            echo "::error::A temp folder made outside aTempDir outlives its test. Use aTempDir."
+            exit 1
+          fi
+
       - name: Nothing forbidden returns to lib/
         run: dart run tool/check_doctrine.dart
 
@@ -96,7 +103,7 @@ jobs:
             { best = 0; for (i = 1; i < n; i++) if (load[i] < load[best]) best = i
               load[best] += $1; if (best == k) print $2 }')
           echo "$files" | wc -l
-          flutter test --reporter expanded --concurrency=2 $files
+          dart run tool/the_suite_leaves_no_temp_folder.dart flutter test --reporter expanded --concurrency=2 $files
 
   check:
     if: always()

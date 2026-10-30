@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../tool/check_doctrine.dart';
 import '../tool/doctrine_allowlist.dart';
+import 'support/temp.dart';
 
 void _expectAFixtureViolatingOneRule(
   String label,
@@ -13,8 +14,7 @@ void _expectAFixtureViolatingOneRule(
 ) {
   test('a $label mechanism reintroduced outside the allowlist fails with '
       "its doctrine sentence", () {
-    final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
-    addTearDown(() => dir.deleteSync(recursive: true));
+    final dir = aTempDir('doctrine_fixture_');
     File(
       p.join(dir.path, 'reintroduced.dart'),
     ).writeAsStringSync('$triggerLine\n');
@@ -100,8 +100,7 @@ void main() {
 
   test('a sublist cut into the conversation fails, and the audio cache limit '
       'does not', () {
-    final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
-    addTearDown(() => dir.deleteSync(recursive: true));
+    final dir = aTempDir('doctrine_fixture_');
     File(
       p.join(dir.path, 'reintroduced.dart'),
     ).writeAsStringSync('final recent = turns.sublist(turns.length - 5);\n');
@@ -145,8 +144,7 @@ void main() {
 
   test('an allowlist entry the scan can no longer confirm is reported stale, '
       'and the reworded line is its own new violation', () {
-    final dir = Directory.systemTemp.createTempSync('doctrine_fixture_');
-    addTearDown(() => dir.deleteSync(recursive: true));
+    final dir = aTempDir('doctrine_fixture_');
     File(
       p.join(dir.path, 'reworded.dart'),
     ).writeAsStringSync("const _mode = 'guided_microchecks reworded';\n");

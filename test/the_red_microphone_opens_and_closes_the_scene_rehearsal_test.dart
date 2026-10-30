@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -19,6 +18,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart'
     show byLabel, offered, enterThePassage, relaunch, settle, stateReads;
+import 'support/temp.dart';
 
 const _session = 'sessao-1';
 const _placesUnknownLine =
@@ -904,8 +904,7 @@ void main() {
   );
 
   test('a relaunch never lands on the scene rehearsal', () async {
-    final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-sessao-atual');
     final harness = SalaHarness(
       currentSession: LedgerThatReadsLate(home: () async => home),
     );

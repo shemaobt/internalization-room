@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
@@ -9,14 +7,14 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 /// A real ledger on a temp dir, the way `device_credential_test.dart` builds one — not
 /// the in-memory `FakeLinkedTeam` the harness wires by default, since the notifier reads
 /// the ledger itself now and a fake that answers from memory would prove nothing about
 /// the read.
 LinkedTeam _ledgerOnDisk() {
-  final home = Directory.systemTemp.createTempSync('sala-sem-sessao');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-sem-sessao');
   return LinkedTeam(home: () async => home);
 }
 

@@ -13,6 +13,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'um_ensaio_de_tres_partes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _gravar = 'Gravar';
 const _terminar = 'Parar';
@@ -253,7 +254,7 @@ void main() {
     (tester) async {
       final harness = SalaHarness(
         filaEmMemoria: true,
-        takesHome: aTempHome('sala-1872'),
+        takesHome: aTempDir('sala-1872'),
       );
       final container = await _ensaioDeTresPartes(tester, harness: harness);
       final notifier = container.read(salaSessionProvider.notifier);

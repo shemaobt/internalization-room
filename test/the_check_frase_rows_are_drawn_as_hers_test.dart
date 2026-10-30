@@ -19,6 +19,7 @@ import 'scenario_helpers.dart' show holdTheSession, intoTheBackTranslation;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
+import 'support/temp.dart';
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -33,8 +34,7 @@ Future<ProviderContainer> voltaATraducao(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1937');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1937');
   await holdTheSession(
     harness,
     ResumePoint(

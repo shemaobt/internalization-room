@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 const _gravacao = 'gravacao-1';
 
@@ -22,8 +23,7 @@ SegmentView _trecho(String id, int startsMs, int endsMs) => SegmentView(
 );
 
 Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
-  final pasta = Directory.systemTemp.createTempSync('sala-1168-leitura');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1168-leitura');
   final gravada = File('${pasta.path}/p1.m4a');
   gravada.writeAsBytesSync([1, 2, 3]);
   final row = ResumePoint(

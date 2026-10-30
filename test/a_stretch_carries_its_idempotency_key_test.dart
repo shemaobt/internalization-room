@@ -7,14 +7,15 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 
+import 'support/temp.dart';
+
 void main() {
   setUpAll(() {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
   });
 
   Future<File> aRecording() async {
-    final dir = Directory.systemTemp.createTempSync('sala-chave');
-    addTearDown(() => dir.deleteSync(recursive: true));
+    final dir = aTempDir('sala-chave');
     return File('${dir.path}/trecho.m4a')..writeAsBytesSync([1, 2, 3]);
   }
 

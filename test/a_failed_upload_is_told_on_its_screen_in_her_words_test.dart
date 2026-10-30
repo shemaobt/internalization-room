@@ -26,6 +26,8 @@ import 'package:internalization_room/features/sala/domain/ensaio_final_plan.dart
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
+import 'support/temp.dart';
+
 const _falhou = 'falhou — toque para tentar de novo';
 const _perdida = 'falhou — grave de novo';
 const _perdidaNoMicrofone = 'falhou';
@@ -314,7 +316,7 @@ class _Casa {
 }
 
 Future<_Casa> _comAsQuatroPartesNaSala(WidgetTester tester) {
-  final sala = SalaHarness(takesHome: aTempHome('sala-1872'));
+  final sala = SalaHarness(takesHome: aTempDir('sala-1872'));
   sala.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.ensaio,
