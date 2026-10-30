@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
@@ -46,6 +49,14 @@ void main() {
           'os 6–10 s da abertura liam como nada acontecendo; o canvas dela '
           'gira os dois arcos em volta do círculo (globals.css:209-212)',
     );
+    expect(
+      find.descendant(
+        of: find.byType(ConversaView),
+        matching: find.text('pensando…'),
+      ),
+      findsOneWidget,
+      reason: 'embaixo do círculo ela escreve a espera (page.tsx:1005)',
+    );
 
     harness.room.finishHeldTurn();
     for (
@@ -55,6 +66,19 @@ void main() {
     ) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+  });
+
+  test('a sign over a wait the conversation microphone still shows as thinking '
+      'writes no «pensando…»', () {
+    const waiting = Machine(channel: Microphone(MicOwner.conversation));
+    final thinking = SalaSessionState(awaitingTheGuide: true, machine: waiting);
+    final signed = SalaSessionState(
+      awaitingTheGuide: true,
+      machine: waiting.copyWith(halt: const Blocking()),
+    );
+
+    expect(thinking.writesTheThinkingNote, isTrue);
+    expect(signed.writesTheThinkingNote, isFalse);
   });
 
   testWidgets(
@@ -87,6 +111,13 @@ void main() {
         findsNWidgets(2),
         reason:
             'o Panorama dela é desenhado no mesmo canvas, com os mesmos arcos',
+      );
+      expect(
+        find.descendant(
+          of: find.byType(PanoramaView),
+          matching: find.text('pensando…'),
+        ),
+        findsOneWidget,
       );
 
       harness.room.finishHeldTurn();

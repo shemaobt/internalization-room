@@ -37,7 +37,7 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   Choice, her check screen with its numbered frase list, the scene rehearsal's translate step,
   the numerals of her kept-retelling buttons, her recording home, the Ensaio Final plan,
   her Rehearsal sheet, her Saved screen, her Checagem externa screen, her grain choice, and the update screen (ADR 0014),
-  and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR 0014), and the red microphone's take state with her «parar» (ADR 0131).
+  and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR 0014), and the red microphone's take state with her «parar» (ADR 0131), and the «pensando…» under a thinking circle (ENG-1925).
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.
