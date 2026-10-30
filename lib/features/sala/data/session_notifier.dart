@@ -6142,7 +6142,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         final end = state.scene.takeEnd;
         final from =
             state.scene.heard == SceneHeard.toTheEnd ||
-                (end != null && stopped >= end)
+                (end != null && isAtTheEnd(stopped, end))
             ? Duration.zero
             : stopped;
         state = state.copyWith(
