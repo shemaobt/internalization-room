@@ -171,13 +171,15 @@ class CurrentSession {
     this.teamSpokeLast = false,
   });
 
-  /// The end of the conversation: on [line], or, with none, on a turn of the team's.
-  CurrentSession withLine(SpokenLine? line) => CurrentSession(
-    sessionId: sessionId,
-    book: book,
-    pericope: pericope,
-    language: language,
-    lastLine: line,
-    teamSpokeLast: line == null,
-  );
+  /// The end of the conversation: on [line], or, with none, on a turn of the team's, unless
+  /// the tablet never saw it end ([known] false).
+  CurrentSession withLine(SpokenLine? line, {bool known = true}) =>
+      CurrentSession(
+        sessionId: sessionId,
+        book: book,
+        pericope: pericope,
+        language: language,
+        lastLine: line,
+        teamSpokeLast: known && line == null,
+      );
 }

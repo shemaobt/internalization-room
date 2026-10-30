@@ -104,6 +104,17 @@ void main() {
         );
 
         expect(harness.voice.played.last, turnoUrl);
+        await waitFor(
+          'the room to rest again',
+          () => read().voice == VoiceState.invite,
+        );
+        await notifier.hearAgain();
+        await waitFor(
+          'the clip to be played from memory again',
+          () => harness.voice.played.length == played + 2,
+        );
+
+        expect(harness.voice.played.last, turnoUrl);
         expect(harness.room.sessionsSaidAgain, isEmpty);
         expect(harness.room.turnIdsAsked, hasLength(asked));
       },

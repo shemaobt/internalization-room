@@ -389,7 +389,7 @@ void main() {
       );
       expect(
         it.harness.voice.played.skip(tocadasAntes),
-        [falaDoVeredito],
+        [turnoUrl],
         reason:
             'o ouvir de novo da conversa repetia a fala da aprovação, não a '
             'última do Guia',

@@ -855,6 +855,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _heldCoverageClock = null;
     state = state.copyWith(
       clearLastSpoken: true,
+      roomSaysItAgain: false,
       clearHomeSheet: true,
       clearSwapLine: true,
       clearSwapping: true,
@@ -1312,7 +1313,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final letGo = state.station is Retro && loadAgain.isCompleted;
     if ((state.needsPerson || letGo) && remember) {
       state = state.copyWith(lastSpoken: line);
-      _keepTheLastLine(line);
+      if (state.station is! Retro) _keepTheLastLine(line);
     }
     if (!await loadAgain.future || _abandoned(generation)) return false;
     await (line.fixedLine.isEmpty
@@ -1334,7 +1335,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final SpokenLine(:url, :fixedLine, :checkAt) = line;
     if (remember) {
       state = state.copyWith(lastSpoken: line);
-      _keepTheLastLine(line);
+      if (state.station is! Retro) _keepTheLastLine(line);
     }
     final said = await _sayTheLine(
       LineKind.guide,
@@ -1763,7 +1764,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     required void Function(RoomFailure failure) failed,
     Kept keeps = const NothingKept(),
     RefusalRule rule = RefusalRule.aSpokenTurn,
+    bool endsTheConversation = false,
   }) async {
+    final before = _endsOn;
     Future<void> heard(TurnResult reply) async {
       try {
         await play(reply);
@@ -1776,6 +1779,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ..clear()
       ..[turn] = (play: heard, gestures: _chain);
     _dispatch(TurnSent(turn, keeps: keeps));
+    if (endsTheConversation) _keepTheLastLine(null);
     final answer = await _theTakeGoes(send);
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
@@ -1783,6 +1787,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (answer case final RoomFailure lost
         when FailurePolicy.theAnswerWasLost(lost.result, rule)) {
+      if (endsTheConversation) _setTheEnd(before);
       return _giveUpOnTheTurn(turn, lost.result, rule: rule);
     }
     if (state.machine.inFlight != turn) return;
@@ -1792,6 +1797,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _dispatch(decided(const RoomAnswered(), _failureContext(turn: turn)));
         await heard(reply);
       case final RoomFailure failure:
+        if (endsTheConversation) _setTheEnd(before);
         _dispatch(TurnFailed(turn, generation: _generation));
         failed(failure);
     }
@@ -2146,10 +2152,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _keepTheLastLine(SpokenLine? line) {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
-    _endsOn = (session: sessionId, line: line);
+    _setTheEnd((session: sessionId, line: line));
+  }
+
+  void _setTheEnd(({String session, SpokenLine? line})? end) {
+    _endsOn = end;
     final held = _heldSession;
-    if (held == null || held.sessionId != sessionId) return;
-    _hold(held.withLine(line));
+    if (held == null || held.sessionId != state.sessionId) return;
+    _hold(held.withLine(end?.line, known: end != null));
   }
 
   void _letGoOfTheCurrentSession({String? only}) {
@@ -2240,13 +2250,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _decideTheFailure(failure, rule: RefusalRule.aSpokenTurn);
     }
 
-    _keepTheLastLine(null);
     await _sendATurn(
       Turn(panorama, turnId),
       generation,
       () => _room.sendTurn(panorama, File(path), turnId: turnId, cut: cut),
       play: (turn) => _voicePanorama(turn),
       failed: failed,
+      endsTheConversation: true,
     );
   }
 
@@ -3952,7 +3962,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     final clientTiming = _pendingClock?.clientTiming(_clockSegments);
     _pendingClock = turnClock;
-    _keepTheLastLine(null);
     await _sendATurn(
       Turn(sessionId, turnId),
       generation,
@@ -3970,6 +3979,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         onSoundStart: () => turnClock.mark('sound'),
       ),
       failed: failed,
+      endsTheConversation: true,
     );
   }
 
@@ -7195,7 +7205,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.needsPerson) _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
-    _keepTheLastLine(null);
     await _sendATurn(
       Turn(sessionId, turnId),
       generation,
@@ -7221,6 +7230,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       },
       rule: RefusalRule.sendsTheScene,
+      endsTheConversation: true,
     );
   }
 
