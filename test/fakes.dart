@@ -490,7 +490,12 @@ class FakeRecorder implements RecordingRepository {
   String? _named;
 
   @override
-  Future<String?> stop() async {
+  Future<String?> stop() {
+    sounds.add('recorder:stop');
+    return _stop();
+  }
+
+  Future<String?> _stop() async {
     final named = '${home.path}/${_named ?? 'captura-$captures'}';
     final owner = lastOwner;
     final count = captures;
@@ -551,7 +556,7 @@ class FakeRecorder implements RecordingRepository {
       return;
     }
     if (!_recording) return;
-    final path = await stop();
+    final path = await _stop();
     if (path != null) deleted.add(path);
   }
 
