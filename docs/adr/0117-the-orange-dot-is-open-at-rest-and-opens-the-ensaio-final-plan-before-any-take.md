@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes)
+status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes); amended by ENG-2104 (2026-10-30: the notice's «enviar agora» rests while a take of the session goes up or a join, a swap or a bring-back runs)
 date: 2026-10-22
 amends: 0014
 ---
@@ -96,3 +96,20 @@ A take sent from there that reaches the room opens the recording home of the gra
 lists it under, from the grain choice too, as her screen turns to the draft's once the draft
 holds it. A part the home words as gone or refused is not offered there, by the same rule as
 the home's rows. A take of the other grain stays on the tablet, unoffered.
+
+## Amendment · 2026-10-30 (ENG-2104)
+
+Her frozen app is the rule (João, 2026-10-26). Her pending notice's send is
+`disabled={sending || phaseBusy}` (Drafting.tsx:2209 at 18fa7c4): a take sending, a join, a
+swap, a bring-back, the arrival's import or a splice resume rests it; a grain switch does not
+(`grainBusy` is not in `phaseBusy`, :2132; on her grain pick :2289-2293 only the two grain
+buttons rest). **Every «… — enviar agora» the notice draws, on the plan and on the grain
+choice, rests while a part take of the session is in the air or being kept, or a join, the
+home's swap or a bring-back runs**: it is dimmed, reads as disabled to VoiceOver and takes no
+tap. The notifier's own `enviarACena` refuses the phase — a join, the home's swap, a
+bring-back (`phaseBusy`) — as the plan's gestures do under `planBusy`; a take going up is
+drawn only, because the home's Scene row keeps its «falhou — toque para tentar de novo» tap
+under another send and reads «enviando…» at once (0131), and that row shares the gesture.
+A grain switch leaves it as it is. The arrival's import and the splice
+have no counterpart here (0121). The refusal while a take records (ENG-2058's `ensaio ==
+recording` guard in the notifier) is not this amendment's: hers keeps the send enabled then.
