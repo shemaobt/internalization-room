@@ -238,4 +238,45 @@ void main() {
       );
     },
   );
+
+  test(
+    'no dublê, um play por cima de um trecho aberto responde pelo trecho até o load assentar',
+    () async {
+      final playback = FakePlayback();
+      addTearDown(playback.dispose);
+      playback.length = const Duration(seconds: 10);
+      unawaited(
+        playback.playRange(
+          '/take.wav',
+          const Duration(seconds: 4),
+          const Duration(seconds: 8),
+        ),
+      );
+      await settle();
+      expect(playback.playingLength, const Duration(seconds: 4));
+
+      playback.holdNextOpening();
+      unawaited(playback.play('/take.wav'));
+      await settle();
+
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 4),
+        reason:
+            'o repositório responde pelo clipe de antes até o load do novo '
+            'assentar; o dublê trocava a medida no gesto, e um play por cima '
+            'de um trecho aberto respondia os 10 s do arquivo com o trecho de '
+            '4 s ainda no ar',
+      );
+
+      playback.finishHeldOpening();
+      await settle();
+
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 10),
+        reason: 'assentado o load, o clipe inteiro responde pelo arquivo',
+      );
+    },
+  );
 }
