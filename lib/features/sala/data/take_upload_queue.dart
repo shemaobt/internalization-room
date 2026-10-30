@@ -524,6 +524,14 @@ class TakeUploadQueue {
       ? passage != null && entry.passage == passage
       : entry.sessionId == sessionId;
 
+  Future<String?> fingerprintOf(String path) async {
+    try {
+      return (await _whatTheCopyHolds(path)).sha256;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
   String? takeIdOfThePart(String sessionId, KeptTake part) {
     final name = p.basenameWithoutExtension(part.path);
     for (final entry in _landedRows) {
