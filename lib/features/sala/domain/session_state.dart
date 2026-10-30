@@ -755,7 +755,9 @@ class SalaSessionState {
   bool isTheEntryLeft(Passagem entry) {
     final left = leftEntry;
     if (left == null) return false;
-    return entry.isPanorama == left.panorama && entry.pericope == left.pericope;
+    return entry.isPanorama == left.panorama &&
+        entry.pericope == left.pericope &&
+        (left.panorama || entry.book == left.book);
   }
 
   String? get sessionId => machine.session;
