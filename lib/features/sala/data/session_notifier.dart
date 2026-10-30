@@ -946,6 +946,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     then();
   }
 
+  void accessibilityFocusLeft(String control) {
+    if (state.armedTap?.control != control) return;
+    state = state.copyWith(clearArmedTap: true);
+  }
+
   void _theSyncPartEnded(int gesture) {
     if (!_handedOff.containsKey(gesture)) _endTheGesture(gesture, _thisLife);
   }

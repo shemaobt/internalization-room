@@ -216,7 +216,12 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                 ),
               ],
               const SizedBox(height: 24),
-              wholeAtOnce(session, language, notifier.recordTheWholePassage),
+              wholeAtOnce(
+                session,
+                language,
+                notifier.recordTheWholePassage,
+                onFocusLeft: notifier.accessibilityFocusLeft,
+              ),
               TextButton(
                 onPressed: idle && !session.grainSwitching
                     ? notifier.recordSceneByScene
