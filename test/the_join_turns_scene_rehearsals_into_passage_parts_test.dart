@@ -1818,4 +1818,57 @@ void main() {
     closeTheRoom(it.container);
     semantics.dispose();
   });
+
+  testWidgets(
+    'a scene microphone open when a join starts still closes at its stop',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2, 3]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.toTheRecordingHome();
+      final notifier = it.container.read(salaSessionProvider.notifier);
+      notifier.leaveTheRecording();
+      await it.settle();
+      await it.openThePlan();
+      notifier.gravarACena(1);
+      await it.until(
+        'a gravação da cena 1 começar',
+        () =>
+            it.container.read(salaSessionProvider).ensaio ==
+            EnsaioStatus.recording,
+      );
+      it.holdTheTake('parte-1');
+      notifier.joinTheScenes();
+      await it.until(
+        'a junta da cena 1 chegar à porta',
+        () =>
+            it.theHeldTakeArrived &&
+            it.container.read(salaSessionProvider).joining == 1,
+      );
+
+      notifier.gravarACena(1);
+      await it.until(
+        'a gravação da cena 1 terminar',
+        () =>
+            it.container.read(salaSessionProvider).ensaio !=
+            EnsaioStatus.recording,
+      );
+
+      expect(
+        it.container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recorded,
+        reason:
+            'a trava da junta ficava à frente do toque que fecha o microfone, e '
+            'uma gravação aberta quando a junta começava não tinha como parar',
+      );
+
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
 }

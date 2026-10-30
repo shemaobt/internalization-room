@@ -7311,15 +7311,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void gravarACena(int cena) => _gesture(() => _gravarACena(cena));
 
   void _gravarACena(int cena) {
-    if (state.station is! Ensaio ||
-        state.needsPerson ||
-        state.playPing ||
-        state.joining != null) {
+    if (state.station is! Ensaio || state.needsPerson || state.playPing) {
       return;
     }
     if (!state.aBackTranslationGestureActs) return;
     final row = state.sceneRows.where((row) => row.number == cena).firstOrNull;
     if (row == null || row.beyondTheScenes) return;
+    if (state.joining != null && state.ensaio != EnsaioStatus.recording) {
+      return;
+    }
     final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
