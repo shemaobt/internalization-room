@@ -318,7 +318,7 @@ void main() {
     );
 
     test(
-      'a pill whose session opened before its opening threw still shows the sign, not the Choice',
+      'a pill whose session opened before its opening threw rests on the canvas at invite, with no sign and nothing said',
       () async {
         final harness = SalaHarness();
         final container = harness.container();
@@ -335,11 +335,11 @@ void main() {
         await settle();
 
         expect(read().sessionId, isNotNull);
-        expect(
-          read().needsPerson,
-          isTrue,
-          reason: 'um erro com a sessão já aberta sumia sem sinal',
-        );
+        expect(read().needsPerson, isFalse);
+        expect(read().station, isA<Canvas>());
+        expect(read().voice, VoiceState.invite);
+        expect(read().awaitingTheGuide, isFalse);
+        expect(harness.voice.played, isEmpty);
       },
     );
 

@@ -3121,7 +3121,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       Turn(sessionId, turnId),
       generation,
       () => _room.openSession(sessionId, turnId: turnId),
-      play: play,
+      play: (opening) async {
+        try {
+          await play(opening);
+        } on Error catch (error, stack) {
+          if (_abandoned(generation)) return;
+          debugPrint('$error\n$stack');
+          _registerUnplayableTurn();
+        }
+      },
       failed: failed,
     );
   }

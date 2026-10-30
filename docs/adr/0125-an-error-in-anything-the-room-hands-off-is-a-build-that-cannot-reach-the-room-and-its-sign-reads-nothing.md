@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0145
+status: accepted, amended by 0145, ENG-1979
 date: 2026-10-22
 amends: 0093, 0107
 ---
@@ -30,6 +30,9 @@ sign and calls nobody.
 - **An `Error` from a hand-off the team has moved past still raises the sign.** It is a
   defect, not a room answer, so the generation guard, which is for answers, does not drop
   it. An `Error` that lands after its Life ended, disposed or linked anew, raises nothing.
+- **An `Error` thrown while a passage's Opening is voiced raises no sign** (ENG-1979). Her
+  kickoff handles a throw like a refusal (`app/page.tsx:756-758`): the team rests on the canvas
+  at the invite, nothing said, and the error goes to the log. Every other hand-off keeps the sign.
 - **A sign raised without a call calls nobody, and its tap reads nothing.** The team's
   tap clears it to the Choice as it stands; it neither reads the Wheel nor enters a
   passage. A raise that calls for a person over it, or a read that says a person is

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0143, 0145
+status: accepted, amended by 0143, 0145, ENG-1979
 date: 2026-10-27
 amends: 0108 (in part: a way in from the Choice rests on the Choice, not at the invite), 0062 (in part: the way back lasts until the next entry's session opens)
 ---
@@ -25,5 +25,6 @@ the Panorama goes through the same open (`:980-981`).
   ours waits for the team's tap on the chevron until ENG-1939 keeps the passage left in memory
   under the Choice.
 - **A failure once the session is held is unchanged.** The Opening that fails rests in its
-  session, as hers rests in hers (`app/page.tsx:746-757`); a thrown error still raises the sign
-  (ADR 0093).
+  session, as hers rests in hers (`app/page.tsx:746-757`). A thrown error while the Opening is
+  voiced is handled the same way (`:756-758`): the team rests on the canvas at the invite, with no
+  sign and nothing said (ENG-1979); the error goes to the operator's log.
