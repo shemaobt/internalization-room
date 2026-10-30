@@ -21,6 +21,8 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
      keeps the listen for it;
    - none unheard, or an older room: today's path. An entry the room does not answer at all, with nothing the room said earlier in the visit, is the First listen (ENG-1859 amendment below).
+   - *Pointer, ENG-1854:* the third bullet above no longer holds; see the Amendment of 2026-10-30
+     (ENG-1854): N0 and every part.
 2. **A recording no join touched has the First listen too** (ENG-1206, 26 October), as hers
    does (`listenPlan`, `afterFullListen`): every entry asks the room in the same way; every
    part unheard is her P0 and the whole recording, listen-only, and so is a part recorded
