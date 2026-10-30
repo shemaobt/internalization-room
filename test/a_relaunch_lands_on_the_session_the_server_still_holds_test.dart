@@ -481,6 +481,62 @@ void main() {
     },
   );
 
+  group(
+    'a passage picked on the Choice lands on its conversation, as hers',
+    () {
+      Future<_Tablet> pickedOnTheChoice(
+        SalaStage stage, {
+        bool done = false,
+      }) async {
+        final harness = SalaHarness();
+        harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+          sessionId: _held,
+          stage: stage,
+          takes: [_aPartHere()],
+        );
+        harness.room
+          ..openedSessions.add(_held)
+          ..done = done;
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final tablet = _Tablet(harness, container);
+        await tablet.notifier.openTheRoom();
+        await _theChoiceShowsItsWheel(tablet);
+        await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+        await _landsOn(tablet, _held);
+        return tablet;
+      }
+
+      for (final stage in [SalaStage.ensaio, SalaStage.retro]) {
+        test('from a stored ${stage.name} row, at rest', () async {
+          final tablet = await pickedOnTheChoice(stage);
+
+          expect(
+            tablet.state.station,
+            isA<Canvas>(),
+            reason:
+                'a escolha caía direto na estação guardada, e a dela cai '
+                'na conversa',
+          );
+          expect(tablet.state.roomSaysItAgain, isTrue);
+          expect(tablet.said, isEmpty);
+          expect(tablet.harness.playback.played, isEmpty);
+        });
+      }
+
+      test('with the room\'s phase: a done passage reads done', () async {
+        final tablet = await pickedOnTheChoice(SalaStage.ensaio, done: true);
+
+        expect(tablet.state.station, isA<Canvas>());
+        expect(
+          tablet.state.endOfThePassage,
+          isTrue,
+          reason: 'a passagem acabada voltava sem o ponto aceso',
+        );
+      });
+    },
+  );
+
   test(
     'a relaunch in the Back-translation lands on its conversation at rest and '
     'plays nothing',
