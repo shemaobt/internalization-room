@@ -1424,7 +1424,8 @@ void main() {
   );
 
   testWidgets(
-    'a part that fails to play says so, calls nobody, and the next tap plays it',
+    'a part that fails to play says so, calls nobody, and the next tap plays it '
+    'under the same line',
     (tester) async {
       final it = await _naTela(tester, _juntadaNaCasa);
       await _ate(tester, () async {
@@ -1446,7 +1447,7 @@ void main() {
         ),
       );
 
-      expect(find.text(_naoDeuParaConferir), findsNothing);
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
       expect(it.harness.playback.played.last, it.partes[0].path);
       closeTheRoom(it.container);
     },

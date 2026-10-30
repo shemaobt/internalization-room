@@ -172,9 +172,6 @@ class AStationHost implements StationHost {
   void hearThePlayFailed() => asked.add('hearThePlayFailed');
 
   @override
-  void hearThePlayOpened() => asked.add('hearThePlayOpened');
-
-  @override
   void hearTheSendFailed() => asked.add('hearTheSendFailed');
 
   @override
