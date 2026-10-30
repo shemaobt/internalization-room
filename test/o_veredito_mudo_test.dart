@@ -63,8 +63,8 @@ void main() {
     expect(read().canFinishBackTranslation, isTrue);
   });
 
-  test('a verdict whose sound fails to load twice leaves the back-translation '
-      'with no sign and a live «terminei», as hers', () async {
+  test('a verdict whose sound fails is tried once, writes her «não deu para '
+      'conferir», and calls nobody, as hers', () async {
     final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
     final container = await _inConversa(harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -74,7 +74,22 @@ void main() {
 
     expect(
       harness.voice.played.where((url) => url == _verdictUrl),
-      hasLength(2),
+      hasLength(1),
+      reason:
+          'o veredito era carregado mais uma vez 1,5 s depois; o dela toca '
+          'uma vez e volta ao repouso',
+    );
+    expect(
+      read().btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason: 'o veredito que não soava deixava a tela sem linha nenhuma',
+    );
+    expect(
+      read().machine.aHaltWaitsForTheCanvas,
+      isNull,
+      reason:
+          'a segunda falha deixava uma chamada por pessoa esperando a '
+          'conversa, por um veredito que o dela nunca conta',
     );
     expect(
       read().needsPerson,
@@ -126,31 +141,35 @@ void main() {
     );
   });
 
-  test('a verdict heard again after its sound failed twice leaves nothing '
-      'waiting to call a person on the conversation', () async {
-    final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
-    final container = await _inConversa(harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
+  test(
+    'a verdict that would not sound is heard through «ouvir a resposta de '
+    'novo» once the player allows, and nothing waits for the conversation',
+    () async {
+      final harness = SalaHarness()..voice.refuses.add(_verdictUrl);
+      final container = await _inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
 
-    await _toTheVerdict(harness, notifier);
-    expect(read().machine.aHaltWaitsForTheCanvas, isNotNull);
+      await _toTheVerdict(harness, notifier);
+      expect(read().machine.aHaltWaitsForTheCanvas, isNull);
 
-    harness.voice.refuses.remove(_verdictUrl);
-    notifier.ouvirARespostaDeNovo();
-    await waitFor(
-      'o veredito soar de novo',
-      () => read().machine.aHaltWaitsForTheCanvas == null,
-    );
+      harness.voice.refuses.remove(_verdictUrl);
+      notifier.ouvirARespostaDeNovo();
+      await waitFor(
+        'o veredito soar de novo',
+        () =>
+            harness.voice.played.where((url) => url == _verdictUrl).length == 2,
+      );
 
-    expect(
-      read().machine.aHaltWaitsForTheCanvas,
-      isNull,
-      reason:
-          'o veredito ouvido de novo deixava de pé a chamada por uma pessoa '
-          'que subiria na conversa',
-    );
-  });
+      expect(
+        harness.voice.played.where((url) => url == _verdictUrl),
+        hasLength(2),
+        reason: 'o veredito que não soou não voltava pelo ouvir de novo',
+      );
+      expect(read().machine.aHaltWaitsForTheCanvas, isNull);
+      expect(read().needsPerson, isFalse);
+    },
+  );
 
   test('a verdict that speaks calls nobody', () async {
     final harness = SalaHarness();

@@ -10940,20 +10940,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     }
     if (verdict.audioUrl.isEmpty && verdict.fixedLine.isEmpty) {
-      state = state.copyWith(
-        btPhase: pressedFrom,
-        awaitingTheGuide: false,
-        btRecusa: CheckRefusal.checkUnavailable,
-      );
-      return;
+      return _theVerdictDidNotSound(pressedFrom);
     }
+    final line = SpokenLine(
+      url: verdict.audioUrl,
+      fixedLine: verdict.fixedLine,
+      checkAt: verdict.checkAt,
+    );
     try {
-      final spoke = await _sayTheReply(
-        SpokenLine(
-          url: verdict.audioUrl,
-          fixedLine: verdict.fixedLine,
-          checkAt: verdict.checkAt,
-        ),
+      final spoke = await _loadTheReply(
+        line,
+        generation,
+        asked: false,
         remember: !verdict.usedFailSafe,
       );
       if (_abandoned(generation)) return;
@@ -10970,8 +10968,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // `thinking` takes no tap and holds the finish button down — the team would be left
       // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
-        state = state.copyWith(btPhase: pressedFrom);
-        return _registerUnplayableTurn();
+        if (!verdict.usedFailSafe) state = state.copyWith(lastSpoken: line);
+        return _theVerdictDidNotSound(pressedFrom);
       }
 
       if (verdict.checked) {
@@ -11021,6 +11019,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       _decideTheFailure(failure);
     }
+  }
+
+  void _theVerdictDidNotSound(BtPhase pressedFrom) {
+    state = state.copyWith(
+      btPhase: pressedFrom,
+      awaitingTheGuide: false,
+      btRecusa: CheckRefusal.checkUnavailable,
+    );
   }
 
   /// The team makes what it recorded its final draft.
