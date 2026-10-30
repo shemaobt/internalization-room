@@ -306,7 +306,7 @@ void main() {
           'reabrir a conversa fazia o Guia perguntar como numa '
           'internalização para uma equipe que já estava no ensaio',
     );
-    expect(harness.room.calls, contains('fetchState'));
+    expect(harness.room.calls, contains('createSession'));
     expect(state.coverage.total, totalBeads);
   });
 
@@ -405,10 +405,10 @@ void main() {
       reason: 'e dentro da sessão que o servidor continua a guardar',
     );
     expect(
-      harness.room.pericopesAsked,
+      harness.room.sessionIds,
       isEmpty,
       reason:
-          'pedir uma sessão nova aqui deixa órfã a que guarda tudo o '
+          'uma sessão nova aqui deixa órfã a que guarda tudo o '
           'que a equipe contou',
     );
     expect(harness.emAberto.rows['Ruth/P01/pt']?.sessionId, 'sessao-velha');
@@ -458,6 +458,7 @@ void main() {
         () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
       );
 
+      harness.room.heldByTheTeam = null;
       await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
 
@@ -484,7 +485,7 @@ void main() {
       expect(state.sessionId, harness.room.sessionIds.single);
       expect(
         harness.room.pericopesAsked,
-        hasLength(1),
+        hasLength(2),
         reason: 'entrar de novo é pedir uma sessão nova para a passagem',
       );
       final linha = harness.emAberto.written.last;
@@ -570,7 +571,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      harness.room.failStateOnceWith = const Refused('BAD_REQUEST');
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -585,7 +586,7 @@ void main() {
         'a Escolha abrir as entradas',
         () => container.read(salaSessionProvider).entriesOpen,
       );
-      harness.room.failStateOnceWith = const Refused('BAD_REQUEST');
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -1794,6 +1795,7 @@ void main() {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       harness.voice.succeeds = true;
+      harness.room.heldByTheTeam = null;
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 

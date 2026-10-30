@@ -49,17 +49,11 @@ read time — so a restore, a reinstall or a new tablet never leaves the whole R
 pointing at a container prefix that is gone. Rows written by earlier builds carried the
 whole path and are still read.
 
-A resume point whose recordings are not on this tablet any more fetches the room's own
-parts and lands the team where they stopped, and the row is then rewritten naming the files
-that arrived. On the Rehearsal the team lands as soon as the room's takes list answers, and
-the parts come down behind their rows one at a time; a part whose fetch fails keeps its row
-and its next tap fetches it again, and the row names it until it is here (ADR 0128). On the
-Back-translation a fetch that cannot be finished leaves the row exactly as it was, so the
-next opening tries again; it is never rewritten without its takes, which would leave the
-Rehearsal the room is holding out of the team's reach for good. A room that
-holds no Rehearsal at all is neither: nothing is fetched, the passage opens at the
-Conversation, and the row is left alone. ADR 0023 has the whole of it. The row is never
-dropped either, because the session identifier lives only there, and dropping it would
+A passage picked on the Choice, or reopened by a relaunch, lands on its conversation whatever
+its resume point names, and loads only the takes the tablet still holds; nothing is fetched
+or listed at entry (ADR 0141, amended by ENG-1964). The recordings the tablet no longer holds
+come back when the orange dot opens the recording home, which lays the room's parts in under
+their rows as its listing answers. The row is never dropped, because the session identifier lives only there, and dropping it would
 abandon that session on the server the moment the team closed the app before reaching the
 Rehearsal. A resume point that cannot be written is logged and not spoken (ADR 0103). A
 resume file that exists but cannot be parsed is never used as the base of a write — the rows

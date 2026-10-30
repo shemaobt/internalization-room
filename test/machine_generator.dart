@@ -311,13 +311,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheWayBackTaken(:final left) =>
     'TheWayBackTaken(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
         'session: ${left.session}, said: ${left.said})',
-  TheRehearsalWeighed(
-    :final everySceneHasItsPart,
-    :final everyPartIsHere,
-    :final everyPartIsSent,
-  ) =>
-    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsHere, '
-        '$everyPartIsSent)',
+  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsSent) =>
+    'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsSent)',
   TheLeftPassageReturns(:final session, :final warned) =>
     'TheLeftPassageReturns($session, warned: $warned)',
 };
@@ -875,7 +870,6 @@ MachineEvent _draw(
   ),
   EventKind.theRehearsalWeighed => TheRehearsalWeighed(
     everySceneHasItsPart: random.nextBool(),
-    everyPartIsHere: random.nextBool(),
     everyPartIsSent: random.nextBool(),
   ),
 };

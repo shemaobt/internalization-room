@@ -473,7 +473,7 @@ void main() {
     expect(await tablet.harness.currentSession.endOf(session), isNotNull);
     tablet.notifier.leaveThePassage();
     for (var refusal = 0; refusal < 2; refusal++) {
-      tablet.harness.room.failStateOnceWith = const Refused('RECUSADA');
+      tablet.harness.room.failCreateOnceWith = const Refused('RECUSADA');
       await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
       await settle();
       tablet.notifier.leaveThePassage();
@@ -675,11 +675,11 @@ void main() {
         final tablet = _Tablet(harness, container);
         await tablet.notifier.openTheRoom();
         await _theChoiceShowsItsWheel(tablet);
-        harness.room.holdNextState();
+        harness.room.holdNextCreate();
         await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
         await waitFor(
-          'the session to open',
-          () => tablet.state.sessionId == _held,
+          'the room to be asked',
+          () => harness.room.calls.contains('createSession'),
         );
         await settle();
 
@@ -693,13 +693,46 @@ void main() {
               'o ponto laranja abria a casa com a leitura da sala ainda no ar, '
               'e a leitura era abandonada',
         );
-        harness.room.finishHeldState();
+        harness.room.finishHeldCreate();
         await waitFor('the read to land', () => !tablet.state.awaitingTheGuide);
+        expect(tablet.state.sessionId, _held);
         expect(tablet.state.endOfThePassage, isTrue);
         expect(tablet.state.orangeDotLook, OrangeDotLook.bright);
       });
     },
   );
+
+  test('a relaunch whose row names another session than the one held reads '
+      'the row\'s session, not the launch\'s', () async {
+    final tablet = _aTabletHolding(SalaStage.ensaio, takes: [_aPartHere()]);
+    tablet.harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+      sessionId: 'sessao-da-linha',
+      stage: SalaStage.ensaio,
+      takes: [_aPartHere()],
+    );
+    tablet.harness.room.forgottenSessions.add('sessao-da-linha');
+
+    await tablet.notifier.openTheRoom();
+    await waitFor(
+      'the row\'s session to be read',
+      () => tablet.harness.room.askedOfTheForgotten.contains('fetchState'),
+    );
+    await settle();
+
+    expect(
+      tablet.harness.room.askedOfTheForgotten,
+      contains('fetchState'),
+      reason: 'a sessão da linha nunca era lida, só a guardada',
+    );
+    expect(
+      tablet.state.station,
+      isA<Menu>(),
+      reason:
+          'a linha de uma sessão que a sala esqueceu pousava na conversa com a '
+          'leitura de outra sessão',
+    );
+    expect(tablet.state.sessionId, isNull);
+  });
 
   test('a relaunch lands on the read its launch made, and reads the room '
       'only once', () async {

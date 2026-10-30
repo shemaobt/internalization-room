@@ -414,7 +414,7 @@ Future<void> intoTheRecordingHome(
   notifier.goEnsaio();
   await waitFor(
     'as partes chegarem à casa',
-    () => read().station is Ensaio && read().partsAway.isEmpty,
+    () => read().station is Ensaio,
     step: step,
   );
 }
@@ -434,10 +434,7 @@ Future<void> throughTheOrangeDot(
   notifier.openTheEnsaioFinal();
   await waitFor(
     'as partes da sala chegarem à casa',
-    () =>
-        read().station is Ensaio &&
-        read().partes.isNotEmpty &&
-        read().everyPartIsHere,
+    () => read().station is Ensaio && read().partes.isNotEmpty,
     step: step,
   );
 }
