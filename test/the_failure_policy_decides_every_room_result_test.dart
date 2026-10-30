@@ -86,6 +86,7 @@ void main() {
       for (final code in [
         RefusalCode.unnamed(500),
         RefusalCode.deviceRevoked,
+        RefusalCode.wordlessTelling,
         'TURN_COLLISION',
       ]) {
         _decides(
@@ -97,23 +98,17 @@ void main() {
     });
 
     test('a Panorama turn the room refuses brings the person sign', () {
-      _decides(
-        RoomRefused(RefusalCode.unnamed(500)),
-        _at(
-          const Panorama('OV-Ruth'),
-          turn: _turn,
-          rule: RefusalRule.aSpokenTurn,
-        ),
-        const RoomRaisedAHalt(generation: 4),
-      );
-    });
-
-    test('a spoken turn refused as a wordless telling brings the person sign, '
-        'on the Conversation and on a Panorama', () {
-      for (final station in _theSessionScreen) {
+      for (final code in [
+        RefusalCode.unnamed(500),
+        RefusalCode.wordlessTelling,
+      ]) {
         _decides(
-          const RoomRefused(RefusalCode.wordlessTelling),
-          _at(station, turn: _turn, rule: RefusalRule.aSpokenTurn),
+          RoomRefused(code),
+          _at(
+            const Panorama('OV-Ruth'),
+            turn: _turn,
+            rule: RefusalRule.aSpokenTurn,
+          ),
           const RoomRaisedAHalt(generation: 4),
         );
       }

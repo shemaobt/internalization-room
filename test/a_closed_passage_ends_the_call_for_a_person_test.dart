@@ -7,7 +7,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -118,7 +117,7 @@ void main() {
     () async {
       final harness = SalaHarness();
       final container = await _naPassagemSemEspera(harness);
-      harness.room.failTurnsWith = const Refused(RefusalCode.wordlessTelling);
+      harness.room.failTurnsWith = const Refused('WORDLESS_TELLING');
       _sala(container).conversaTap();
       await waitFor(
         'o microfone abrir na conversa',

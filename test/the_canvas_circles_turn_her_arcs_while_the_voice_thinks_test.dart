@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/conversa_view.dart';
@@ -63,6 +66,19 @@ void main() {
     ) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+  });
+
+  test('a sign over a wait the conversation microphone still shows as thinking '
+      'writes no «pensando…»', () {
+    const waiting = Machine(channel: Microphone(MicOwner.conversation));
+    final thinking = SalaSessionState(awaitingTheGuide: true, machine: waiting);
+    final signed = SalaSessionState(
+      awaitingTheGuide: true,
+      machine: waiting.copyWith(halt: const Blocking()),
+    );
+
+    expect(thinking.writesTheThinkingNote, isTrue);
+    expect(signed.writesTheThinkingNote, isFalse);
   });
 
   testWidgets(

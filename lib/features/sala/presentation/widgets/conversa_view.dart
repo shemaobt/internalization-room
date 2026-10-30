@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
-import '../../domain/halt.dart';
 import '../../domain/session_state.dart';
 import 'facilitator_circle.dart';
 import 'kept_retelling_buttons.dart';
@@ -44,8 +43,7 @@ class ConversaView extends ConsumerWidget {
         ),
         if (session.takeRecordingSince case final since?)
           MicClock(circleSize: circleSize, since: since),
-        if (session.circleVoice == VoiceState.thinking &&
-            session.halt is! Blocking)
+        if (session.writesTheThinkingNote)
           ThinkingNote(circleSize: circleSize, language: language),
         if (session.partsToReplay.isNotEmpty)
           KeptRetellingButtons(

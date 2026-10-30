@@ -273,7 +273,7 @@ abstract final class FailurePolicy {
         generation: generation,
       ),
       RoomRefused(code: RefusalCode.wordlessTelling)
-          when rule == RefusalRule.aSpokenTurn || turn != null =>
+          when rule == RefusalRule.aSpokenTurn =>
         halt,
       RoomRefused(code: RefusalCode.wordlessTelling) => TheTellingCameBackEmpty(
         generation: generation,
