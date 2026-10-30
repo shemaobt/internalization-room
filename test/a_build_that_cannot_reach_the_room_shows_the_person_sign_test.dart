@@ -361,6 +361,7 @@ void main() {
         await settle();
 
         expect(read().station, isA<Panorama>());
+        expect(read().voice, VoiceState.invite);
         expect(read().needsPerson, isFalse);
         expect(read().awaitingTheGuide, isFalse);
         expect(harness.voice.played, isEmpty);
