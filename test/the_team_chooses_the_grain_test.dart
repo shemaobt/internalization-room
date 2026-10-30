@@ -28,6 +28,7 @@ import 'scenario_helpers.dart'
         intoTheRecordingHome,
         relaunch,
         thePersonSign,
+        voiceOverFocusLeaves,
         voiceOverTap;
 
 const _how = 'Como vocês querem gravar?';
@@ -1848,6 +1849,43 @@ void main() {
       expect(find.text(_planLine), findsOneWidget);
     });
 
+    testWidgets(
+      'armed over an approved draft, VoiceOver focus leaving it reads its own '
+      'text again, and the next tap only arms',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, container) = await _onTheEmptyWholeHome(tester);
+        harness.room.approvedDraft = const ApprovedDraft(version: 1);
+        await _relaunchOnTheApp(tester, harness, container);
+        await _settles(tester);
+        await _tap(tester, _backToJoin);
+        await tester.pump(const Duration(seconds: 2));
+        expect(find.text(_reopenArmed), findsOneWidget);
+
+        voiceOverFocusLeaves(tester, byLabel(_reopenArmed));
+        await _settles(tester);
+
+        expect(
+          find.text(_backToJoin),
+          findsOneWidget,
+          reason: 'a linha seguia armada depois que o foco do VoiceOver saiu',
+        );
+        expect(find.text(_reopenArmed), findsNothing);
+        final before = harness.room.grainSwitches.length;
+
+        await _tap(tester, _backToJoin);
+        await _settles(tester);
+
+        expect(find.text(_reopenArmed), findsOneWidget);
+        expect(
+          harness.room.grainSwitches,
+          hasLength(before),
+          reason: 'o toque seguinte voltava para a junção em vez de só armar',
+        );
+        await tester.pump(_theArmLapses);
+        semantics.dispose();
+      },
+    );
     testWidgets('is gone once the whole has a take', (tester) async {
       final (_, container) = await _onTheEmptyWholeHome(tester);
 

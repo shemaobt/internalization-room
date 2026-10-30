@@ -19,7 +19,12 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show byLabel, holdTheSession, intoTheBackTranslation, voiceOverTap;
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        voiceOverFocusLeaves,
+        voiceOverTap;
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -304,6 +309,38 @@ void main() {
       tester.getSemantics(byLabel(_wholeArmed)),
       isSemantics(hasToggledState: true, isToggled: true),
       reason: 'o botão armado soava solto para o VoiceOver',
+    );
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
+  testWidgets('armed, VoiceOver focus leaving it reads «gravar a passagem '
+      'inteira de uma vez» again, and the next tap only arms', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+    await _tap(tester, _wholeAtOnce);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text(_wholeArmed), findsOneWidget);
+
+    voiceOverFocusLeaves(tester, byLabel(_wholeArmed));
+    await _passo(tester);
+
+    expect(
+      find.text(_wholeAtOnce),
+      findsOneWidget,
+      reason: 'o botão seguia armado depois que o foco do VoiceOver saiu dele',
+    );
+    expect(find.text(_wholeArmed), findsNothing);
+
+    await _tap(tester, _wholeAtOnce);
+
+    expect(find.text(_wholeArmed), findsOneWidget);
+    expect(
+      harness.room.grainSwitches,
+      isEmpty,
+      reason: 'o toque seguinte trocava o grão em vez de só armar',
     );
     await tester.pump(_theArmLapses);
     closeTheRoom(container);

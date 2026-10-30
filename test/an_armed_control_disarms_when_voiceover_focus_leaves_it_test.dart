@@ -10,7 +10,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida, gravarAFraseAberta, tocarNaLista;
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel;
+import 'scenario_helpers.dart' show byLabel, voiceOverFocusLeaves;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 
@@ -26,16 +26,10 @@ Future<void> _passo(WidgetTester tester) =>
 Finder _naLista(String label) =>
     find.descendant(of: find.byType(FraseList), matching: byLabel(label));
 
-void _oFocoSaiDe(WidgetTester tester, Finder control) =>
-    _oFoco(tester, control, SemanticsAction.didLoseAccessibilityFocus);
-
 void _oFocoPousaEm(WidgetTester tester, Finder control) =>
-    _oFoco(tester, control, SemanticsAction.didGainAccessibilityFocus);
-
-void _oFoco(WidgetTester tester, Finder control, SemanticsAction action) =>
     tester.binding.performSemanticsAction(
       SemanticsActionEvent(
-        type: action,
+        type: SemanticsAction.didGainAccessibilityFocus,
         viewId: tester.view.viewId,
         nodeId: tester.getSemantics(control).id,
       ),
@@ -52,7 +46,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(_naLista(_armado), findsOneWidget);
 
-    _oFocoSaiDe(tester, _naLista(_armado));
+    voiceOverFocusLeaves(tester, _naLista(_armado));
     await _passo(tester);
 
     expect(
@@ -110,7 +104,7 @@ void main() {
     await tocarNaLista(tester, _regravar(2));
     await tester.pump(const Duration(seconds: 2));
 
-    _oFocoSaiDe(tester, _naLista(_regravar(1)));
+    voiceOverFocusLeaves(tester, _naLista(_regravar(1)));
     await _passo(tester);
 
     expect(
@@ -131,7 +125,7 @@ void main() {
     await tocarNaLista(tester, _regravar(2));
     expect(_naLista(_armado), findsOneWidget);
 
-    _oFocoSaiDe(tester, _naLista(_armado));
+    voiceOverFocusLeaves(tester, _naLista(_armado));
     await _passo(tester);
 
     expect(
@@ -169,7 +163,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(_naLista(_armado), findsOneWidget);
 
-    _oFocoSaiDe(tester, _naLista(_armado));
+    voiceOverFocusLeaves(tester, _naLista(_armado));
     await _passo(tester);
 
     expect(
