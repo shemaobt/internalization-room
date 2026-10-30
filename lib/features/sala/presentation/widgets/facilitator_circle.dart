@@ -123,7 +123,10 @@ class FacilitatorCircle extends StatelessWidget {
                 size: Size.square(
                   size * (glyph == CircleGlyph.hand ? 0.36 : 0.6),
                 ),
-                painter: CircleGlyphPainter(glyph: glyph, ink: _herInk(colors)),
+                painter: CircleGlyphPainter(
+                  glyph: glyph,
+                  ink: _herInk(colors, glyph),
+                ),
               ),
             ),
       ],
@@ -177,10 +180,8 @@ class FacilitatorCircle extends StatelessWidget {
     return CircleGlyph.sound;
   }
 
-  Color _herInk(SalaColors colors) {
-    if (noteMode) return colors.azul;
-    return colors.telha;
-  }
+  Color _herInk(SalaColors colors, CircleGlyph glyph) =>
+      glyph == CircleGlyph.hand ? colors.azul : colors.telha;
 
   Widget _body(BuildContext context, SalaColors colors, bool still) {
     if (!canvas) return _checkBody(context, colors, still);

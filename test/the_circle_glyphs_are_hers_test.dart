@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -299,6 +300,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(veil(CircleGlyph.sound), closeTo(0.92 * (1 - 0.8024), 0.01));
       expect(veil(CircleGlyph.hand), closeTo(0.92 * 0.8024, 0.01));
+      Color ink(CircleGlyph glyph) =>
+          (tester.widget<CustomPaint>(paintedGlyph(glyph)).painter!
+                  as CircleGlyphPainter)
+              .ink;
+      expect(
+        ink(CircleGlyph.sound),
+        SalaColors.of(tester.element(paintedGlyph(CircleGlyph.sound))).telha,
+        reason: 'o alto-falante que sai guarda a telha dele (globals.css:124)',
+      );
+      expect(
+        ink(CircleGlyph.hand),
+        SalaColors.of(tester.element(paintedGlyph(CircleGlyph.hand))).azul,
+        reason: 'a mão que entra é azul (globals.css:174)',
+      );
 
       await tester.pump(const Duration(milliseconds: 500));
       expect(paintedGlyph(CircleGlyph.sound), findsNothing);
