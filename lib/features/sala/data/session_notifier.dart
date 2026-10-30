@@ -8317,7 +8317,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final nomes = ouvida?.unheardTakeIds;
     final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
     final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
-    if (naoOuvidas == null || naoOuvidas.isEmpty && !deFora) {
+    if (ouvida != null &&
+        (naoOuvidas == null || naoOuvidas.isEmpty && !deFora)) {
       if (state.btFraseQueAguarda case final aguardando?) {
         return _voltarAFraseQueAguarda(aguardando, generation);
       }
@@ -8343,14 +8344,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.btFraseQueAguarda case final aguardando?
-        when nomes!.isNotEmpty &&
+        when nomes != null &&
+            nomes.isNotEmpty &&
             nomes.every(
               (nome) => nome == state.trechoChamado(aguardando)?.takeId,
             ) &&
-            naoOuvidas.every((onde) => state.partes[onde].takeId != null)) {
+            naoOuvidas!.every((onde) => state.partes[onde].takeId != null)) {
       return _voltarAFraseQueAguarda(aguardando, generation, emVolta: true);
     }
-    final doComeco = !juntada || naoOuvidas.length == state.partes.length;
+    final doComeco =
+        !juntada ||
+        naoOuvidas == null ||
+        naoOuvidas.length == state.partes.length;
     final partes = doComeco || naoOuvidas.isEmpty
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
@@ -8395,7 +8400,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     ) when daSessao == sessionId) {
       return ouvida;
     }
-    return null;
+    return switch (resposta) {
+      Answered(:final value) => value,
+      _ => null,
+    };
   }
 
   List<int> _asPartesNomeadas(List<String> nomes) => [
