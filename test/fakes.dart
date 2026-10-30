@@ -401,6 +401,7 @@ class FakeRecorder implements RecordingRepository {
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
   String? rehearsalSpeaksAs;
+  Uint8List? questionSpeaks;
 
   bool permitted = true;
 
@@ -507,6 +508,11 @@ class FakeRecorder implements RecordingRepository {
         owner == MicOwner.scene ||
         owner == MicOwner.frase ||
         owner == MicOwner.listener;
+    final question = questionSpeaks;
+    if (question != null && owner == MicOwner.question) {
+      final take = File('$named.m4a')..writeAsBytesSync(question);
+      return lastPath = take.path;
+    }
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -1601,6 +1607,7 @@ class FakeRoom implements RoomRepository {
   String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  Completer<void>? holdingTheCredential;
   RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
@@ -1775,6 +1782,7 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
     if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
+    await holdingTheCredential?.future;
     final refusal = refuseCredentialWith;
     if (refusal != null) return refusal;
     return Answered(credential);
