@@ -261,6 +261,11 @@ class _Room {
   }
 
   Future<void> relaunchOnTheConversation() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+    var stopped = false;
+    unawaited(harness.takes.writingEnds().then((_) => stopped = true));
+    await until('a vida antiga parar de escrever', () => stopped);
     late SalaHarness again;
     late ProviderContainer next;
     await tester.runAsync(() async {
@@ -269,7 +274,6 @@ class _Room {
     });
     harness = again;
     container = next;
-    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       UncontrolledProviderScope(container: next, child: const SalaApp()),
     );
@@ -529,6 +533,10 @@ void main() {
       for (var second = 0; second < 10 && !it.ticked(2); second++) {
         await it.wait(const Duration(seconds: 1));
         expect(find.text(_retry), findsNothing);
+      }
+      final waited = Stopwatch()..start();
+      while (!it.ticked(2) && waited.elapsed < const Duration(seconds: 30)) {
+        await it.beat();
       }
 
       expect(it.ticked(2), isTrue);
@@ -1364,7 +1372,10 @@ void main() {
       await it.wait(const Duration(seconds: 20));
 
       expect(it.onRow(1, find.text(_retry)), findsNothing);
-      expect(tries(), greaterThan(at60));
+      await it.until(
+        'a parte 1 ser enviada de novo depois dos 60 s',
+        () => tries() > at60,
+      );
       await it.wait(const Duration(seconds: 20));
       await it.until(
         'a linha 1 pedir outra tentativa',
@@ -1470,7 +1481,13 @@ void main() {
               EnsaioStatus.recorded,
         );
         sala.takeKeep();
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await waitFor(
+          'a gravação à mão chegar ao Outbox',
+          () async => (await it.harness.takes.pending()).any(
+            (row) => row.scope == 'parte-1',
+          ),
+          limit: const Duration(seconds: 30),
+        );
       });
       it.leftOnTheConversation();
       await it.relaunchOnTheConversation();

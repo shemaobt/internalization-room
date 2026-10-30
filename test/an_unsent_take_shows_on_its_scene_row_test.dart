@@ -107,11 +107,16 @@ class _Casa {
         linha.unsent?.failure == SendFailure.failed;
   }
 
+  bool enviada(int n) {
+    final linha = estado.sceneRows.firstWhere((row) => row.number == n);
+    return linha.inTheAir == null && linha.unsent == null;
+  }
+
   Future<void> tocarAte(Finder alvo, String what, bool Function() done) =>
       emTempoReal(() async {
         await tester.ensureVisible(alvo);
         await tester.tap(alvo);
-        await waitFor(what, done);
+        await waitFor(what, done, limit: const Duration(seconds: 30));
       });
 
   Future<void> gravar(int n) => emTempoReal(() async {
@@ -133,7 +138,11 @@ class _Casa {
       final antes = envios;
       sala.takeKeep();
       await waitFor('a cena $n subir', () => envios > antes);
-      await settle(const Duration(milliseconds: 300));
+      await waitFor('a cena $n assentar', () {
+        final linha = estado.sceneRows.firstWhere((row) => row.number == n);
+        return linha.inTheAir == null &&
+            (linha.saved || linha.unsent?.failure != null);
+      }, limit: const Duration(seconds: 30));
     });
   }
 
@@ -341,7 +350,11 @@ void main() {
       );
 
       casa.room.unreachableTake = null;
-      await casa.tocar(find.text(_enviarAgora(2, '0:48')));
+      await casa.tocarAte(
+        find.text(_enviarAgora(2, '0:48')),
+        'a cena 2 ficar enviada',
+        () => casa.enviada(2),
+      );
 
       expect(casa.naSala, contains('ensaio/parte-2'));
       expect(find.text(_aviso), findsNothing);
@@ -363,7 +376,11 @@ void main() {
       expect(find.text(_aviso), findsNothing);
 
       casa.room.unreachableTake = null;
-      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'a cena 2 ficar enviada',
+        () => casa.enviada(2),
+      );
 
       expect(casa.naSala, contains('ensaio/parte-2'));
       expect(find.text(_falhou), findsNothing);
@@ -502,7 +519,11 @@ void main() {
       final antes = casa.envios;
       casa.sala.takeKeep();
       await waitFor('scene 2 goes up', () => casa.envios > antes);
-      await settle(const Duration(milliseconds: 300));
+      await waitFor(
+        'scene 2 fails',
+        () => casa.falhou(2),
+        limit: const Duration(seconds: 30),
+      );
     });
     expect(casa.naLinha(2, find.text('failed — tap to try again')), findsOne);
     casa.room.refuseTake = 'ensaio/parte-3';
@@ -556,7 +577,11 @@ void main() {
       expect(botao, findsOneWidget);
 
       final antes = casa.envios;
-      await casa.tocar(botao);
+      await casa.tocarAte(
+        botao,
+        'a cena 2 ser enviada de novo',
+        () => casa.envios > antes,
+      );
       expect(casa.envios - antes, 1);
 
       await casa.emTempoReal(() async {
@@ -615,7 +640,11 @@ void main() {
     expect(casa.naLinha(3, find.text(_enviarAgora(3, '0:48'))), findsOneWidget);
 
     final antes = casa.envios;
-    await casa.tocar(find.text(_enviarAgora(3, '0:48')));
+    await casa.tocarAte(
+      find.text(_enviarAgora(3, '0:48')),
+      'a cena 3 ficar enviada',
+      () => casa.enviada(3),
+    );
 
     expect(casa.envios - antes, 1, reason: 'só a cena 3 foi tentada');
     expect(casa.naSala, contains('ensaio/parte-3'));
@@ -632,8 +661,14 @@ void main() {
       await casa.guardar(2);
       await casa.gravar(2);
       await casa.emTempoReal(() async {
+        final antes = casa.envios;
         casa.sala.takeKeep();
-        await settle(const Duration(milliseconds: 300));
+        await waitFor('a nova subir', () => casa.envios > antes);
+        await waitFor(
+          'a nova falhar',
+          () => casa.falhou(2),
+          limit: const Duration(seconds: 30),
+        );
       });
       expect(
         casa.naLinha(2, find.text(_falhou)),
@@ -644,7 +679,11 @@ void main() {
       expect(casa.naSala, isNot(contains('ensaio/parte-2')));
 
       casa.room.unreachableTake = null;
-      await casa.tocar(casa.naLinha(2, find.textContaining('enviar agora')));
+      await casa.tocarAte(
+        casa.naLinha(2, find.textContaining('enviar agora')),
+        'a cena 2 ser enviada',
+        () => casa.room.takePasses.isNotEmpty,
+      );
 
       expect(casa.room.takePasses, [2]);
     },
@@ -665,7 +704,11 @@ void main() {
       final antes = casa.room.takePasses.length;
 
       casa.room.unreachableTake = null;
-      await casa.tocar(casa.naLinha(2, find.text(_falhou)));
+      await casa.tocarAte(
+        casa.naLinha(2, find.text(_falhou)),
+        'a cena 2 ser enviada de novo',
+        () => casa.room.takePasses.length > antes,
+      );
 
       expect(casa.room.takePasses.sublist(antes), [2]);
     },
@@ -728,7 +771,11 @@ void main() {
       expect(audio.existsSync(), isTrue);
 
       casa.room.unreachableTake = null;
-      await casa.tocar(find.text(_enviarAgora(1, '0:48')));
+      await casa.tocarAte(
+        find.text(_enviarAgora(1, '0:48')),
+        'a cena 1 chegar à sala',
+        () => casa.naSala.contains('ensaio/parte-1'),
+      );
 
       expect(casa.naSala, contains('ensaio/parte-1'));
     },
@@ -780,7 +827,11 @@ void main() {
       await casa.gravar(2);
       await casa.emTempoReal(() async {
         casa.sala.takeKeep();
-        await settle(const Duration(milliseconds: 600));
+        await waitFor(
+          'a cena 2 falhar',
+          () => casa.falhou(2),
+          limit: const Duration(seconds: 30),
+        );
       });
       final falhou = casa.naLinha(2, find.text(_falhou));
 
@@ -788,6 +839,11 @@ void main() {
         await tester.ensureVisible(falhou);
         await tester.tap(falhou);
         await tester.tap(falhou);
+        await waitFor(
+          'a cena 2 chegar à sala',
+          () => casa.room.takesReceived.any((take) => take.scope == 'parte-2'),
+          limit: const Duration(seconds: 30),
+        );
         await settle(const Duration(milliseconds: 800));
       });
 
@@ -1074,7 +1130,11 @@ void main() {
         () => casa.estado.ensaio == EnsaioStatus.recorded,
       );
     });
-    await casa.tocar(find.text(_enviarAgora(2, '0:48')));
+    await casa.tocarAte(
+      find.text(_enviarAgora(2, '0:48')),
+      'a cena 2 ficar enviada',
+      () => casa.enviada(2),
+    );
     expect(casa.naSala, contains('ensaio/parte-2'));
   });
 

@@ -347,7 +347,12 @@ Future<ProviderContainer> _relaunchOnTheApp(
   SalaHarness harness,
   ProviderContainer container,
 ) async {
-  final (_, next) = await relaunch(harness, container, filaEmMemoria: true);
+  final (_, next) = await relaunch(
+    harness,
+    container,
+    filaEmMemoria: true,
+    tester: tester,
+  );
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(
     UncontrolledProviderScope(container: next, child: const SalaApp()),
