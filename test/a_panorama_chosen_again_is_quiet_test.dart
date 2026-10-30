@@ -83,8 +83,8 @@ void main() {
     expect(read().canHearAgain, isTrue);
   });
 
-  test('«ouvir de novo» on a Panorama chosen again asks the Panorama for its '
-      'last line, not the passage left', () async {
+  test('«ouvir de novo» on a Panorama chosen again plays the Panorama\'s held '
+      'clip, not the passage left, asking the room nothing', () async {
     final harness = SalaHarness()
       ..room.passages = _theBook
       ..room.resumesTheLatest = true;
@@ -93,7 +93,6 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
     await _theSaidPanoramaLeftForAPassage(notifier, read);
-    final panorama = read().panoramaSessionId;
     await _theTeamChoosesItAgain(notifier, read);
     final playedBefore = harness.voice.played.length;
 
@@ -105,10 +104,11 @@ void main() {
 
     expect(
       harness.room.sessionsSaidAgain,
-      [panorama],
-      reason: 'o ouvir de novo do Panorama não pedia nada à sala',
+      isEmpty,
+      reason:
+          'o ouvir de novo do Panorama pedia à sala o clipe que o tablet tem',
     );
-    expect(harness.voice.played.skip(playedBefore), [deNovoUrl]);
+    expect(harness.voice.played.skip(playedBefore), [turnoUrl]);
   });
 
   test('a Panorama chosen again whose session the room says was never opened '
@@ -191,7 +191,65 @@ void main() {
       isEmpty,
     );
     expect(harness.voice.played.skip(playedBefore), isEmpty);
+    expect(read().canHearAgain, isTrue);
+
+    await notifier.hearAgain();
+    await waitFor(
+      'the held clip to be played again',
+      () => harness.voice.played.length > playedBefore,
+    );
+
+    expect(harness.voice.played.last, turnoUrl);
+    expect(harness.room.sessionsSaidAgain, isEmpty);
   });
+
+  test(
+    'the ≡ way back to a Panorama left while its line was still speaking '
+    'comes back in silence with «ouvir de novo», asking the room nothing',
+    () async {
+      final harness = SalaHarness()..room.passages = _theBook;
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      harness.voice.holdNextLine();
+      await enterThePanorama(notifier, read);
+      await waitFor(
+        'the Panorama to start speaking',
+        () => harness.voice.played.contains(turnoUrl),
+      );
+      expect(read().panoramaSaid, isFalse);
+      notifier.leaveThePassage();
+      await waitFor('the way back', () => read().theWayBackIsLive);
+      final callsBefore = harness.room.calls.length;
+      final playedBefore = harness.voice.played.length;
+
+      await notifier.returnToTheLeftEntry();
+      await waitFor(
+        'the Panorama to be back',
+        () => read().station is Panorama && read().panoramaSaid,
+      );
+      await settle();
+
+      expect(
+        harness.room.calls
+            .skip(callsBefore)
+            .where((call) => call == 'openSession' || call == 'fetchState'),
+        isEmpty,
+      );
+      expect(harness.voice.played.skip(playedBefore), isEmpty);
+      expect(read().canHearAgain, isTrue);
+
+      await notifier.hearAgain();
+      await waitFor(
+        'the held clip to be played again',
+        () => harness.voice.played.length > playedBefore,
+      );
+
+      expect(harness.voice.played.last, turnoUrl);
+      expect(harness.room.sessionsSaidAgain, isEmpty);
+    },
+  );
 
   test('a Panorama chosen again under the room\'s warning rests with that '
       'warning showing, not after the next look', () async {
