@@ -1065,28 +1065,6 @@ void main() {
       await relaunchedOnTheChoice(tablet);
     });
 
-    test('after the Panorama', () async {
-      final tablet = await _aTablet();
-      await _intoThePanorama(tablet);
-
-      await relaunchedOnTheChoice(tablet);
-    });
-
-    test(
-      'after a launch that lost the network and then the Panorama',
-      () async {
-        final first = await _inP01();
-        final offline = await _relaunch(first);
-        offline.harness.room.reachable = false;
-        await offline.notifier.openTheRoom();
-        offline.harness.room.reachable = true;
-        await offline.notifier.openTheRoom();
-        await _theChoiceShowsItsWheel(offline);
-        await _intoThePanorama(offline);
-
-        await relaunchedOnTheChoice(offline);
-      },
-    );
   });
 
   test(
@@ -1223,4 +1201,56 @@ void main() {
       );
     },
   );
+
+  group('the Panorama is the current session', () {
+    test('entering it stores its session', () async {
+      final tablet = await _aTablet();
+      await _intoThePanorama(tablet);
+
+      final held = await tablet.harness.currentSession.read();
+
+      expect(held?.sessionId, tablet.state.panoramaSessionId);
+      expect(held?.panorama, isTrue);
+      expect(held?.pericope, 'OV-Ruth');
+    });
+
+    test('a relaunch resumes it silent, with «ouvir de novo»', () async {
+      final tablet = await _aTablet();
+      await _intoThePanorama(tablet);
+      final panorama = tablet.state.panoramaSessionId;
+      final again = await _relaunch(tablet);
+      final opened = again.asked('openSession');
+
+      await again.notifier.openTheRoom();
+      await waitFor(
+        'the team to land on the Panorama',
+        () =>
+            again.state.station is Panorama &&
+            again.state.panoramaSaid &&
+            again.state.voice == VoiceState.invite,
+      );
+      await settle();
+
+      expect(again.state.panoramaSessionId, panorama);
+      expect(again.asked('openSession'), opened);
+      expect(again.said, isEmpty);
+      expect(again.state.roomSaysItAgain, isTrue);
+    });
+
+    test('leaving it for a passage replaces it', () async {
+      final tablet = await _aTablet();
+      await _intoThePanorama(tablet);
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await waitFor(
+        'the passage to open',
+        () => tablet.state.station is Canvas && tablet.state.sessionId != null,
+      );
+      await settle();
+
+      final held = await tablet.harness.currentSession.read();
+
+      expect(held?.sessionId, tablet.state.sessionId);
+      expect(held?.panorama, isFalse);
+    });
+  });
 }

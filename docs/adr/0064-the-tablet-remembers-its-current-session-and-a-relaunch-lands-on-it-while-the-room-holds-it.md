@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0091, amended by 0106, amended by 0141, amended by 0164, amended by ENG-1970
+status: accepted, amended by 0091, amended by 0106, amended by 0141, amended by 0164, amended by ENG-1970, amended by ENG-1897
 date: 2026-10-07
 amends: 0061 (in part: the room starts on the Choice), 0051 (in part: what a gone session takes from the tablet)
 ---
@@ -7,6 +7,12 @@ amends: 0061 (in part: the room starts on the Choice), 0051 (in part: what a gon
 # The tablet remembers its current session and a relaunch lands on it while the room holds it
 
 Amended by ENG-1970 (2026-10-30): there is no Closing; a passage that finishes stays on its conversation, and a stored fim row lands there.
+
+Amended by ENG-1897 (2026-10-30): the Panorama writes it. As in her app (`app/page.tsx:789`),
+every session id is stored, the Panorama's included: entering a Panorama holds its session as
+the Current session, flagged as a Panorama's, and a relaunch lands on that Panorama canvas,
+silent, with «ouvir de novo». Leaving it for a passage replaces it as any entry does; leaving
+to the Choice lets it go.
 
 This amends ADRs 0061 and 0051 without editing them; it adds "amended by 0064" to their
 status lines. The Definer settled it on the ticket (ENG-1281) on 6 and 7 October: a
@@ -27,8 +33,8 @@ where each passage was left, but nothing said which passage the tablet was in.
   language, in a file of its own beside the Resume points. It is written when the team
   enters the Canvas with a session, from every door. It is let go when the team goes to the
   Choice, when the passage closes (so a kill during the Closing lands on the Choice), and
-  when the room no longer knows the session. The Panorama never writes it, and entering
-  the Panorama clears it, as leaving to the Choice does: the tablet is then in no session.
+  when the room no longer knows the session. Entering the Panorama writes it too (ENG-1897);
+  leaving to the Choice lets it go: the tablet is then in no session.
 - **The Current session belongs to the device link.** When the link starts over, the record
   is let go with it. The server reads a session for any linked tablet, with no team scope,
   so a tablet claimed by another team would otherwise land in the old team's session.
