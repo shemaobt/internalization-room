@@ -340,6 +340,7 @@ void main() {
     it.harness.room.listeningUnheardTakeIds = [terceira];
     await it.sala.abrirEscolha();
     await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await intoTheRecordingHome(it.sala, () => it.estado);
     await waitFor(
       'a mesma sessão voltar',
       () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,

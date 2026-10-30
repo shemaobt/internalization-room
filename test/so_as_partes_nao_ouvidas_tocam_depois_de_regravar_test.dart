@@ -499,6 +499,7 @@ void main() {
       addTearDown(it.container.dispose);
       await it.sala.abrirEscolha();
       await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(it.sala, () => it.estado);
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -194,6 +195,11 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'a sala pousar na conversa',
+      () => container.read(salaSessionProvider).station is Canvas,
+    );
+    notifier.goEnsaio();
     await waitFor(
       'a volta ao ensaio com as quatro partes',
       () =>

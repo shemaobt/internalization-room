@@ -63,7 +63,6 @@ Future<void> _keepARehearsalPart(_Room room) async {
 Future<_Room> _aResumedBackTranslation(
   SalaHarness harness, {
   List<SegmentView> told = const [],
-  bool fromTheChoice = false,
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-alcance');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -82,23 +81,10 @@ Future<_Room> _aResumedBackTranslation(
       ),
     ],
   );
-  if (fromTheChoice) {
-    harness.emAberto.rows['Ruth/P01/pt'] = row;
-  } else {
-    await holdTheSession(harness, row);
-  }
+  await holdTheSession(harness, row);
   final container = harness.container();
   addTearDown(container.dispose);
   final room = _Room(harness, container);
-  if (fromTheChoice) {
-    await room.sala.abrirEscolha();
-    await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'a tradução retomada pôr a parte no ar',
-      () => room.estado.stage == SalaStage.retro && harness.playback.sounding,
-    );
-    return room;
-  }
   await room.sala.openTheRoom();
   await intoTheBackTranslation(room.sala, () => room.estado);
   await waitFor(
@@ -299,47 +285,6 @@ void main() {
 
       expect(room.estado.needsPerson, isTrue);
       expect(room.said, said);
-    });
-
-    test('the resume reads go silently back to the Choice at rest, keep the '
-        'session, and the next open asks again', () async {
-      final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
-        ..room.failTakesWith = const NetworkFailed('sem rede');
-      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.ensaio,
-        takes: [
-          KeptTake(
-            scopeId: _parte1,
-            path: '/nao/existe/p1.m4a',
-            takeId: 'gravacao-1',
-          ),
-        ],
-      );
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final room = _Room(harness, container);
-      await room.sala.abrirEscolha();
-
-      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
-      await waitFor(
-        'a Escolha abrir',
-        () =>
-            harness.room.calls.contains('takesOf') &&
-            room.estado.stage == SalaStage.escolha,
-      );
-      await settle();
-
-      expect(room.estado.needsPerson, isFalse);
-      expect(room.estado.voice, VoiceState.invite);
-      expect(harness.emAberto.rows['Ruth/P01/pt'], isNotNull);
-      final asked = harness.room.calls.where((c) => c == 'takesOf').length;
-
-      await room.sala.goConversa(book: 'Ruth', pericope: 'P01');
-      await waitFor(
-        'a retomada ser pedida de novo',
-        () => harness.room.calls.where((c) => c == 'takesOf').length > asked,
-      );
     });
 
     test('the coverage stream', () async {
@@ -562,35 +507,6 @@ void main() {
       expect(room.estado.btTraducaoPendente, isNotNull);
     },
   );
-
-  test('5: the reads after a resumed telling-back that name a recording the '
-      'tablet does not hold, lost on the network, show no person sign and leave '
-      'the telling-back going on', () async {
-    final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
-      ..room.failTakesWith = const NetworkFailed('sem rede');
-
-    final room = await _aResumedBackTranslation(
-      harness,
-      fromTheChoice: true,
-      told: const [
-        SegmentView(
-          segmentId: 'trecho-de-fora',
-          takeId: 'gravacao-de-fora',
-          startsMs: 0,
-          endsMs: 6000,
-        ),
-      ],
-    );
-
-    await waitFor(
-      'a leitura das gravações cair na rede',
-      () => harness.room.calls.contains('takesOf'),
-    );
-    await settle();
-
-    expect(room.estado.needsPerson, isFalse);
-    expect(room.estado.stage, SalaStage.retro);
-  });
 
   group('11: a take stranded on a refusal', () {
     test('a manifest written before the code was kept still loads', () async {

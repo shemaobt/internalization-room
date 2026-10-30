@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,7 +16,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show intoTheBackTranslation, settle;
 
 /// Sends `sendChunk` through the real [RoomRepository] — the actual production decode, not
 /// a hand-picked failure — so a test using this room stays sensitive to a regression in
@@ -91,9 +90,9 @@ class _Retomada {
       jsonEncode(harness.emAberto.rows['Ruth/P01/pt']?.toJson());
 }
 
-/// A passage picked back up in the back-translation on a tablet that holds none of its
-/// three rehearsal parts: parts 1 and 2 are told, and part 3 is told up to four seconds,
-/// so the stretch the team tells next starts there.
+/// A passage reopened on its conversation and walked through the recording home into the
+/// back-translation, over three rehearsal parts the tablet holds: parts 1 and 2 are told,
+/// and part 3 is told up to four seconds, so the stretch the team tells next starts there.
 Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
   final casa = Directory.systemTemp.createTempSync('sala-trecho-recusado');
   addTearDown(() => casa.deleteSync(recursive: true));
@@ -104,7 +103,9 @@ Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
       for (var n = 1; n <= 3; n++)
         KeptTake(
           scopeId: KeptScope.parte(n),
-          path: '${casa.path}/p$n.m4a',
+          path: (File(
+            '${casa.path}/p$n.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
           takeId: 'gravacao-$n',
           pass: 1,
         ),
@@ -145,7 +146,8 @@ Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
   final it = _Retomada(harness, container);
   await it.sala.abrirEscolha();
   await settle();
-  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await intoTheBackTranslation(it.sala, () => it.estado);
   await _ateAParteTresNoAr(it);
   it.linhaAntes = it.linhaAgora;
   return it;
@@ -338,14 +340,11 @@ void main() {
       await settle();
       harness.room.failChunkWith = null;
       harness.playback.played.clear();
-      unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(it.sala, () => it.estado);
       await _ateAParteTresNoAr(it);
 
-      expect(
-        it.estado.stage,
-        SalaStage.retro,
-        reason: 'a retomada volta à retro, nunca ao ensaio',
-      );
+      expect(it.estado.stage, SalaStage.retro);
       expect(it.estado.sessionId, _sessao);
       expect(
         [for (final parte in it.estado.partes) parte.takeId],

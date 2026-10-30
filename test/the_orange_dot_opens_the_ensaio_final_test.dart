@@ -528,7 +528,6 @@ TakeView _part(int n) => TakeView(
 Future<_Home> _reopenOverTheWholeSetAside(
   WidgetTester tester, {
   required List<KeptTake> Function(Directory guardadas) takes,
-  bool fromTheChoice = false,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 1180)
@@ -548,17 +547,7 @@ Future<_Home> _reopenOverTheWholeSetAside(
     stage: SalaStage.ensaio,
     takes: held,
   );
-  final pelaEscolha =
-      fromTheChoice ||
-      held.any(
-        (take) =>
-            take.scopeId != KeptScope.whole && !File(take.path).existsSync(),
-      );
-  if (pelaEscolha) {
-    harness.emAberto.rows['Ruth/P01/pt'] = row;
-  } else {
-    await holdTheSession(harness, row);
-  }
+  await holdTheSession(harness, row);
   final container = (await tester.runAsync(
     () async => harness.container()..read(salaSessionProvider),
   ))!;
@@ -566,14 +555,8 @@ Future<_Home> _reopenOverTheWholeSetAside(
   await tester.pumpWidget(_theHome(container));
   final it = _Home(tester, home, harness, container);
   await it.inRealTime(() async {
-    if (pelaEscolha) {
-      await it.sala.abrirEscolha();
-      await settle();
-      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    } else {
-      await it.sala.openTheRoom();
-      await intoTheRecordingHome(it.sala, () => it.read);
-    }
+    await it.sala.openTheRoom();
+    await intoTheRecordingHome(it.sala, () => it.read);
     await it._theRowsStand();
   });
   return it;
@@ -1569,7 +1552,6 @@ void main() {
               takeId: 'gravacao-inteira',
             ),
           ],
-          fromTheChoice: true,
         );
 
         expect(it.takeReads, 0, reason: 'a sala foi lida');
@@ -1752,9 +1734,10 @@ void main() {
 
       expect(find.text(_homeLine), findsOneWidget);
 
-      await _relaunchOnTheApp(tester, harness, again);
+      final third = await _relaunchOnTheApp(tester, harness, again);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(third.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(find.text(_homeLine), findsNothing);
     },
   );
 
