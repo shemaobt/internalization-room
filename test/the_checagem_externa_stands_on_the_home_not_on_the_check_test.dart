@@ -130,7 +130,7 @@ void main() {
     expect(
       harness.room.externalChecksOpened,
       isEmpty,
-      reason: 'a checagem abria com o microfone aberto',
+      reason: 'a checagem abria enquanto uma cena gravava na casa',
     );
     closeTheRoom(container);
   });
