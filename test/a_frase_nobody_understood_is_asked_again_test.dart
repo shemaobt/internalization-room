@@ -892,6 +892,39 @@ void main() {
     );
 
     testWidgets(
+      'and the list read too: the last frase told again, a play tapped over the pause being heard, whose list lands on places unknown, leaves the take silent',
+      (tester) async {
+        final screen = await _aBarTapped(tester, 4);
+        screen.room
+          ..frasesLandBeforeTheyFail = true
+          ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+          ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+        await screen.tellsTheFrase();
+        screen.room.frasesLandBeforeTheyFail = false;
+        await screen.tap('ouvir a pausa');
+        await screen.until(() => screen.state.channel is PartPlaying);
+        expect(screen.state.channel, isA<PartPlaying>());
+        screen.room.sceneRehearsals[0] = _rehearsal(
+          frases: [..._fourFrases.frases, _frase('f5', 17000, 25000)],
+        );
+
+        await screen.tap(_playPause);
+        await screen.until(
+          () => screen.state.scene.step == SceneStep.placesUnknown,
+        );
+        await screen.beat(500);
+
+        expect(screen.state.scene.step, SceneStep.placesUnknown);
+        expect(
+          screen.state.channel,
+          isNot(isA<PartPlaying>()),
+          reason:
+              'o take seguia tocando na tela de lugares desconhecidos, onde nada o para',
+        );
+      },
+    );
+
+    testWidgets(
       'and the list read too: «terminei» reads the list first and sends the scene once',
       (tester) async {
         final screen = await nothingIsKnown(tester);
