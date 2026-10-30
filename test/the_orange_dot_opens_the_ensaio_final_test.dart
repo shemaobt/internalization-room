@@ -828,8 +828,8 @@ void main() {
   );
 
   testWidgets(
-    'a touch on the dot while a sent note\'s microphone still closes does '
-    'nothing, and the note reaches the facilitator',
+    'a touch on the dot while a sent note\'s microphone still closes opens the '
+    'plan, and the note reaches the facilitator and leaves the tablet',
     (tester) async {
       final (harness, container) = await _atRest(tester);
       harness.recorder.holdNextStop();
@@ -839,14 +839,86 @@ void main() {
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
-      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'o toque no ponto enquanto o microfone fechava não fazia nada',
+      );
       harness.recorder.finishStop();
       await _theAnswerSettles(tester);
       expect(
         harness.inbox.questionsSent,
         hasLength(1),
+        reason: 'a pergunta se perdeu quando o ponto mudou de tela',
+      );
+      expect(
+        harness.recorder.deleted,
+        contains(harness.recorder.lastPath),
+        reason: 'a pergunta enviada ficou no disco do tablet',
+      );
+    },
+  );
+
+  testWidgets(
+    'a scene recorded from the dot\'s home while a sent note\'s microphone '
+    'still closes keeps its take, and the note still goes out',
+    (tester) async {
+      final (harness, container) = await _reopenedOverPartOne(
+        tester,
+        origin: null,
+      );
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_homeLine), findsOneWidget);
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
+
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+      final scene = harness.recorder.starts.last;
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.recorder.deleted.where((path) => path.contains(scene)),
+        isEmpty,
         reason:
-            'o toque no ponto enquanto o microfone fechava perdia a pergunta',
+            'o fecho da pergunta fechou o microfone da cena e o take se perdeu',
+      );
+      expect(
+        harness.recorder.starts.last,
+        scene,
+        reason: 'o toque para parar a cena abriu outro microfone',
+      );
+      expect(harness.inbox.questionsSent, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'a revocation while a sent note\'s microphone still closes sends nothing '
+    'and leaves no note on the tablet',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      harness.room.failWith = const Refused(RefusalCode.deviceRevoked);
+      unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
+      await _pumpUntil(
+        tester,
+        () => !container.read(deviceLinkProvider).linked,
+      );
+
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+
+      expect(harness.inbox.questionsSent, isEmpty);
+      expect(
+        harness.recorder.deleted,
+        contains(harness.recorder.lastPath),
+        reason: 'a pergunta de um tablet revogado ficou no disco',
       );
     },
   );
@@ -891,36 +963,20 @@ void main() {
   );
 
   testWidgets(
-    'an earlier note that reaches the facilitator while a later one\'s '
-    'microphone still closes does not free the dot\'s touch, and the later '
-    'note still goes out',
+    'a touch on the dot while a later note\'s microphone still closes, an '
+    'earlier one still going out, opens the plan and both notes go out',
     (tester) async {
       final (harness, container) = await _atRest(tester);
-      harness.inbox
-        ..holdNextQuestion()
-        ..holdNextQuestion();
+      harness.inbox.holdNextQuestion();
       await sendANote(tester, container);
       harness.recorder.holdNextStop();
       await sendANote(tester, container);
-      harness.inbox.finishHeldQuestion();
-      await _theAnswerSettles(tester);
-      expect(harness.inbox.questionsSent, hasLength(1));
 
-      await _tapTheDot(tester);
-      await _theAnswerSettles(tester);
-
-      expect(
-        container.read(salaSessionProvider).stage,
-        SalaStage.conversa,
-        reason:
-            'a primeira nota, ao chegar, soltava o toque enquanto o microfone '
-            'da segunda fechava',
-      );
-      harness.recorder.finishStop();
-      await _theAnswerSettles(tester);
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
       expect(find.text(_planLine), findsOneWidget);
+
+      harness.recorder.finishStop();
       harness.inbox.finishHeldQuestion();
       await _theAnswerSettles(tester);
       expect(

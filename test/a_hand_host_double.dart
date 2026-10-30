@@ -14,7 +14,6 @@ class AHandHost implements HandHost {
   String? stationSessionId = 'sessao-1';
   bool atTheTeamsIdleTurn = true;
   bool aQuestionRecords = false;
-  int? noteOnItsWay;
 
   final List<String> written = [];
   final List<List<HandReply>> shown = [];
@@ -32,7 +31,6 @@ class AHandHost implements HandHost {
     atTheTeamsIdleTurn: atTheTeamsIdleTurn,
     aQuestionRecords: aQuestionRecords,
     oldestUnheardReply: replies.where((reply) => reply.offered).firstOrNull,
-    noteOnItsWay: noteOnItsWay,
   );
 
   @override
@@ -72,19 +70,6 @@ class AHandHost implements HandHost {
   void leaveNoteMode() {
     written.add('leaveNoteMode');
     noteMode = false;
-  }
-
-  @override
-  void markNoteOnItsWay(int note) {
-    written.add('markNoteOnItsWay:$note');
-    noteMode = false;
-    noteOnItsWay = note;
-  }
-
-  @override
-  void clearNoteOnItsWay() {
-    written.add('clearNoteOnItsWay');
-    noteOnItsWay = null;
   }
 
   @override
