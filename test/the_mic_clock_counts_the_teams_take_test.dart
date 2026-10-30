@@ -412,6 +412,136 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'after a stop the recorder fails, the next tap on the $screen discards '
+      'the dead microphone and opens a new take, not a second stop',
+      (tester) async {
+        final room = await enter(tester);
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        room.harness.recorder.stopThrows = true;
+        room.tap();
+        await room.beat(300);
+        expect(room.circleListens, isFalse);
+        final deadTake = room.harness.recorder.starts.single;
+        final deadStart = room.harness.sounds.lastIndexOf('recorder:start');
+        final deletedBefore = room.harness.recorder.deleted.length;
+
+        room.harness.recorder.stopThrows = false;
+        room.tap();
+        await room.beat(300);
+        expect(
+          room.harness.recorder.starts,
+          hasLength(2),
+          reason:
+              'o toque no círculo em repouso fechava de novo o microfone '
+              'morto, e nada voltava a gravar',
+        );
+        expect(
+          room.harness.recorder.deleted,
+          hasLength(deletedBefore + 1),
+          reason:
+              'o descarte do microfone morto foi pedido e não apagou a vez '
+              'perdida',
+        );
+        expect(
+          room.harness.recorder.starts.last,
+          isNot(deadTake),
+          reason: 'a nova vez reabria o microfone com o nome da vez morta',
+        );
+        final newStart = room.harness.sounds.lastIndexOf('recorder:start');
+        expect(
+          room.harness.sounds.sublist(deadStart + 1, newStart),
+          contains('recorder:discard'),
+          reason: 'o microfone morto não foi descartado antes da nova vez',
+        );
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'a nova vez abriu e o círculo seguia em repouso',
+        );
+      },
+    );
+
+    testWidgets(
+      'a tap on the $screen while another app holds the microphone discards '
+      'the dead take and opens a new one, instead of sending what was cut off',
+      (tester) async {
+        final room = await enter(tester);
+        await room.theTeamOpensItsTake();
+        await room.waits(const Duration(seconds: 2));
+        room.harness.recorder.takeTheMicrophone();
+        await room.beat();
+        expect(room.circleListens, isFalse);
+        final deadTake = room.harness.recorder.starts.single;
+        final deadStart = room.harness.sounds.lastIndexOf('recorder:start');
+        final turnsBefore = room.harness.room.turnsSent;
+        final deletedBefore = room.harness.recorder.deleted.length;
+
+        room.tap();
+        await room.beat(300);
+        expect(
+          room.harness.recorder.starts,
+          hasLength(2),
+          reason:
+              'o toque com o microfone tomado parava a vez e mandava à sala '
+              'o que foi gravado até a chamada',
+        );
+        expect(
+          room.harness.recorder.deleted,
+          hasLength(deletedBefore + 1),
+          reason: 'o descarte da vez tomada não apagou o que ela gravou',
+        );
+        expect(room.harness.recorder.starts.last, isNot(deadTake));
+        final newStart = room.harness.sounds.lastIndexOf('recorder:start');
+        expect(
+          room.harness.sounds.sublist(deadStart + 1, newStart),
+          contains('recorder:discard'),
+          reason: 'a vez morta não foi descartada antes da nova',
+        );
+        expect(
+          room.harness.room.turnsSent,
+          turnsBefore,
+          reason: 'o que foi gravado até a chamada subiu como uma vez',
+        );
+      },
+    );
+
+    testWidgets(
+      'a second tap on the $screen while the recorder has not answered opens '
+      'no second take and stops nothing',
+      (tester) async {
+        final room = await enter(tester);
+        room.harness.recorder.holdNextStart();
+        await room.theTeamOpensItsTake();
+        await room.beat();
+        final heldStart = room.harness.sounds.lastIndexOf('recorder:start');
+
+        room.tap();
+        await room.beat(300);
+        expect(
+          room.harness.recorder.starts,
+          hasLength(1),
+          reason:
+              'o segundo toque descartava o microfone que ainda esperava o '
+              'gravador e abria outro',
+        );
+        expect(
+          room.harness.sounds.sublist(heldStart + 1),
+          isNot(contains('recorder:discard')),
+          reason: 'o toque na espera descartou a vez que o gravador ia abrir',
+        );
+
+        room.harness.recorder.finishStart();
+        await room.beat(300);
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'o toque na espera fechou a vez antes de o gravador começar',
+        );
+      },
+    );
   }
 
   testWidgets(
