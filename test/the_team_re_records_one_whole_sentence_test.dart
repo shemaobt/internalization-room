@@ -25,7 +25,13 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, onTheCircle, pressTheApproval;
+import 'scenario_helpers.dart'
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        onTheCircle,
+        pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, cabeca, entrarNaTraducao, parte, tocar;
 
@@ -152,6 +158,7 @@ Future<ProviderContainer> _voltaATraducao(
   String? aguardando,
   List<SegmentView> regravadas = const [],
   Grain? grao,
+  bool pelaEscolha = false,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -169,12 +176,17 @@ Future<ProviderContainer> _voltaATraducao(
         takeId: 'gravacao-$n',
       ),
   ];
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: partes,
     grain: grao,
   );
+  if (pelaEscolha) {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  } else {
+    await holdTheSession(harness, row, language: 'pt');
+  }
   harness.room
     ..grain = grao
     ..segments.addAll(_daSala)
@@ -197,16 +209,30 @@ Future<ProviderContainer> _voltaATraducao(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  if (pelaEscolha) {
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução voltar com as frases que a sala guardou',
+      () =>
+          container.read(salaSessionProvider).stage == SalaStage.retro &&
+          container.read(salaSessionProvider).btTrechos.length == 4,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await _passo(tester);
+    return container;
+  }
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'a tradução voltar com as frases que a sala guardou',
-    () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
-        container.read(salaSessionProvider).btTrechos.length == 4,
+    () => container.read(salaSessionProvider).btTrechos.length == 4,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
@@ -792,8 +818,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness);
-
+    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
     const falhou = 'não deu para guardar a frase — tentar de novo';
     expect(
       _naLista(falhou),
@@ -828,6 +853,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-1',
     );
     await _tocarOCirculo(tester);
@@ -862,7 +888,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness);
+    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 300));
@@ -906,7 +932,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness);
+    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
     await _passo(tester);
     await _passo(tester);
     expect(container.read(salaSessionProvider).btSoOuvir, isTrue);
@@ -969,7 +995,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness);
+    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
 
     const falhou = 'não deu para guardar a frase — tentar de novo';
     expect(_naLista(falhou), findsOneWidget);
@@ -1521,6 +1547,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-3',
     );
     await _passo(tester);
@@ -1547,6 +1574,7 @@ void main() {
       tester,
       harness,
       aguardando: 'trecho-3',
+      pelaEscolha: true,
     );
     await _passo(tester);
     await _passo(tester);
@@ -1574,6 +1602,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-3',
     );
     await _passo(tester);
@@ -1600,6 +1629,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-3',
       grao: Grain.whole,
     );
@@ -3486,6 +3516,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-1',
     );
     await _passo(tester);
@@ -3538,6 +3569,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-1',
     );
     await _passo(tester);
@@ -3658,6 +3690,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-1',
     );
     await _passo(tester);
@@ -3875,6 +3908,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-1',
     );
     await _passo(tester);
@@ -3923,6 +3957,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-2',
     );
     container.read(salaSessionProvider.notifier).goEnsaio();
@@ -3962,6 +3997,7 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
+      pelaEscolha: true,
       aguardando: 'trecho-2',
       regravadas: const [
         SegmentView(

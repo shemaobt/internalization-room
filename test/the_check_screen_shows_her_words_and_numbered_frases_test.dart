@@ -25,7 +25,13 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show contrastOf;
 import 'scenario_helpers.dart'
-    show byLabel, linhaDoEnsaio, traduzirOApontadoDeNovo;
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        intoTheRecordingHome,
+        linhaDoEnsaio,
+        traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
@@ -212,6 +218,7 @@ Future<ProviderContainer> _voltaATraducao(
   bool juntada = false,
   bool inteira = false,
   bool comACena1 = false,
+  bool pelaEscolha = false,
 }) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
@@ -242,28 +249,44 @@ Future<ProviderContainer> _voltaATraducao(
         takeId: 'gravacao-1',
       ),
   ];
-  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: parouEm,
     takes: partes,
   );
+  if (pelaEscolha) {
+    harness.emAberto.rows['Ruth/P01/$lingua'] = row;
+  } else {
+    await holdTheSession(harness, row, language: lingua);
+  }
   harness.room.retroSoFar = contado;
   final container = harness.container();
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
-  );
-  await waitFor(
-    'a tradução voltar com as frases que a sala guardou',
-    () =>
-        container.read(salaSessionProvider).stage == parouEm &&
-        container.read(salaSessionProvider).btTrechos.length ==
-            contado.segments.length,
+  if (pelaEscolha) {
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução voltar com as frases que a sala guardou',
+      () =>
+          container.read(salaSessionProvider).stage == parouEm &&
+          container.read(salaSessionProvider).btTrechos.length ==
+              contado.segments.length,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await _passo(tester);
+    return container;
+  }
+  await (parouEm == SalaStage.retro
+      ? intoTheBackTranslation
+      : intoTheRecordingHome)(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
@@ -659,6 +682,7 @@ Future<ProviderContainer> _relidaAntesDaLista(
       ],
     ),
     juntada: true,
+    pelaEscolha: true,
   );
   await waitFor(
     'a sala reler as frases antes de listar as gravações',
