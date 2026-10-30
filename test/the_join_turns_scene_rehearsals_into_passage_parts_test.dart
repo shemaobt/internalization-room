@@ -1791,4 +1791,42 @@ void main() {
       semantics.dispose();
     },
   );
+
+  testWidgets(
+    "a scene's enviar agora asked of the notifier while a join runs is refused, "
+    'and the part never goes up after the join',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.aHandTakeGivenUp(3);
+      await it.openThePlan();
+      expect(it.sendNow, findsOneWidget);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-1');
+
+      await it.tapJoin();
+      await it.until('a parte 1 ficar presa na sala', () => it.room.takeHeld);
+      final asked = it.room.takesAsked.length;
+
+      it.container.read(salaSessionProvider.notifier).enviarACena(3);
+      await it.beat();
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      await it.wait(const Duration(seconds: 5));
+
+      expect(
+        it.room.takesAsked.skip(asked),
+        isNot(contains('ensaio/parte-3')),
+        reason:
+            'o enviarACena no meio da junta punha a parte 3 de novo na fila, e '
+            'ela subia logo depois da junta',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
 }
