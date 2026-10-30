@@ -2259,6 +2259,34 @@ void main() {
   );
 
   test(
+    'entering the Back-translation with the room unreachable starts the first '
+    'listen from the first part, never the telling',
+    () async {
+      final it = await _juntadaNaCasa();
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      it.harness.room.failListeningWith = const NetworkFailed('sem rede');
+
+      it.sala.startRetro();
+      await _ouvirAte(it);
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N0', testLanguage)],
+        reason: 'sem resposta da sala, a entrada dizia como traduzir',
+      );
+      expect(it.estado.btSoOuvir, isTrue);
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+      closeTheRoom(it.container);
+    },
+  );
+
+  test(
     'a stretch the room last named untranslated is still said and played on a '
     'return it can no longer answer, not left silent',
     () async {
