@@ -28,7 +28,6 @@ Map<String, Object?> _ouvida(String takeId, int de, int ate, int quanto) => {
   'clip_duration_ms': quanto,
 };
 
-/// A passage reopened on its recording home, holding [takes] the room lists as [naSala].
 Future<Sala> _reabertaNaCasa(
   List<KeptTake> Function(Directory pasta) takes,
   List<TakeView> naSala,
@@ -62,7 +61,6 @@ Future<Sala> _reabertaNaCasa(
 String _arquivo(Directory pasta, String nome) =>
     (File('${pasta.path}/$nome.m4a')..writeAsBytesSync([1, 2, 3])).path;
 
-/// A scene home over a joined recording: two parts the join brought in.
 Future<Sala> _numaCasaJuntada() => _reabertaNaCasa(
   (pasta) => [
     for (final n in [1, 2])
@@ -86,7 +84,6 @@ Future<Sala> _numaCasaJuntada() => _reabertaNaCasa(
   ],
 );
 
-/// The whole-passage home: one whole take the room lists.
 Future<Sala> _naCasaDaPassagemInteira() => _reabertaNaCasa(
   (pasta) => [
     KeptTake(
@@ -104,7 +101,6 @@ Future<Sala> _naCasaDaPassagemInteira() => _reabertaNaCasa(
   ],
 );
 
-/// Row [cena] played to [ate] and paused there.
 Future<void> _ouvirAteOMeio(Sala it, int cena, Duration ate) async {
   it.sala.ouvirACena(cena);
   await theClipOpens(it.harness);
