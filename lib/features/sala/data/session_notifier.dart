@@ -2228,6 +2228,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (state.channel is Microphone) _dispatch(const MicDiscarded());
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
+          if (_closings.isNotEmpty) return;
           if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
               TapDecision.stop) {
             _handOff(_finishPanoramaListening());
@@ -3607,6 +3608,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _actOnConversaTap() {
     if (_recordingStarting) return;
     final isRecording = state.circleVoice == VoiceState.listening;
+    if (isRecording && _closings.isNotEmpty) return;
     switch (_captureGuard.decide(
       isRecording: isRecording,
       elapsed: _listenedFor,
