@@ -11,6 +11,9 @@ Directory aTempDir(String prefix) {
   return dir;
 }
 
+Directory aTempDirForTheFile(String prefix) =>
+    Directory.systemTemp.createTempSync(prefix);
+
 Future<void> underOneTempRoot(FutureOr<void> Function() testMain) async {
   final root = Directory.systemTemp.createTempSync('sala-arquivo-');
   IOOverrides.global = _TempUnder(root);

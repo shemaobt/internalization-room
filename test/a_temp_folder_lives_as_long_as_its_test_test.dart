@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 import 'fakes.dart';
 import 'support/temp.dart';
@@ -42,18 +43,19 @@ void main() {
     });
   });
 
-  group('the harness\'s takes home is gone once its test ends', () {
+  group('the harness\'s takes home lives under its file\'s temp root', () {
     late String path;
 
-    test('while its test runs, it is there', () {
+    test('while its test runs, it is under the file\'s temp root', () {
       path = SalaHarness().takesHome.path;
       File('$path/tomada.wav').writeAsStringSync('som');
 
-      expect(Directory(path).existsSync(), isTrue);
+      expect(p.isWithin(Directory.systemTemp.path, path), isTrue);
     });
 
-    test('once its test has ended, it is gone', () {
-      expect(Directory(path).existsSync(), isFalse);
+    test('once its test has ended, it is still there for a late write', () {
+      expect(Directory(path).existsSync(), isTrue);
+      expect(p.isWithin(Directory.systemTemp.path, path), isTrue);
     });
   });
 

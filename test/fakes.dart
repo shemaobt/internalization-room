@@ -4500,7 +4500,7 @@ class SalaHarness {
   }) : room = room ?? FakeRoom(),
        roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
        look = look ?? FakeLookLedger(),
-       takesHome = takesHome ?? aTempDir('sala-tomadas'),
+       takesHome = takesHome ?? aTempDirForTheFile('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs);

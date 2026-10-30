@@ -38,8 +38,10 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   the numerals of her kept-retelling buttons, her recording home, the Ensaio Final plan,
   her Rehearsal sheet, her Saved screen, her Checagem externa screen, her grain choice, and the update screen (ADR 0014),
   and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR 0014), and the red microphone's take state with her «parar» (ADR 0131).
-- Every test temp folder comes from `aTempDir`, which deletes it when its test ends; the lint
-  job fails on any other `createTempSync` or `createTemp(` under `test/`.
+- Every test temp folder comes from `aTempDir`, which deletes it when its test ends, or, for
+  the harness's takes home, whose Outbox writes outlive their test, from `aTempDirForTheFile`,
+  which lives until its test file ends; the lint job fails on any other `createTempSync` or
+  `createTemp(` under `test/`.
 - No `sala-*` folder outlives a shard: each runs its `flutter test` through
   `tool/the_suite_leaves_no_temp_folder.dart`, which names every new one and fails. Run it
   locally with `TMPDIR` set to a fresh folder, since a shared `/tmp` holds other runs' folders.
