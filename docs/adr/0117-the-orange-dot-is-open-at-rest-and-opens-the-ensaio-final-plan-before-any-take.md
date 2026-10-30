@@ -106,10 +106,11 @@ swap, a bring-back, the arrival's import or a splice resume rests it; a grain sw
 buttons rest). **Every «… — enviar agora» the notice draws, on the plan and on the grain
 choice, rests while a part take of the session is in the air or being kept, or a join, the
 home's swap or a bring-back runs**: it is dimmed, reads as disabled to VoiceOver and takes no
-tap. The notifier's own `enviarACena` refuses the phase — a join, the home's swap, a
-bring-back (`phaseBusy`) — as the plan's gestures do under `planBusy`; a take going up is
-drawn only, because the home's Scene row keeps its «falhou — toque para tentar de novo» tap
-under another send and reads «enviando…» at once (0131), and that row shares the gesture.
-A grain switch leaves it as it is. The arrival's import and the splice
+tap. The notice's own gesture (`enviarDoAviso`) refuses the phase — a join, the home's
+swap, a bring-back (`phaseBusy`) — as the plan's gestures do under `planBusy`; a take going
+up is drawn only, as her button is the whole gate. The home's Scene row keeps its own
+`enviarACena` as it was: its «falhou — toque para tentar de novo» tap under another send
+reads «enviando…» at once (0131), and nothing on the home draws that row resting during a
+swap. A grain switch leaves it as it is. The arrival's import and the splice
 have no counterpart here (0121). The refusal while a take records (ENG-2058's `ensaio ==
 recording` guard in the notifier) is not this amendment's: hers keeps the send enabled then.

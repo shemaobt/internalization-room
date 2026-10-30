@@ -54,7 +54,7 @@ class GrainChoiceView extends ConsumerWidget {
               UnsentNotice(
                 session: session,
                 language: language,
-                onSend: notifier.enviarACena,
+                onSend: notifier.enviarDoAviso,
               ),
               if (elsewhere) ...[
                 const SizedBox(height: 12),

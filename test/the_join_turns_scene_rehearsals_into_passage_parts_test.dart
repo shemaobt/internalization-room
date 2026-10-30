@@ -1948,8 +1948,8 @@ void main() {
   );
 
   testWidgets(
-    "a scene's enviar agora asked of the notifier while a join runs is refused, "
-    'and the part never goes up after the join',
+    "the notice's enviar agora asked of the notifier while a join runs is "
+    'refused, and the part never goes up after the join',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -1967,7 +1967,7 @@ void main() {
       await it.until('a parte 1 ficar presa na sala', () => it.room.takeHeld);
       final asked = it.room.takesAsked.length;
 
-      it.container.read(salaSessionProvider.notifier).enviarACena(3);
+      it.container.read(salaSessionProvider.notifier).enviarDoAviso(3);
       await it.beat();
       it.room.finishHeldTake();
       await _theJoinEnds(it);
