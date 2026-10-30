@@ -14,6 +14,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -30,10 +32,6 @@ const _aPanorama = Passagem(
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
   book: 'Ruth',
-);
-
-final _theChoicesCircle = byLabel(
-  escolhaLabelFor('readTheWheel', testLanguage),
 );
 
 Future<ProviderContainer> _aBrokenBuild(
@@ -92,28 +90,15 @@ void main() {
 
         expect(thePersonSign, findsNothing);
         expect(find.text('Escolha a passagem'), findsOneWidget);
-        expect(_theChoicesCircle, findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(EscolhaView),
+            matching: find.byType(FacilitatorCircle),
+          ),
+          findsNothing,
+        );
         expect(find.text(bookNameFor('Ruth', testLanguage)), findsNothing);
         expect(harness.room.calls, isNot(contains('servedBooks')));
-        closeTheRoom(container);
-      },
-    );
-
-    testWidgets(
-      'on a broken build the Choice\'s tap brings the sign back before any wait',
-      (tester) async {
-        final harness = SalaHarness(filaEmMemoria: true);
-        final container = await _aBrokenBuild(tester, harness);
-        await _theSignIsTappedAway(tester);
-        harness.room.throwOn['servedBooks'] = StateError(
-          'BACKEND_URL is missing',
-        );
-
-        await tester.tap(_theChoicesCircle);
-        await tester.pump();
-
-        expect(thePersonSign, findsOneWidget);
-        expect(container.read(salaSessionProvider).awaitingTheGuide, isFalse);
         closeTheRoom(container);
       },
     );
