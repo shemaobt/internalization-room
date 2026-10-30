@@ -194,8 +194,8 @@ void main() {
     });
   });
 
-  test('a question whose recorder answered late still counts from the tap, '
-      'so the hand does not throw away what the team asked', () async {
+  test('a question whose recorder answered late is sent whatever it '
+      'measured: the hand holds a question to no window', () async {
     await _onAClock((later) async {
       final room = await _inConversa(SalaHarness(captureGuard: _herGuard));
       room.notifier.handTap();
@@ -218,8 +218,8 @@ void main() {
         room.harness.inbox.questionsSent,
         hasLength(1),
         reason:
-            'a pergunta passou a contar do gravador, e a mão, que não ignora '
-            'o segundo toque, apagava uma pergunta de verdade',
+            'a mão apagava uma pergunta de verdade por ela durar menos de '
+            '0,7 s, contada do gravador ou do toque',
       );
     });
   });

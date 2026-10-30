@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes)
+status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes); amended by ENG-2103 (2026-10-30: the whole-passage arm reads the room's grain only)
 date: 2026-10-22
 amends: 0014
 ---
@@ -96,3 +96,15 @@ A take sent from there that reaches the room opens the recording home of the gra
 lists it under, from the grain choice too, as her screen turns to the draft's once the draft
 holds it. A part the home words as gone or refused is not offered there, by the same rule as
 the home's rows. A take of the other grain stays on the tablet, unoffered.
+
+## Amendment · 2026-10-30 (ENG-2103)
+
+Her frozen app is the rule (João, 2026-10-26). «The whole passage in force» in ENG-1828's
+amendment is the room's grain only: hers reads `draft.grain`, the room's word, and holds no
+grain of its own (`efScreen`, ensaioFinal.ts:79 at 18fa7c4). **A grain read off the takes the
+tablet holds never decides the plan's whole-passage arm:** a whole-passage take kept only on
+the tablet, over a passage with scenes and a room naming no grain, opens the plan, as any
+passage with no take in the room does, with that take offered on top under her notice
+(ENG-1861). A grain remembered on the tablet from an earlier visit is let go when the room's
+listing names none (ADR 0134, amended by ENG-2103), so it reaches neither this arm nor the
+grain choice's.

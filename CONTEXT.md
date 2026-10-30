@@ -275,7 +275,7 @@ The wood disc with no glyph that leads from one station to the next: to the Back
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
-A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one too short for the capture guard is dropped unsent.
+A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one whose file is under 800 bytes is dropped unsent, however long it ran: a Knot is held to no time floor (ADR 0067).
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
