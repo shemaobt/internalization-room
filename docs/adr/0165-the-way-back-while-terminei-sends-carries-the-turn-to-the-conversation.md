@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0167 (in part: the reply landing during the 1.4 s line waits for the close)
 date: 2026-10-30
 amends: 0085 (in part: the way back while «terminei» is in the air), 0058 (in part: the one Station change that keeps the generation)
 ---

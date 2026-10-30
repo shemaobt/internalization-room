@@ -308,7 +308,9 @@ final class TheSceneRehearsalOpened extends StationEvent {
 }
 
 final class TheSceneRehearsalLeft extends StationEvent {
-  const TheSceneRehearsalLeft();
+  final bool keepsTheReply;
+
+  const TheSceneRehearsalLeft({this.keepsTheReply = false});
 }
 
 final class TheExternalCheckOpened extends StationEvent {
@@ -1729,7 +1731,8 @@ const _watch = ArmTheWatch();
   final next = machine.station.answer(event);
   if (next == machine.station) return (machine, const []);
   final carriesTheSceneTurn =
-      event is TheSceneRehearsalLeft && machine.holdsATurn;
+      event is TheSceneRehearsalLeft &&
+      (machine.holdsATurn || event.keepsTheReply);
   final arrived = (carriesTheSceneTurn ? machine : moveTheGeneration(machine))
       .copyWith(
         station: next,
