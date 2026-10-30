@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -665,6 +666,49 @@ void main() {
 
       expect(_wentToTheVoice, findsOneWidget);
       expect(_says(_notSent), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a refused «terminei» whose list lands on places unknown stops the take '
+    'the team started in between, as hers',
+    (tester) async {
+      final (harness, container) = await _theRehearsalOnScreen(tester);
+      harness.room
+        ..sendRefusalsFirst.add(RefusalCode.unnamed(422))
+        ..sceneRehearsals[0] = SceneRehearsalRecord(
+          rehearsalId: 'ensaio-da-cena-1',
+          sessionId: _session,
+          n: 1,
+          recordedAt: DateTime(2026, 10, 15, 14, 5),
+          frases: const [
+            SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 4000),
+            SceneFrase(fraseId: 'f2', startsMs: 4000, endsMs: 25000),
+          ],
+        )
+        ..holdNextSceneList();
+      await tester.tap(_terminei);
+      await pumpUntil(tester, () => harness.room.scenesSent.isNotEmpty);
+      await pumpUntil(tester, () => !_state(container).theSceneIsSending);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(byLabel('Tocar ou pausar a gravação'));
+      await pumpUntil(tester, () => _state(container).channel is PartPlaying);
+      expect(_state(container).channel, isA<PartPlaying>());
+
+      harness.room.finishHeldSceneList();
+      await pumpUntil(
+        tester,
+        () => _state(container).scene.step == SceneStep.placesUnknown,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(_state(container).scene.step, SceneStep.placesUnknown);
+      expect(
+        _state(container).channel,
+        isNot(isA<PartPlaying>()),
+        reason:
+            'o take seguia tocando na tela de lugares desconhecidos, onde nada o para',
+      );
     },
   );
 }

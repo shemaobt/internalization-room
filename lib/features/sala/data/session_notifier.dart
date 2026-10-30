@@ -5747,7 +5747,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     final herLineStands = stillArmed != null && asked.notUnderstood;
     final floor = rehearsal.pausaFloor(stillArmed);
-    if (armed != null && stillArmed == null) _silenceTheRoom();
+    if ((armed != null && stillArmed == null) ||
+        (step == SceneStep.placesUnknown &&
+            _theSceneTakeThatSounds(state.machine) != null)) {
+      _silenceTheRoom();
+    }
     state = state.copyWith(
       scene: SceneScreen(
         step: step,
