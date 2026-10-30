@@ -2120,4 +2120,64 @@ void main() {
       );
     },
   );
+
+  test(
+    '«manter a tradução de antes» before the team\'s translation lands keeps '
+    'the download alive, and it plays when it lands',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.harness.room.holdNextClip();
+
+      room.sala.hearTheFraseTranslation('f1');
+      await settle();
+      room.sala.keepTheEarlierTranslation();
+      await settle();
+      room.harness.room.finishHeldClip();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        room.harness.playback.played.map((path) => path.split('/').last),
+        contains('cena-ensaio-da-cena-1-frase-f1.wav'),
+        reason: 'o manter derrubava a tradução de vocês que ainda descia',
+      );
+      expect(
+        room.state.scene.translatingAgain,
+        isNull,
+        reason: 'a tradução, ao chegar, punha a frase de volta a ser traduzida',
+      );
+    },
+  );
+
+  test('the room\'s list landing while the team\'s translation comes down '
+      'neither stops nor drops it: it plays when it lands, as hers', () async {
+    final room = await _onTheTranslateStep(
+      rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+    );
+    room.harness.room
+      ..sendRefusalsFirst.add(RefusalCode.unnamed(422))
+      ..holdNextSceneList();
+    room.sala.sendTheSceneRehearsal();
+    await waitFor(
+      'a sala descansar',
+      () => !room.state.theSceneIsSending && !room.state.scene.waiting,
+    );
+    room.harness.room.holdNextClip();
+
+    room.sala.hearTheFraseTranslation('f1');
+    await settle();
+    room.harness.room.finishHeldSceneList();
+    await settle();
+    room.harness.room.finishHeldClip();
+    await settle(const Duration(milliseconds: 400));
+
+    expect(
+      room.harness.playback.played.map((path) => path.split('/').last),
+      contains('cena-ensaio-da-cena-1-frase-f1.wav'),
+      reason: 'a lista que chegava derrubava a tradução de vocês que descia',
+    );
+  });
 }

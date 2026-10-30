@@ -6878,18 +6878,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     state = state.copyWith(scene: asked);
     _theTranslationAsked = asked;
-    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
+    _handOff(_hearTheFrase(shown.rehearsal!, frase, asked));
   }
 
   Future<void> _hearTheFrase(
     SceneRehearsalRecord rehearsal,
     SceneFrase frase,
-    SceneScreen shown,
     SceneScreen waiting,
   ) async {
     final generation = _waitOnTheGeneration;
     bool movedOn() =>
-        _theSceneMovedOn(waiting, generation) ||
+        _abandoned(generation) ||
+        state.channel is Microphone ||
         !identical(_theTranslationAsked, waiting);
     final path = await _fetchASceneClip(
       'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
@@ -6903,7 +6903,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       failed: (_) {},
     );
     if (movedOn()) return;
-    state = state.copyWith(scene: shown);
     if (path != null) _play(PartSound(0, path));
   }
 
