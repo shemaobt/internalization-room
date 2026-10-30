@@ -8068,7 +8068,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final juntada = state.joined;
     final sessionId = state.sessionId;
     Set<String>? oferecidas;
-    var achados = state.btFindings;
+    List<BtFinding>? achados;
     if ((juntada || conferida) && sessionId != null) {
       final falha = await _readTheStretchesBack(
         sessionId,
@@ -8121,7 +8121,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(
           btPhase: BtPhase.conferida,
           btVeredito: true,
-          btFindings: _osAchadosQueFicam(achados, state.btTrechos),
+          btFindings: _osAchadosQueFicam(
+            achados ?? state.btFindings,
+            state.btTrechos,
+          ),
         );
         return;
       }

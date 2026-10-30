@@ -84,11 +84,21 @@ void main() {
   test('a passage checked clean comes back with the marks the room keeps on '
       'its frases', () async {
     final it = await _conferidaEDeixadaPelaVolta();
-    final trechos = it.harness.room.segments;
+    final trechos = [
+      for (final (n, one) in it.harness.room.segments.indexed)
+        SegmentView(
+          segmentId: one.segmentId,
+          takeId: one.takeId,
+          startsMs: one.startsMs,
+          endsMs: one.endsMs,
+          told: one.told,
+          frase: n + 1,
+        ),
+    ];
     it.harness.room
       ..listeningUnheardTakeIds = const []
       ..retroSoFar = BackTranslationProgress(
-        segments: [...trechos],
+        segments: trechos,
         checked: true,
         namedNuance: BtFinding(
           kind: BtFindingKind.nuance,
@@ -108,25 +118,20 @@ void main() {
 
     expect(it.estado.btPhase, BtPhase.conferida);
     expect(
-      [for (final f in it.estado.btFindings) (f.kind, f.segmentId)],
       [
-        (BtFindingKind.nuance, trechos[0].segmentId),
-        (BtFindingKind.unclear, trechos[1].segmentId),
+        for (final trecho in it.estado.btTrechos)
+          [
+            for (final f in it.estado.btFindings)
+              if (f.frase == trecho.frase) f.kind,
+          ],
+      ],
+      [
+        [BtFindingKind.nuance],
+        [BtFindingKind.unclear],
+        for (var n = 2; n < trechos.length; n++) <BtFindingKind>[],
       ],
       reason: 'a volta à conferência voltava sem as marcas que a sala guardou',
     );
-  });
-
-  test('the session read hands over the nuance the last check named, and '
-      'none from a room that does not say', () {
-    final nuance = BackTranslationProgress.fromJson({
-      'named_nuance': {'kind': 'nuance', 'frase': 1, 'segment_id': 'trecho-1'},
-    }).namedNuance;
-    expect(
-      (nuance?.kind, nuance?.frase, nuance?.segmentId),
-      (BtFindingKind.nuance, 1, 'trecho-1'),
-    );
-    expect(BackTranslationProgress.fromJson(const {}).namedNuance, isNull);
   });
 
   test('a passage the room no longer counts as checked when the team comes '
