@@ -48,6 +48,7 @@ void main() {
       'not at the invite', () async {
     final it = await _onTheConversationOfAnEndedPassage();
     expect(it.estado.orangeDotLook, OrangeDotLook.bright);
+    expect(it.estado.canHearAgain, isTrue);
 
     it.sala.openTheEnsaioFinal();
     await waitFor('the recording to open', () => it.estado.station is Ensaio);
@@ -66,30 +67,16 @@ void main() {
       OrangeDotLook.bright,
       reason: 'o ponto laranja voltava apagado',
     );
+    expect(it.estado.canHearAgain, isTrue);
+    final played = it.harness.voice.played.length;
+    await it.sala.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => it.harness.voice.played.length > played,
+    );
+    expect(it.harness.voice.played.last, turnoUrl);
+    expect(it.harness.room.sessionsSaidAgain, isEmpty);
   });
-
-  test(
-    'the way back from the recording still offers «Ouvir de novo»',
-    () async {
-      final it = await _onTheConversationOfAnEndedPassage();
-      expect(it.estado.canHearAgain, isTrue);
-
-      it.sala.openTheEnsaioFinal();
-      await waitFor('the recording to open', () => it.estado.station is Ensaio);
-      await settle();
-      it.sala.leaveTheRecording();
-      await settle();
-
-      expect(it.estado.station, isA<Canvas>());
-      expect(it.estado.canHearAgain, isTrue);
-      await it.sala.hearAgain();
-      await waitFor(
-        'the clip to be played again',
-        () => it.harness.voice.played.length > 1,
-      );
-      expect(it.harness.room.sessionsSaidAgain, isEmpty);
-    },
-  );
 
   test('a relaunch in the Rehearsal of a passage the room has ended lands at '
       'done, not at the invite', () async {

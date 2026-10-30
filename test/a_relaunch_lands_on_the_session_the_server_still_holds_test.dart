@@ -397,6 +397,65 @@ void main() {
     },
   );
 
+  test('a passage switched back to, whose conversation ends on a turn of the '
+      'team\'s, offers no «Ouvir de novo» and asks the room nothing', () async {
+    final tablet = await _inP01();
+    final session = tablet.state.sessionId!;
+    tablet.harness.room.holdNextTurn();
+    tablet.notifier.conversaTap();
+    await settle();
+    tablet.notifier.conversaTap();
+    await waitFor('the turn to be sent', () => tablet.asked('sendTurn') == 1);
+    tablet.notifier.leaveThePassage();
+    tablet.harness.room.finishHeldTurn();
+    await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          tablet.state.sessionId != null &&
+          tablet.state.sessionId != session &&
+          tablet.state.voice == VoiceState.invite,
+    );
+    tablet.notifier.leaveThePassage();
+    await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+    await _landsOn(tablet, session);
+
+    expect(tablet.state.canHearAgain, isFalse);
+    expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
+  });
+
+  test('a passage switched back to after a relaunch plays the clip its '
+      'conversation ended on, asking the room nothing', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    first.notifier.leaveThePassage();
+    await enterThePassage(first.notifier, () => first.state, 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          first.state.sessionId != null &&
+          first.state.sessionId != session &&
+          first.state.voice == VoiceState.invite,
+    );
+    final again = await _relaunch(first);
+    await again.notifier.openTheRoom();
+    await _landsOn(again, again.state.sessionId ?? '');
+    again.notifier.leaveThePassage();
+    await enterThePassage(again.notifier, () => again.state, 'P01');
+    await _landsOn(again, session);
+    final played = again.harness.voice.played.length;
+
+    expect(again.state.canHearAgain, isTrue);
+    await again.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => again.harness.voice.played.length > played,
+    );
+
+    expect(again.harness.voice.played.last, turnoUrl);
+    expect(again.harness.room.sessionsSaidAgain, isEmpty);
+  });
+
   test('the clip survives a round trip to the Panorama: a later relaunch still '
       'replays it from the tablet', () async {
     final first = await _inP01();

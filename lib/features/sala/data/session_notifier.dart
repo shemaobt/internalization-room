@@ -2164,6 +2164,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     } else {
       _endsOf[session] = end.line;
     }
+    unawaited(
+      (end == null
+              ? _store.letGoOfTheEnd(session)
+              : _store.holdTheEnd(session, end.line))
+          .catchError((_) {}),
+    );
     final held = _heldSession;
     if (held == null || held.sessionId != session) return;
     _hold(held.withLine(end?.line, known: end != null));
@@ -2171,7 +2177,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _letGoOfTheCurrentSession({String? only}) {
     if (only == null || _heldSession?.sessionId == only) _heldSession = null;
-    if (only != null) _endsOf.remove(only);
+    if (only != null) {
+      _endsOf.remove(only);
+      unawaited(_store.letGoOfTheEnd(only).catchError((_) {}));
+    }
     unawaited(_store.letGoOfTheSession(only: only).catchError((_) {}));
   }
 
@@ -2880,6 +2889,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = waiting?.sessionId ?? created!.sessionId;
     if (_abandoned(generation)) return;
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
+    if (resumed && !_endsOf.containsKey(sessionId)) {
+      if (await _store.endOf(sessionId) case (line: final line)) {
+        _endsOf[sessionId] = line;
+      }
+      if (_abandoned(generation)) return;
+    }
     if (!resumed) _startTheSessionClean((book: book, pericope: pericope));
     state = state.copyWith(
       pericope: pericope,
