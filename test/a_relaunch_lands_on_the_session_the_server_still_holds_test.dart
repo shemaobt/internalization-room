@@ -366,6 +366,123 @@ void main() {
     await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
   });
 
+  test(
+    'a passage switched back to, whose conversation ends on a Guide turn, '
+    'offers «Ouvir de novo» and plays that clip, asking the room nothing',
+    () async {
+      final tablet = await _inP01();
+      final session = tablet.state.sessionId!;
+      tablet.notifier.leaveThePassage();
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
+      await waitFor(
+        'P02 to open',
+        () =>
+            tablet.state.sessionId != null &&
+            tablet.state.sessionId != session &&
+            tablet.state.voice == VoiceState.invite,
+      );
+      tablet.notifier.leaveThePassage();
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await _landsOn(tablet, session);
+      final played = tablet.harness.voice.played.length;
+
+      expect(tablet.state.canHearAgain, isTrue);
+      await tablet.notifier.hearAgain();
+      await waitFor(
+        'the clip to be played again',
+        () => tablet.harness.voice.played.length > played,
+      );
+
+      expect(tablet.harness.voice.played.last, turnoUrl);
+      expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
+    },
+  );
+
+  test('a passage switched back to, whose last turn of the team\'s the room '
+      'refused, still ends on the Guide: it plays that clip', () async {
+    final tablet = await _inP01();
+    final session = tablet.state.sessionId!;
+    tablet.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+    tablet.notifier.conversaTap();
+    await settle();
+    tablet.notifier.conversaTap();
+    await waitFor('the turn to be sent', () => tablet.asked('sendTurn') == 1);
+    await settle();
+    tablet.harness.room.failTurnsWith = null;
+    tablet.notifier.leaveThePassage();
+    await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          tablet.state.sessionId != null &&
+          tablet.state.sessionId != session &&
+          tablet.state.voice == VoiceState.invite,
+    );
+    tablet.notifier.leaveThePassage();
+    await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+    await _landsOn(tablet, session);
+    final played = tablet.harness.voice.played.length;
+
+    expect(tablet.state.canHearAgain, isTrue);
+    await tablet.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => tablet.harness.voice.played.length > played,
+    );
+
+    expect(tablet.harness.voice.played.last, turnoUrl);
+    expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
+  });
+
+  test('a passage switched back to after a relaunch plays the clip its '
+      'conversation ended on, asking the room nothing', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    first.notifier.leaveThePassage();
+    await enterThePassage(first.notifier, () => first.state, 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          first.state.sessionId != null &&
+          first.state.sessionId != session &&
+          first.state.voice == VoiceState.invite,
+    );
+    final again = await _relaunch(first);
+    await again.notifier.openTheRoom();
+    await _landsOn(again, again.state.sessionId ?? '');
+    again.notifier.leaveThePassage();
+    await enterThePassage(again.notifier, () => again.state, 'P01');
+    await _landsOn(again, session);
+    final played = again.harness.voice.played.length;
+
+    expect(again.state.canHearAgain, isTrue);
+    await again.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => again.harness.voice.played.length > played,
+    );
+
+    expect(again.harness.voice.played.last, turnoUrl);
+    expect(again.harness.room.sessionsSaidAgain, isEmpty);
+  });
+
+  test('a session whose resume the room refuses twice is forgotten with its '
+      'end', () async {
+    final tablet = await _inP01();
+    final session = tablet.state.sessionId!;
+    expect(await tablet.harness.currentSession.endOf(session), isNotNull);
+    tablet.notifier.leaveThePassage();
+    for (var refusal = 0; refusal < 2; refusal++) {
+      tablet.harness.room.failStateOnceWith = const Refused('RECUSADA');
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await settle();
+      tablet.notifier.leaveThePassage();
+      await settle();
+    }
+
+    expect(await tablet.harness.currentSession.endOf(session), isNull);
+  });
+
   test('the clip survives a round trip to the Panorama: a later relaunch still '
       'replays it from the tablet', () async {
     final first = await _inP01();
