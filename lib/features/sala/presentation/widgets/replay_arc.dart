@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 class ReplayArcPainter extends CustomPainter {
   final Color ink;
-  final double stroke;
 
-  const ReplayArcPainter({required this.ink, this.stroke = 1.4});
+  const ReplayArcPainter({required this.ink});
 
   static const _viewBox = 24.0;
+  static const stroke = 1.4;
 
   static final _arc = Path()
     ..moveTo(3, 12)
@@ -44,6 +44,5 @@ class ReplayArcPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(ReplayArcPainter old) =>
-      old.ink != ink || old.stroke != stroke;
+  bool shouldRepaint(ReplayArcPainter old) => old.ink != ink;
 }

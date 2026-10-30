@@ -96,6 +96,11 @@ Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
   )) {
     alpha *= veu.opacity.value;
   }
+  for (final veu in tester.widgetList<Opacity>(
+    find.ancestor(of: marca, matching: find.byType(Opacity)),
+  )) {
+    alpha *= veu.opacity;
+  }
   return Color.alphaBlend(tinta.withValues(alpha: alpha), background);
 }
 

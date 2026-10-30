@@ -34,7 +34,6 @@ bool isHeard(Element element) {
   return heard;
 }
 
-/// A control a screen reader reaches: [byLabel] minus what a fading control hides.
 Finder offered(String label) => find.byElementPredicate(
   (element) =>
       element.widget is Semantics &&

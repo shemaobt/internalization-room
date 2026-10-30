@@ -27,10 +27,9 @@ class HearAgainButton extends ConsumerWidget {
           excluding: !canHear,
           child: IgnorePointer(
             ignoring: !canHear,
-            child: AnimatedOpacity(
+            child: HerFade(
               opacity: canHear ? 0.42 : 0,
-              duration: herFade(context, const Duration(milliseconds: 1200)),
-              curve: Curves.ease,
+              span: const Duration(milliseconds: 1200),
               child: RoundActionButton(
                 size: 44,
                 semanticLabel: roomLabelFor(

@@ -31,8 +31,24 @@ const _panorama = Passagem(
   kind: PassagemKind.panorama,
 );
 
-final _hand = find.byWidgetPredicate(
-  (widget) => widget is HandButton && widget.visible,
+bool _reachable(Element hand) {
+  var reached = false;
+  void visit(Element element) {
+    final widget = element.widget;
+    if (widget is ExcludeSemantics && widget.excluding) return;
+    if (widget is IgnorePointer && widget.ignoring) return;
+    if (widget is Semantics && (widget.properties.button ?? false)) {
+      reached = true;
+    }
+    element.visitChildren(visit);
+  }
+
+  hand.visitChildElements(visit);
+  return reached;
+}
+
+final _hand = find.byElementPredicate(
+  (element) => element.widget is HandButton && _reachable(element),
 );
 
 final _handInTheCircle = find.descendant(

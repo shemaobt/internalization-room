@@ -25,10 +25,9 @@ class LeavePassageButton extends ConsumerWidget {
       top: MediaQuery.viewPaddingOf(context).top + screen.height * 0.05 - 11,
       child: IgnorePointer(
         ignoring: away,
-        child: AnimatedOpacity(
+        child: HerFade(
           opacity: away ? 0 : 0.22,
-          duration: herFade(context, const Duration(milliseconds: 400)),
-          curve: Curves.ease,
+          span: const Duration(milliseconds: 400),
           child: Semantics(
             button: true,
             label: roomLabelFor(

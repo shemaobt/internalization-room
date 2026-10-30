@@ -32,9 +32,8 @@ class BackToPassageButton extends ConsumerWidget {
             child: SizedBox(
               width: 44,
               height: 44,
-              child: AnimatedOpacity(
-                duration: herFade(context, const Duration(milliseconds: 250)),
-                curve: Curves.ease,
+              child: HerFade(
+                span: const Duration(milliseconds: 250),
                 opacity: !session.theWayBackIsLive
                     ? 0.2
                     : session.sceneRehearsalIsOpen

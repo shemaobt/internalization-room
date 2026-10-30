@@ -43,17 +43,13 @@ class HandButton extends StatelessWidget {
               width: 44,
               height: 44,
               child: Center(
-                child: AnimatedOpacity(
+                child: HerFade(
                   opacity: !visible
                       ? 0
                       : noteMode
                       ? 0.8
                       : 0.35,
-                  duration: herFade(
-                    context,
-                    const Duration(milliseconds: 1200),
-                  ),
-                  curve: Curves.ease,
+                  span: const Duration(milliseconds: 1200),
                   child: SizedBox(
                     width: 40,
                     height: 40,
@@ -68,7 +64,7 @@ class HandButton extends StatelessWidget {
                             ink: colors.verde,
                           ),
                         ),
-                        if (visible && hasUnheardReply)
+                        if (hasUnheardReply)
                           Positioned(
                             top: 1,
                             right: 1,
@@ -88,6 +84,7 @@ class HandButton extends StatelessWidget {
 
   Widget _replyDot(SalaColors colors) {
     return Loop(
+      animate: visible,
       period: const Duration(milliseconds: 2400),
       builder: (context, t) => Opacity(
         opacity: 1 - 0.25 * t,

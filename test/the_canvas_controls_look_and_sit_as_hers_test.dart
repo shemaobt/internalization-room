@@ -67,7 +67,7 @@ final _herArrow = find.descendant(
   ),
 );
 
-Finder _herHand(String label) => find.descendant(
+Finder get _herHand => find.descendant(
   of: find.byType(HandButton),
   matching: find.byWidgetPredicate(
     (widget) => widget is CustomPaint && widget.painter is CircleGlyphPainter,
@@ -411,7 +411,11 @@ void main() {
           verde,
           reason: 'a seta dela é --verde',
         );
-        expect(painter.stroke, 1.4, reason: 'a seta dela tem traço 1,4');
+        expect(
+          ReplayArcPainter.stroke,
+          1.4,
+          reason: 'a seta dela tem traço 1,4',
+        );
         expect(
           _seenOpacity(tester, arrow),
           closeTo(0.42, 0.001),
@@ -446,7 +450,7 @@ void main() {
           findsNothing,
           reason: 'a mão era um cartão de 60 px com borda',
         );
-        final glyph = _herHand(label);
+        final glyph = _herHand;
         final painter = tester.widget<CustomPaint>(glyph).painter!;
         expect(tester.getSize(glyph), const Size(26, 26));
         expect(
@@ -486,7 +490,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1300));
 
       expect(container.read(salaSessionProvider).noteMode, isTrue);
-      final glyph = _herHand(label);
+      final glyph = _herHand;
       expect(
         _paintedUnder(label),
         findsNothing,
@@ -539,7 +543,7 @@ void main() {
 
   for (final (what, glyph, rest) in [
     ('hearing again', () => _herArrow, 0.42),
-    ('the hand', () => _herHand('Leave a question for your facilitator'), 0.35),
+    ('the hand', () => _herHand, 0.35),
   ]) {
     testWidgets(
       '$what, when it hides, is still mounted at mid-fade and gone after her '
@@ -559,6 +563,34 @@ void main() {
         expect(glyph(), findsOneWidget, reason: 'sumia sem desvanecer');
         expect(_seenOpacity(tester, glyph()), inExclusiveRange(0, rest));
         await tester.pump(const Duration(milliseconds: 700));
+        expect(_seenOpacity(tester, glyph()), 0);
+        harness.voice.finishHeldLine();
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    testWidgets(
+      '$what stops fading the moment the tablet asks for less motion',
+      (tester) async {
+        _on(tester, _se, bar: 20);
+        final (harness, container) = await atRestAfterATurn(tester, const []);
+
+        harness.voice.holdNextLine();
+        container.read(salaSessionProvider.notifier).hearAgain();
+        await _pumpUntil(
+          tester,
+          () => !container.read(salaSessionProvider).canHearAgain,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(_seenOpacity(tester, glyph()), greaterThan(0));
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 20));
+
         expect(_seenOpacity(tester, glyph()), 0);
         harness.voice.finishHeldLine();
         await tester.pump(const Duration(seconds: 2));
@@ -799,4 +831,28 @@ void main() {
       });
     }
   }
+
+  testWidgets('the ≡ eases out over her .4 s when the microphone opens', (
+    tester,
+  ) async {
+    _on(tester, _se, bar: 20);
+    final (_, container) = await atRestAfterATurn(tester, const []);
+    final bars = _barsOf('Choose another passage');
+    expect(_seenOpacity(tester, bars), closeTo(0.22, 0.001));
+
+    container.read(salaSessionProvider.notifier).conversaTap();
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).voice == VoiceState.listening,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      _seenOpacity(tester, bars),
+      closeTo(0.22 * (1 - Curves.ease.transform(0.5)), 0.01),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_seenOpacity(tester, bars), 0);
+  });
 }
