@@ -26,6 +26,14 @@ the other, and warmed one language while playing the other.
   decide what the Choice says.
 - The screen still follows the Room language (ADR 0077).
 
+## Amended by ENG-1868 (2026-10-30)
+
+The first bullet above no longer holds for every line. Her app wins: the instant
+acknowledgement and every F, P, X and N line the tablet plays itself, including those the
+room names after the First listen and on «terminei» (N-2, N-3, N-6, P-unheard), follow the
+Room language, warmed and played in the same one. D and A lines, the Guide's replies and the
+verdict clips stay in the Session language.
+
 ## Consequences
 
 After the way back, the screen can be Portuguese while the voice stays English. The warm of

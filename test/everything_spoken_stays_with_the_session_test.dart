@@ -224,6 +224,54 @@ void main() {
   );
 
   test(
+    'a fixed line the server names in a Panorama plays in the language the Panorama was opened in',
+    () async {
+      final harness = SalaHarness(lingua: null)
+        ..room.fixedLine = 'D1'
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      await enterThePanorama(it.sala, () => it.estado);
+      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
+      await settle();
+      it.sala.leaveThePassage();
+      await waitFor('the way back', () => it.estado.theWayBackIsLive);
+      it.sala.chooseTheLanguage('pt');
+      await settle();
+      await it.sala.returnToTheLeftEntry();
+      await waitFor(
+        'the Panorama to be back',
+        () =>
+            it.estado.stage == SalaStage.panorama &&
+            it.estado.panoramaSaid &&
+            it.estado.voice == VoiceState.invite,
+      );
+      await settle();
+      it.harness.voice.fixedLines.clear();
+
+      it.sala.panoramaTap();
+      await settle();
+      it.sala.panoramaTap();
+      await waitFor(
+        'her line for the turn',
+        () => it.harness.voice.fixedLines.any((line) => line.$1 == 'D1'),
+      );
+
+      expect(it.harness.voice.fixedLines, contains(('D1', 'en')));
+    },
+  );
+
+  test(
     'the acknowledgement plays in the room language after a Panorama is reached again, whatever language it was opened in',
     () async {
       final harness = SalaHarness(lingua: null)
