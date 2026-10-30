@@ -27,17 +27,25 @@ read «enviando…» with no tap for good. An earlier visit's take sent by its t
 - **A part waits from its keep tap until the room holds it.** The keep in flight counts as
   waiting, and the keep lasts until a count of the Outbox taken after the take went in has been
   applied. A count dropped for a newer one or for a station change does not end it.
-- **The advance disc, the check, «Ouvir tudo» and the wood play all wait.** «Ouvir tudo» shows
-  only once every scene has its part and the room holds every part. The wood play is dimmed
-  while a part waits, and the per-row «Ouvir» stays live.
+- **The advance disc, the check and «Ouvir tudo» wait for the room.** «Ouvir tudo» shows only
+  once every scene has its part and the room holds every part.
+- **The wood play waits only while a part is going up**: a keep in flight or a take in the
+  air. A part stuck or failed in the Outbox leaves it lit, since what it plays is on the
+  tablet. The per-row «Ouvir» stays live.
 - **A row whose send ended on a wait reads «falhou — toque para tentar de novo»**, with its
   tap, which sends it again. A take the room refused for good keeps its own words and no tap.
-- **A take of an earlier visit sent by its tap belongs to this visit from the tap on.** It
-  reads «✓ salvo» once the room's list holds it, and «falhou — toque para tentar de novo» if
-  that send fails.
+- **A take of an earlier visit sent by its tap belongs to this visit once that send lands.**
+  It then reads «✓ salvo», as a take of this visit does, also on a row beyond the last scene,
+  which stays for the visit. A tap whose send fails leaves it a take of an earlier visit that
+  still offers «Cena N · m:ss — enviar agora», on the plan as on the home: the plan has no
+  rows, so its notice is the only control.
 - **The home's busy mark stays a swap in flight.** A part going up does not make the home busy.
 
 ## Consequences
+
+- After a relaunch the check opens only through the advance disc, so it never opens while a
+  part has not landed. ADR 0154's "Unchanged" line names `TheBackTranslationResumed`; that
+  event no longer exists.
 
 - The disc and «Ouvir tudo» stay dark for as long as the tablet takes to copy and count a
   take, which is longer on a slow tablet.
