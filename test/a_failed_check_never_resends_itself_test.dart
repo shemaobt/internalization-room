@@ -48,25 +48,29 @@ Future<_Check> _readyForTheVerdict(SalaHarness harness) async {
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
   final parte1 = KeptScope.parte(1);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      KeptTake(
-        scopeId: parte1,
-        path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
-        takeId: 'gravacao-1',
-      ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: parte1,
+          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    ),
+    language: 'pt',
   );
   final container = harness.container();
   addTearDown(container.dispose);
   final check = _Check(harness, container);
-  await check.sala.abrirEscolha();
-  await check.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await check.sala.openTheRoom();
+  await intoTheBackTranslation(check.sala, () => check.estado);
   await waitFor(
-    'a tradução retomada pôr a parte no ar',
-    () => check.estado.stage == SalaStage.retro && harness.playback.sounding,
+    'a tradução pôr a parte no ar',
+    () => harness.playback.sounding,
   );
   harness.playback.finishPlayback();
   await waitFor(
