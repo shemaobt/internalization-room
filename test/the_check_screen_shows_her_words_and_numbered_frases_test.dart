@@ -17,9 +17,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/dashed_edge.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -218,7 +216,6 @@ Future<ProviderContainer> _voltaATraducao(
   bool juntada = false,
   bool inteira = false,
   bool comACena1 = false,
-  bool pelaEscolha = false,
 }) async {
   _telaAlta(tester);
   final pasta = Directory.systemTemp.createTempSync('sala-1205');
@@ -254,34 +251,13 @@ Future<ProviderContainer> _voltaATraducao(
     stage: parouEm,
     takes: partes,
   );
-  if (pelaEscolha) {
-    harness.emAberto.rows['Ruth/P01/$lingua'] = row;
-  } else {
-    await holdTheSession(harness, row, language: lingua);
-  }
+  await holdTheSession(harness, row, language: lingua);
   harness.room.retroSoFar = contado;
   final container = harness.container();
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  if (pelaEscolha) {
-    unawaited(
-      container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth', pericope: 'P01'),
-    );
-    await waitFor(
-      'a tradução voltar com as frases que a sala guardou',
-      () =>
-          container.read(salaSessionProvider).stage == parouEm &&
-          container.read(salaSessionProvider).btTrechos.length ==
-              contado.segments.length,
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-    await _passo(tester);
-    return container;
-  }
   await (parouEm == SalaStage.retro
       ? intoTheBackTranslation
       : intoTheRecordingHome)(
@@ -649,68 +625,6 @@ Finder _oCartao(Finder dentro) => find.ancestor(
             BorderRadius.circular(16),
   ),
 );
-
-Future<ProviderContainer> _relidaAntesDaLista(
-  WidgetTester tester,
-  SalaHarness harness,
-) async {
-  harness.playback.measured = const Duration(seconds: 10);
-  harness.room
-    ..takes.add(
-      const TakeView(takeId: 'gravacao-de-fora', scope: 'composed', ordinal: 2),
-    )
-    ..holdNextTakesList();
-  final container = await _voltaATraducao(
-    tester,
-    harness,
-    const BackTranslationProgress(
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-1',
-          takeId: 'gravacao-1',
-          startsMs: 0,
-          endsMs: 4000,
-          frase: 1,
-        ),
-        SegmentView(
-          segmentId: 'trecho-2',
-          takeId: 'gravacao-de-fora',
-          startsMs: 0,
-          endsMs: 5000,
-          frase: 2,
-        ),
-      ],
-    ),
-    juntada: true,
-    pelaEscolha: true,
-  );
-  await waitFor(
-    'a sala reler as frases antes de listar as gravações',
-    () =>
-        harness.room.aTakesListIsHeld &&
-        harness.room.calls.where((call) => call == 'fetchState').length == 2,
-    step: () => _passo(tester),
-  );
-  await _passo(tester);
-  expect(
-    [
-      for (final trecho in container.read(salaSessionProvider).btTrechos)
-        trecho.parte,
-    ],
-    [0, -1],
-  );
-  return container;
-}
-
-List<List<(int?, int?)>> _asFaixas(WidgetTester tester) => [
-  for (final faixa in tester.widgetList<SceneStrip>(
-    find.descendant(
-      of: find.byType(PartStrips),
-      matching: find.byType(SceneStrip),
-    ),
-  ))
-    [for (final frase in faixa.frases) (frase.startsMs, frase.endsMs)],
-];
 
 List<String> _naLista(WidgetTester tester) => [
   for (final texto in tester.widgetList<Text>(
@@ -1515,66 +1429,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a told frase over a take this tablet does not hold keeps its '
-      'part when the room reads the stretches back before it lists the '
-      'takes', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _relidaAntesDaLista(tester, harness);
-    harness.room.finishHeldTakesList();
-    await _passo(tester);
-    await _passo(tester);
-
-    expect(
-      _naLista(tester),
-      ['FRASES TRADUZIDAS', '1', 'parte 1', '2', 'parte 2'],
-      reason:
-          'a releitura da sala pousava antes da lista das gravações, e a '
-          'frase sobre a gravação que o tablet não tem ficava sem parte',
-    );
-    expect(
-      _asFaixas(tester),
-      [
-        [(0, 4000)],
-        [(0, 5000)],
-      ],
-      reason:
-          'a frase sem parte não era faixa de nenhuma tira, e a dela mora na '
-          'tira da sua parte',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('a frase told while the room lists the takes stays on the '
-      'screen, and the frase over a take this tablet does not hold still '
-      'gets its part', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _relidaAntesDaLista(tester, harness);
-    harness.playback.at = const Duration(seconds: 7);
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
-    await tocarNoCirculo(tester);
-    await waitFor(
-      'a frase contada pousar',
-      () => container.read(salaSessionProvider).btTrechos.length == 3,
-      step: () => _passo(tester),
-    );
-    harness.room.finishHeldTakesList();
-    await _passo(tester);
-    await _passo(tester);
-
-    expect(
-      _asFaixas(tester),
-      [
-        [(0, 4000), (4000, 7000)],
-        [(0, 5000)],
-      ],
-      reason:
-          'uma frase contada enquanto a lista não vinha mudava a fila, e a '
-          'frase sobre a gravação que o tablet não tem perdia a sua parte',
-    );
-    closeTheRoom(container);
-  });
-
   testWidgets('the loudspeaker of a frase plays the team\'s own translation '
       'of it, named by its place in the list', (tester) async {
     _telaAlta(tester);
@@ -1774,46 +1628,6 @@ void main() {
       closeTheRoom(container);
     },
   );
-
-  testWidgets('the loudspeaker of a frase is dimmed when this tablet holds no '
-      'rehearsal to play it from', (tester) async {
-    _telaAlta(tester);
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.retro,
-    );
-    harness.room.retroSoFar = const BackTranslationProgress(
-      checked: true,
-      segments: _quatroFrases,
-    );
-    final container = harness.container();
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await _passo(tester);
-    unawaited(
-      container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth', pericope: 'P01'),
-    );
-    await waitFor(
-      'a tradução conferida voltar sem gravação neste tablet',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
-      step: () => _passo(tester),
-    );
-    await _passo(tester);
-    expect(container.read(salaSessionProvider).partes, isEmpty);
-
-    expect(
-      aceso(tester, 'ouvir a minha tradução da frase 1'),
-      isFalse,
-      reason:
-          'o alto-falante seguia aceso numa sessão sem gravação nenhuma no '
-          'aparelho, e respondia com silêncio',
-    );
-    closeTheRoom(container);
-  });
 
   testWidgets('the check screen is headed with her words, «Traduzir a '
       'gravação», not left without a title', (tester) async {

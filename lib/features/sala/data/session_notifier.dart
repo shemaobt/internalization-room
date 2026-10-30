@@ -213,22 +213,11 @@ typedef _AListagem = ({
 
 /// What a reopening found where the team left off.
 enum _Resume {
-  /// The station they left, standing again, with the rehearsal under it.
+  /// The takes the tablet still holds are loaded, and the team lands on its conversation.
   landed,
 
   /// Nothing behind this passage to come back to: it opens at the conversa.
   nothingToRestore,
-
-  /// The row held no parts, and the session read it asked landed the team on the approved
-  /// draft (ADR 0106).
-  onTheApprovedDraft,
-
-  /// The room could not hand the rehearsal back: the team is back on the Choice and the
-  /// resume point is left exactly as it was, so the next opening tries again.
-  failed,
-
-  /// The room no longer holds the session the row remembers.
-  gone,
 
   /// Nobody is waiting for this answer any more — the team left the passage, or the
   /// container went. It is not a reading of what the room holds and must not be read as
@@ -2938,31 +2927,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (end != null) _endsOf[sessionId] = end.line;
     }
     if (resumed) {
-      (SessionSnapshot, int)? lida;
       final onde = await _backToWhereTheyStopped(
         waiting,
         generation,
         landed: landed,
-        read: (read, sent) => lida = (read, sent),
-        relaunched: opened != null,
       );
       if (_abandoned(generation)) return;
-      if (onde == _Resume.failed ||
-          onde == _Resume.abandoned ||
-          onde == _Resume.gone) {
-        return;
-      }
-      if (onde == _Resume.onTheApprovedDraft) {
-        _resumeFailures.remove(theResume);
-        return;
-      }
+      if (onde == _Resume.abandoned) return;
       if (onde == _Resume.landed) {
         final SessionSnapshot snapshot;
-        final int sent;
-        if (lida case (final read, final enviada)) {
-          (snapshot, sent) = (read, enviada);
+        final sent = ++_readsSent;
+        if (opened != null && opened.sessionId == sessionId) {
+          snapshot = opened;
         } else {
-          sent = ++_readsSent;
           switch (await _room.fetchState(sessionId)) {
             case Answered(value: final read):
               snapshot = read;
@@ -2982,52 +2959,42 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           moment: snapshot.moment,
           clearMoment: snapshot.moment == null,
         );
-        if (onde == _Resume.landed &&
-            await _landedOnTheApprovedDraft(
-              snapshot,
-              sent,
-              generation,
-              landed,
-            )) {
+        if (await _landedOnTheApprovedDraft(
+          snapshot,
+          sent,
+          generation,
+          landed,
+        )) {
           _aLeituraDecidiu = true;
           return;
         }
-        if (onde == _Resume.landed &&
-            opened == null &&
-            Station.stored(waiting.stage) is Retro) {
-          _pickTheTellingBackUp(snapshot.backTranslation);
-          landed();
-          unawaited(_countUnsent());
-        } else {
-          _keepTheStretchesAlreadyTold(snapshot.backTranslation);
-          unawaited(_relatarASala(sessionId, const []));
-        }
+        _keepTheStretchesAlreadyTold(snapshot.backTranslation);
+        unawaited(_relatarASala(sessionId, const []));
         // The snapshot was fetched here and its halt never read, so a team reopening
         // into a room the server had already stopped met every gesture wide open.
-        //
-        // After the telling-back is picked up, not before, so that the passage the team
-        // comes back to is the one they left: a person resolving the halt finds them in
-        // their retro rather than dropped back into the rehearsal.
         _resumeFailures.remove(theResume);
         _applyTheSessionRead(snapshot, sent);
         _aLeituraDecidiu = true;
-        _asPartesPerdidasSaem();
-        if (opened != null) _landWhereTheyStopped(done: snapshot.done);
+        _landWhereTheyStopped(done: snapshot.done);
         return;
       }
       final SessionSnapshot read;
       final sent = ++_readsSent;
-      switch (await _room.fetchState(sessionId)) {
-        case Answered(value: final snapshot):
-          read = snapshot;
-        case final SessionGone gone:
-          return failed(gone);
-        case final RoomFailure failure:
-          return failed(
-            failure,
-            rule: RefusalRule.keepsTheResume,
-            door: Door.resume,
-          );
+      if (opened != null && opened.sessionId == sessionId) {
+        read = opened;
+      } else {
+        switch (await _room.fetchState(sessionId)) {
+          case Answered(value: final snapshot):
+            read = snapshot;
+          case final SessionGone gone:
+            return failed(gone);
+          case final RoomFailure failure:
+            return failed(
+              failure,
+              rule: RefusalRule.keepsTheResume,
+              door: Door.resume,
+            );
+        }
       }
       if (_abandoned(generation)) return;
       state = state.copyWith(
@@ -3038,28 +3005,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (await _landedOnTheApprovedDraft(read, sent, generation, landed)) {
         return;
       }
-      if (opened == null && Station.stored(waiting.stage) is Retro) {
-        final told = read.backTranslation;
-        // Only when there is a telling-back to land on. A checked answer carrying no
-        // stretch contradicts itself — the check is about what was told — and there is
-        // no rehearsal here to land it on either, so this door declines it: landing it
-        // left the room standing in the conversa until the watchdog called a person two
-        // minutes later. It falls through instead, as every other empty answer does:
-        // the room lands quiet on a session it opened and asks the Opening only of one
-        // it never opened. Closing would call a passage the team never approved its
-        // final draft.
-        //
-        // Reached only when the room holds no rehearsal of its own to hand back, which
-        // is the one way past this door now that a resume fetches the parts.
-        if (told.checked && !told.nothingTold) {
-          _pickTheTellingBackUp(told);
-          landed();
-          _resumeFailures.remove(theResume);
-          _applyTheSessionRead(read, sent);
-          return;
-        }
-      }
       _applyTheSessionRead(read, sent);
+      _keepTheStretchesAlreadyTold(read.backTranslation);
       unawaited(_learnWhetherAPartWasJoined(sessionId, generation));
       if (opened != null || read.opened) {
         return _landWhereTheyStopped(done: read.done);
@@ -3284,146 +3231,53 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return resta.isEmpty ? null : resta;
   }
 
-  /// The room's listing did not answer a resume: a session it no longer knows is retired,
-  /// anything else leaves the row as it was for the next opening.
-  _Resume _aListaFalhou(RoomFailure failure, int generation) {
-    if (_abandoned(generation)) return _Resume.abandoned;
-    switch (failure) {
-      case final SessionGone gone:
-        _decideTheFailure(gone);
-        return _Resume.gone;
-      case NetworkFailed():
-        return _theResumeFailed(const RoomNetworkFailed(), generation);
-      case final Refused refused:
-        return _theResumeFailed(refused.result, generation);
-    }
-  }
-
-  _Resume _theResumeFailed(RoomResult result, int generation) {
-    if (_abandoned(generation)) return _Resume.abandoned;
-    _dispatch(
-      decided(
-        result,
-        _failureContext(door: Door.resume, rule: RefusalRule.keepsTheResume),
-      ),
-    );
-    return _Resume.failed;
-  }
-
-  /// Put the team back on the stage they left, fetching the rehearsal when it is gone.
-  ///
-  /// A restore, a reinstall or another tablet leaves the row naming files that are not
-  /// here. The rehearsal is not lost: the room is holding it, and the team comes back to
-  /// the station they left with the room's own parts under them.
+  /// Load the takes the tablet still holds for the passage the team comes back to; the
+  /// team lands on its conversation, and the recording home the orange dot opens lays the
+  /// room's parts in behind its rows (ADR 0141).
   Future<_Resume> _backToWhereTheyStopped(
     ResumePoint waiting,
     int generation, {
     required void Function() landed,
-    required void Function(SessionSnapshot read, int sent) read,
-    bool relaunched = false,
   }) async {
     final stage = Station.stored(waiting.stage);
     final anEmptyEnsaio = stage is Ensaio && waiting.takes.isEmpty;
-    final aPartlessRetro = stage is Retro && waiting.takes.isEmpty;
-    if (stage is Canvas ||
-        (waiting.takes.isEmpty && !anEmptyEnsaio && !aPartlessRetro)) {
+    if (stage is Canvas || (waiting.takes.isEmpty && !anEmptyEnsaio)) {
       return _Resume.nothingToRestore;
     }
     final aSceneHasItsPart = waiting.takes.any(
       (take) => KeptScope.isParte(take.scopeId),
     );
-    var heldByTheRoom = {...waiting.wholeHeldByTheRoom};
-    final here = <KeptTake>[];
-    var missing = false;
+    final heldByTheRoom = {...waiting.wholeHeldByTheRoom};
+    final takes = <KeptTake>[];
     for (final take in waiting.takes) {
       if (await File(take.path).exists()) {
-        here.add(take);
+        takes.add(take);
       } else if (aSceneHasItsPart &&
           take.scopeId == KeptScope.whole &&
           take.takeId != null) {
         heldByTheRoom.add(take.takeId!);
-      } else {
-        missing = true;
       }
     }
     if (_abandoned(generation)) return _Resume.abandoned;
-    final faltavam = !relaunched && (aPartlessRetro || missing);
-    if (stage is Retro && faltavam) {
-      final sent = ++_readsSent;
-      if (await _room.fetchState(waiting.sessionId) case Answered(
-        value: final lida,
-      )) {
-        if (_abandoned(generation)) return _Resume.abandoned;
-        if (await _landedOnTheApprovedDraft(lida, sent, generation, landed)) {
-          return _abandoned(generation)
-              ? _Resume.abandoned
-              : _Resume.onTheApprovedDraft;
-        }
-        read(lida, sent);
-      }
-      if (_abandoned(generation)) return _Resume.abandoned;
-    }
-    var takes = here;
-    var aBuscar = const <String>{};
-    if (faltavam) {
-      // Armed per step, not once around the whole fetch: the ceiling is what a single
-      // wait is allowed, and a listing plus a part plus a measurement counted as one wait
-      // gives up on a link that is slow but working.
-      _watchBusyState();
-      switch (await _room.takesOf(waiting.sessionId)) {
-        case Answered(value: final guardadas):
-          if (_abandoned(generation)) return _Resume.abandoned;
-          final lidas = _lerAListagem(guardadas, here);
-          takes = lidas.partes;
-          heldByTheRoom = lidas.deLado;
-          aBuscar = lidas.aBuscar;
-        case final RoomFailure failure:
-          return _aListaFalhou(failure, generation);
-      }
-    }
-    if (_abandoned(generation)) return _Resume.abandoned;
-    if (!faltavam) {
-      _passadasDaSala = _aindaPorGravar(waiting.passesToGoAbove, {
-        for (final take in takes) ?KeptScope.numberOf(take.scopeId),
-      });
-    }
+    _passadasDaSala = _aindaPorGravar(waiting.passesToGoAbove, {
+      for (final take in takes) ?KeptScope.numberOf(take.scopeId),
+    });
     // A room holding no rehearsal is not a rehearsal to come back to, and it is not a
     // failure either: the conversa is where a passage with nothing behind it starts —
     // unless the row itself stood on the Ensaio with no part yet.
     if (takes.isEmpty && !anEmptyEnsaio) {
       return _Resume.nothingToRestore;
     }
-    if (faltavam) {
-      await _medirAsPartes([
-        for (final take in takes)
-          if (!aBuscar.contains(take.takeId)) take,
-      ], generation);
-    }
-    if (_abandoned(generation)) return _Resume.abandoned;
-    if (!relaunched) {
-      _leaveTheStepFor(const Ensaio());
-      _arriveAt(const TheRehearsalOpened());
-    }
     landed();
     state = state.copyWith(
       ensaio: EnsaioStatus.idle,
-      awaitingTheGuide: false,
       keptTakes: takes,
       wholeHeldByTheRoom: heldByTheRoom,
       grainInForce: waiting.grain,
-      partsAway: {for (final takeId in aBuscar) takeId: PartAway.coming},
+      partsAway: const {},
     );
     _aLinhaDiz = Station.stored(waiting.stage);
     _readTheScenesForTheRehearsal();
-    if (faltavam) {
-      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-      if (aBuscar.isEmpty) {
-        _rememberWhereTheyAre(Station.stored(waiting.stage));
-      } else {
-        _aLeituraDecidiu = false;
-        _bringThePartsDown(Station.stored(waiting.stage));
-      }
-    }
     unawaited(_countUnsent());
     unawaited(_adoptTheNames(_takes, _thisLife));
     unawaited(_adoptTheNamesTheRoomLists(waiting.sessionId, _thisLife));
@@ -3738,61 +3592,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (quanto == null) continue;
       _marcarOFimDaParte(parte.path, quanto.inMilliseconds);
     }
-  }
-
-  /// Every reopening landed on the rehearsal, so a team that had stopped part-way through
-  /// telling it back recorded the whole passage a second time and the session ended
-  /// holding two of everything. A room holding no stretch yet is the same team at the
-  /// same station: it comes back to the start of the untold ground, with the circle ready
-  /// to tell, and not to a rehearsal it has already recorded.
-  void _pickTheTellingBackUp(BackTranslationProgress told) {
-    _leaveTheStepFor(const Retro());
-    _arriveAt(const TheBackTranslationResumed());
-    _regravouNestaVisita = false;
-    final trechos = _trechosFrom(told.segments);
-    final achados = _osAchadosQueFicam(told.findings, trechos);
-    state = state.copyWith(
-      awaitingTheGuide: false,
-      btPhase: told.checked ? BtPhase.conferida : BtPhase.playing,
-      btTrechos: trechos,
-      btTrechosRegravados: const [],
-      btFindings: achados,
-      btVeredito: told.checked || achados.isNotEmpty,
-      btFraseQueAguarda: told.awaitingSegmentId,
-      clearBtFraseQueAguarda: told.awaitingSegmentId == null,
-      btSoOuvir: false,
-    );
-    final sessionId = state.sessionId;
-    if (sessionId != null) {
-      unawaited(
-        _porCadaTrechoNaSuaParte(
-          sessionId,
-          told.segments,
-          _generation,
-          regravados: told.stale,
-        ),
-      );
-      unawaited(
-        _lembrarDaFraseGuardada(sessionId, oferecidas: _oferecidas(told)),
-      );
-    }
-    void toTheFloor() {
-      if (told.checked) {
-        final generation = _generation;
-        if (sessionId != null) unawaited(_relatarASala(sessionId, const []));
-        unawaited(
-          _medirAsPartes(state.partes, generation).then((_) {
-            if (_abandoned(generation)) return;
-            state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
-          }),
-        );
-        return;
-      }
-      unawaited(_ouvirOQueFaltaDepoisDeRegravar(_generation));
-    }
-
-    if (state.everyPartIsHere) return toTheFloor();
-    _whenThePartsAreHere = toTheFloor;
   }
 
   Future<void> _voltarAFraseQueAguarda(
@@ -4561,7 +4360,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _theGrainToldDuringATake = null;
-    final newGrain = state.grain != grain;
+    final newGrain = state.grain != null && state.grain != grain;
     state = state.copyWith(grainInForce: grain);
     if (!newGrain) return;
     bool leftBehind(String scope) => switch (grain) {
@@ -10587,6 +10386,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             sent > _stretchesAt &&
             state.sessionId == sessionId) {
       _stretchesAt = sent;
+      if (state.btTrechos.any((trecho) => trecho.parte < 0)) {
+        state = state.copyWith(
+          btTrechos: _trechosFrom(lida.backTranslation.segments),
+        );
+      }
       final aguardando = lida.backTranslation.awaitingSegmentId;
       state = state.copyWith(
         btFraseQueAguarda: aguardando,

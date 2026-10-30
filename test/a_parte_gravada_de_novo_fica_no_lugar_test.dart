@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
@@ -15,7 +18,6 @@ import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
-const _ouvir = 'Ouvir a gravação';
 const _pronto = 'Pronto';
 const micParteLabel = 'voltar e regravar uma parte';
 
@@ -617,10 +619,7 @@ void main() {
       () => it.estado.comecadas.contains('P01'),
     );
     await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'a equipe voltar ao ensaio',
-      () => it.estado.stage == SalaStage.ensaio,
-    );
+    await intoTheRecordingHome(it.sala, () => it.estado);
 
     expect(
       [for (final parte in it.partes) parte.path],
@@ -630,6 +629,61 @@ void main() {
           'gravação nova no lugar da parte 2',
     );
   });
+
+  test(
+    'a cena que a sala perdeu, gravada depois da retomada pela bolinha, sobe '
+    'acima da passada da sala, com uma correção guardada ao lado',
+    () async {
+      final harness = SalaHarness()
+        ..playback.measured = partesDoEnsaio.first
+        ..room.passageScenes = const [
+          Scene(sceneId: 'S1', title: 'Cena um'),
+          Scene(sceneId: 'S2', title: 'Cena dois'),
+          Scene(sceneId: 'S3', title: 'Cena tres'),
+        ];
+      final casa = Directory.systemTemp.createTempSync('sala-passada-guardada');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      KeptTake guardada(String scope, String takeId) => KeptTake(
+        scopeId: scope,
+        path: (File(
+          '${casa.path}/$takeId.m4a',
+        )..writeAsBytesSync([1, 2, 3])).path,
+        takeId: takeId,
+      );
+      harness.room.takes.addAll([
+        for (final n in [1, 3])
+          TakeView(
+            takeId: 'gravacao-$n',
+            kind: 'ensaio',
+            scope: KeptScope.parte(n),
+            ordinal: n,
+          ),
+      ]);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          guardada(KeptScope.parte(1), 'gravacao-1'),
+          guardada(KeptScope.parte(3), 'gravacao-3'),
+          guardada('trecho-1', 'gravacao-4'),
+        ],
+        passesToGoAbove: const {2: 2},
+      );
+      final it = Sala(harness, harness.container());
+      addTearDown(it.container.dispose);
+      await it.sala.abrirEscolha();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await throughTheOrangeDot(it.sala, () => it.estado);
+
+      await gravarUmaParteDoEnsaio(it, 2);
+      await waitFor(
+        'a cena 2 chegar à sala',
+        () => harness.room.takesKept.contains('ensaio/${KeptScope.parte(2)}'),
+      );
+
+      expect(harness.room.takePasses.last, 3);
+    },
+  );
 
   test('o ensaio até aqui toca a parte regravada no lugar dela', () async {
     final it = await _oAchadoNaParteDois();
@@ -975,57 +1029,6 @@ void main() {
       semantics.dispose();
     },
   );
-
-  testWidgets('sem gravação no tablet a conferida não oferece o ouvir', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.room.retroSoFar = const BackTranslationProgress(
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-retomado',
-          takeId: 'gravacao-retomada',
-          startsMs: 0,
-          endsMs: 30000,
-        ),
-      ],
-      checked: true,
-    );
-    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-      sessionId: 'sessao-de-ontem',
-      stage: SalaStage.retro,
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 200));
-    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
-    expect(
-      container.read(salaSessionProvider).partes,
-      isEmpty,
-      reason: 'a sessão volta do servidor sem gravação nenhuma no tablet',
-    );
-    expect(
-      byLabel(_aprovar),
-      findsOneWidget,
-      reason: 'aprovar continua sendo o gesto da conferida',
-    );
-    expect(
-      tester.widget<Semantics>(byLabel(_ouvir)).properties.enabled,
-      isFalse,
-      reason:
-          'sem nada para tocar o ouvir fica apagado: a fileira é fixa e um '
-          'botão que não se aplica se apaga, nunca some (ADR 0040)',
-    );
-  });
 
   testWidgets('a aprovação que não toca deixa silêncio', (tester) async {
     final it = await _ateAConferida(tester);

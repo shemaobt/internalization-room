@@ -5,7 +5,8 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
+import 'scenario_helpers.dart'
+    show enterThePanorama, enterThePassage, intoTheBackTranslation, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 Future<(Sala, String)> _anEnglishSessionReachedAgainAfterPtWasTapped({
@@ -50,6 +51,7 @@ Future<Sala> _aPortugueseRehearsalReachedAgainInEnglish() async {
   it.sala.chooseTheLanguage('en');
   await settle();
   await _backInTheSession(it, portuguese);
+  await intoTheBackTranslation(it.sala, () => it.estado);
   await theClipOpens(it.harness);
   it.harness.playback.finishPlayback();
   await waitFor('the clip to end', () => it.estado.btClipEnded);
