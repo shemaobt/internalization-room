@@ -1589,7 +1589,7 @@ class SalaSessionState {
     Grain? grainInForce,
   ) {
     if (keptTakes == null) return trechos;
-    final agora = _partesDe(keptTakes, grainInForce ?? this.grainInForce);
+    final agora = _partesDe(keptTakes, grainInForce);
     final onde = [
       for (final era in partes)
         agora.indexWhere((parte) => parte.scopeId == era.scopeId),
@@ -1934,6 +1934,7 @@ class SalaSessionState {
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Grain? grainInForce,
+    bool clearGrainInForce = false,
     bool? grainSwitching,
     List<int>? toBringBack,
     int? bringingBack,
@@ -1942,6 +1943,9 @@ class SalaSessionState {
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
   }) {
+    final inForce = clearGrainInForce
+        ? null
+        : (grainInForce ?? this.grainInForce);
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
@@ -1972,10 +1976,10 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos:
-          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, grainInForce),
+          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, inForce),
       btTrechosRegravados:
           btTrechosRegravados ??
-          _nasSuasPartes(this.btTrechosRegravados, keptTakes, grainInForce),
+          _nasSuasPartes(this.btTrechosRegravados, keptTakes, inForce),
       btNaoOuvidas: btNaoOuvidas ?? this.btNaoOuvidas,
       btParteQueTocou: clearBtParteQueTocou
           ? null
@@ -2088,7 +2092,7 @@ class SalaSessionState {
       hearNewScene: hearNewScene ?? this.hearNewScene,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
-      grainInForce: grainInForce ?? this.grainInForce,
+      grainInForce: inForce,
       grainSwitching: grainSwitching ?? this.grainSwitching,
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack

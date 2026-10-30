@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320), by ENG-1901 and by ENG-2039
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320), by ENG-1901, by ENG-2039 and by ENG-2108
 date: 2026-10-07
 amends: 0053, 0013 (in part: the first tap also cuts the voice), 0024 (in part: the interruption's stop is the machine's), 0046 (in part: the invariant)
 ---
@@ -31,6 +31,14 @@ Panorama's takes, and on the take a cut opens; a tap while the recorder is still
 starting does nothing, because nothing has been recorded yet. The raised hand's question
 is not one of them: it keeps counting from the tap, because its second tap always ends
 it and is never ignored.
+
+Amended by ENG-2108 (2026-10-30, the same rule): the raised hand's question is held to no
+time floor at all. Hers drops a note only when its file is under 800 bytes
+(`app/page.tsx:363` at 18fa7c4); the note's stop tap has no window (`:841`), and
+`MIN_TAKE_MS` is read by the conversation take alone (`:812`, `:896`). The hand keeps the
+800-byte floor and asks nothing about how long the question ran, so a short real question
+reaches the facilitator's desk here as in hers. The window and the ghost rule above stay
+the conversation's and the Panorama's.
 
 This amends ADRs 0053, 0013, 0024 and 0046 without editing their decisions; it adds
 "amended by 0067" to the status lines of 0053 and 0046 and a note under the titles of 0013

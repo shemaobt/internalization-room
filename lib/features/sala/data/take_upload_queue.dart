@@ -1618,12 +1618,13 @@ class TakeUploadQueue {
       !entry.stored && _sameRow(entry, row);
 }
 
-final takeUploadQueueProvider = Provider<TakeUploadQueue>(
-  (ref) => TakeUploadQueue(
+final takeUploadQueueProvider = Provider<TakeUploadQueue>((ref) {
+  final recordings = ref.read(recordingRepositoryProvider);
+  return TakeUploadQueue(
     room: ref.read(roomRepositoryProvider),
     spacing: ref.read(takeAttemptSpacingProvider),
-    recordings: () => ref.read(recordingRepositoryProvider),
-  ),
-);
+    recordings: () => recordings,
+  );
+});
 
 enum _Landing { landed, held, givenUp }
