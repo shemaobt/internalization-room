@@ -818,7 +818,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
+    final container = await _voltaATraducao(tester, harness);
     const falhou = 'não deu para guardar a frase — tentar de novo';
     expect(
       _naLista(falhou),
@@ -853,7 +853,6 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
-      pelaEscolha: true,
       aguardando: 'trecho-1',
     );
     await _tocarOCirculo(tester);
@@ -888,7 +887,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
+    final container = await _voltaATraducao(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 300));
@@ -932,7 +931,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
+    final container = await _voltaATraducao(tester, harness);
     await _passo(tester);
     await _passo(tester);
     expect(container.read(salaSessionProvider).btSoOuvir, isTrue);
@@ -995,7 +994,7 @@ void main() {
       kind: 'frase',
       scope: 'trecho-3',
     );
-    final container = await _voltaATraducao(tester, harness, pelaEscolha: true);
+    final container = await _voltaATraducao(tester, harness);
 
     const falhou = 'não deu para guardar a frase — tentar de novo';
     expect(_naLista(falhou), findsOneWidget);
@@ -1547,7 +1546,6 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
-      pelaEscolha: true,
       aguardando: 'trecho-3',
     );
     await _passo(tester);
@@ -1574,7 +1572,6 @@ void main() {
       tester,
       harness,
       aguardando: 'trecho-3',
-      pelaEscolha: true,
     );
     await _passo(tester);
     await _passo(tester);
@@ -1602,7 +1599,6 @@ void main() {
     final container = await _voltaATraducao(
       tester,
       harness,
-      pelaEscolha: true,
       aguardando: 'trecho-3',
     );
     await _passo(tester);

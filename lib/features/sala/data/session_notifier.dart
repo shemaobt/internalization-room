@@ -8232,7 +8232,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     _descartarATraducaoPendente();
     _handOff(
-      _ouvirOQueFaltaDepoisDeRegravar(_generation, conferida: conferida),
+      _ouvirOQueFaltaDepoisDeRegravar(
+        _generation,
+        conferida: conferida,
+        entrando: true,
+      ),
     );
   }
 
@@ -8279,15 +8283,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _ouvirOQueFaltaDepoisDeRegravar(
     int generation, {
     bool conferida = false,
+    bool entrando = false,
   }) async {
     final life = _thisLife;
     if (!await _medirAsPartesDaRetro(generation)) return;
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
-    if ((juntada || conferida) && state.sessionId != null) {
-      final falha = await _readTheStretchesBack(state.sessionId!, generation);
+    if ((juntada || conferida || entrando) && state.sessionId != null) {
+      final sessionId = state.sessionId!;
+      final falha = await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
       if (falha == null) conferida = state.btChecked;
+      if (entrando) await _lembrarDaFraseGuardada(sessionId);
+      if (_abandoned(generation) || _endedSince(life)) return;
     }
     bool deixou() => _abandoned(generation) || _endedSince(life);
     final ouvida = await _oQueASalaOuviu(generation);
