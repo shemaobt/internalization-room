@@ -585,7 +585,12 @@ void main() {
       expect(_says(_notSent), findsNothing);
 
       harness.room.heldSceneSends[1].complete(null);
-      await pumpUntil(tester, () => !_state(container).awaitingTheGuide);
+      await pumpUntil(
+        tester,
+        () =>
+            !_state(container).awaitingTheGuide &&
+            !_state(container).scene.wentToTheVoice,
+      );
       closeTheRoom(container);
     });
 
