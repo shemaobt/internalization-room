@@ -10,7 +10,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle, theHaltIsLifted;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheRecordingHome, settle, theHaltIsLifted;
 import 'session_notifier_test.dart' show inConversa;
 
 /// What the recorder did once the start that was in the air answered: a start left
@@ -47,24 +48,28 @@ Future<ProviderContainer> _inTheRehearsalWithAWarning(
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
   harness.room.serverStatus = 'needs_person';
   harness.room.serverHalt = HaltKind.warning;
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.ensaio,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: gravada.path,
-        takeId: 'gravacao-1',
-      ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.ensaio,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: gravada.path,
+          takeId: 'gravacao-1',
+        ),
+      ],
+    ),
   );
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
+  await notifier.openTheRoom();
+  await intoTheRecordingHome(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await waitFor(
     'o aviso chegar',
     () => container.read(salaSessionProvider).warning,

@@ -5,7 +5,9 @@ import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/panorama_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -72,12 +74,23 @@ void main() {
         expect(find.byType(EscolhaView), findsOneWidget);
         if (pump == 3) {
           expect(container.read(salaSessionProvider).naRoda, isNull);
+          expect(
+            find.descendant(
+              of: find.byType(EscolhaView),
+              matching: find.byType(ShemaMark),
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Escolha a passagem'), findsOneWidget);
+          expect(find.byType(FacilitatorCircle), findsNothing);
         }
         if (pump == 5) harness.room.finishHeldPassages();
         await tester.pump(const Duration(milliseconds: 50));
       }
 
       expect(container.read(salaSessionProvider).naRoda, _theBook);
+      expect(find.text('Escolha a passagem'), findsOneWidget);
+      expect(find.byType(FacilitatorCircle), findsNothing);
     },
   );
 

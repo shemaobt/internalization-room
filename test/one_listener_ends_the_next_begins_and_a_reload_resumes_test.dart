@@ -761,6 +761,22 @@ void main() {
     ]);
   });
 
+  testWidgets('her thanks plays in the room language when the room language '
+      'changed after the session was opened', (tester) async {
+    final harness = _aprovadaNaSala();
+    final tablet = await _aberta(tester, harness);
+    tablet.container.read(roomLanguageProvider.notifier).choose('en');
+    await _passar(tester);
+    await _tocar(tester, 'External check');
+    await _tocar(tester, 'New listener');
+    tablet.harness.playback.finishPlayback();
+    await _passar(tester);
+    await _tocar(tester, 'Tap to tell what you heard');
+    await _tocar(tester, 'Tap to tell what you heard');
+
+    expect(_falasX(harness).last, ('X4', 'en'));
+  });
+
   testWidgets('in English, her thanks and its words are English', (
     tester,
   ) async {

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -17,7 +16,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show settle, throughTheOrangeDot;
 
 /// Sends `sendChunk` through the real [RoomRepository] — the actual production decode, not
 /// a hand-picked failure — so a test using this room stays sensitive to a regression in
@@ -145,10 +144,16 @@ Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
   final it = _Retomada(harness, container);
   await it.sala.abrirEscolha();
   await settle();
-  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await _pelaBolinhaAteARetro(it);
   await _ateAParteTresNoAr(it);
   it.linhaAntes = it.linhaAgora;
   return it;
+}
+
+Future<void> _pelaBolinhaAteARetro(_Retomada it) async {
+  await throughTheOrangeDot(it.sala, () => it.estado);
+  it.sala.startRetro();
 }
 
 Future<void> _ateAParteTresNoAr(_Retomada it) async {
@@ -208,8 +213,8 @@ void _aSessaoContinuaAMesma(_Retomada it) {
   );
   expect(it.estado.stage, SalaStage.retro, reason: 'a equipe fica onde estava');
   expect(
-    it.harness.room.calls,
-    isNot(contains('createSession')),
+    it.harness.room.sessionIds,
+    isEmpty,
     reason: 'nenhuma sessão nova nasce por cima da que a sala ainda guarda',
   );
 }
@@ -338,21 +343,18 @@ void main() {
       await settle();
       harness.room.failChunkWith = null;
       harness.playback.played.clear();
-      unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await _pelaBolinhaAteARetro(it);
       await _ateAParteTresNoAr(it);
 
-      expect(
-        it.estado.stage,
-        SalaStage.retro,
-        reason: 'a retomada volta à retro, nunca ao ensaio',
-      );
+      expect(it.estado.stage, SalaStage.retro);
       expect(it.estado.sessionId, _sessao);
       expect(
         [for (final parte in it.estado.partes) parte.takeId],
         ['gravacao-1', 'gravacao-2', 'gravacao-3'],
         reason: 'as partes do ensaio voltam com a sessão',
       );
-      expect(harness.room.calls, isNot(contains('createSession')));
+      expect(harness.room.sessionIds, isEmpty);
     },
   );
 
