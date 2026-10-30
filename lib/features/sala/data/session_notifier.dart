@@ -3523,7 +3523,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _porCadaTrechoNaSuaParte(
           sessionId,
           told.segments,
-          _generation,
           regravados: told.stale,
         ),
       );
@@ -11313,8 +11312,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// were.
   Future<void> _porCadaTrechoNaSuaParte(
     String sessionId,
-    List<SegmentView> segments,
-    int generation, {
+    List<SegmentView> segments, {
     List<SegmentView> regravados = const [],
   }) async {
     Set<String> semGravacao(List<SegmentView> lidos) => {
@@ -11346,7 +11344,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         return;
     }
-    if (_abandoned(generation)) return;
+    if (_endedSince(life) || state.sessionId != sessionId) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId) &&
