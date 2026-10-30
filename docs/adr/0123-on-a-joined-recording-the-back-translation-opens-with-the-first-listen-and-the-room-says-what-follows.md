@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen)
+status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen), amended by ENG-1854 (2026-10-30: a list naming no part this tablet holds is N0)
 date: 2026-10-23
 ---
 
@@ -18,8 +18,8 @@ door answers after the last part (shema-api ADR 0070). ENG-1408 and its Definiti
    awaiting), and the end of a join that left every scene with its part, with no tap.
    - every part unheard: her line N0, then every part from its beginning in passage order;
    - some part heard: her P2, then only the unheard parts, each from its beginning;
-   - a part the room names that this tablet does not hold: her P2, then every part, as rule 7.1
-     keeps the listen for it;
+   - the room names parts and this tablet holds none of them: her line N0, then every part from
+     its beginning (ENG-1854 amendment below);
    - none unheard, or an older room: today's path. An entry the room does not answer at all, with nothing the room said earlier in the visit, is the First listen (ENG-1859 amendment below).
 2. **A recording no join touched has the First listen too** (ENG-1206, 26 October), as hers
    does (`listenPlan`, `afterFullListen`): every entry asks the room in the same way; every
@@ -109,3 +109,12 @@ recording, P0 on one no join touched, then every part in passage order, never th
 When the visit already holds a told stretch, a frase awaiting or a verdict, the entry goes on
 as it does today. An older room's answer that names no parts still takes today's path.
 Nothing is written or said for the failure itself.
+
+## Amendment · 2026-10-30 (ENG-1854)
+
+On her app the unheard list is cut to the clips the tablet holds, and an empty cut is the
+first listen of a join: `left = clipKeys ∩ unheard`, `left.length === 0` gives `N-open` and the
+whole chain (`ensaioFinal.ts:380-381`, at 18fa7c4). Rule 1's third bullet changes: **a joined
+recording whose unheard list names no part this tablet holds opens with N0 and plays every
+part from its beginning**, not P2. Rule 7.1 is unchanged: after the listen, a part the room
+names that this tablet does not hold still keeps the listen.
