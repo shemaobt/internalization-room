@@ -461,8 +461,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   late String? _openTurnId;
   late bool _openingOwed;
-  bool _wayBackTakenInFlight = false;
-  bool _openAnsweredAfterTheWayBack = false;
+  late _Flight? _flight;
   late TurnClock? _pendingClock;
   late TurnClock? _coverageClock;
 
@@ -542,6 +541,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late String? _startedReadIn;
 
   void _aNewLife() {
+    _flight = null;
     _heldSession = null;
     _endsOf = {};
     _timers = {};
@@ -1767,7 +1767,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final RoomAnswer<TurnResult> answer;
     try {
       answer = await _theTakeGoes(send);
-    } on StateError catch (error, stack) {
+    } on Error catch (error, stack) {
       if (!restsOnAThrowingCall) rethrow;
       debugPrint('$error\n$stack');
       if (_abandoned(generation) || state.machine.inFlight != turn) return;
@@ -2383,41 +2383,50 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void openTheEntry(Passagem entry) => _gesture(() => _openTheEntry(entry));
 
   void _openTheEntry(Passagem entry) {
+    if (_flight != null) return;
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
     _silenceTheRoom();
     state = state.copyWith(openingEntry: entry);
     if (entry.isPanorama) {
-      _leaveTheStepFor(Panorama(entry.pericope));
-      _clearAll();
-      _arriveAt(ThePanoramaChosen(entry.pericope));
       _handOff(
-        _openedFromTheChoice(() => _entrarNoPanoramaEscolhido(entry.pericope)),
+        _openedFromTheChoice((flight) {
+          _leaveTheStepFor(Panorama(entry.pericope));
+          _clearAll();
+          _arriveAt(ThePanoramaChosen(entry.pericope));
+          return _entrarNoPanoramaEscolhido(entry.pericope, flight);
+        }),
       );
       return;
     }
     _handOff(
       _gestureThen(
         () => _openedFromTheChoice(
-          () => _goConversa(book: entry.book, pericope: entry.pericope),
+          (flight) => _goConversa(
+            book: entry.book,
+            pericope: entry.pericope,
+            flight: flight,
+          ),
         ),
       ),
     );
   }
 
   Future<void> _openedFromTheChoice(
-    Future<void> Function() open, {
-    String? kept,
-  }) async {
-    final held = kept ?? state.passageLeft?.session;
-    final opening = open().catchError(
-      (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
-      test: (error) => error is Error && _theOpenBroughtNoSession,
-    );
-    final generation = _generation;
-    await opening;
-    final adopt = _openAnsweredAfterTheWayBack;
-    _wayBackTakenInFlight = _openAnsweredAfterTheWayBack = false;
-    if (adopt && !_gone) return _openedFromTheChoice(open, kept: held);
+    Future<void> Function(_Flight flight) open,
+  ) async {
+    final held = state.passageLeft?.session;
+    final flight = _flight = _Flight();
+    late int generation;
+    do {
+      flight.wayBack = flight.adopt = false;
+      final opening = open(flight).catchError(
+        (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
+        test: (error) => error is Error && _theOpenBroughtNoSession,
+      );
+      generation = _generation;
+      await opening;
+    } while (flight.adopt && !_gone);
+    if (identical(_flight, flight)) _flight = null;
     if (state.openingEntry != null) {
       state = state.copyWith(clearOpeningEntry: true);
     }
@@ -2490,7 +2499,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _entrarNoPanoramaEscolhido(String id) async {
+  Future<void> _entrarNoPanoramaEscolhido(String id, _Flight flight) async {
     _dispatch(ThePanoramaAsked(id, _lingua));
     _letGoOfTheCurrentSession();
     final generation = _waitOnTheGeneration;
@@ -2498,7 +2507,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final sent = ++_readsSent;
     final found = await _room.createSession(pericope: id, language: _lingua);
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) {
+      flight.adopt = flight.wayBack && found is Answered;
+      return;
+    }
     switch (found) {
       case Answered(value: final session):
         _applyTheSessionRead(session, sent);
@@ -2583,7 +2595,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _returnToTheLeftEntry() {
     if (!state.theWayBackIsLive) return;
-    _wayBackTakenInFlight = state.openingEntry != null;
+    _flight?.wayBack = true;
     _returnTo(state.leftEntry!);
   }
 
@@ -2874,6 +2886,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool fresh = false,
     SessionSnapshot? opened,
     String? language,
+    _Flight? flight,
   }) async {
     final speaking = language ?? _lingua;
     _sessionLanguage = speaking;
@@ -2952,7 +2965,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final room = created!;
     if (_abandoned(generation)) {
-      _openAnsweredAfterTheWayBack = _wayBackTakenInFlight;
+      flight?.adopt = flight.wayBack;
       return;
     }
     final row = opened != null || waiting?.sessionId == room.sessionId
@@ -12022,3 +12035,8 @@ const JoinOutcome _joinLeftBehind = (
   row: JoinRow.retry,
   part: JoinedPart.nowhere,
 );
+
+class _Flight {
+  bool wayBack = false;
+  bool adopt = false;
+}

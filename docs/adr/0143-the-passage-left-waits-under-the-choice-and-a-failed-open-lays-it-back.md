@@ -20,7 +20,8 @@ session go.
 Amended by ENG-2112 (2026-10-30): the chevron stays live while a pill's open is in flight (her
 app keeps its picker, `app/page.tsx:408`), and the passage that open answers is adopted whatever
 the team tapped meanwhile (`:786-793`): the chevron lays the passage left back at once, and the
-open lands over it when it answers. An `Error` thrown by the room's call that opens a passage
+open lands over it when it answers, a Panorama pill's open included (`:980-981`). One open at a
+time: a pill tapped while an open is in flight does nothing (`:776`). An `Error` thrown by the room's call that opens a passage
 frees the flight and raises no person sign: the team rests on the passage opened, unheard, as
 her app does after a kickoff that throws (`:756-758`). A spoken turn is unchanged.
 

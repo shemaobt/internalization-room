@@ -612,6 +612,71 @@ void main() {
     },
   );
 
+  test('a pill tapped while an earlier open is still in flight does nothing, '
+      'and the earlier open lands, as hers keeps one open at a time', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    Passagem entry(String pericope) =>
+        read().naRoda!.firstWhere((entry) => entry.pericope == pericope);
+    final p02 = entry('P02');
+    harness.room.holdNextCreate();
+
+    tablet.notifier.openTheEntry(p02);
+    await waitFor('the open to be in flight', () => harness.room.createHeld);
+    await tablet.notifier.returnToTheLeftEntry();
+    await waitFor('P01 back', () => read().sessionId == tablet.p01);
+    tablet.notifier.leaveThePassage();
+    await waitFor('the Choice', () => read().entriesOpen);
+    tablet.notifier.openTheEntry(entry('P03'));
+    await settle();
+    harness.room.finishHeldCreate();
+    await waitFor(
+      'P02 to open',
+      () => read().pericope == 'P02' && read().voice == VoiceState.invite,
+    );
+    await settle();
+
+    expect(read().pericope, 'P02');
+    expect(harness.room.pericopesAsked, isNot(contains('P03')));
+  });
+
+  test(
+    'the chevron tapped while the Panorama pill\'s open is in flight still '
+    'lands on the Panorama, as hers sends it through the same open',
+    () async {
+      final given = SalaHarness();
+      given.room.passages = [
+        ...given.room.passages,
+        const Passagem(
+          pericope: 'OV-Ruth',
+          audioUrl: '/voice/ov-ruth',
+          book: 'Ruth',
+          kind: PassagemKind.panorama,
+        ),
+      ];
+      final tablet = await _onTheChoiceFromP01(given);
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final panorama = read().naRoda!.firstWhere((entry) => entry.isPanorama);
+      harness.room.holdNextCreate();
+
+      tablet.notifier.openTheEntry(panorama);
+      await waitFor('the open to be in flight', () => harness.room.createHeld);
+      await tablet.notifier.returnToTheLeftEntry();
+      harness.room.finishHeldCreate();
+      await waitFor(
+        'the Panorama to open',
+        () =>
+            read().station is Panorama &&
+            read().panoramaSessionId != null &&
+            read().voice == VoiceState.invite,
+      );
+
+      expect(read().station, Panorama(panorama.pericope));
+    },
+  );
+
   test(
     'an Error thrown in the open raises no person sign and frees the '
     'flight, resting on the new passage as hers does after a failed kickoff',
@@ -620,7 +685,7 @@ void main() {
       final harness = tablet.harness;
       final read = tablet.read;
       final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
-      harness.room.throwOn['openSession'] = StateError('the player broke');
+      harness.room.throwOn['openSession'] = ArgumentError('the player broke');
 
       tablet.notifier.openTheEntry(p02);
       await waitFor(
