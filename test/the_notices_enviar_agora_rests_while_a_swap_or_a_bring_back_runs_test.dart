@@ -110,4 +110,24 @@ void main() {
       expect(sent, [1]);
     },
   );
+
+  testWidgets(
+    'a grain switch leaves «enviar agora» awake, and a tap sends its scene',
+    (tester) async {
+      final sent = await _pumpTheNotice(
+        tester,
+        const SalaSessionState(unsentParts: _unsent, grainSwitching: true),
+      );
+
+      await tester.tap(_sendNow);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        sent,
+        [1],
+        reason:
+            'a troca de grão apagava o «enviar agora», que na dela fica aceso',
+      );
+    },
+  );
 }
