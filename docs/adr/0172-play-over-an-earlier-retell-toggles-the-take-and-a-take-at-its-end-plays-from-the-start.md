@@ -20,8 +20,10 @@ ENG-2085).
   goes quiet.
 - On the sent step, a frase bar played to the take's end left the take there, so the next play
   ended at once and only the one after started from the beginning. Hers starts an ended take
-  over from 0 (`:665`): play now starts from the beginning when the take stopped at or past
-  its end, as it already did after the whole take was heard.
+  over from 0 (`:665`): play now starts from the beginning when the take stopped within
+  0.05 s of its end or past it, as it already did after the whole take was heard. The 0.05 s
+  is the moving pause's own: a frase's end is the room's number and the take's end is this
+  tablet's measure, so the last frase can stop a few milliseconds short of it.
 
 ## Consequences
 
