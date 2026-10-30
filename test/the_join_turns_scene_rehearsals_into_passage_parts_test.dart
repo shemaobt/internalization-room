@@ -1721,4 +1721,44 @@ void main() {
       semantics.dispose();
     },
   );
+
+  testWidgets('a scene recording asked while a join runs opens no microphone', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.seed();
+    for (final n in [1, 2, 3]) {
+      await it.heldOnTheTablet(n);
+    }
+    await it.toTheRecordingHome();
+    it.container.read(salaSessionProvider.notifier).leaveTheRecording();
+    await it.settle();
+    await it.openThePlan();
+    it.holdTheTake('parte-1');
+    await it.tapJoin();
+    await it.until(
+      'a junta da cena 1 chegar à porta',
+      () =>
+          it.theHeldTakeArrived &&
+          it.container.read(salaSessionProvider).joining == 1,
+    );
+
+    it.container.read(salaSessionProvider.notifier).gravarACena(1);
+    await it.settle();
+
+    expect(
+      it.container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.idle,
+      reason:
+          'a gravação da cena abria o microfone no meio da junta, e a tomada '
+          'ia parar debaixo da parte que a sala estava juntando',
+    );
+    expect(it.harness.recorder.captures, 0);
+
+    it.room.finishHeldTake();
+    await _theJoinEnds(it);
+    closeTheRoom(it.container);
+    semantics.dispose();
+  });
 }

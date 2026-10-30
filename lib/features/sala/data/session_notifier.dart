@@ -7267,7 +7267,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void gravarACena(int cena) => _gesture(() => _gravarACena(cena));
 
   void _gravarACena(int cena) {
-    if (state.station is! Ensaio || state.needsPerson || state.playPing) {
+    if (state.station is! Ensaio ||
+        state.needsPerson ||
+        state.playPing ||
+        state.joining != null) {
       return;
     }
     if (!state.aBackTranslationGestureActs) return;
