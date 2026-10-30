@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/colar_overlay.dart';
 
 import 'fakes.dart';
@@ -68,7 +67,7 @@ void main() {
         final decoration =
             tester.widget<AnimatedContainer>(beads.at(i)).decoration
                 as BoxDecoration;
-        expect(decoration.gradient, isNot(BeadStyles.wood));
+        expect(decoration.color!.a, closeTo(0.55, 0.005));
       }
 
       harness.room.finishHeldCreate();

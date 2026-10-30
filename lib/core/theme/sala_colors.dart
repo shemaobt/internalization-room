@@ -49,6 +49,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
   final Color personSignWash;
   final Color verde;
   final Color verdeClaro;
+  final Color branco;
 
   const SalaColors({
     required this.pg,
@@ -77,6 +78,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
     required this.personSignWash,
     required this.verde,
     required this.verdeClaro,
+    required this.branco,
   });
 
   static const light = SalaColors(
@@ -106,6 +108,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
     personSignWash: Color(0x2989AAA3),
     verde: ShemaBrand.verde,
     verdeClaro: ShemaBrand.verdeClaro,
+    branco: ShemaBrand.branco,
   );
 
   static const dark = SalaColors(
@@ -142,6 +145,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
     personSignWash: Color(0x2989AAA3),
     verde: Color(0xFFECEADC),
     verdeClaro: Color(0xFFAAB07E),
+    branco: Color(0xFF1E1B15),
   );
 
   static SalaColors of(BuildContext context) =>
@@ -181,6 +185,7 @@ class SalaColors extends ThemeExtension<SalaColors> {
       personSignWash: mix(personSignWash, other.personSignWash),
       verde: mix(verde, other.verde),
       verdeClaro: mix(verdeClaro, other.verdeClaro),
+      branco: mix(branco, other.branco),
     );
   }
 }
