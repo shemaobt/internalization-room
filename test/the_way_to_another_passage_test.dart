@@ -499,7 +499,9 @@ void main() {
     expect(byLabel(_back), findsNothing);
   });
 
-  testWidgets('the way back waits for the Wheel to be read', (tester) async {
+  testWidgets('the way back to a held passage shows before the Wheel is read', (
+    tester,
+  ) async {
     final room = await _pump(tester);
     await _takeThePassage(tester, room, 'P01');
     await tester.pump(const Duration(seconds: 1));
@@ -512,11 +514,6 @@ void main() {
 
     expect(room.state.stage, SalaStage.escolha);
     expect(room.state.naRoda, isNull);
-    expect(byLabel(_back), findsNothing);
-
-    room.harness.room.finishHeldPassages();
-    await tester.pump(const Duration(seconds: 1));
-
     expect(byLabel(_back), findsOneWidget);
 
     await _tap(tester, _back);
