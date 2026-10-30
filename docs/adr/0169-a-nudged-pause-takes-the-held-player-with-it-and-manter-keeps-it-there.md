@@ -6,7 +6,7 @@ amends: 0162
 
 # A nudged pause takes the held player with it, and «manter» keeps it there
 
-This amends ADR 0162 without editing its decision: it adds "amended by 0168" to its status line.
+This amends ADR 0162 without editing its decision: it adds "amended by 0169" to its status line.
 Her app is the bar, and it wins over our ADRs (João, 26 October). Settled on the ticket
 (ENG-2098).
 
@@ -22,11 +22,13 @@ and silenced the room outright on «manter», losing the held part with it.
 
 ## Decision
 
-**A nudge rebuilds the held part at the moved pause, and «manter a tradução de antes» holds the
-clip instead of silencing it.** The held part is the same part and file, from the pause, not
-started: the strip's line sits on the pause, «ouvir a pausa» still plays the moment before it and
-hands the held part back at the pause, and the next «Ouvir» after «manter» plays the take on from
-the moved pause. What was heard to is not moved by a nudge.
+**A nudge rebuilds the held part at the moved pause, and «manter a tradução de antes» takes the
+part out of the player and hands it back under the silence, as a nudge does.** The held part is
+the same part and file, from the pause, not started: the strip's line sits on the pause, «ouvir a
+pausa» still plays the moment before it and hands the held part back at the pause. On «manter» the
+room goes silent — a frase replay or «ouvir a pausa» sounding over the part stops — and the held
+part comes back as it stood, re-aimed at the moved pause when there was one, so the next «Ouvir»
+plays the take on from the moved pause. What was heard to is not moved by a nudge.
 
 ## Consequences
 
