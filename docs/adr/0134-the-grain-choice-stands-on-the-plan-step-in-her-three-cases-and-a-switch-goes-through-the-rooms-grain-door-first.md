@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reads the plan again)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -165,7 +165,10 @@ refused on every tap of that button.
 Her `chooseGrain("whole")` (Drafting.tsx:2292, :540-555) sets the new empty whole draft and
 reads the plan again, and `efScreen` sends an empty draft whose plan holds a scene rehearsal
 of this session to the plan (ensaioFinal.ts:79-80, `planHasRehearsals` :90-92). **«A passagem
-inteira» on the choice switches to `whole` and reads the plan again, as «Cena por cena» does:**
-with a scene rehearsal of this session the team lands on the Ensaio Final plan, with none on
-the whole-passage home. The empty whole home over a rehearsal is still reached from the plan by
-«gravar a passagem inteira de uma vez», her `aside` (ensaioFinal.ts:68-71).
+inteira» on the choice still opens the whole-passage home at once, and the home's own read of
+the rehearsals takes it to the Ensaio Final plan when one of this session is there,** while
+nothing is recorded or kept on it; with none the team stays on the home. A listing that names
+the whole after the choice stood takes the same way. A plan read that follows counts the grain
+as named, so a listing that does not answer there opens the whole home, never the choice again.
+The empty whole home over a rehearsal is still reached from the plan by «gravar a passagem
+inteira de uma vez», her `aside` (ensaioFinal.ts:68-71), and stays.
