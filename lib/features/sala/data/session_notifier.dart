@@ -7790,11 +7790,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the two apart by row; a row an earlier visit wrote, by its pass and the file it was
   /// copied from.
   Future<void> _adoptTheNames(TakeUploadQueue queue, int? life) async {
+    var adopted = false;
     if (state.sessionId case final sessionId? when !_endedSince(life)) {
       for (final take in state.keptTakes) {
         if (take.takeId != null) continue;
         final id = queue.takeIdOfThePart(sessionId, take);
         if (id == null) continue;
+        adopted = true;
         state = state.copyWith(
           keptTakes: [
             for (final kept in state.keptTakes)
@@ -7808,6 +7810,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_endedSince(life)) return;
       if (id == null) continue;
       final arquivo = _semNome.remove(linha);
+      adopted = true;
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
@@ -7816,6 +7819,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
     }
     _weighTheRehearsal();
+    if (adopted) _rememberWhereTheyAre(_aLinhaDiz ?? state.station);
   }
 
   Future<void> refreshUnsent() => _countUnsent();

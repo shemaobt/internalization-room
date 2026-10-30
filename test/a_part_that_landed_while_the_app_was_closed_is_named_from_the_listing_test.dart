@@ -50,7 +50,46 @@ Future<void> _aParte3GanhaONome(ProviderContainer container) => waitFor(
   limit: const Duration(seconds: 5),
 );
 
+Future<(SalaHarness, ProviderContainer)>
+_aParte3QueChegouLongeDaPassagem() async {
+  final harness = SalaHarness();
+  final container = await aRetomadaNoEnsaio(
+    harness,
+    traduzidasAte: [30000, 30000],
+  );
+  harness.room.holdNextTake(_parte3);
+  await gravarSemEsperarNome(container, 3);
+  await harness.room.untilTakeHeld();
+  container.read(salaSessionProvider.notifier).leaveThePassage();
+  await settle();
+  harness.room.finishHeldTake();
+  await waitFor(
+    'a parte 3 chegar à sala',
+    () => harness.room.takesKept.contains('ensaio/$_parte3'),
+  );
+  await settle();
+  return (harness, container);
+}
+
 void main() {
+  test('a name taken back from the Outbox is written to the row at once, not '
+      'left for the next save', () async {
+    final (harness, container) = await _aParte3QueChegouLongeDaPassagem();
+    await _voltarAoEnsaio(container);
+    await _aParte3GanhaONome(container);
+
+    final guardada = harness.emAberto.rows['Ruth/P01/pt']!.takes
+        .where((take) => take.scopeId == _parte3)
+        .single;
+    expect(
+      guardada.takeId,
+      _oNomeQueASalaDeu(harness),
+      reason:
+          'o nome adotado só ia ao disco na próxima gravação da linha, e um '
+          'fechamento antes dela devolvia a parte sem nome',
+    );
+  });
+
   test('a part that landed while the app was closed comes back named from the '
       "room's listing, not nameless", () async {
     final (harness, container) = await _aParte3QueChegouComOAppFechado();
