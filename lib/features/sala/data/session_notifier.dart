@@ -10843,6 +10843,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         remember: !verdict.usedFailSafe,
       );
       if (_abandoned(generation)) return;
+      if (verdict.unheardTakeIds.isNotEmpty &&
+          verdict.refusal == CheckRefusal.partUnheard) {
+        _esperarQueFalteOuvir(sessionId, generation);
+        return;
+      }
       // It returns, as all five of its siblings do: when the halt fires, the lines below
       // would overwrite the call for a person with the closing screen.
       //
@@ -10853,12 +10858,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!spoke.heard) {
         state = state.copyWith(btPhase: pressedFrom);
         return _registerUnplayableTurn();
-      }
-
-      if (verdict.unheardTakeIds.isNotEmpty &&
-          verdict.refusal == CheckRefusal.partUnheard) {
-        _esperarQueFalteOuvir(sessionId, generation);
-        return;
       }
 
       if (verdict.checked) {
