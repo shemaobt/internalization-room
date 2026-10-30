@@ -10952,7 +10952,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ? _backToBeforeTerminei()
             : _aEscutaCortadaAcaba(cortaAEscuta);
       }
-      _decideTheFailure(failure);
+      _decideTheFailure(failure, door: fromTheHome ? Door.approval : Door.step);
     }
 
     try {
@@ -10967,11 +10967,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       if (_abandoned(generation)) return;
       if (!resposta.minted && fromTheHome) {
-        final recusa = _recusaDaCasa(resposta.blockers);
-        state = state.copyWith(
-          btChecked: recusa != CheckRefusal.notConferida,
-          btRecusa: recusa,
-        );
+        _saysWhy(_recusaDaCasa(resposta.blockers));
         return;
       }
       if (!resposta.minted) {

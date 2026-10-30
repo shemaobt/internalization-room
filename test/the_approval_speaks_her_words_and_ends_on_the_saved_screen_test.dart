@@ -1307,7 +1307,7 @@ void main() {
         ['telling_back_not_checked'],
         null,
         _precisaConferida,
-        false,
+        true,
         null,
       ),
       ('an unknown code', ['coisa_nova'], null, _naoDeu, true, null),
@@ -1324,7 +1324,7 @@ void main() {
         ['playback_did_not_cover_the_clip', 'untold_stretch'],
         null,
         _precisaConferida,
-        false,
+        true,
         null,
       ),
       (
@@ -1363,6 +1363,101 @@ void main() {
         closeTheRoom(it.container);
       });
     }
+
+    testWidgets(
+      'a refusal on the home because the telling is not conferida writes her reason and keeps the approve button, and its next press asks the room again',
+      (tester) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+
+        await _tocar(tester);
+
+        expect(find.text(_precisaConferida), findsOneWidget);
+        expect(byLabel(_aprovar), findsOneWidget);
+        expect(find.text(_conferida), findsOneWidget);
+        expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+
+        it.harness.room
+          ..releaseBlockers = const []
+          ..approvedDraft = const ApprovedDraft(version: 1);
+        await _tocar(tester);
+
+        expect(find.text(_ensaioSalvo), findsOneWidget);
+        expect(it.harness.room.releasesAsked, hasLength(2));
+        closeTheRoom(it.container);
+      },
+    );
+
+    testWidgets(
+      'an approval from the home lost on the network writes «não deu para conferir agora — tentem de novo», keeps the button and calls no person; the failure policy decides it at the approval door',
+      (tester) async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        try {
+          final it = await aCasaConferida(tester);
+          it.harness.room.failReleaseWith = const NetworkFailed('sem rede');
+
+          await _tocar(tester);
+
+          expect(find.text(_naoDeu), findsOneWidget);
+          expect(byLabel(_aprovar), findsOneWidget);
+          expect(it.container.read(salaSessionProvider).needsPerson, isFalse);
+          expect(it.harness.room.personsAsked, 0);
+          expect(
+            logged.where((l) => l.contains('Falha decidida na porta approval')),
+            hasLength(1),
+          );
+          closeTheRoom(it.container);
+        } finally {
+          debugPrint = print;
+        }
+      },
+    );
+
+    testWidgets(
+      'a session gone under the home\'s approval still goes to the failure policy and takes the team to the Choice',
+      (tester) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room.failReleaseWith = const SessionGone();
+
+        await _tocar(tester);
+        await tester.pump(const Duration(seconds: 1));
+
+        final state = it.container.read(salaSessionProvider);
+        expect(state.stage, SalaStage.escolha);
+        expect(state.needsPerson, isFalse);
+        closeTheRoom(it.container);
+      },
+    );
+
+    testWidgets(
+      'a revoked device under the home\'s approval is still decided by the failure policy',
+      (tester) async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        try {
+          final it = await aCasaConferida(tester);
+          it.harness.room.failReleaseWith = const Refused(
+            RefusalCode.deviceRevoked,
+          );
+
+          await _tocar(tester);
+
+          expect(
+            logged.where(
+              (l) =>
+                  l.contains('Falha decidida') && l.contains('DEVICE_REVOKED'),
+            ),
+            isNotEmpty,
+          );
+          closeTheRoom(it.container);
+        } finally {
+          debugPrint = print;
+        }
+      },
+    );
 
     testWidgets('a refusal text stays on the home it was said on', (
       tester,
