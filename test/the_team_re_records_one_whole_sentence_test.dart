@@ -120,6 +120,32 @@ const _daSala = [
   ),
 ];
 
+const _renumeradas = BackTranslationProgress(
+  segments: [
+    SegmentView(
+      segmentId: 'trecho-2',
+      takeId: 'gravacao-1',
+      startsMs: 4000,
+      endsMs: 10000,
+      frase: 1,
+    ),
+    SegmentView(
+      segmentId: 'trecho-3',
+      takeId: 'gravacao-2',
+      startsMs: 0,
+      endsMs: 4000,
+      frase: 2,
+    ),
+    SegmentView(
+      segmentId: 'trecho-4',
+      takeId: 'gravacao-2',
+      startsMs: 4000,
+      endsMs: 10000,
+      frase: 3,
+    ),
+  ],
+);
+
 Future<ProviderContainer> _voltaATraducao(
   WidgetTester tester,
   SalaHarness harness, {
@@ -764,7 +790,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(tester, harness);
 
@@ -797,7 +823,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(
       tester,
@@ -834,7 +860,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -878,7 +904,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(tester, harness);
     await _passo(tester);
@@ -941,7 +967,7 @@ void main() {
       sessionId: null,
       passage: 'Ruth/P01/$testLanguage',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(tester, harness);
 
@@ -957,6 +983,351 @@ void main() {
     expect(harness.room.sentenceSessions, [
       container.read(salaSessionProvider).sessionId,
     ]);
+    closeTheRoom(container);
+  });
+
+  List<int?> linhasCom(WidgetTester tester, String estado) => [
+    for (final linha in tester.widget<FraseList>(find.byType(FraseList)).rows)
+      if (linha.estado == estado) linha.n,
+  ];
+
+  testWidgets('a sentence held on the tablet and picked back up after the '
+      'room renumbered the frases shows on its own stretch and is sent to '
+      'it, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    harness.room
+      ..retroSoFar = _renumeradas
+      ..segments.clear()
+      ..segments.addAll(_renumeradas.segments);
+
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await waitFor(
+      'a equipe sair da passagem',
+      () => container.read(salaSessionProvider).stage != SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução voltar com as frases renumeradas',
+      () =>
+          container.read(salaSessionProvider).stage == SalaStage.retro &&
+          container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await _passo(tester);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      linhasCom(tester, falhou),
+      [2],
+      reason: 'a frase guardada voltava na linha que herdou o número dela',
+    );
+
+    await tocar(tester, falhou);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent.last.segmentId,
+      'trecho-3',
+      reason: 'a frase guardada subia para o trecho que herdou o número dela',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held on the tablet whose stretch the room no longer '
+      'has is let go when the passage is picked back up, as hers', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem rede'));
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    final semAFrase = [
+      for (final (antes, trecho)
+          in _daSala.where((trecho) => trecho.segmentId != 'trecho-3').indexed)
+        SegmentView(
+          segmentId: trecho.segmentId,
+          takeId: trecho.takeId,
+          startsMs: trecho.startsMs,
+          endsMs: trecho.endsMs,
+          frase: antes + 1,
+        ),
+    ];
+    harness.room
+      ..retroSoFar = BackTranslationProgress(segments: semAFrase)
+      ..segments.clear()
+      ..segments.addAll(semAFrase);
+
+    container.read(salaSessionProvider.notifier).leaveThePassage();
+    await waitFor(
+      'a equipe sair da passagem',
+      () => container.read(salaSessionProvider).stage != SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+    await waitFor(
+      'a tradução voltar sem o trecho da frase guardada',
+      () =>
+          container.read(salaSessionProvider).stage == SalaStage.retro &&
+          container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a frase de um trecho que a sala não tem mais voltava guardada',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null) linha.n,
+      ],
+      [1, 2, 3],
+      reason: 'a frase guardada sem linha tirava o regravar de todas',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held while the room renumbers the frases keeps its '
+      'own row, its «regravar» and its armed resend, and is sent to its own '
+      'stretch, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..sentenceAnswersFirst.add(const Refused('DRAFT_APPROVED'))
+      ..retroSoFar = BackTranslationProgress(
+        segments: [
+          for (final (antes, trecho) in harness.room.segments.skip(1).indexed)
+            SegmentView(
+              segmentId: trecho.segmentId,
+              takeId: trecho.takeId,
+              startsMs: trecho.startsMs,
+              endsMs: trecho.endsMs,
+              told: trecho.told,
+              frase: antes + 1,
+            ),
+        ],
+      );
+    segura.complete();
+    await waitFor(
+      'a sala renumerar as frases',
+      () => container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    expect(
+      linhasCom(tester, falhou),
+      [2],
+      reason: 'a frase guardada ficava na linha que herdou o número dela',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null) linha.n,
+      ],
+      [2],
+      reason: 'o regravar da frase guardada ia para a linha do número dela',
+    );
+
+    await tocar(tester, falhou);
+    const armado = 'toquem de novo: isto abre de novo o rascunho aprovado';
+    expect(
+      linhasCom(tester, armado),
+      [2],
+      reason: 'o toque armado acendia na linha que herdou o número dela',
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await tocar(tester, armado);
+    await waitFor(
+      'a frase subir de novo',
+      () => harness.room.sentencesSent.length == 2,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.sentencesSent.last.segmentId,
+      'trecho-3',
+      reason: 'a frase guardada subia para o trecho que herdou o número dela',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held while the room no longer has its stretch is '
+      'let go when the telling is read, and «regravar» comes back to every '
+      'row, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..sentenceAnswersFirst.add(const Refused('DRAFT_APPROVED'))
+      ..retroSoFar = BackTranslationProgress(
+        segments: [
+          for (final (antes, trecho)
+              in harness.room.segments
+                  .where((trecho) => trecho.segmentId != 'trecho-3')
+                  .indexed)
+            SegmentView(
+              segmentId: trecho.segmentId,
+              takeId: trecho.takeId,
+              startsMs: trecho.startsMs,
+              endsMs: trecho.endsMs,
+              told: trecho.told,
+              frase: antes + 1,
+            ),
+        ],
+      );
+    segura.complete();
+    await waitFor(
+      'a sala ler as frases sem a da frase guardada',
+      () => container.read(salaSessionProvider).btTrechos.length == 3,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      guardada(harness),
+      isFalse,
+      reason: 'a frase de um trecho que a sala não tem mais ficava guardada',
+    );
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null) linha.n,
+      ],
+      [1, 2, 3],
+      reason: 'a frase guardada sem linha tirava o regravar de todas',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase the room told back without a name offers no '
+      '«regravar», so no sentence is recorded that could not be kept', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
+    final container = await quatroFrasesEmWav(tester, harness);
+    final semNome = [
+      for (final trecho in container.read(salaSessionProvider).btTrechos)
+        if (trecho.segmentId == null) trecho.frase,
+    ];
+    expect(semNome, isNotEmpty, reason: 'o cenário precisa de frases sem nome');
+
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null && semNome.contains(linha.n)) linha.n,
+      ],
+      isEmpty,
+      reason:
+          'a frase sem nome oferecia regravar e a gravação era apagada ao '
+          'fechar o microfone',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held on a stretch the room reads with no length '
+      'still goes up at the tap of its «tentar de novo»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    final semExtensao = BackTranslationProgress(
+      segments: [
+        for (final (antes, trecho) in harness.room.segments.indexed)
+          SegmentView(
+            segmentId: trecho.segmentId,
+            takeId: trecho.takeId,
+            startsMs: trecho.startsMs,
+            endsMs: trecho.segmentId == 'trecho-3'
+                ? trecho.startsMs
+                : trecho.endsMs,
+            told: trecho.told,
+            frase: antes + 1,
+          ),
+      ],
+    );
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..sentenceAnswersFirst.add(const Refused('DRAFT_APPROVED'))
+      ..retroSoFar = semExtensao;
+    segura.complete();
+    await waitFor(
+      'a sala ler o trecho da frase guardada sem extensão',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.segmentId == 'trecho-3')
+              .single
+              .to ==
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.segmentId == 'trecho-3')
+              .single
+              .from,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    const armado = 'toquem de novo: isto abre de novo o rascunho aprovado';
+    expect(linhasCom(tester, falhou), [3]);
+    await tocar(tester, falhou);
+    await tester.pump(const Duration(seconds: 2));
+    await tocar(tester, armado);
+    await waitFor(
+      'a frase subir de novo',
+      () => harness.room.sentencesSent.length == 2,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.sentencesSent.last.segmentId,
+      'trecho-3',
+      reason:
+          'o toque lia a sala, não achava o trecho e guardava a frase de '
+          'novo, sem nunca enviar',
+    );
     closeTheRoom(container);
   });
 
@@ -1464,7 +1835,7 @@ void main() {
     expect(aqui.btFraseQueAguarda, 'trecho-1');
     expect(aqui.btTrechoTraduzidoDeNovo?.segmentId, 'trecho-1');
     expect(guardada(harness), isTrue);
-    expect(aqui.btFraseGuardada, 3);
+    expect(aqui.btFraseGuardada, 'trecho-3');
     closeTheRoom(container);
   });
 
@@ -2723,7 +3094,7 @@ void main() {
     await tester.tap(naLinha('usar esta'));
     await _passo(tester);
     await _passo(tester);
-    expect(container.read(salaSessionProvider).btFraseGuardada, 3);
+    expect(container.read(salaSessionProvider).btFraseGuardada, 'trecho-3');
 
     await recomecarDeVez(tester, container);
 
@@ -3110,7 +3481,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(
       tester,
@@ -3162,7 +3533,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(
       tester,
@@ -3282,7 +3653,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(
       tester,
@@ -3499,7 +3870,7 @@ void main() {
         ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
       sessionId: 'sessao-antiga',
       kind: 'frase',
-      scope: '3',
+      scope: 'trecho-3',
     );
     final container = await _voltaATraducao(
       tester,

@@ -3997,7 +3997,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final segmentos):
         _readsApplied = max(_readsApplied, sent);
-        final segurada = state.btFraseGuardada ?? state.btRegravacao?.frase;
+        final segurada =
+            state.trechoChamado(state.btFraseGuardada)?.frase ??
+            state.btRegravacao?.frase;
         if (segurada != null && _numeroDaParteDe(segurada) == cena) {
           _esquecerAFrase();
         }
@@ -10047,7 +10049,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool largada() => _abandoned(generation) || vez != _regravacoes;
     final path = (await _closeTheMicrophone()).take;
     if (largada()) return;
-    if (path == null || _anAccidentalTap(path)) {
+    final nome = _aFrase(frase)?.segmentId;
+    if (path == null || nome == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(
         btRegravacao: aberta?.em(PassoDaRegravacao.pronta),
@@ -10062,7 +10065,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sessionId: sessionId,
       passage: _thePassage,
       kind: sentenceKind,
-      scope: '$frase',
+      scope: nome,
     );
     if (largada()) return;
     _fraseNaFila = guardada;
@@ -10093,8 +10096,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     final sessionId = guardada.sessionId ?? state.sessionId;
     if (sessionId == null) return;
-    final frase = int.parse(guardada.scope);
+    final nome = guardada.scope;
     final generation = _waitOnTheGeneration;
+    var frase = _aFraseChamada(nome)?.frase;
+    if (frase == null) {
+      await _readTheStretchesBack(sessionId, generation);
+      if (_abandoned(generation)) return;
+      frase = _aFraseChamada(nome)?.frase;
+    }
+    if (frase == null) return _esquecerAFrase();
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(
         frase,
@@ -10107,13 +10117,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (File(guardada.path).lengthSync() > largestSentenceTheRoomTakes) {
       return _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
     }
-    var nome = _aFrase(frase)?.segmentId;
-    if (nome == null) {
-      await _readTheStretchesBack(sessionId, generation);
-      if (_abandoned(generation)) return;
-      nome = _aFrase(frase)?.segmentId;
-    }
-    if (nome == null) return _guardarAFrase(frase);
     final resposta = await _room.reRecordTheSentence(
       sessionId,
       nome,
@@ -10141,7 +10144,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           await _readTheStretchesBack(sessionId, generation);
         }
       case Refused(code: RefusalCode.draftApproved):
-        _guardarAFrase(frase);
+        _guardarAFrase(nome);
         await _readTheStretchesBack(sessionId, generation);
       case Refused(
         code: RefusalCode.stretchNoLongerCounts ||
@@ -10153,14 +10156,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(clearBtRegravacao: true);
         await _readTheStretchesBack(sessionId, generation);
       case Refused(code: RefusalCode.anotherSentenceAwaits):
-        _guardarAFrase(frase);
+        _guardarAFrase(nome);
         await _readTheStretchesBack(sessionId, generation);
         if (_abandoned(generation)) return;
         if (state.btFraseQueAguarda case final aguardando?) {
           await _voltarAFraseQueAguarda(aguardando, generation);
         }
       case final RoomFailure failure:
-        _guardarAFrase(frase);
+        _guardarAFrase(nome);
         _decideTheFailure(failure);
     }
   }
@@ -10175,7 +10178,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _fraseNaFila = null;
     unawaited(_takes.withdraw(guardada));
     _stretchesAt = _readsSent;
-    final frase = int.parse(guardada.scope);
+    final frase = state.trechoChamado(nome)?.frase;
     final parte = state.trechoChamado(nome)?.parte;
     final nova = segments.where((segment) => segment.segmentId == nome);
     bool? trocada;
@@ -10208,7 +10211,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (trocada == null) return;
     if (!trocada) {
       state = state.copyWith(btFraseDevida: nome);
-      return _guardarAFrase(frase);
+      return _guardarAFrase(nome);
     }
     await _aFraseNovaNoLugar(nome, generation);
   }
@@ -10227,7 +10230,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final nome = state.btFraseDevida;
     final trecho = state.trechoChamado(nome);
-    final frase = state.btFraseGuardada;
+    final frase = state.trechoChamado(state.btFraseGuardada)?.frase;
     if (sessionId == null || nome == null || trecho == null || frase == null) {
       return;
     }
@@ -10247,7 +10250,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       generation,
     );
     if (_abandoned(generation)) return;
-    if (!trocada) return _guardarAFrase(frase);
+    if (!trocada) return _guardarAFrase(nome);
     state = state.copyWith(clearBtRegravacao: true, clearBtFraseDevida: true);
     await _aFraseNovaNoLugar(nome, generation);
   }
@@ -10326,7 +10329,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (guardada == null || state.sessionId != sessionId) return;
     _fraseNaFila = guardada;
-    state = state.copyWith(btFraseGuardada: int.parse(guardada.scope));
+    if (!state.btTrechos.any((trecho) => trecho.segmentId == guardada.scope)) {
+      return _esquecerAFrase();
+    }
+    state = state.copyWith(btFraseGuardada: guardada.scope);
   }
 
   void _esquecerAFrase() {
@@ -10345,8 +10351,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _guardarAFrase(int frase) {
-    state = state.copyWith(clearBtRegravacao: true, btFraseGuardada: frase);
+  void _guardarAFrase(String nome) {
+    state = state.copyWith(clearBtRegravacao: true, btFraseGuardada: nome);
   }
 
   void tentarAFraseDeNovo() => _gesture(() {
@@ -10386,6 +10392,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Trecho? _aFrase(int frase) =>
       state.btTrechos.where((trecho) => trecho.frase == frase).firstOrNull;
+
+  Trecho? _aFraseChamada(String nome) =>
+      state.btTrechos.where((trecho) => trecho.segmentId == nome).firstOrNull;
 
   void ouvirAFraseGravada() => _gesture(() {
     final path = state.btRegravacao?.path;
@@ -10428,11 +10437,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _regravacoes++;
     final aberta = state.btRegravacao;
     state = state.copyWith(clearBtRegravacao: true);
-    if (aberta case RegravacaoDaFrase(
-      passo: PassoDaRegravacao.revendo,
-      :final frase,
-    ) when _fraseNaFila != null) {
-      _guardarAFrase(frase);
+    if (_fraseNaFila case final guardada?
+        when aberta?.passo == PassoDaRegravacao.revendo) {
+      _guardarAFrase(guardada.scope);
     }
   }
 
@@ -11175,6 +11182,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                   },
               ],
             );
+            if (state.btFraseGuardada case final guardada?
+                when !frases.containsKey(guardada)) {
+              _esquecerAFrase();
+            }
           }
           final numeros = {
             for (final regravada in snapshot.backTranslation.stale)

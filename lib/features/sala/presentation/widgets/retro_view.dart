@@ -422,23 +422,23 @@ class RetroView extends ConsumerWidget {
             when frase == trecho.frase =>
           sceneRehearsalLabelFor('spliceTooLong', language),
         null
-            when trecho.frase != null &&
-                session.btFraseGuardada == trecho.frase =>
-          session.armedTap?.control == 'resend:${trecho.frase}'
+            when trecho.segmentId != null &&
+                session.btFraseGuardada == trecho.segmentId =>
+          session.armedTap?.control == 'resend:${trecho.segmentId}'
               ? retroLabelFor('reopenArmed', language)
               : sceneRehearsalLabelFor('spliceFail', language),
         _ => null,
       },
-      estadoDormindo: _dormindo('resend:${trecho.frase}', session),
-      estadoArmado: session.armedTap?.control == 'resend:${trecho.frase}',
+      estadoDormindo: _dormindo('resend:${trecho.segmentId}', session),
+      estadoArmado: session.armedTap?.control == 'resend:${trecho.segmentId}',
       onEstado:
           atua &&
               quieta &&
               !session.needsPerson &&
               !session.btSoOuvir &&
               session.btRegravacao == null &&
-              trecho.frase != null &&
-              session.btFraseGuardada == trecho.frase
+              trecho.segmentId != null &&
+              session.btFraseGuardada == trecho.segmentId
           ? notifier.tentarAFraseDeNovo
           : null,
     );
