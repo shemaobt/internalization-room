@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
+import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -10,8 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart'
-    show intoTheBackTranslation, intoTheRecordingHome, settle;
+import 'scenario_helpers.dart' show settle, throughTheOrangeDot;
 
 const _traduzidos = BackTranslationProgress(
   segments: [
@@ -54,10 +55,10 @@ Future<ProviderContainer> _reopensInto(
   await settle();
   await notifier.goConversa(book: 'Ruth', pericope: 'P01');
   SalaSessionState read() => container.read(salaSessionProvider);
+  await throughTheOrangeDot(notifier, read);
   if (parouEm == SalaStage.retro) {
-    await intoTheBackTranslation(notifier, read);
-  } else {
-    await intoTheRecordingHome(notifier, read);
+    notifier.startRetro();
+    await waitFor('a tradução abrir', () => read().stage == SalaStage.retro);
   }
   await settle();
   return container;
@@ -200,4 +201,42 @@ void main() {
     expect(harness.recorder.captures, 1);
     expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording);
   });
+
+  test(
+    'a frase told on an earlier visit plays the team\'s translation the room '
+    'names, not the slice of the part',
+    () async {
+      final harness = SalaHarness();
+      final traducao = Uint8List.fromList([7, 7, 7]);
+      harness.room.takeAudio['retro-1'] = traducao;
+
+      final container = await _reopensInto(
+        harness,
+        SalaStage.retro,
+        contado: const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: 'gravacao-1',
+              startsMs: 0,
+              endsMs: 12000,
+              bridgeTakeId: 'retro-1',
+            ),
+          ],
+        ),
+      );
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.ouvirOTrechoContado(0);
+      await waitFor(
+        'a tradução tocar',
+        () => container.read(salaSessionProvider).btRetroTocando,
+      );
+
+      expect(
+        harness.room.clipsFetched,
+        contains(RoomRepository.takeAudioUrl('sessao-antiga', 'retro-1')),
+      );
+      expect(File(harness.playback.played.last).readAsBytesSync(), traducao);
+    },
+  );
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,8 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -625,6 +629,61 @@ void main() {
           'gravação nova no lugar da parte 2',
     );
   });
+
+  test(
+    'a cena que a sala perdeu, gravada depois da retomada pela bolinha, sobe '
+    'acima da passada da sala, com uma correção guardada ao lado',
+    () async {
+      final harness = SalaHarness()
+        ..playback.measured = partesDoEnsaio.first
+        ..room.passageScenes = const [
+          Scene(sceneId: 'S1', title: 'Cena um'),
+          Scene(sceneId: 'S2', title: 'Cena dois'),
+          Scene(sceneId: 'S3', title: 'Cena tres'),
+        ];
+      final casa = Directory.systemTemp.createTempSync('sala-passada-guardada');
+      addTearDown(() => casa.deleteSync(recursive: true));
+      KeptTake guardada(String scope, String takeId) => KeptTake(
+        scopeId: scope,
+        path: (File(
+          '${casa.path}/$takeId.m4a',
+        )..writeAsBytesSync([1, 2, 3])).path,
+        takeId: takeId,
+      );
+      harness.room.takes.addAll([
+        for (final n in [1, 3])
+          TakeView(
+            takeId: 'gravacao-$n',
+            kind: 'ensaio',
+            scope: KeptScope.parte(n),
+            ordinal: n,
+          ),
+      ]);
+      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.ensaio,
+        takes: [
+          guardada(KeptScope.parte(1), 'gravacao-1'),
+          guardada(KeptScope.parte(3), 'gravacao-3'),
+          guardada('trecho-1', 'gravacao-4'),
+        ],
+        passesToGoAbove: const {2: 2},
+      );
+      final it = Sala(harness, harness.container());
+      addTearDown(it.container.dispose);
+      await it.sala.abrirEscolha();
+      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await throughTheOrangeDot(it.sala, () => it.estado);
+
+      await gravarUmaParteDoEnsaio(it, 2);
+      await waitFor(
+        'a cena 2 chegar à sala',
+        () => harness.room.takesKept.contains('ensaio/${KeptScope.parte(2)}'),
+      );
+
+      expect(harness.room.takePasses.last, 3);
+    },
+  );
 
   test('o ensaio até aqui toca a parte regravada no lugar dela', () async {
     final it = await _oAchadoNaParteDois();

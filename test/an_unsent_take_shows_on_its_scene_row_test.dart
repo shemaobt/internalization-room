@@ -301,9 +301,8 @@ Future<void> _retomarComAParte1(
     takes: [
       KeptTake(
         scopeId: KeptScope.parte(1),
-        path: (File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
+        path: '${pasta.path}/p1.m4a',
         takeId: 'gravacao-1',
-        origin: origin,
       ),
     ],
   );
@@ -319,11 +318,14 @@ Future<void> _retomarComAParte1(
   await tester.runAsync(
     () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
   );
-  await intoTheRecordingHome(
-    notifier,
-    () => container.read(salaSessionProvider),
+  await waitFor(
+    'a sala pousar na conversa',
+    () =>
+        container.read(salaSessionProvider).station is Canvas &&
+        !container.read(salaSessionProvider).awaitingTheGuide,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
+  notifier.openTheEnsaioFinal();
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(seconds: 1));
   }

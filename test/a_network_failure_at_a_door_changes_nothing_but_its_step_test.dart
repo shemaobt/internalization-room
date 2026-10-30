@@ -14,11 +14,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show
-        holdTheSession,
-        intoTheBackTranslation,
-        settle,
-        traduzirOApontadoDeNovo;
+    show holdTheSession, settle, throughTheOrangeDot, traduzirOApontadoDeNovo;
 import 'session_notifier_test.dart' show inConversa;
 
 const _aLadderThatWaits = [Duration(hours: 1)];
@@ -63,13 +59,17 @@ Future<void> _keepARehearsalPart(_Room room) async {
 Future<_Room> _aResumedBackTranslation(
   SalaHarness harness, {
   List<SegmentView> told = const [],
+  List<SegmentView> stale = const [],
 }) async {
   final casa = Directory.systemTemp.createTempSync('sala-alcance');
   addTearDown(() => casa.deleteSync(recursive: true));
   harness.playback
     ..length = const Duration(seconds: 30)
     ..measured = const Duration(seconds: 30);
-  harness.room.retroSoFar = BackTranslationProgress(segments: told);
+  harness.room.retroSoFar = BackTranslationProgress(
+    segments: told,
+    stale: stale,
+  );
   final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
@@ -86,7 +86,8 @@ Future<_Room> _aResumedBackTranslation(
   addTearDown(container.dispose);
   final room = _Room(harness, container);
   await room.sala.openTheRoom();
-  await intoTheBackTranslation(room.sala, () => room.estado);
+  await throughTheOrangeDot(room.sala, () => room.estado);
+  room.sala.startRetro();
   await waitFor(
     'a tradução pôr a parte no ar',
     () => harness.playback.sounding,
@@ -333,6 +334,33 @@ void main() {
       expect(room.estado.needsPerson, isFalse);
       expect(room.estado.awaitingTheGuide, isFalse);
     });
+  });
+
+  test('5: the read of a stretch told again over a recording the tablet does '
+      'not hold, lost on the network, shows no person sign and leaves the '
+      'telling-back going on', () async {
+    final harness = SalaHarness(retryBackoff: _aLadderThatWaits)
+      ..room.failTakesWith = const NetworkFailed('sem rede');
+
+    final room = await _aResumedBackTranslation(
+      harness,
+      stale: const [
+        SegmentView(
+          segmentId: 'trecho-de-fora',
+          takeId: 'gravacao-de-fora',
+          startsMs: 0,
+          endsMs: 6000,
+        ),
+      ],
+    );
+    await waitFor(
+      'a leitura das gravações cair na rede',
+      () => harness.room.calls.contains('takesOf'),
+    );
+    await settle();
+
+    expect(room.estado.needsPerson, isFalse);
+    expect(room.estado.stage, SalaStage.retro);
   });
 
   test('6: a Watch read lost on the network while a turn is in flight shows '
