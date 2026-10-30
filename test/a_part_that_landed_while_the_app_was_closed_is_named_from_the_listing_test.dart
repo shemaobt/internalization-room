@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'a_parte_da_volta_ganha_nome_test.dart' show gravarSemEsperarNome;
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio;
-import 'scenario_helpers.dart' show relaunch, settle;
+import 'scenario_helpers.dart' show relaunch, settle, umaParteInteira;
 
 final _parte3 = KeptScope.parte(3);
 
@@ -148,6 +148,59 @@ void main() {
           'a gravação da linha na retomada direta à passagem escrevia a tela '
           'onde a equipe estava, a conversa, e a próxima abertura não achava '
           'mais o ensaio',
+    );
+  });
+
+  test('after the relaunch the check hears the part under its name and cuts '
+      'its stretch by part, not turned away as having no part', () async {
+    final (harness, container) = await _aParte3QueChegouComOAppFechado();
+    await _voltarAoEnsaio(container);
+    await _aParte3GanhaONome(container);
+    final nome = _oNomeQueASalaDeu(harness);
+    final parte3 = container.read(salaSessionProvider).partes[2];
+    final notifier = container.read(salaSessionProvider.notifier);
+
+    notifier.startRetro();
+    await waitFor(
+      'a retro tocar a parte 3',
+      () =>
+          harness.playback.played.isNotEmpty &&
+          harness.playback.played.last == parte3.path,
+    );
+    await theClipOpens(harness);
+    harness.playback.at = umaParteInteira;
+    notifier.retroTap();
+    notifier.retroTap();
+    await settle();
+    await confirmarATraducao(container);
+    await waitFor(
+      'o trecho da parte 3 chegar à sala',
+      () => harness.room.chunksSent == 1,
+      limit: const Duration(seconds: 2),
+    );
+
+    expect(
+      harness.room.chunkTakes,
+      [nome],
+      reason:
+          'o trecho contado sobre a parte que chegou com o app fechado era '
+          'recusado por não ter parte',
+    );
+    harness.playback.finishPlayback();
+    await waitFor(
+      'a escuta da parte 3 chegar à sala',
+      () => harness.room.listeningReports.isNotEmpty,
+      limit: const Duration(seconds: 2),
+    );
+    expect(
+      [
+        for (final relato in harness.room.listeningReports)
+          for (final parte in relato) parte['take_id'],
+      ],
+      contains(nome),
+      reason:
+          'a escuta da parte que chegou com o app fechado nunca chegava à '
+          'sala, e a conferência a contava como não ouvida',
     );
   });
 
