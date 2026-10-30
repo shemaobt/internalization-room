@@ -6,7 +6,7 @@ amends: 0113 (in part: the Back-translation no longer shows the listeners' count
 
 # The listeners' count and «Checagem externa» stand on the recording home, not on the check
 
-This amends ADR 0113 and ADR 0114 without editing their decisions: it adds "amended by 0164"
+This amends ADR 0113 and ADR 0114 without editing their decisions: it adds "amended by 0166"
 to their status lines. Her app is the bar, and it wins over our ADRs (João, 26 October).
 Settled on the ticket (ENG-2052, trimmed on 29 October to this one point).
 
