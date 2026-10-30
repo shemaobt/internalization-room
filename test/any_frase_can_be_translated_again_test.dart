@@ -184,7 +184,6 @@ Future<ProviderContainer> _voltaAUmaTraducao(
       stage: SalaStage.retro,
       takes: partes,
     ),
-    language: 'pt',
   );
   harness.room.retroSoFar = BackTranslationProgress(
     checked: conferida,

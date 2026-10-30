@@ -378,12 +378,18 @@ void main() {
       final aberturasAntes = it.harness.room.calls
           .where((call) => call == 'openSession')
           .length;
+      final tocadasAntes = it.harness.voice.played.length;
       await tester.tap(byLabel(_ouvirDeNovo));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
         it.harness.room.calls.where((call) => call == 'openSession'),
-        hasLength(aberturasAntes + 1),
+        hasLength(aberturasAntes),
+        reason: 'o clipe do Guia está no tablet: a sala não é chamada',
+      );
+      expect(
+        it.harness.voice.played.skip(tocadasAntes),
+        [turnoUrl],
         reason:
             'o ouvir de novo da conversa repetia a fala da aprovação, não a '
             'última do Guia',

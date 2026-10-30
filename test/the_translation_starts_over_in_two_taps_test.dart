@@ -113,7 +113,6 @@ Future<ProviderContainer> _voltaATraducao(
           ),
       ],
     ),
-    language: 'pt',
   );
   harness.room.retroSoFar = BackTranslationProgress(segments: frases);
   final container = harness.container();
