@@ -170,7 +170,8 @@ String? _anAnswerFromBeforeTheStationChangedChangedTheRoom(
     final older = machine.generation;
     final moved =
         next.station != machine.station &&
-        !(event is TheSceneRehearsalLeft && machine.holdsATurn);
+        !(event is TheSceneRehearsalLeft &&
+            (machine.holdsATurn || event.keepsTheReply));
     machine = next;
     if (!moved) continue;
     for (var stale = 0; stale < 4; stale++) {

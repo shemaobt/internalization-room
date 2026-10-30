@@ -72,9 +72,7 @@ const caminhoEmPortugues = (
   pronto: 'Pronto',
 );
 
-/// Four frases told over WAV parts, checked, approved as [approved], and «Pronto»
-/// pressed: the team back on the approved draft's Back-translation.
-Future<ProviderContainer> aprovadaNaConferida(
+Future<ProviderContainer> aprovadaNaCasa(
   WidgetTester tester,
   SalaHarness harness, {
   ApprovedDraft approved = const ApprovedDraft(version: 1),
@@ -105,7 +103,26 @@ Future<ProviderContainer> aprovadaNaConferida(
     () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
     step: () => _passo(tester),
   );
-  await tester.pump(const Duration(milliseconds: 800));
+  await tester.pump(const Duration(milliseconds: 1400));
+  await tester.pump(const Duration(milliseconds: 100));
+  return container;
+}
+
+/// Four frases told over WAV parts, checked, approved as [approved], and «Pronto»
+/// pressed: the team back on the approved draft's Back-translation.
+Future<ProviderContainer> aprovadaNaConferida(
+  WidgetTester tester,
+  SalaHarness harness, {
+  ApprovedDraft approved = const ApprovedDraft(version: 1),
+  Caminho caminho = caminhoEmPortugues,
+}) async {
+  final container = await aprovadaNaCasa(
+    tester,
+    harness,
+    approved: approved,
+    caminho: caminho,
+  );
+  final sala = container.read(salaSessionProvider.notifier);
   sala.startRetro();
   await waitFor(
     'a retrotradução aprovada voltar conferida',
