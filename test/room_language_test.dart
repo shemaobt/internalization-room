@@ -425,7 +425,8 @@ void main() {
   );
 
   test(
-    'two taps while the launch reads the Wheel leave the started marks in the '
+    'a language tapped while the launch reads the Wheel, then another once the '
+    'Wheel lands and its marks are still being read, leave the marks in the '
     'language last chosen',
     () async {
       const book = [
