@@ -2100,7 +2100,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(
       ThePanoramaFound(
         held.sessionId,
-        opened: true,
+        opened: snapshot.opened,
         generation: _waitOnTheGeneration,
       ),
     );
@@ -2573,6 +2573,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   void _returnToThePanorama() {
+    if (state.machine.panorama case HeldPanorama(
+      :final id,
+      :final language,
+      :final session?,
+    )) {
+      _holdThePanorama(session, id, language);
+    }
     state = state.copyWith(panoramaSaid: true);
     _offerTheReplayOfTheEnd();
     unawaited(_hand.pull());

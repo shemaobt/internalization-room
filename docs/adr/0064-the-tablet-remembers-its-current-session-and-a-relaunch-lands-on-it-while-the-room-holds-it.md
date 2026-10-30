@@ -33,8 +33,8 @@ where each passage was left, but nothing said which passage the tablet was in.
   language, in a file of its own beside the Resume points. It is written when the team
   enters the Canvas with a session, from every door. It is let go when the team goes to the
   Choice, when the passage closes (so a kill during the Closing lands on the Choice), and
-  when the room no longer knows the session. Entering the Panorama writes it too (ENG-1897);
-  leaving to the Choice lets it go: the tablet is then in no session.
+  when the room no longer knows the session. The Panorama never writes it, and entering
+  the Panorama clears it, as leaving to the Choice does: the tablet is then in no session.
 - **The Current session belongs to the device link.** When the link starts over, the record
   is let go with it. The server reads a session for any linked tablet, with no team scope,
   so a tablet claimed by another team would otherwise land in the old team's session.

@@ -1251,5 +1251,61 @@ void main() {
       expect(held?.sessionId, tablet.state.sessionId);
       expect(held?.panorama, isFalse);
     });
+
+    test(
+      'a relaunch before its opening reached the room asks for it',
+      () async {
+        final tablet = await _aTablet();
+        await _intoThePanorama(tablet);
+        tablet.harness.room.openedSessions.clear();
+        final again = await _relaunch(tablet);
+        final opened = again.asked('openSession');
+
+        await again.notifier.openTheRoom();
+        await waitFor(
+          'the opening to be asked',
+          () => again.asked('openSession') == opened + 1,
+        );
+      },
+    );
+
+    test('the way back to it holds it again', () async {
+      final tablet = await _aTablet();
+      await _intoThePanorama(tablet);
+      final panorama = tablet.state.panoramaSessionId;
+      tablet.notifier.leaveThePassage();
+      await _theChoiceShowsItsWheel(tablet);
+      await settle();
+      expect(await tablet.harness.currentSession.read(), isNull);
+
+      await tablet.notifier.returnToTheLeftEntry();
+      await settle();
+
+      final held = await tablet.harness.currentSession.read();
+      expect(held?.sessionId, panorama);
+      expect(held?.panorama, isTrue);
+    });
+
+    test('after a launch that lost the network, entering it still lets a '
+        'relaunch resume it', () async {
+      final first = await _inP01();
+      final offline = await _relaunch(first);
+      offline.harness.room.reachable = false;
+      await offline.notifier.openTheRoom();
+      offline.harness.room.reachable = true;
+      await offline.notifier.openTheRoom();
+      await _theChoiceShowsItsWheel(offline);
+      await _intoThePanorama(offline);
+      final panorama = offline.state.panoramaSessionId;
+      final again = await _relaunch(offline);
+
+      await again.notifier.openTheRoom();
+      await waitFor(
+        'the team to land on the Panorama',
+        () => again.state.station is Panorama && again.state.panoramaSaid,
+      );
+
+      expect(again.state.panoramaSessionId, panorama);
+    });
   });
 }
