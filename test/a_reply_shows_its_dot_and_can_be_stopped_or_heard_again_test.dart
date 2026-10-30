@@ -300,6 +300,23 @@ void main() {
     );
   });
 
+  testWidgets('The dot stays through the hand\'s fade and holds still', (
+    tester,
+  ) async {
+    final room = await _withAReplyWaiting(tester);
+
+    room.harness.voice.holdNextLine();
+    unawaited(room.sala.hearAgain());
+    await room.until('a mão sumir', () => !room.estado.atTheTeamsIdleTurn);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_dot, findsOneWidget, reason: 'o ponto sumia antes da mão');
+    final widths = await _dotWidthsOver(tester, const Duration(seconds: 2));
+    expect(widths.toSet(), hasLength(1), reason: 'o ponto pulsava invisível');
+    room.harness.voice.finishHeldLine();
+    await room.beat(300);
+  });
+
   testWidgets('With reduce-motion on, the dot holds still', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);

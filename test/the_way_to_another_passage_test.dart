@@ -9,7 +9,8 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, withDiskThatAnswersAtOnce;
+import 'scenario_helpers.dart'
+    show byLabel, intoTheRecordingHome, withDiskThatAnswersAtOnce;
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -230,7 +231,11 @@ void main() {
       await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
-      await tester.pump(const Duration(seconds: 1));
+      await intoTheRecordingHome(
+        room.notifier,
+        () => room.state,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
 
       expect(room.state.stage, SalaStage.ensaio);
       expect(room.state.takePaused, isFalse);

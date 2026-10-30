@@ -5,6 +5,7 @@ import '../../../../core/theme/sala_colors.dart';
 import '../../data/session_notifier.dart';
 import '../../domain/facilitator_script.dart';
 import '../../domain/session_state.dart';
+import 'motion.dart';
 
 class LeavePassageButton extends ConsumerWidget {
   const LeavePassageButton({super.key});
@@ -24,9 +25,9 @@ class LeavePassageButton extends ConsumerWidget {
       top: MediaQuery.viewPaddingOf(context).top + screen.height * 0.05 - 11,
       child: IgnorePointer(
         ignoring: away,
-        child: AnimatedOpacity(
+        child: HerFade(
           opacity: away ? 0 : 0.22,
-          duration: const Duration(milliseconds: 400),
+          span: const Duration(milliseconds: 400),
           child: Semantics(
             button: true,
             label: roomLabelFor(

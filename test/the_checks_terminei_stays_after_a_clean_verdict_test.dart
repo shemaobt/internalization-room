@@ -229,16 +229,19 @@ void main() {
       ..playback.measured = parte;
     final casa = Directory.systemTemp.createTempSync('sala-conferida');
     addTearDown(() => casa.deleteSync(recursive: true));
-    harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.retro,
-      takes: [
-        KeptTake(
-          scopeId: KeptScope.parte(1),
-          path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1])).path,
-          takeId: 'gravacao-1',
-        ),
-      ],
+    await holdTheSession(
+      harness,
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1])).path,
+            takeId: 'gravacao-1',
+          ),
+        ],
+      ),
     );
     harness.room
       ..retroSoFar = BackTranslationProgress(
@@ -258,13 +261,11 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const SalaApp()),
     );
-    final sala = container.read(salaSessionProvider.notifier);
-    await tester.runAsync(() async {
-      await sala.abrirEscolha();
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      await sala.goConversa(book: 'Ruth', pericope: 'P01');
-      await Future<void>.delayed(const Duration(seconds: 1));
-    });
+    await intoTheBackTranslation(
+      container.read(salaSessionProvider.notifier),
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);

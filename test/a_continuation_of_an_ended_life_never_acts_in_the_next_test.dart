@@ -12,7 +12,6 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show enterThePanorama, enterThePassage, settle;
@@ -94,25 +93,18 @@ class _Fila extends QueueThatFlushesLate {
 
 class _Sala extends FakeRoom {
   Completer<RoomFailure>? _read;
-  Completer<RoomFailure>? _takes;
   Completer<RoomFailure>? _chunk;
 
   bool get readHeld => _read != null && _readAsked;
-  bool get takesHeld => _takes != null && _takesAsked;
   bool get chunkHeld => _chunk != null && _chunkAsked;
   bool _readAsked = false;
-  bool _takesAsked = false;
   bool _chunkAsked = false;
 
   void holdTheSessionRead() => _read = Completer<RoomFailure>();
 
-  void holdTheRecordingsRead() => _takes = Completer<RoomFailure>();
-
   void holdTheStretch() => _chunk = Completer<RoomFailure>();
 
   void answerTheRead(RoomFailure failure) => _read!.complete(failure);
-
-  void answerTheTakes(RoomFailure failure) => _takes!.complete(failure);
 
   void answerTheChunk(RoomFailure failure) => _chunk!.complete(failure);
 
@@ -123,15 +115,6 @@ class _Sala extends FakeRoom {
       return held.future;
     }
     return super.fetchState(sessionId);
-  }
-
-  @override
-  Future<RoomAnswer<List<TakeView>>> takesOf(String sessionId) async {
-    if (_takes case final held? when !_takesAsked) {
-      _takesAsked = true;
-      return held.future;
-    }
-    return super.takesOf(sessionId);
   }
 
   final List<({String session, String kind})> takesSent = [];
@@ -255,31 +238,6 @@ Future<_Caso> _criandoDepoisDeUmPanoramaQueSeFoi() async {
 
 int _criacoes(_Caso caso) =>
     caso.room.calls.where((call) => call == 'createSession').length;
-
-Future<_Caso> _naTraducaoRetomada({required List<SegmentView> told}) async {
-  final caso = _umaSala();
-  final casa = Directory.systemTemp.createTempSync('sala-vida');
-  addTearDown(() => casa.deleteSync(recursive: true));
-  caso.harness.playback
-    ..length = const Duration(seconds: 30)
-    ..measured = const Duration(seconds: 30);
-  caso.room.retroSoFar = BackTranslationProgress(segments: told);
-  caso.harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: (File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3])).path,
-        takeId: 'gravacao-1',
-      ),
-    ],
-  );
-  await caso.sala.abrirEscolha();
-  caso.room.holdTheRecordingsRead();
-  await caso.sala.goConversa(book: 'Ruth', pericope: 'P01');
-  return caso;
-}
 
 Future<_Caso> _abrindoOMicrofoneParaUmTrecho() async {
   final caso = _umaSala();
@@ -478,30 +436,6 @@ final _linhas = [
     },
   ),
   _Linha(
-    '9: the Back-translation\'s read of the recordings that fails after the '
-    'rebuild raises nothing',
-    arrange: () async {
-      final caso = await _naTraducaoRetomada(
-        told: const [
-          SegmentView(
-            segmentId: 'trecho-de-fora',
-            takeId: 'gravacao-de-fora',
-            startsMs: 0,
-            endsMs: 6000,
-          ),
-        ],
-      );
-      await waitFor('a leitura das gravações sair', () => caso.room.takesHeld);
-      return caso;
-    },
-    release: (caso) async {
-      caso.room.answerTheTakes(const NetworkFailed('sem rede'));
-      return () {
-        expect(caso.estado.needsPerson, isFalse);
-      };
-    },
-  ),
-  _Linha(
     '10: a Back-translation recording whose send fails after the rebuild is '
     'not queued under the next room\'s session',
     arrange: () async {
@@ -533,30 +467,6 @@ final _linhas = [
           caso.room.takesSent,
           isNot(contains((session: daProximaSala, kind: 'retro'))),
         );
-      };
-    },
-  ),
-  _Linha(
-    '9b: the Back-translation\'s read of the recordings that answers gone '
-    'after the rebuild forgets nothing',
-    arrange: () async {
-      final caso = await _naTraducaoRetomada(
-        told: const [
-          SegmentView(
-            segmentId: 'trecho-de-fora',
-            takeId: 'gravacao-de-fora',
-            startsMs: 0,
-            endsMs: 6000,
-          ),
-        ],
-      );
-      await waitFor('a leitura das gravações sair', () => caso.room.takesHeld);
-      return caso;
-    },
-    release: (caso) async {
-      caso.room.answerTheTakes(const SessionGone());
-      return () {
-        expect(caso.fila.discarded, isNot(contains('sessao-antiga')));
       };
     },
   ),

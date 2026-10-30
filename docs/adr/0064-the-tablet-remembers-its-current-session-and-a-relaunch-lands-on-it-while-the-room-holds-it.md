@@ -1,10 +1,12 @@
 ---
-status: accepted, amended by 0091, amended by 0106, amended by 0141
+status: accepted, amended by 0091, amended by 0106, amended by 0141, amended by 0164, amended by ENG-1970
 date: 2026-10-07
 amends: 0061 (in part: the room starts on the Choice), 0051 (in part: what a gone session takes from the tablet)
 ---
 
 # The tablet remembers its current session and a relaunch lands on it while the room holds it
+
+Amended by ENG-1970 (2026-10-30): there is no Closing; a passage that finishes stays on its conversation, and a stored fim row lands there.
 
 This amends ADRs 0061 and 0051 without editing them; it adds "amended by 0064" to their
 status lines. The Definer settled it on the ticket (ENG-1281) on 6 and 7 October: a

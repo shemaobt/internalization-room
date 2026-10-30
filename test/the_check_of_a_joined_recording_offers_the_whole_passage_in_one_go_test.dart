@@ -18,7 +18,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/grain_ch
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, voiceOverTap;
+import 'scenario_helpers.dart'
+    show byLabel, holdTheSession, intoTheBackTranslation, voiceOverTap;
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -62,20 +63,24 @@ Future<ProviderContainer> _naConferencia(
   addTearDown(tester.view.reset);
   final pasta = Directory.systemTemp.createTempSync('sala-1876');
   addTearDown(() => pasta.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in [1, 2])
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${pasta.path}/p$n.wav',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'gravacao-$n',
-          origin: juntada ? 'ensaio-da-cena-$n' : null,
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in [1, 2])
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${pasta.path}/p$n.wav',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'gravacao-$n',
+            origin: juntada ? 'ensaio-da-cena-$n' : null,
+          ),
+      ],
+    ),
+    language: lingua,
   );
   harness.room.takes.addAll([
     for (final n in [1, 2])
@@ -118,12 +123,13 @@ Future<ProviderContainer> _naConferencia(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
-  );
-  if (aprovada) {
+  if (!aprovada) {
+    await intoTheBackTranslation(
+      container.read(salaSessionProvider.notifier),
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+  } else {
     SalaSessionState estado() => container.read(salaSessionProvider);
     await waitFor(
       'a passagem aprovada pousar na conversa',

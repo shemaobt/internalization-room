@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/codigo_v
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaCasa;
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, thePersonSign;
+import 'scenario_helpers.dart' show byLabel, offered, thePersonSign;
 
 const _checagem = 'Checagem externa';
 const _subIdle =
@@ -144,7 +144,7 @@ void main() {
     await _tocar(tester, _checagem);
 
     expect(find.text(_subIdle), findsOneWidget);
-    expect(byLabel('Ouvir de novo'), findsNothing);
+    expect(offered('Ouvir de novo'), findsNothing);
     closeTheRoom(container);
   });
 

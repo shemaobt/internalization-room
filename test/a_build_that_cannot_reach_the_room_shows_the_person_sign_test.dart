@@ -14,6 +14,8 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -30,10 +32,6 @@ const _aPanorama = Passagem(
   audioUrl: '/voice/panorama',
   kind: PassagemKind.panorama,
   book: 'Ruth',
-);
-
-final _theChoicesCircle = byLabel(
-  escolhaLabelFor('readTheWheel', testLanguage),
 );
 
 Future<ProviderContainer> _aBrokenBuild(
@@ -92,28 +90,15 @@ void main() {
 
         expect(thePersonSign, findsNothing);
         expect(find.text('Escolha a passagem'), findsOneWidget);
-        expect(_theChoicesCircle, findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(EscolhaView),
+            matching: find.byType(FacilitatorCircle),
+          ),
+          findsNothing,
+        );
         expect(find.text(bookNameFor('Ruth', testLanguage)), findsNothing);
         expect(harness.room.calls, isNot(contains('servedBooks')));
-        closeTheRoom(container);
-      },
-    );
-
-    testWidgets(
-      'on a broken build the Choice\'s tap brings the sign back before any wait',
-      (tester) async {
-        final harness = SalaHarness(filaEmMemoria: true);
-        final container = await _aBrokenBuild(tester, harness);
-        await _theSignIsTappedAway(tester);
-        harness.room.throwOn['servedBooks'] = StateError(
-          'BACKEND_URL is missing',
-        );
-
-        await tester.tap(_theChoicesCircle);
-        await tester.pump();
-
-        expect(thePersonSign, findsOneWidget);
-        expect(container.read(salaSessionProvider).awaitingTheGuide, isFalse);
         closeTheRoom(container);
       },
     );
@@ -333,7 +318,7 @@ void main() {
     );
 
     test(
-      'a pill whose session opened before its opening threw still shows the sign, not the Choice',
+      'a pill whose session opened before its opening threw rests on the canvas at invite, with no sign and nothing said',
       () async {
         final harness = SalaHarness();
         final container = harness.container();
@@ -350,10 +335,68 @@ void main() {
         await settle();
 
         expect(read().sessionId, isNotNull);
+        expect(read().needsPerson, isFalse);
+        expect(read().station, isA<Canvas>());
+        expect(read().voice, VoiceState.invite);
+        expect(read().awaitingTheGuide, isFalse);
+        expect(harness.voice.played, isEmpty);
+      },
+    );
+
+    test(
+      'a Panorama pill whose opening threw rests on the Panorama with no sign and nothing said',
+      () async {
+        final harness = SalaHarness()..room.passages = const [_aPanorama];
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        await notifier.abrirEscolha();
+        await theChoiceOffersAPassage(container);
+        harness.voice.readyThrows = StateError('x');
+
+        notifier.openTheEntry(
+          read().naRoda!.firstWhere((entry) => entry.isPanorama),
+        );
+        await settle();
+
+        expect(read().station, isA<Panorama>());
+        expect(read().voice, VoiceState.invite);
+        expect(read().needsPerson, isFalse);
+        expect(read().awaitingTheGuide, isFalse);
+        expect(harness.voice.played, isEmpty);
+      },
+    );
+
+    test(
+      'an Error in an Opening the team has left is logged once and raises no sign',
+      () async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = print);
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        harness.voice
+          ..holdNextFetch()
+          ..readyThrows = StateError('a left opening');
+        unawaited(notifier.goConversa(book: 'Ruth'));
+        await waitFor(
+          'a abertura pedir a sua fala',
+          () => harness.voice.fetched.isNotEmpty,
+        );
+
+        notifier.leaveThePassage();
+        await settle();
+        harness.voice.finishHeldFetch();
+        await settle(const Duration(milliseconds: 300));
+
+        expect(container.read(salaSessionProvider).needsPerson, isFalse);
         expect(
-          read().needsPerson,
-          isTrue,
-          reason: 'um erro com a sessão já aberta sumia sem sinal',
+          logged.where((line) => line.contains('a left opening')),
+          hasLength(1),
         );
       },
     );

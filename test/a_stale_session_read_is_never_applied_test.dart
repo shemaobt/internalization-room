@@ -46,7 +46,7 @@ Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
   final pasta = Directory.systemTemp.createTempSync('sala-1168-velha');
   addTearDown(() => pasta.deleteSync(recursive: true));
   final gravada = File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -57,12 +57,15 @@ Future<ProviderContainer> _reopensIntoRetro(SalaHarness harness) async {
       ),
     ],
   );
+  await holdTheSession(harness, row);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await notifier.openTheRoom();
+  await intoTheBackTranslation(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await settle();
   return container;
 }
