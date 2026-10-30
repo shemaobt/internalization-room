@@ -79,6 +79,18 @@ class EscutaDasPartes {
 
   void esquecerTudo() => _partes.clear();
 
+  bool ouvidaInteira(String arquivo, int tamanho, Duration folga) {
+    final escutada = _partes[arquivo];
+    if (escutada == null || tamanho <= 0) return false;
+    var ouvido = 0;
+    for (final faixa in _unidas(escutada.faixas)) {
+      final de = faixa[0] < 0 ? 0 : faixa[0];
+      final ate = faixa[1] > tamanho ? tamanho : faixa[1];
+      if (ate > de) ouvido += ate - de;
+    }
+    return tamanho - ouvido <= folga.inMilliseconds;
+  }
+
   /// The report, one entry per part the team has heard something of and the room can name.
   ///
   /// The spans are sorted and joined the way the gate joins them to read, so what the room
