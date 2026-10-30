@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 
@@ -162,8 +163,10 @@ ProviderContainer _tablet({
   required LinkedTeam ledger,
   HandInboxRepository? inbox,
   Duration? linkPoll,
+  TakeUploadQueue? takes,
 }) => ProviderContainer(
   overrides: [
+    if (takes != null) takeUploadQueueProvider.overrideWithValue(takes),
     roomRepositoryProvider.overrideWithValue(room),
     recordingRepositoryProvider.overrideWithValue(FakeRecorder()),
     linkedTeamProvider.overrideWithValue(ledger),
@@ -476,6 +479,45 @@ void main() {
       );
     },
   );
+
+  for (final refusal in [RefusalCode.credentialTaken, RefusalCode.notFound]) {
+    test(
+      'a $refusal answer ends the tablet\'s life before the new link starts',
+      () async {
+        final ledger = await _alreadyLinked();
+        final room = FakeRoom()
+          ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+          ..refuseCredentialWith = Refused(refusal);
+        final takes = FakeTakeQueue(room: room)..sweepFails = true;
+        final home = Directory.systemTemp.createTempSync('sala-vida');
+        addTearDown(() => home.deleteSync(recursive: true));
+        await takes.enqueue(
+          File('${home.path}/parte.m4a')..writeAsBytesSync([1]),
+          sessionId: 's',
+          kind: 'x',
+          scope: 'p',
+        );
+        final container = _tablet(room: room, ledger: ledger, takes: takes);
+        addTearDown(container.dispose);
+
+        await container.read(deviceLinkProvider.notifier).findTheTeam();
+        await settle();
+
+        expect(
+          room.codesAskedFor,
+          isEmpty,
+          reason: 'a vida antiga ainda não terminou; o vínculo novo não começa',
+        );
+
+        takes.sweepFails = false;
+        await waitFor(
+          'um código novo aparecer',
+          () => container.read(deviceLinkProvider).code != null,
+        );
+        expect(takes.rows, isEmpty);
+      },
+    );
+  }
 
   test(
     'a tablet linked before the credential existed collects one on its next start',
