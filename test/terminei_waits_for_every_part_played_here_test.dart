@@ -7,6 +7,7 @@ import 'scenario_helpers.dart' show intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _duasPartes = [Duration(seconds: 10), Duration(seconds: 8)];
+const _umaParteCurta = [Duration(seconds: 10), Duration(seconds: 1)];
 
 Future<Sala> _ouvidaInteiraNumaVidaAnterior() async {
   final it = await umEnsaioGravado(_duasPartes);
@@ -116,5 +117,95 @@ void main() {
           'meio segundo da parte por ouvir deixava o terminei apagado, dentro '
           'da folga que a dela dá',
     );
+  });
+
+  test('a recording heard whole on an earlier visit of this same opening is '
+      'still to hear once the telling begins, as her record counts from '
+      'there', () async {
+    final it = await umEnsaioGravado(_duasPartes);
+    it.harness.room.listeningUnheardTakeIds = const [];
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução começar a tocar a primeira parte',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing,
+    );
+    for (final quanto in _duasPartes) {
+      await ouvirAteOFim(it, quanto);
+    }
+    it.sala.goEnsaio();
+    await waitFor(
+      'a equipe voltar ao ensaio',
+      () => it.estado.stage == SalaStage.ensaio,
+    );
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução voltar',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing &&
+          !it.estado.awaitingTheGuide,
+    );
+    await settle();
+
+    await traduzirUmTrecho(it, const Duration(seconds: 4));
+    await waitFor(
+      'a equipe voltar ao círculo',
+      () => it.estado.btPhase == BtPhase.playing,
+    );
+    await settle();
+
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isFalse,
+      reason:
+          'o que tocou antes de a tradução começar contava como ouvido nela, '
+          'e a dela esquece o registro local quando a tradução começa',
+    );
+  });
+
+  test('a part a second long is heard here only with half of it played, not '
+      'with all but 750 ms of it', () async {
+    final it = await umEnsaioGravado(_umaParteCurta);
+    it.harness.room.listeningUnheardTakeIds = const [];
+    it.sala.startRetro();
+    await waitFor(
+      'a tradução começar a tocar a primeira parte',
+      () =>
+          it.estado.stage == SalaStage.retro &&
+          it.estado.btPhase == BtPhase.playing,
+    );
+    await traduzirUmTrecho(it, const Duration(seconds: 4));
+    await waitFor(
+      'a equipe voltar ao círculo',
+      () => it.estado.btPhase == BtPhase.playing,
+    );
+    await ouvirAteOFim(it, _umaParteCurta[0]);
+    await theClipOpens(it.harness);
+    await waitFor('a parte curta tocar', () => it.harness.playback.sounding);
+
+    it.harness.playback.at = const Duration(milliseconds: 400);
+    it.sala.ouvirGravacao();
+    await waitFor('a parte pausar', () => !it.harness.playback.sounding);
+    await settle();
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isFalse,
+      reason:
+          'uma parte de um segundo contava como ouvida com 400 ms tocados, '
+          'pela folga fixa de 750 ms; a dela dá no máximo metade da parte',
+    );
+
+    it.sala.ouvirGravacao();
+    await waitFor('a parte seguir', () => it.harness.playback.sounding);
+    it.harness.playback.at = const Duration(milliseconds: 600);
+    it.sala.ouvirGravacao();
+    await waitFor(
+      'a parte pausar de novo',
+      () => !it.harness.playback.sounding,
+    );
+    await settle();
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
   });
 }

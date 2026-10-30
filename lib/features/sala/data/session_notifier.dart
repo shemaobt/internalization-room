@@ -8135,6 +8135,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.btTrechos.any((trecho) => trecho.contado);
     if ((ouvida != null || jaLidoNaVisita) &&
         (naoOuvidas == null || naoOuvidas.isEmpty && !deFora)) {
+      _aTraducaoContaDaqui();
       if (state.btFraseQueAguarda case final aguardando?) {
         return _voltarAFraseQueAguarda(aguardando, generation);
       }
@@ -8296,6 +8297,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<void> _dizerComoTraduzir(bool Function() deixou) async {
+    _aTraducaoContaDaqui();
     await _dizer(tellLine);
     if (deixou()) return;
     _deixarDeSoOuvir();
@@ -8373,9 +8375,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // start, with the cursor at nought. Busy is the honest state for it.
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     await _medirAsPartes(partes, generation);
-    if (_abandoned(generation)) return false;
-    _anotarAsPartesOuvidasAqui();
-    return true;
+    return !_abandoned(generation);
   }
 
   void _sairDaEspera() {
@@ -8550,6 +8550,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ondeParou = _pontoNoColar(fim > _desdeMs ? fim : _desdeMs);
     }
     state = state.copyWith(btOuvidoMs: ondeParou);
+    _anotarAsPartesOuvidasAqui();
+  }
+
+  void _aTraducaoContaDaqui() {
+    _escuta.contarDaqui();
     _anotarAsPartesOuvidasAqui();
   }
 
