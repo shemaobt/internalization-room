@@ -3982,6 +3982,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (listing case Answered(:final value) when !_abandoned(generation)) {
           listingRead = true;
           _theRoomsGrainHeard(value);
+          if (value.grain == null) {
+            state = state.copyWith(clearGrainInForce: true);
+          }
           if (value.grain case final grain?
               when state.ensaioFinalPlan is GrainAsked &&
                   !state.grainSwitching) {
@@ -4073,7 +4076,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
-        if (state.recordsTheWhole && !planHoldsARehearsal(read, sessionId)) {
+        if (state.grainInForce == Grain.whole &&
+            !planHoldsARehearsal(read, sessionId)) {
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
         state = state.copyWith(
