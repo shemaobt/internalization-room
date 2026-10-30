@@ -2264,6 +2264,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       comecadas: comecadas,
       awaitingTheGuide: false,
     );
+    if (_lingua != language) _handOff(_readTheStartedEntriesAgain());
   }
 
   Future<void> _readTheStartedEntriesAgain() async {
@@ -3977,10 +3978,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gesture(() => _chooseTheLanguage(language));
 
   void _chooseTheLanguage(String language) {
-    if (ref.read(roomLanguageProvider.notifier).choose(language)) {
-      _dispatch(const TheLanguageChosen());
-    }
+    if (!ref.read(roomLanguageProvider.notifier).choose(language)) return;
+    if (_aReadOrALaunchIsOnItsWay) return;
+    _dispatch(const TheLanguageChosen());
   }
+
+  bool get _aReadOrALaunchIsOnItsWay =>
+      _launching != null ||
+      (state.station is Menu && state.awaitingTheGuide && state.naRoda == null);
 
   void goEnsaio() => _gesture(() => _goEnsaio());
 
