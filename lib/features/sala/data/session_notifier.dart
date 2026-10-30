@@ -10346,6 +10346,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             sent > _stretchesAt &&
             state.sessionId == sessionId) {
       _stretchesAt = sent;
+      if (state.btTrechos.isEmpty) {
+        _keepTheStretchesAlreadyTold(lida.backTranslation);
+      }
       final aguardando = lida.backTranslation.awaitingSegmentId;
       state = state.copyWith(
         btFraseQueAguarda: aguardando,
