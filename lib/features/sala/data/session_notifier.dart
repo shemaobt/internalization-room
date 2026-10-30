@@ -4199,10 +4199,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.station is! Canvas ||
         state.machine.inFlight != null ||
         state.awaitingTheGuide ||
-        state.orangeDotLook == OrangeDotLook.gone ||
-        (state.noteOnItsWay != null &&
-            state.channel is Microphone &&
-            !state.noteMode)) {
+        state.orangeDotLook == OrangeDotLook.gone) {
       return;
     }
     if (state.partes.any(

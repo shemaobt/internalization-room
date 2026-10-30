@@ -352,7 +352,7 @@ class RaisedHand {
     Duration listenedFor,
   ) async {
     try {
-      await _deliver(listenedFor);
+      await _deliver(life, listenedFor);
     } finally {
       if (!host.endedSince(life) && _state.noteOnItsWay == note) {
         host.clearNoteOnItsWay();
@@ -360,12 +360,12 @@ class RaisedHand {
     }
   }
 
-  Future<void> _deliver(Duration listenedFor) async {
+  Future<void> _deliver(int? life, Duration listenedFor) async {
     final generation = host.waitOnTheGeneration;
-    final path = (await host.closeTheMicrophone()).take;
-    if (host.abandoned(generation)) return;
     final sessionId = _state.stationSessionId;
+    final path = (await host.closeTheMicrophone()).take;
     if (path == null ||
+        host.endedSince(life) ||
         !host.theGuardKeeps(path, listenedFor) ||
         sessionId == null) {
       if (path != null) unawaited(recorder().delete(path));
