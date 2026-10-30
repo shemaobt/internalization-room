@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1979 (in part: an Error while the Opening is voiced, once the session is held, raises no sign)
 date: 2026-10-28
 amends: 0137 (in part: a thrown error before the session is held is an open that brought no session), 0125 (in part: an `Error` under a pill's open, before its session, raises no sign)
 ---
