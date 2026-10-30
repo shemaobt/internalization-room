@@ -802,17 +802,19 @@ class TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-  }) async => (await _enqueue(
-    audio,
-    sessionId: sessionId,
-    passage: passage,
-    kind: kind,
-    scope: scope,
-    passNumber: passNumber,
-    chunkIndex: chunkIndex,
-    scene: scene,
-    recordedAt: await audio.lastModified(),
-  ))!;
+  }) => _underway(
+    () async => (await _enqueue(
+      audio,
+      sessionId: sessionId,
+      passage: passage,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+      recordedAt: await audio.lastModified(),
+    ))!,
+  );
 
   /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
   /// is [fingerprint]'s, naming [overTake], the part's take it replaces. Each try sends
@@ -827,20 +829,35 @@ class TakeUploadQueue {
     String? fingerprint,
     String? overTake,
     bool reopensTheApprovedDraft = false,
-  }) => _enqueue(
-    audio,
-    sessionId: sessionId,
-    passage: passage,
-    kind: 'ensaio',
-    scope: KeptScope.parte(number),
-    passNumber: passNumber,
-    chunkIndex: number,
-    recordedAt: _now(),
-    fingerprint: fingerprint,
-    origin: origin,
-    reopensTheApprovedDraft: reopensTheApprovedDraft,
-    overTake: overTake,
+  }) => _underway(
+    () => _enqueue(
+      audio,
+      sessionId: sessionId,
+      passage: passage,
+      kind: 'ensaio',
+      scope: KeptScope.parte(number),
+      passNumber: passNumber,
+      chunkIndex: number,
+      recordedAt: _now(),
+      fingerprint: fingerprint,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
+    ),
   );
+
+  final Set<Future<void>> _enqueuesUnderway = {};
+
+  Future<T> _underway<T>(Future<T> Function() enqueue) async {
+    final done = Completer<void>();
+    _enqueuesUnderway.add(done.future);
+    try {
+      return await enqueue();
+    } finally {
+      _enqueuesUnderway.remove(done.future);
+      done.complete();
+    }
+  }
 
   Future<PendingTake?> _enqueue(
     File audio, {
@@ -975,10 +992,12 @@ class TakeUploadQueue {
     while (true) {
       final writes = _writes;
       await _flushInFlight?.then((_) {}, onError: (_) {});
+      await Future.wait(_enqueuesUnderway);
       await Future.wait(_copiesBeingMade.values);
       await writes;
       if (identical(writes, _writes) &&
           _flushInFlight == null &&
+          _enqueuesUnderway.isEmpty &&
           _copiesBeingMade.isEmpty) {
         return;
       }

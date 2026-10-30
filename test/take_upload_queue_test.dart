@@ -3016,6 +3016,26 @@ void main() {
     });
   });
 
+  test('an enqueue still reading its take when the Outbox is drained lands its '
+      'row first', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final take = _ATakeWhoseDateIsHeld(aTake('nova'));
+
+    final keeping = queue.enqueue(
+      take,
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    final drained = queue.drained();
+    take.release.complete();
+    await drained.timeout(const Duration(seconds: 5), onTimeout: () {});
+    final landed = await queueOn(FakeRoom()).entries();
+    final row = await keeping;
+
+    expect([for (final entry in landed) entry.id], [row.id]);
+  });
+
   test(
     'a withdraw nobody awaits is on disk once the Outbox is drained',
     () async {
@@ -3223,6 +3243,31 @@ class _ATakeWhoseCopyIsHeld implements File {
     await release.future;
     return made;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ATakeWhoseDateIsHeld implements File {
+  final File _real;
+  final release = Completer<void>();
+
+  _ATakeWhoseDateIsHeld(this._real);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<DateTime> lastModified() async {
+    await release.future;
+    return _real.lastModified();
+  }
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  Future<File> copy(String newPath) => _real.copy(newPath);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
