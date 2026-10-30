@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -35,6 +36,33 @@ Future<void> _toTheVerdict(
 }
 
 void main() {
+  test('a verdict that arrives without audio writes her «não deu para '
+      'conferir», asks the voice for nothing, and calls nobody', () async {
+    final harness = SalaHarness()..room.verdictAudioUrl = '';
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _toTheVerdict(harness, notifier);
+
+    expect(
+      read().btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason:
+          'um veredito sem áudio descia pelo recarregamento da resposta e '
+          'deixava a tela sem linha nenhuma',
+    );
+    expect(read().btPhase, BtPhase.playing);
+    expect(
+      harness.voice.played.where((url) => url.isEmpty),
+      isEmpty,
+      reason: 'a voz era chamada com um endereço vazio',
+    );
+    expect(read().machine.aHaltWaitsForTheCanvas, isNull);
+    expect(read().needsPerson, isFalse);
+    expect(read().canFinishBackTranslation, isTrue);
+  });
+
   test('a verdict whose sound fails to load twice leaves the back-translation '
       'with no sign and a live «terminei», as hers', () async {
     final harness = SalaHarness()..voice.refuses.add(_verdictUrl);

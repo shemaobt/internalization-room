@@ -10939,6 +10939,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         () => _abandoned(generation),
       );
     }
+    if (verdict.audioUrl.isEmpty && verdict.fixedLine.isEmpty) {
+      state = state.copyWith(
+        btPhase: pressedFrom,
+        awaitingTheGuide: false,
+        btRecusa: CheckRefusal.checkUnavailable,
+      );
+      return;
+    }
     try {
       final spoke = await _sayTheReply(
         SpokenLine(
