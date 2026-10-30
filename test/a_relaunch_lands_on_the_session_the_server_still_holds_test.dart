@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -168,6 +169,24 @@ KeptTake _aPartHere() {
   );
 }
 
+Future<void> _afterARelaunchTheClipIsReplayedFromTheTablet(
+  _Tablet tablet,
+  String session,
+) async {
+  final again = await _relaunch(tablet);
+  await again.notifier.openTheRoom();
+  await _landsOn(again, session);
+
+  expect(again.state.canHearAgain, isTrue);
+  await again.notifier.hearAgain();
+  await waitFor(
+    'the clip to be played again',
+    () => again.harness.voice.played.isNotEmpty,
+  );
+  expect(again.harness.voice.played, [turnoUrl]);
+  expect(again.harness.room.sessionsSaidAgain, isEmpty);
+}
+
 void main() {
   test(
     'a relaunch asks the room for the session the tablet holds before anything else',
@@ -214,24 +233,282 @@ void main() {
     });
 
     test(
-      'offers «Ouvir de novo», which plays the room\'s line said again',
+      'offers «Ouvir de novo», which plays the clip held on the tablet, asking '
+      'the room for nothing',
       () async {
         expect(again.state.canHearAgain, isTrue);
 
         await again.notifier.hearAgain();
         await waitFor(
-          'the last line to be said again',
-          () => again.harness.voice.played.contains(deNovoUrl),
+          'the last clip to be played again',
+          () => again.harness.voice.played.isNotEmpty,
         );
 
-        expect(again.harness.room.sessionsSaidAgain, [session]);
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(again.harness.voice.played, [turnoUrl]);
+        expect(again.harness.room.sessionsSaidAgain, isEmpty);
         expect(
-          again.harness.voice.played.where((url) => url == deNovoUrl),
-          hasLength(1),
+          again.harness.room.calls.skip(before),
+          isNot(contains('openSession')),
         );
       },
     );
+
+    test('«Ouvir de novo» asks the room to say it again when the clip is no '
+        'longer on the tablet', () async {
+      again.harness.voice.missing.add(turnoUrl);
+
+      await again.notifier.hearAgain();
+      await waitFor(
+        'the last line to be said again',
+        () => again.harness.voice.played.contains(deNovoUrl),
+      );
+
+      expect(again.harness.room.sessionsSaidAgain, [session]);
+    });
+  });
+
+  test('«Ouvir de novo» live plays the clip already held, asking the room for '
+      'nothing', () async {
+    final tablet = await _inP01();
+    await _takeATurn(tablet);
+    final before = tablet.harness.room.calls.length;
+    final played = tablet.harness.voice.played.length;
+
+    await tablet.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => tablet.harness.voice.played.length == played + 1,
+    );
+
+    expect(tablet.harness.voice.played.last, turnoUrl);
+    expect(tablet.harness.room.calls.skip(before), isEmpty);
+  });
+
+  test(
+    '«Ouvir de novo» is pinned to a line when it starts to speak, not when it '
+    'has been heard',
+    () async {
+      const speaking = '/voice/still-speaking';
+      final tablet = await _inP01();
+      tablet.harness.room
+        ..replyUrl = speaking
+        ..holdNextTurn();
+      tablet.notifier.conversaTap();
+      await settle();
+      tablet.notifier.conversaTap();
+      await waitFor('the turn to be sent', () => tablet.asked('sendTurn') == 1);
+      tablet.harness.voice.holdNextLine();
+      tablet.harness.room.finishHeldTurn();
+      await waitFor(
+        'the reply to start',
+        () => tablet.harness.voice.played.contains(speaking),
+      );
+
+      expect(tablet.state.lastSpoken?.url, speaking);
+
+      tablet.harness.voice.finishHeldLine();
+      await settle();
+      await tablet.notifier.hearAgain();
+      await settle();
+
+      expect(tablet.harness.voice.played.last, speaking);
+    },
+  );
+
+  test(
+    'a relaunch after a turn of the team\'s, whose answer never came, offers '
+    'no «Ouvir de novo», as hers',
+    () async {
+      final first = await _inP01();
+      final session = first.state.sessionId!;
+      first.harness.room.holdNextTurn();
+      first.notifier.conversaTap();
+      await settle();
+      first.notifier.conversaTap();
+      await waitFor('the turn to be sent', () => first.asked('sendTurn') == 1);
+
+      final again = await _relaunch(first);
+      await again.notifier.openTheRoom();
+      await _landsOn(again, session);
+
+      expect(again.state.canHearAgain, isFalse);
+      expect(again.harness.room.sessionsSaidAgain, isEmpty);
+    },
+  );
+
+  test('a team turn the room refused leaves the conversation ending on the '
+      'Guide: a relaunch still replays the clip', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    first.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+    first.notifier.conversaTap();
+    await settle();
+    first.notifier.conversaTap();
+    await waitFor('the turn to be sent', () => first.asked('sendTurn') == 1);
+    await settle();
+    first.harness.room.failTurnsWith = null;
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
+  });
+
+  test('a team turn the room never took leaves the conversation ending on the '
+      'Guide: a relaunch still replays the clip', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    first.harness.room.failTurnsWith = const NetworkFailed('sem rede');
+    first.notifier.conversaTap();
+    await settle();
+    first.notifier.conversaTap();
+    await waitFor('the turn to be sent', () => first.asked('sendTurn') == 1);
+    await settle();
+    first.harness.room.failTurnsWith = null;
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
+  });
+
+  test(
+    'a passage switched back to, whose conversation ends on a Guide turn, '
+    'offers «Ouvir de novo» and plays that clip, asking the room nothing',
+    () async {
+      final tablet = await _inP01();
+      final session = tablet.state.sessionId!;
+      tablet.notifier.leaveThePassage();
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
+      await waitFor(
+        'P02 to open',
+        () =>
+            tablet.state.sessionId != null &&
+            tablet.state.sessionId != session &&
+            tablet.state.voice == VoiceState.invite,
+      );
+      tablet.notifier.leaveThePassage();
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await _landsOn(tablet, session);
+      final played = tablet.harness.voice.played.length;
+
+      expect(tablet.state.canHearAgain, isTrue);
+      await tablet.notifier.hearAgain();
+      await waitFor(
+        'the clip to be played again',
+        () => tablet.harness.voice.played.length > played,
+      );
+
+      expect(tablet.harness.voice.played.last, turnoUrl);
+      expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
+    },
+  );
+
+  test('a passage switched back to, whose last turn of the team\'s the room '
+      'refused, still ends on the Guide: it plays that clip', () async {
+    final tablet = await _inP01();
+    final session = tablet.state.sessionId!;
+    tablet.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+    tablet.notifier.conversaTap();
+    await settle();
+    tablet.notifier.conversaTap();
+    await waitFor('the turn to be sent', () => tablet.asked('sendTurn') == 1);
+    await settle();
+    tablet.harness.room.failTurnsWith = null;
+    tablet.notifier.leaveThePassage();
+    await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          tablet.state.sessionId != null &&
+          tablet.state.sessionId != session &&
+          tablet.state.voice == VoiceState.invite,
+    );
+    tablet.notifier.leaveThePassage();
+    await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+    await _landsOn(tablet, session);
+    final played = tablet.harness.voice.played.length;
+
+    expect(tablet.state.canHearAgain, isTrue);
+    await tablet.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => tablet.harness.voice.played.length > played,
+    );
+
+    expect(tablet.harness.voice.played.last, turnoUrl);
+    expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
+  });
+
+  test('a passage switched back to after a relaunch plays the clip its '
+      'conversation ended on, asking the room nothing', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    first.notifier.leaveThePassage();
+    await enterThePassage(first.notifier, () => first.state, 'P02');
+    await waitFor(
+      'P02 to open',
+      () =>
+          first.state.sessionId != null &&
+          first.state.sessionId != session &&
+          first.state.voice == VoiceState.invite,
+    );
+    final again = await _relaunch(first);
+    await again.notifier.openTheRoom();
+    await _landsOn(again, again.state.sessionId ?? '');
+    again.notifier.leaveThePassage();
+    await enterThePassage(again.notifier, () => again.state, 'P01');
+    await _landsOn(again, session);
+    final played = again.harness.voice.played.length;
+
+    expect(again.state.canHearAgain, isTrue);
+    await again.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => again.harness.voice.played.length > played,
+    );
+
+    expect(again.harness.voice.played.last, turnoUrl);
+    expect(again.harness.room.sessionsSaidAgain, isEmpty);
+  });
+
+  test('a session whose resume the room refuses twice is forgotten with its '
+      'end', () async {
+    final tablet = await _inP01();
+    final session = tablet.state.sessionId!;
+    expect(await tablet.harness.currentSession.endOf(session), isNotNull);
+    tablet.notifier.leaveThePassage();
+    for (var refusal = 0; refusal < 2; refusal++) {
+      tablet.harness.room.failCreateOnceWith = const Refused('RECUSADA');
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await settle();
+      tablet.notifier.leaveThePassage();
+      await settle();
+    }
+
+    expect(await tablet.harness.currentSession.endOf(session), isNull);
+  });
+
+  test('the clip survives a round trip to the Panorama: a later relaunch still '
+      'replays it from the tablet', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    await _intoThePanorama(first);
+    await enterThePassage(first.notifier, () => first.state, 'P01');
+    await _landsOn(first, session);
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
+  });
+
+  test('the clip survives a relaunch whose read failed and the same passage '
+      'opened after it', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    final offline = await _relaunch(first);
+    offline.harness.room.reachable = false;
+    await offline.notifier.openTheRoom();
+    await settle();
+    offline.harness.room.reachable = true;
+    offline.notifier.escolhaTap();
+    await _theChoiceShowsItsWheel(offline);
+    await enterThePassage(offline.notifier, () => offline.state, 'P01');
+    await _landsOn(offline, session);
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(offline, session);
   });
 
   test(
@@ -300,7 +577,7 @@ void main() {
       );
       final session = first.state.sessionId!;
       it.sala.goEnsaio();
-      await gravarUmaParteDoEnsaio(it);
+      await gravarUmaParteDoEnsaio(it, 1);
       await settle();
 
       final again = await _relaunch(first);
@@ -313,7 +590,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento voltava para a casa das gravações',
       );
-      expect(again.state.roomSaysItAgain, isTrue);
+      expect(again.state.lastSpoken, isNotNull);
       expect(
         again.harness.room.calls.skip(before),
         isNot(contains('openSession')),
@@ -321,6 +598,166 @@ void main() {
       expect(again.said, isEmpty);
     },
   );
+
+  group(
+    'a passage picked on the Choice lands on its conversation, as hers',
+    () {
+      Future<_Tablet> pickedOnTheChoice(
+        SalaStage stage, {
+        bool done = false,
+      }) async {
+        final harness = SalaHarness();
+        harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+          sessionId: _held,
+          stage: stage,
+          takes: [_aPartHere()],
+        );
+        harness.room
+          ..openedSessions.add(_held)
+          ..done = done;
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final tablet = _Tablet(harness, container);
+        await tablet.notifier.openTheRoom();
+        await _theChoiceShowsItsWheel(tablet);
+        await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+        await waitFor(
+          'the team to land on the session',
+          () =>
+              tablet.state.sessionId == _held && !tablet.state.awaitingTheGuide,
+        );
+        await settle();
+        return tablet;
+      }
+
+      for (final stage in [SalaStage.ensaio, SalaStage.retro]) {
+        test('from a stored ${stage.name} row, at rest', () async {
+          final tablet = await pickedOnTheChoice(stage);
+
+          expect(
+            tablet.state.station,
+            isA<Canvas>(),
+            reason:
+                'a escolha caía direto na estação guardada, e a dela cai '
+                'na conversa',
+          );
+          expect(tablet.state.roomSaysItAgain, isTrue);
+          expect(tablet.said, isEmpty);
+          expect(tablet.harness.playback.played, isEmpty);
+        });
+      }
+
+      test('with the room\'s phase: a done passage reads done', () async {
+        final tablet = await pickedOnTheChoice(SalaStage.ensaio, done: true);
+
+        expect(tablet.state.station, isA<Canvas>());
+        expect(
+          tablet.state.endOfThePassage,
+          isTrue,
+          reason: 'a passagem acabada voltava sem o ponto aceso',
+        );
+        expect(tablet.state.orangeDotLook, OrangeDotLook.bright);
+      });
+
+      test('the dot stays shut while the room is read, and the room\'s phase '
+          'lands when it answers', () async {
+        final harness = SalaHarness();
+        harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+          sessionId: _held,
+          stage: SalaStage.ensaio,
+          takes: [_aPartHere()],
+        );
+        harness.room
+          ..openedSessions.add(_held)
+          ..done = true;
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final tablet = _Tablet(harness, container);
+        await tablet.notifier.openTheRoom();
+        await _theChoiceShowsItsWheel(tablet);
+        harness.room.holdNextCreate();
+        await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+        await waitFor(
+          'the room to be asked',
+          () => harness.room.calls.contains('createSession'),
+        );
+        await settle();
+
+        tablet.notifier.openTheEnsaioFinal();
+        await settle();
+
+        expect(
+          tablet.state.station,
+          isA<Canvas>(),
+          reason:
+              'o ponto laranja abria a casa com a leitura da sala ainda no ar, '
+              'e a leitura era abandonada',
+        );
+        harness.room.finishHeldCreate();
+        await waitFor('the read to land', () => !tablet.state.awaitingTheGuide);
+        expect(tablet.state.sessionId, _held);
+        expect(tablet.state.endOfThePassage, isTrue);
+        expect(tablet.state.orangeDotLook, OrangeDotLook.bright);
+      });
+    },
+  );
+
+  test('a relaunch whose row names another session than the one held reads '
+      'the row\'s session, not the launch\'s', () async {
+    final tablet = _aTabletHolding(SalaStage.ensaio, takes: [_aPartHere()]);
+    tablet.harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+      sessionId: 'sessao-da-linha',
+      stage: SalaStage.ensaio,
+      takes: [_aPartHere()],
+    );
+    tablet.harness.room.forgottenSessions.add('sessao-da-linha');
+
+    await tablet.notifier.openTheRoom();
+    await waitFor(
+      'the row\'s session to be read',
+      () => tablet.harness.room.askedOfTheForgotten.contains('fetchState'),
+    );
+    await settle();
+
+    expect(
+      tablet.harness.room.askedOfTheForgotten,
+      contains('fetchState'),
+      reason: 'a sessão da linha nunca era lida, só a guardada',
+    );
+    expect(
+      tablet.state.station,
+      isA<Menu>(),
+      reason:
+          'a linha de uma sessão que a sala esqueceu pousava na conversa com a '
+          'leitura de outra sessão',
+    );
+    expect(tablet.state.sessionId, isNull);
+  });
+
+  test('a relaunch lands on the read its launch made, and reads the room '
+      'only once', () async {
+    final tablet = _aTabletHolding(SalaStage.ensaio, takes: [_aPartHere()]);
+    tablet.harness.room.holdNextState();
+    unawaited(tablet.notifier.openTheRoom());
+    await waitFor(
+      'the launch read to be in the air',
+      () => tablet.asked('fetchState') == 1,
+    );
+    tablet.harness.room
+      ..failStateOnceWith = const NetworkFailed('sem rede')
+      ..finishHeldState();
+    await _landsOn(tablet, _held);
+
+    expect(tablet.state.station, isA<Canvas>());
+    expect(tablet.state.needsPerson, isFalse);
+    expect(
+      tablet.asked('fetchState'),
+      1,
+      reason:
+          'o relançamento lia a sessão de novo depois da leitura da '
+          'abertura, e essa segunda leitura podia falhar o pouso',
+    );
+  });
 
   test(
     'a relaunch in the Back-translation lands on its conversation at rest and '

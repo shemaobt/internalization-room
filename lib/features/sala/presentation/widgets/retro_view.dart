@@ -47,7 +47,7 @@ class RetroView extends ConsumerWidget {
     final conferida = _conferida(session);
 
     final avanca = session.btPhase != BtPhase.conferida && !session.btSoOuvir;
-    final (voz, lingua) = _voz(session, conferida);
+    final voz = _voz(session, conferida);
     final colors = SalaColors.of(context);
     final titulo = session.joined
         ? recordingHomeLabelFor('joinedTitle', language)
@@ -129,10 +129,6 @@ class RetroView extends ConsumerWidget {
                 size: circulo,
                 halt: session.halt,
                 voice: voz,
-                tongue: lingua,
-                answersATouch:
-                    session.aBackTranslationGestureActs &&
-                    (!conferida || session.btRegravacao != null),
                 notUnderstood: session.wordlessTelling
                     ? retroLabelFor('notUnderstood', language)
                     : null,
@@ -330,7 +326,10 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear: quieta && session.canHearAFrase && trecho.retroPath != null
+      onHear:
+          quieta &&
+              session.canHearAFrase &&
+              (trecho.retroPath ?? trecho.bridgeTakeId) != null
           ? () => notifier.ouvirAFraseRegravada(onde)
           : null,
       onRetell:
@@ -348,27 +347,17 @@ class RetroView extends ConsumerWidget {
       n: n,
       parte: parteDe(trecho),
       share: share(trecho),
-      onHear:
-          quieta &&
-              session.canHearAFrase &&
-              switch (session.aParteDoTrecho(trecho)) {
-                null => true,
-                final parte =>
-                  session.partsAway[parte.takeId] == PartAway.missed,
-              }
+      onHear: quieta && session.canHearAFrase
           ? () => notifier.ouvirOTrechoContado(onde)
           : null,
-      onRetell:
-          quieta &&
-              session.canRetellAFrase &&
-              trecho.segmentId != null &&
-              session.aParteDoTrechoEstaAqui(trecho)
+      onRetell: quieta && session.canRetellAFrase && trecho.segmentId != null
           ? () => notifier.traduzirAFraseDeNovo(onde)
           : null,
       mark: aguarda(trecho)
           ? sceneRehearsalLabelFor('awaiting', language)
           : switch (_markOn(trecho.frase, session)) {
               null || BtFindingKind.nuance => null,
+              BtFindingKind.other => retroLabelFor('addition', language),
               final kind => retroLabelFor(kind.name, language),
             },
       achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
@@ -379,19 +368,24 @@ class RetroView extends ConsumerWidget {
       regravando:
           trecho.frase != null && session.btRegravacao?.frase == trecho.frase,
       regravar:
-          session.fraseRegravavel(trecho) &&
-              (session.btPhase != BtPhase.conferida ||
-                  _markOn(trecho.frase, session) == BtFindingKind.nuance ||
-                  session.overAnApprovedDraft)
+          _aFraseVai(trecho, session) ||
+              session.fraseRegravavel(trecho) &&
+                  (session.btPhase != BtPhase.conferida ||
+                      _markOn(trecho.frase, session) == BtFindingKind.nuance ||
+                      session.overAnApprovedDraft)
           ? session.armedTap?.control == 'rerecord:${trecho.frase}'
                 ? retroLabelFor('reopenArmed', language)
                 : sceneRehearsalLabelFor('rerecordFrase', language, n: n)
           : null,
       regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
+      regravarArmado: session.armedTap?.control == 'rerecord:${trecho.frase}',
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,
-            final regravacao => regravacao.frase == trecho.frase,
+            final regravacao =>
+              regravacao.frase == trecho.frase &&
+                  regravacao.passo != PassoDaRegravacao.gravando &&
+                  regravacao.passo != PassoDaRegravacao.enviando,
           }
           ? () => notifier.regravarAFrase(trecho)
           : null,
@@ -417,20 +411,23 @@ class RetroView extends ConsumerWidget {
             when frase == trecho.frase =>
           sceneRehearsalLabelFor('spliceTooLong', language),
         null
-            when trecho.frase != null &&
-                session.btFraseGuardada == trecho.frase =>
-          session.armedTap?.control == 'resend:${trecho.frase}'
+            when trecho.segmentId != null &&
+                session.btFraseGuardada == trecho.segmentId =>
+          session.armedTap?.control == 'resend:${trecho.segmentId}'
               ? retroLabelFor('reopenArmed', language)
               : sceneRehearsalLabelFor('spliceFail', language),
         _ => null,
       },
-      estadoDormindo: _dormindo('resend:${trecho.frase}', session),
+      estadoDormindo: _dormindo('resend:${trecho.segmentId}', session),
+      estadoArmado: session.armedTap?.control == 'resend:${trecho.segmentId}',
       onEstado:
           atua &&
-              session.channel is! GuideSpeaking &&
+              quieta &&
+              !session.needsPerson &&
+              !session.btSoOuvir &&
               session.btRegravacao == null &&
-              trecho.frase != null &&
-              session.btFraseGuardada == trecho.frase
+              trecho.segmentId != null &&
+              session.btFraseGuardada == trecho.segmentId
           ? notifier.tentarAFraseDeNovo
           : null,
     );
@@ -444,12 +441,12 @@ class RetroView extends ConsumerWidget {
     ];
   }
 
-  int? _parteNaTela(SalaSessionState session, Trecho trecho) => trecho.parte < 0
+  int? _parteNaTela(SalaSessionState session, Trecho trecho) =>
+      trecho.parte < 0 ||
+          session.partes.elementAtOrNull(trecho.parte)?.scopeId ==
+              KeptScope.whole
       ? null
-      : switch (session.partes.elementAtOrNull(trecho.parte)) {
-          final parte? => KeptScope.numberOf(parte.scopeId),
-          null => trecho.parte + 1,
-        };
+      : session.numeroDaParte(trecho.parte);
 
   List<({bool dela, int onde, Trecho trecho})> _naOrdem(
     SalaSessionState session,
@@ -493,7 +490,10 @@ class RetroView extends ConsumerWidget {
                 session.btTrechosRegravados.length,
           );
     final dormindo =
-        _dormindo('restart', session) || !session.aBackTranslationGestureActs;
+        _dormindo('restart', session) ||
+        !session.aBackTranslationGestureActs ||
+        !session.theFraseListIsIdle ||
+        session.btRegravacao != null;
     return Semantics(
       button: true,
       enabled: !dormindo,
@@ -503,7 +503,7 @@ class RetroView extends ConsumerWidget {
         opacity: dormindo ? 0.4 : 1,
         child: ExcludeSemantics(
           child: GestureDetector(
-            onTap: notifier.recomecarATraducao,
+            onTap: dormindo ? null : notifier.recomecarATraducao,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
@@ -550,6 +550,11 @@ class RetroView extends ConsumerWidget {
       ),
     );
   }
+
+  bool _aFraseVai(Trecho trecho, SalaSessionState session) =>
+      session.btFraseDevida == null &&
+      session.btRegravacao?.frase == trecho.frase &&
+      session.btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   bool _dormindo(String control, SalaSessionState session) =>
       session.armedTap?.control == control &&
@@ -681,20 +686,18 @@ class RetroView extends ConsumerWidget {
     );
   }
 
-  (VoiceState, Tongue?) _voz(SalaSessionState session, bool conferida) {
+  VoiceState _voz(SalaSessionState session, bool conferida) {
     if (session.btRegravacao?.passo == PassoDaRegravacao.gravando) {
-      return (VoiceState.listening, Tongue.motherTongue);
+      return VoiceState.listening;
     }
-    if (conferida) return (VoiceState.done, null);
-    if (session.voice == VoiceState.listening) {
-      return (VoiceState.listening, Tongue.bridge);
+    if (conferida) return VoiceState.done;
+    if (session.voice != VoiceState.invite) return session.voice;
+    if (session.btRetroTocando ||
+        session.btClipRodando ||
+        session.btTrechoTocando) {
+      return VoiceState.speaking;
     }
-    if (session.voice != VoiceState.invite) return (session.voice, null);
-    if (session.btRetroTocando) return (VoiceState.speaking, Tongue.bridge);
-    if (session.btClipRodando || session.btTrechoTocando) {
-      return (VoiceState.speaking, Tongue.motherTongue);
-    }
-    return (VoiceState.invite, null);
+    return VoiceState.invite;
   }
 
   List<PartStripRow> _faixas(SalaSessionState session, String language) => [
@@ -707,7 +710,8 @@ class RetroView extends ConsumerWidget {
         envelope: session.partLoudness[parte.path]?.envelope,
         told: [
           for (final trecho in session.btTrechos)
-            if (trecho.contado && trecho.parte == onde) _naFaixa(trecho),
+            if (trecho.contado && trecho.parte == onde)
+              _naFaixa(trecho, ate: _aPausaQueAnda(session, trecho)),
         ],
         stale: [
           for (final trecho in session.btTrechosRegravados)
@@ -720,13 +724,50 @@ class RetroView extends ConsumerWidget {
           PartPlaying(:final part) => part.part == onde,
           _ => false,
         },
+        now: switch (session.channel) {
+          PartPlaying(:final part) ||
+          Paused(what: final PartSound part) ||
+          GuideSpeaking(held: Paused(what: final PartSound part)) ||
+          Microphone(
+            held: Paused(what: final PartSound part),
+          ) => part.part == onde,
+          _ => session.btParteQueTocou == onde,
+        },
+        unheard:
+            parte.takeId == null || session.btNaoOuvidas.contains(parte.takeId),
+        paused: switch (_aParteParada(session.channel)) {
+          final Paused parada && Paused(what: PartSound(:final part))
+              when part == onde =>
+            parada,
+          _ => null,
+        },
       ),
   ];
 
-  SceneFrase _naFaixa(Trecho trecho) => SceneFrase(
+  Paused? _aParteParada(Channel channel) => switch (channel) {
+    final Paused parada when parada.what is PartSound => parada,
+    Playing(sound: final StretchSound outra, :final held) ||
+    Paused(
+      what: final StretchSound outra,
+      :final held,
+    ) when !outra.telling && outra.path != held?.what.path => null,
+    Playing(:final held) ||
+    Paused(:final held) ||
+    Microphone(:final held) => held,
+    _ => null,
+  };
+
+  Duration? _aPausaQueAnda(SalaSessionState session, Trecho trecho) =>
+      switch (session.btTrechoTraduzidoDeNovo?.segmentId) {
+        final contadaDeNovo? when contadaDeNovo == trecho.segmentId =>
+          trecho.lugarFrom + session.btCorte - trecho.from,
+        _ => null,
+      };
+
+  SceneFrase _naFaixa(Trecho trecho, {Duration? ate}) => SceneFrase(
     fraseId: trecho.segmentId ?? trecho.takeId,
     startsMs: trecho.lugarFrom.inMilliseconds,
-    endsMs: trecho.lugarTo.inMilliseconds,
+    endsMs: (ate ?? trecho.lugarTo).inMilliseconds,
   );
 
   IconData _listenGlyph(SalaSessionState session) {
@@ -822,7 +863,9 @@ class RetroView extends ConsumerWidget {
               color: ShemaBrand.branco,
             ),
           ),
-          if (_aEscuta(session) case final linha?) ...[
+          if (_aEscuta(session) case final linha
+              when linha != null ||
+                  !session.btSoOuvir && _parteNoAr(session) != null) ...[
             const SizedBox(width: 11.2),
             Flexible(
               child: _ALinhaDaEscuta(
@@ -851,6 +894,7 @@ class RetroView extends ConsumerWidget {
       return session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap';
     }
     if (session.btClipRodando || session.btTrechoTocando) return 'listening';
+    if (session.btParteFronteira) return null;
     return 'paused';
   }
 
@@ -912,7 +956,8 @@ class RetroView extends ConsumerWidget {
 }
 
 /// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while
-/// a part sounds or is held; either alone when the other is missing.
+/// a part sounds or is held, or the end of a sentence told or recorded again while nothing
+/// sounds; either alone when the other is missing.
 class _ALinhaDaEscuta extends ConsumerWidget {
   final SalaSessionState session;
   final String language;
@@ -939,14 +984,13 @@ class _ALinhaDaEscuta extends ConsumerWidget {
       builder: (context, _) {
         final lugar = switch (parte) {
           null => null,
-          final parte
-              when session.partes.elementAtOrNull(parte)?.scopeId ==
-                  KeptScope.whole =>
-            sceneClockOf(playback.position, playback.playingLength),
-          final parte => firstListenPositionFor(
-            parte + 1,
-            playback.position,
-            playback.playingLength,
+          (:final parte, :final ondeFicou) => _oLugar(
+            session,
+            parte,
+            ondeFicou ?? playback.position,
+            ondeFicou == null
+                ? playback.playingLength
+                : session.btTamanhoDaParte(parte),
             language,
           ),
         };
@@ -963,12 +1007,50 @@ class _ALinhaDaEscuta extends ConsumerWidget {
   }
 }
 
-int? _parteNoAr(SalaSessionState session) => switch (session.channel) {
-  PartPlaying(:final part) => part.part,
-  Paused(what: final PartSound part) ||
-  Microphone(held: Paused(what: final PartSound part)) => part.part,
-  _ => null,
-};
+String _oLugar(
+  SalaSessionState session,
+  int parte,
+  Duration at,
+  Duration? length,
+  String language,
+) => session.partes.elementAtOrNull(parte)?.scopeId == KeptScope.whole
+    ? sceneClockOf(at, length)
+    : firstListenPositionFor(
+        session.numeroDaParte(parte),
+        at,
+        length,
+        language,
+      );
+
+({int parte, Duration? ondeFicou})? _parteNoAr(SalaSessionState session) =>
+    switch (session.channel) {
+      PartPlaying(:final part) ||
+      Paused(what: final PartSound part) ||
+      Microphone(
+        held: Paused(what: final PartSound part),
+      ) => (parte: part.part, ondeFicou: null),
+      Playing(held: Paused(what: final PartSound part)) => (
+        parte: part.part,
+        ondeFicou: part.from,
+      ),
+      _ when !session.btTrechoTocando => switch (_aFraseDeNovo(session)) {
+        final trecho?
+            when trecho.parte >= 0 && trecho.parte < session.partes.length =>
+          (parte: trecho.parte, ondeFicou: trecho.lugarTo),
+        _ => null,
+      },
+      _ => null,
+    };
+
+Trecho? _aFraseDeNovo(SalaSessionState session) =>
+    session.btTrechoTraduzidoDeNovo ??
+    switch (session.btRegravacao) {
+      final regravacao? =>
+        session.btTrechos
+            .where((trecho) => trecho.frase == regravacao.frase)
+            .firstOrNull,
+      null => null,
+    };
 
 class _ManterADeAntes extends StatelessWidget {
   final String label;

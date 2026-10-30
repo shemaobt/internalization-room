@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:path/path.dart' as p;
 
 import 'a_parte_da_volta_ganha_nome_test.dart' show gravarSemEsperarNome;
@@ -335,13 +336,18 @@ void main() {
       final antes = SalaHarness();
       final primeira = await aRetomadaNoEnsaio(antes, traduzidasAte: [30000]);
       antes.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
-      await gravarSemEsperarNome(primeira);
+      await gravarSemEsperarNome(primeira, 2);
       await settle();
       final (harness, container) = await relaunch(antes, primeira);
       final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.abrirEscolha();
-      await settle();
-      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await notifier.openTheRoom();
+      await waitFor(
+        'a sala pousar na conversa',
+        () =>
+            container.read(salaSessionProvider).station is Canvas &&
+            !container.read(salaSessionProvider).awaitingTheGuide,
+      );
+      notifier.goEnsaio();
       await waitFor(
         'a volta ao ensaio com as duas partes',
         () =>

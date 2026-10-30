@@ -1,10 +1,16 @@
 ---
-status: accepted, amended by 0092, amended by 0130, amended by 0137, amended by 0139, amended by 0142
+status: accepted, amended by 0092, amended by 0130, amended by 0137, amended by 0139, amended by 0142, amended by ENG-1977, amended by ENG-1970
 date: 2026-10-07
 amends: 0040 (a button that does not apply is dimmed, never hidden: this button alone)
 ---
 
 # The way out of a Station is the ≡ at top-left, hidden while it cannot apply, and the Choice returns to the entry left
+
+Amended by ENG-1970 (2026-10-30): there is no Closing; the ≡ is on every Station but the Choice, and a finished passage stays on its conversation canvas.
+
+Amended by ENG-1977 (2026-10-30): the Panorama also comes back in silence when its line was cut
+before it was heard but the tablet holds the line that began to speak; it offers «Ouvir de novo»
+and asks the room nothing, as hers (openOnce.ts:83). The Decision below stands for every other case.
 
 This amends ADR 0040 without editing it; it adds "amended by 0062" to its status line.
 Henok decided on 6 October, and the Definer settled it on the ticket (ENG-1461).

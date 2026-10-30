@@ -6,7 +6,8 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheBackTranslation, traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -54,7 +55,7 @@ Future<Sala> _seisPartesSeisTrechos() async {
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
   for (var i = 0; i < 6; i++) {
-    await gravarUmaParteDoEnsaio(it);
+    await gravarUmaParteDoEnsaio(it, i + 1);
   }
   for (final parte in it.estado.keptTakes) {
     harness.playback.lengths[parte.path] = _parteLen;
@@ -109,8 +110,10 @@ Future<(Sala, File)> _retomadaComUmTrechoSemParte({
     '${Directory.systemTemp.createTempSync('sala-824').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  final harness = SalaHarness()
-    ..emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final harness = SalaHarness();
+  await holdTheSession(
+    harness,
+    ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
       takes: [
@@ -120,38 +123,35 @@ Future<(Sala, File)> _retomadaComUmTrechoSemParte({
           takeId: 'gravacao-1',
         ),
       ],
-    )
-    ..room.retroSoFar = BackTranslationProgress(
-      checked: true,
-      segments: [
-        for (var i = 0; i < trechosComParte; i++)
-          SegmentView(
-            segmentId: 'trecho-${i + 1}',
-            takeId: 'gravacao-1',
-            startsMs: i * 1000,
-            endsMs: (i + 1) * 1000,
-          ),
-        // Um trecho de uma gravação que este aparelho não tem e por qual
-        // parte a sala não disse que ela responde — este é quem deve ser
-        // pulado.
-        const SegmentView(
-          segmentId: 'trecho-fantasma',
-          takeId: 'gravacao-fantasma',
-          startsMs: 0,
-          endsMs: 9000,
+    ),
+  );
+  harness.room.retroSoFar = BackTranslationProgress(
+    checked: true,
+    segments: [
+      for (var i = 0; i < trechosComParte; i++)
+        SegmentView(
+          segmentId: 'trecho-${i + 1}',
+          takeId: 'gravacao-1',
+          startsMs: i * 1000,
+          endsMs: (i + 1) * 1000,
         ),
-      ],
-    );
+      // Um trecho de uma gravação que este aparelho não tem e por qual
+      // parte a sala não disse que ela responde — este é quem deve ser
+      // pulado.
+      const SegmentView(
+        segmentId: 'trecho-fantasma',
+        takeId: 'gravacao-fantasma',
+        startsMs: 0,
+        endsMs: 9000,
+      ),
+    ],
+  );
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
 
-  await it.sala.abrirEscolha();
-  await waitFor(
-    'a roda dizer que esta passagem tem trabalho parado',
-    () => it.estado.comecadas.contains('P01'),
-  );
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await it.sala.openTheRoom();
+  await intoTheBackTranslation(it.sala, () => it.estado);
   await waitFor(
     'a tradução ser retomada com os trechos',
     () =>

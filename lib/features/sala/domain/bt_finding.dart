@@ -15,12 +15,15 @@ enum BtFindingKind {
   addition,
   missing,
   unclear,
-  nuance;
+  nuance,
+  other;
 
   static BtFindingKind? fromJson(Object? raw) => switch (raw) {
-    'addition' => BtFindingKind.addition,
+    'addition' || 'silence' => BtFindingKind.addition,
     'missing' => BtFindingKind.missing,
     'unclear' => BtFindingKind.unclear,
+    'nuance' => null,
+    String() => BtFindingKind.other,
     _ => null,
   };
 }
@@ -35,6 +38,16 @@ class BtFinding {
     required this.frase,
     required this.segmentId,
   });
+
+  static BtFinding? namedNuanceFrom(Map<String, dynamic> json) =>
+      switch (json['named_nuance']) {
+        final Map<String, dynamic> nuance => BtFinding(
+          kind: BtFindingKind.nuance,
+          frase: nuance['frase'] as int?,
+          segmentId: nuance['segment_id'] as String?,
+        ),
+        _ => null,
+      };
 
   static List<BtFinding> listFrom(Map<String, dynamic> json) => [
     for (final raw in (json['findings'] as List? ?? const []))
@@ -180,14 +193,7 @@ class BackTranslationVerdict {
         usedFailSafe: json['used_fail_safe'] as bool? ?? false,
         refusal: CheckRefusal.fromJson(json['refusal']),
         checkAt: json['check_at'] as String?,
-        namedNuance: switch (json['named_nuance']) {
-          final Map<String, dynamic> nuance => BtFinding(
-            kind: BtFindingKind.nuance,
-            frase: nuance['frase'] as int?,
-            segmentId: nuance['segment_id'] as String?,
-          ),
-          _ => null,
-        },
+        namedNuance: BtFinding.namedNuanceFrom(json),
         untranslated: UntranslatedPart.listFrom(json),
       );
 }

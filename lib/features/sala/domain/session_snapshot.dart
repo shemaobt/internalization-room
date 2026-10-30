@@ -20,6 +20,7 @@ class SegmentView {
   /// a stretch waiting to be told from one already told.
   final bool told;
   final int? frase;
+  final String? bridgeTakeId;
 
   const SegmentView({
     required this.segmentId,
@@ -28,6 +29,7 @@ class SegmentView {
     required this.endsMs,
     this.told = true,
     this.frase,
+    this.bridgeTakeId,
   });
 
   static List<SegmentView> listFrom(Map<String, dynamic> json) =>
@@ -52,6 +54,7 @@ class SegmentView {
     endsMs: json['ends_ms'] as int? ?? 0,
     told: json['told'] as bool? ?? true,
     frase: json['frase'] as int?,
+    bridgeTakeId: json['bridge_take_id'] as String?,
   );
 }
 
@@ -83,6 +86,8 @@ class TakeView {
   /// from a listing written by a room that never sets one aside.
   final String? setAsideAt;
 
+  final String? sha256;
+
   const TakeView({
     required this.takeId,
     required this.scope,
@@ -91,6 +96,7 @@ class TakeView {
     this.pass,
     this.origin,
     this.setAsideAt,
+    this.sha256,
   });
 
   bool get setAside => setAsideAt != null;
@@ -108,6 +114,7 @@ class TakeView {
     pass: json['pass_number'] as int?,
     origin: json['origin'] as String?,
     setAsideAt: json['set_aside_at'] as String?,
+    sha256: json['sha256'] as String?,
   );
 }
 
@@ -177,6 +184,7 @@ class BackTranslationProgress {
   final bool checked;
   final String? findingSegmentId;
   final List<BtFinding> findings;
+  final BtFinding? namedNuance;
   final String? awaitingSegmentId;
   final List<SegmentView> stale;
   final List<int> bringBack;
@@ -186,6 +194,7 @@ class BackTranslationProgress {
     this.checked = false,
     this.findingSegmentId,
     this.findings = const [],
+    this.namedNuance,
     this.awaitingSegmentId,
     this.stale = const [],
     this.bringBack = const [],
@@ -197,6 +206,7 @@ class BackTranslationProgress {
         checked: json['checked'] as bool? ?? false,
         findingSegmentId: json['finding_segment_id'] as String?,
         findings: BtFinding.listFrom(json),
+        namedNuance: BtFinding.namedNuanceFrom(json),
         awaitingSegmentId: json['awaiting_segment_id'] as String?,
         stale: SegmentView.staleFrom(json),
         bringBack: [

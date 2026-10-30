@@ -18,7 +18,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/grain_ch
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, voiceOverTap;
+import 'scenario_helpers.dart'
+    show byLabel, holdTheSession, intoTheBackTranslation, voiceOverTap;
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -62,20 +63,24 @@ Future<ProviderContainer> _naConferencia(
   addTearDown(tester.view.reset);
   final pasta = Directory.systemTemp.createTempSync('sala-1876');
   addTearDown(() => pasta.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/$lingua'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in [1, 2])
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${pasta.path}/p$n.wav',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'gravacao-$n',
-          origin: juntada ? 'ensaio-da-cena-$n' : null,
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in [1, 2])
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${pasta.path}/p$n.wav',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'gravacao-$n',
+            origin: juntada ? 'ensaio-da-cena-$n' : null,
+          ),
+      ],
+    ),
+    language: lingua,
   );
   harness.room.takes.addAll([
     for (final n in [1, 2])
@@ -118,12 +123,13 @@ Future<ProviderContainer> _naConferencia(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
-  );
-  if (aprovada) {
+  if (!aprovada) {
+    await intoTheBackTranslation(
+      container.read(salaSessionProvider.notifier),
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+  } else {
     SalaSessionState estado() => container.read(salaSessionProvider);
     await waitFor(
       'a passagem aprovada pousar na conversa',
@@ -275,6 +281,30 @@ void main() {
       reason: 'o botão armado ainda dormindo oferecia o toque ao leitor',
     );
     expect(harness.room.grainSwitches, isEmpty);
+    await tester.pump(_theArmLapses);
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
+  testWidgets('VoiceOver hears it not pressed before the first tap and '
+      'pressed while it is armed, as hers', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naConferencia(tester, harness);
+
+    expect(
+      tester.getSemantics(byLabel(_wholeAtOnce)),
+      isSemantics(hasToggledState: true, isToggled: false),
+      reason: 'o VoiceOver não sabia que o botão arma antes de trocar',
+    );
+
+    await _tap(tester, _wholeAtOnce);
+
+    expect(
+      tester.getSemantics(byLabel(_wholeArmed)),
+      isSemantics(hasToggledState: true, isToggled: true),
+      reason: 'o botão armado soava solto para o VoiceOver',
+    );
     await tester.pump(_theArmLapses);
     closeTheRoom(container);
     semantics.dispose();
@@ -719,13 +749,17 @@ void main() {
   });
 
   testWidgets('on a joined recording «terminei» stays dimmed while a part has '
-      'no frase told, and a tap sends no check', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+      'no frase told, though the room counts every part heard, and a tap '
+      'sends no check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
     final container = await _naConferencia(
       tester,
       harness,
       aPrimeiraParteContada: false,
     );
+    await _passo(tester);
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
     await waitFor(
       'a gravação tocar até o fim',
       () => container.read(salaSessionProvider).btClipEnded,
@@ -753,10 +787,14 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('on a joined recording with a frase told on every part '
-      '«terminei» is lit, and a tap sends the check', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+  testWidgets('on a joined recording with a frase told on every part and the '
+      'room counting every part heard «terminei» is lit, and a tap sends the '
+      'check', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
     final container = await _naConferencia(tester, harness);
+    await _passo(tester);
+    container.read(salaSessionProvider.notifier).ouvirGravacao();
     await waitFor(
       'a gravação tocar até o fim',
       () => container.read(salaSessionProvider).btClipEnded,

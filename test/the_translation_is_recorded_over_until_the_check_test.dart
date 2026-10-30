@@ -19,7 +19,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show contarAteOFimDaParte, pausadaNoToque, tocarNoCirculo;
+    show pausadaNoToque, tocarNoCirculo;
 
 const parte = Duration(seconds: 10);
 const cabeca = Duration(seconds: 4);
@@ -132,12 +132,12 @@ Future<String> olhar(WidgetTester tester) async {
   return '${_cor(borda)} $movimento';
 }
 
-Future<void> ouvirNaGravacao(
+Future<void> ouvirUmTrechoContado(
   WidgetTester tester,
   ProviderContainer container,
   int lugar,
 ) async {
-  container.read(salaSessionProvider.notifier).ouvirAConta(lugar);
+  container.read(salaSessionProvider.notifier).ouvirOTrechoContado(lugar);
   await tester.pump(const Duration(milliseconds: 300));
 }
 
@@ -168,8 +168,8 @@ Future<ProviderContainer> entrarNaTraducao(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var gravada = 0; gravada < 2; gravada++) {
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(gravada + 1);
+    notifier.gravarACena(gravada + 1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: gravada + 1);
@@ -252,7 +252,7 @@ void main() {
     final tocadas = harness.playback.played.length;
     final trechos = harness.playback.ranges.length;
 
-    container.read(salaSessionProvider.notifier).ouvirAConta(0);
+    container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -271,8 +271,8 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — com o clipe pausado no meio, um trecho contado ouvido na '
-      'gravação não move a cabeça', (tester) async {
+  testWidgets('R3 — com o clipe pausado no meio, um trecho contado ouvido não '
+      'move a cabeça', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
     final container = await entrarNaTraducao(tester, harness);
@@ -283,7 +283,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    await ouvirNaGravacao(tester, container, 0);
+    await ouvirUmTrechoContado(tester, container, 0);
     expect(aceso(tester, pausar), isTrue);
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
@@ -294,7 +294,7 @@ void main() {
     expect(harness.playback.playedFrom.last, const Duration(seconds: 7));
     await tocar(tester, pausar);
 
-    await ouvirNaGravacao(tester, container, 0);
+    await ouvirUmTrechoContado(tester, container, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, pausado);
@@ -347,6 +347,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.runAsync(() async {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(
+        notifier,
+        () => container.read(salaSessionProvider),
+      );
       await waitFor(
         'a tradução retomada pôr a parte no ar',
         () => harness.playback.sounding,
@@ -386,48 +390,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3b — ouvir um trecho contado na gravação não conta como ouvir '
-      'a parte', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true)
-      ..room.chunksAnswerWithNoName = true;
-    final container = await entrarNaTraducao(tester, harness);
-    harness.playback.at = cabeca;
-    await tocarNoCirculo(tester);
-    await gravarATraducao(tester, harness);
-    harness.playback.at = const Duration(seconds: 7);
-
-    await ouvirNaGravacao(tester, container, 0);
-    harness.playback.at = const Duration(seconds: 3);
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, ouvir);
-
-    for (var vez = 0; vez < 2; vez++) {
-      await contarAteOFimDaParte(tester, harness);
-    }
-    await tocar(tester, conferir);
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(
-      [
-        for (final parte in harness.room.playedByTakeSent.single)
-          [parte['played_ranges'], parte['clip_duration_ms']],
-      ],
-      [
-        for (var vez = 0; vez < 2; vez++)
-          [
-            [
-              [0, 10000],
-            ],
-            10000,
-          ],
-      ],
-      reason: 'cada parte foi ouvida inteira uma vez, com ou sem a conta',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('R3 — um trecho contado ouvido na gravação com a parte ainda '
+  testWidgets('R3 — um trecho contado ouvido com a parte ainda '
       'abrindo não deixa a cabeça atrás do cursor', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
@@ -442,7 +405,7 @@ void main() {
     harness.playback.finishHeldOpening();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await ouvirNaGravacao(tester, container, 0);
+    await ouvirUmTrechoContado(tester, container, 0);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     await tocar(tester, ouvir);
@@ -498,7 +461,7 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — a tesoura depois de um trecho contado ouvido na gravação '
+  testWidgets('R3 — a tesoura depois de um trecho contado ouvido '
       'corta na cabeça de antes', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
       ..room.chunksAnswerWithNoName = true;
@@ -509,7 +472,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tocar(tester, pausar);
 
-    await ouvirNaGravacao(tester, container, 0);
+    await ouvirUmTrechoContado(tester, container, 0);
     harness.playback.at = const Duration(seconds: 2);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -520,10 +483,11 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto a tradução de uma '
-      'frase toca', (tester) async {
+  testWidgets('R3 — o disco de avanço fica aceso enquanto a tradução de uma '
+      'frase toca, com a sala contando tudo ouvido', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true)
-      ..room.chunksAnswerWithNoName = true;
+      ..room.chunksAnswerWithNoName = true
+      ..room.listeningUnheardTakeIds = const [];
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -540,7 +504,13 @@ void main() {
 
     await tocar(tester, sceneRehearsalLabelFor('hearMine', 'pt', n: 1));
     expect(harness.playback.sounding, isTrue);
-    expect(aceso(tester, conferir), isFalse);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'o terminei apagava enquanto a tradução da frase tocava; no dela a '
+          'tradução ouvida de novo não fecha nada',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -548,11 +518,12 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('R3 — o disco de avanço se apaga enquanto uma frase com nome '
-      'tocada se abre de novo, e acende com manter a tradução de antes', (
+  testWidgets('R3 — o disco de avanço fica aceso enquanto uma frase com nome '
+      'tocada se abre de novo, com a sala contando tudo ouvido', (
     tester,
   ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
@@ -568,18 +539,64 @@ void main() {
     expect(aceso(tester, conferir), isTrue);
 
     await tocar(tester, sceneRehearsalLabelFor('retellFrase', 'pt', n: 1));
-    expect(aceso(tester, conferir), isFalse);
+    expect(
+      aceso(tester, conferir),
+      isTrue,
+      reason:
+          'o terminei apagava com uma frase aberta para traduzir de novo; no '
+          'dela a frase armada não fecha nada',
+    );
 
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      aceso(tester, conferir),
-      isFalse,
-      reason: 'o terminei acendia com uma frase aberta para traduzir de novo',
-    );
+    expect(aceso(tester, conferir), isTrue);
 
     await tocar(tester, 'manter a tradução de antes');
     expect(aceso(tester, conferir), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets('R3 — o terminei tocado com uma frase aberta para traduzir de '
+      'novo confere as frases contadas e deixa a frase como estava', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.listeningUnheardTakeIds = const [];
+    final container = await entrarNaTraducao(tester, harness);
+    harness.playback.at = cabeca;
+    await tocarNoCirculo(tester);
+    await gravarATraducao(tester, harness);
+    for (var vez = 0; vez < 2; vez++) {
+      harness.playback.at = parte;
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
+    }
+    final contadas = container.read(salaSessionProvider).btTrechos;
+    await tocar(tester, sceneRehearsalLabelFor('retellFrase', 'pt', n: 1));
+    expect(container.read(salaSessionProvider).btTraducaoPendente, isNotNull);
+
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      harness.room.playedByTakeSent,
+      hasLength(1),
+      reason: 'o toque no terminei com a frase armada não pedia a conferência',
+    );
+    expect(
+      container.read(salaSessionProvider).btTraducaoPendente,
+      isNull,
+      reason:
+          'a frase aberta para traduzir de novo ficava armada depois do '
+          'veredito; a dela solta a frase quando o terminei é tocado',
+    );
+    expect(
+      container.read(salaSessionProvider).btTrechos.map((t) => t.retroPath),
+      contadas.map((t) => t.retroPath),
+    );
     closeTheRoom(container);
   });
 
@@ -594,16 +611,20 @@ void main() {
     harness.playback
       ..measured = parte
       ..length = parte;
-    harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.retro,
-      takes: [
-        KeptTake(
-          scopeId: KeptScope.parte(1),
-          path: gravada.path,
-          takeId: 'gravacao-1',
-        ),
-      ],
+    await holdTheSession(
+      harness,
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: gravada.path,
+            takeId: 'gravacao-1',
+          ),
+        ],
+      ),
+      language: harness.lingua ?? testLanguage,
     );
     harness.room
       ..serverHalt = HaltKind.warning
@@ -624,10 +645,10 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     final notifier = container.read(salaSessionProvider.notifier);
-    await tester.runAsync(notifier.abrirEscolha);
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(
-      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    await intoTheBackTranslation(
+      notifier,
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
     );
     await tester.pump(const Duration(milliseconds: 600));
     return container;
@@ -806,8 +827,8 @@ void main() {
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);

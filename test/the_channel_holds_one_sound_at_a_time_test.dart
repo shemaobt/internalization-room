@@ -13,7 +13,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheBackTranslation, settle;
 import 'session_notifier_test.dart' show inConversa;
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -36,33 +37,34 @@ Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
       ),
     ],
   );
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      KeptTake(
-        scopeId: KeptScope.parte(1),
-        path: p1.path,
-        takeId: 'gravacao-1',
-      ),
-      KeptTake(
-        scopeId: KeptScope.parte(2),
-        path: p2.path,
-        takeId: 'gravacao-2',
-      ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: p1.path,
+          takeId: 'gravacao-1',
+        ),
+        KeptTake(
+          scopeId: KeptScope.parte(2),
+          path: p2.path,
+          takeId: 'gravacao-2',
+        ),
+      ],
+    ),
   );
   final container = harness.container();
   addTearDown(container.dispose);
   final sala = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
-  await sala.abrirEscolha();
-  await settle();
-  await sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await sala.openTheRoom();
+  await intoTheBackTranslation(sala, read);
   await waitFor(
     'a primeira parte entrar no ar no seu cursor',
     () =>
-        read().stage == SalaStage.retro &&
         read().btPhase == BtPhase.playing &&
         read().btCursor == const Duration(seconds: 6) &&
         harness.playback.sounding,
@@ -118,7 +120,7 @@ void main() {
       expect(it.estado.channel, const Silence());
       expect(it.estado.btCursor, cursor);
 
-      it.sala.ouvirOTrechoPendente();
+      it.sala.ouvirGravacao();
       await waitFor(
         'a conta pedir a parte de novo',
         () => it.harness.playback.played.length > asked,

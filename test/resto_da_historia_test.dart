@@ -58,10 +58,8 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
         takeId: 'antiga-$parte',
       ),
   ];
-  await harness.emAberto.remember(
-    'Ruth',
-    'P01',
-    'pt',
+  await holdTheSession(
+    harness,
     ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,
@@ -84,24 +82,27 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
-  expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+  await notifier.openTheRoom();
+  await intoTheRecordingHome(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   return container;
 }
 
 /// Record one more part over the real outbox, and wait for the room to name it.
-Future<KeptTake> gravarMaisUmaParte(ProviderContainer container) async {
+Future<KeptTake> gravarMaisUmaParte(
+  ProviderContainer container,
+  int cena,
+) async {
   final notifier = container.read(salaSessionProvider.notifier);
   final antes = container.read(salaSessionProvider).keptTakes.length;
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
   await waitFor(
     'a gravação da parte começar',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recording,
   );
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
   await waitFor(
     'a gravação da parte terminar',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -145,7 +146,7 @@ Future<ProviderContainer> aHistoriaSemOFim(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var parte = 0; parte < 3; parte++) {
-    await gravarUmaParte(tester, container);
+    await gravarUmaParte(tester, container, parte + 1);
   }
   notifier.startRetro();
   await tester.pump(const Duration(milliseconds: 200));
@@ -227,7 +228,7 @@ void main() {
       );
       expect(gravacoesDe(agora), antigas);
 
-      await gravarUmaParte(tester, container);
+      await gravarUmaParte(tester, container, 4);
 
       agora = container.read(salaSessionProvider);
       expect(
@@ -291,7 +292,7 @@ void main() {
 
     container.read(salaSessionProvider.notifier).goEnsaio();
     await tester.pump(const Duration(milliseconds: 400));
-    await gravarUmaParte(tester, container);
+    await gravarUmaParte(tester, container, 4);
     final nova = container.read(salaSessionProvider).keptTakes.last;
 
     await tester.ensureVisible(inTheHome(irParaARetro));
@@ -378,7 +379,7 @@ void main() {
             'contado, senão o avanço seguinte recomeça do zero',
       );
 
-      final nova = await gravarMaisUmaParte(container);
+      final nova = await gravarMaisUmaParte(container, 4);
 
       notifier.startRetro();
       await waitFor(
@@ -417,7 +418,7 @@ void main() {
       harness,
       traduzidasAte: [30000, 30000, 29500],
     );
-    final nova = await gravarMaisUmaParte(container);
+    final nova = await gravarMaisUmaParte(container, 4);
 
     container.read(salaSessionProvider.notifier).startRetro();
     await waitFor(
@@ -441,7 +442,7 @@ void main() {
       traduzidasAte: [30000, 25000, 30000],
     );
     final notifier = container.read(salaSessionProvider.notifier);
-    await gravarMaisUmaParte(container);
+    await gravarMaisUmaParte(container, 4);
 
     notifier.startRetro();
     await waitFor(
@@ -481,7 +482,7 @@ void main() {
       traduzidasAte: [30000, 30000, 30000],
       porTraduzir: {'trecho-3'},
     );
-    await gravarMaisUmaParte(container);
+    await gravarMaisUmaParte(container, 4);
 
     container.read(salaSessionProvider.notifier).startRetro();
     await waitFor(
@@ -506,7 +507,7 @@ void main() {
       harness,
       traduzidasAte: [30000, 30000, 30000],
     );
-    await gravarMaisUmaParte(container);
+    await gravarMaisUmaParte(container, 4);
 
     container.read(salaSessionProvider.notifier).startRetro();
     await waitFor(
@@ -533,7 +534,7 @@ void main() {
 
     container.read(salaSessionProvider.notifier).goEnsaio();
     await tester.pump(const Duration(milliseconds: 400));
-    await gravarUmaParte(tester, container);
+    await gravarUmaParte(tester, container, 4);
     final nova = container.read(salaSessionProvider).keptTakes.last;
     final gravacoes = harness.recorder.captures;
     final tocadas = harness.playback.played.length;

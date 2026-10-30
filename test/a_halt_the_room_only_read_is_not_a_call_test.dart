@@ -19,8 +19,8 @@ void main() {
       SalaSessionState read() => container.read(salaSessionProvider);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       notifier.startRetro();
@@ -28,7 +28,7 @@ void main() {
 
       harness.playback.failPlayback();
       await settle();
-      notifier.ouvirOTrechoPendente();
+      notifier.ouvirGravacao();
       await settle();
       harness.playback.failPlayback();
       await settle();

@@ -17,7 +17,7 @@ void main() {
       expect(it.estado.btPhase, BtPhase.playing);
       expect(it.estado.btVeredito, isTrue);
 
-      it.sala.gravarAParteDeNovo();
+      it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       final nova = it.partes[1].path;
 

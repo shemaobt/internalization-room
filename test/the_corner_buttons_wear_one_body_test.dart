@@ -35,7 +35,7 @@ List<double> _opacitiesOver(WidgetTester tester, String label) {
 
 void main() {
   testWidgets(
-    'the way back is dimmed and takes no tap while the scene rehearsal sends',
+    'the way back stays lit and takes the tap while the scene rehearsal sends',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
         ..room.passages = const [
@@ -97,16 +97,17 @@ void main() {
         ),
         const Color(0xFF777D45),
       );
-      expect(_opacitiesOver(tester, _backInPortuguese), contains(0.2));
+      expect(_opacitiesOver(tester, _backInPortuguese), contains(0.6));
       expect(
         tester.widget<Semantics>(byLabel(_backInPortuguese)).properties.enabled,
-        isFalse,
+        isTrue,
       );
 
-      await tester.tap(byLabel(_backInPortuguese), warnIfMissed: false);
+      await tester.tap(byLabel(_backInPortuguese));
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(container.read(salaSessionProvider).stage, SalaStage.cena);
+      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(container.read(salaSessionProvider).awaitingTheGuide, isTrue);
 
       harness.room.finishHeldTurn();
       await tester.pump(const Duration(seconds: 3));

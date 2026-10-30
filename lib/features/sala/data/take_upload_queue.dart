@@ -95,16 +95,12 @@ class PendingTake {
   /// room's list did not hold, a stop.
   final int attempts;
 
-  /// Times the room turned the tablet away rather than the take. These pace the retries
-  /// but never spend them.
+  /// Times the room turned the tablet away rather than the take, and times a join row
+  /// (one with an origin) fell on the network; neither spends an attempt.
   final int waits;
 
-  /// When this row was last tried, written down as UTC.
-  ///
-  /// A local ISO string carries no zone at all, so the same instant written in one
-  /// timezone and read back in one behind it comes back as a time in the future — and a
-  /// stamp in the future is what used to stop a row from ever being tried again. Rows the
-  /// older app wrote are still zoneless and are still read; they come due just the same.
+  /// When this row was last tried, written down as UTC. A tap that makes the row due
+  /// again clears it.
   final DateTime? lastTry;
 
   final String? refusal;
@@ -293,9 +289,8 @@ class PendingTake {
     lost: json['lost'] as bool? ?? false,
     attempts: json['attempts'] as int? ?? 0,
     waits: json['waits'] as int? ?? 0,
-    // The row's audio and session are intact; only its pacing is unknown, and an
-    // unknown pace means due now. Raising here instead would set every pending
-    // recording aside, not this one.
+    // The row's audio and session are intact; only its stamp is unreadable. Raising here
+    // instead would set every pending recording aside, not this one.
     lastTry: switch (json['last_try']) {
       final String stamp => DateTime.tryParse(stamp),
       _ => null,
@@ -529,6 +524,14 @@ class TakeUploadQueue {
       ? passage != null && entry.passage == passage
       : entry.sessionId == sessionId;
 
+  Future<String?> fingerprintOf(String path) async {
+    try {
+      return (await _whatTheCopyHolds(path)).sha256;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
   String? takeIdOfThePart(String sessionId, KeptTake part) {
     final name = p.basenameWithoutExtension(part.path);
     for (final entry in _landedRows) {
@@ -758,6 +761,18 @@ class TakeUploadQueue {
     final done = _writes.then((_) => step());
     _writes = done.then((_) {}, onError: (_) {});
     return done;
+  }
+
+  Future<void> writingEnds() async {
+    while (true) {
+      if (_copiesBeingMade.isNotEmpty) {
+        await Future.wait(_copiesBeingMade.values);
+        continue;
+      }
+      final writes = _writes;
+      await writes;
+      if (identical(writes, _writes) && _copiesBeingMade.isEmpty) return;
+    }
   }
 
   /// The [recordings] whose copy a row of the Outbox holds, once every keep in flight has
@@ -1504,7 +1519,7 @@ class TakeUploadQueue {
     String? passage,
   }) async {
     PendingTake? newest;
-    for (final entry in await pending()) {
+    for (final entry in await _inTurn(pending)) {
       if (entry.kind == sentenceKind &&
           _ofTheVisit(entry, sessionId, passage)) {
         newest = entry;

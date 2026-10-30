@@ -589,6 +589,27 @@ void main() {
         reason: 'a tradução do ensaio de antes tocava no ensaio aberto',
       );
     });
+
+    test('a translation the room cannot hand over says nothing and leaves '
+        'the team listening, never on the choice', () async {
+      final room = await inListenMode();
+      room.harness.room.failClipWith = const SessionGone();
+
+      room.sala.hearTheFraseTranslation('f2');
+      await settle();
+      await settle();
+
+      expect(
+        room.state.stage,
+        SalaStage.cena,
+        reason: 'uma tradução que não descia encerrava a sessão',
+      );
+      expect(room.state.sessionId, _session);
+      expect(room.state.scene.step, SceneStep.sent);
+      expect(room.state.sceneLine, isNull);
+      expect(room.state.machine.aHaltWaitsForTheCanvas, isNull);
+      _expectNoHaltAndNoPerson(room);
+    });
   });
 
   test(
@@ -974,10 +995,6 @@ void main() {
       );
       expect(_terminei, findsNothing);
       expect(
-        _enabled(tester, byLabel('Voltar para a passagem atual')),
-        isFalse,
-      );
-      expect(
         _enabled(
           tester,
           byLabel(
@@ -1061,20 +1078,165 @@ void main() {
     expect(room.harness.voice.played.skip(playedBefore), isEmpty);
   });
 
-  test('the way back does nothing while the send is in the air', () async {
-    final room = await _atRest([_unsentWithFrases()]);
-    await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
-    room.harness.room.holdNextTurn();
+  group('the way back while terminei is in the air', () {
+    Future<_Room> leftWhileItSends() async {
+      final room = await _atRest([_unsentWithFrases()]);
+      await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+      room.harness.room.holdNextTurn();
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'o ensaio ir',
+        () => room.harness.room.scenesSent.isNotEmpty,
+      );
+      room.sala.leaveTheSceneRehearsal();
+      await settle();
+      return room;
+    }
 
-    room.sala.sendTheSceneRehearsal();
-    await waitFor('o ensaio ir', () => room.harness.room.scenesSent.isNotEmpty);
-    expect(room.state.theWayBackIsLive, isFalse);
-    room.sala.leaveTheSceneRehearsal();
-    await settle();
-    expect(room.state.stage, SalaStage.cena);
+    test('returns to the conversation, where the reply plays and «Ouvir de '
+        'novo» says it again', () async {
+      final room = await _atRest([_unsentWithFrases()]);
+      await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+      room.harness.room
+        ..fixedLine = 'A1'
+        ..holdNextTurn();
+      room.harness.voice.holdNextLine();
+      int timesSaid() =>
+          room.harness.voice.fixedLines.where((said) => said.$1 == 'A1').length;
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'o ensaio ir',
+        () => room.harness.room.scenesSent.isNotEmpty,
+      );
+      final stopsBefore = room.harness.voice.stops;
 
-    room.harness.room.finishHeldTurn();
-    await waitFor('a resposta tocar', () => room.repliedOnTheCanvas);
+      room.sala.leaveTheSceneRehearsal();
+      await settle();
+
+      expect(room.state.stage, SalaStage.conversa);
+      expect(room.state.voice, VoiceState.thinking);
+      expect(room.harness.voice.stops, stopsBefore);
+      room.harness.voice.finishHeldLine();
+      room.harness.room.finishHeldTurn();
+      await settle(const Duration(milliseconds: 700));
+      expect(timesSaid(), 1, reason: 'a resposta esperou o 1,4 s da tela');
+      await waitFor(
+        'a voz voltar a convidar',
+        () => room.state.voice == VoiceState.invite,
+      );
+      await settle();
+      await room.sala.hearAgain();
+      await settle();
+      expect(timesSaid(), 2);
+      expect(room.harness.room.scenesSent, hasLength(1));
+    });
+
+    test(
+      'a refusal rests the conversation at the invite and says nothing',
+      () async {
+        final room = await leftWhileItSends();
+        final saidBefore =
+            room.harness.voice.fixedLines.length +
+            room.harness.voice.assets.length +
+            room.harness.voice.played.length;
+        room.harness.room.failHeldTurnWith = Refused(RefusalCode.unnamed(422));
+
+        room.harness.room.finishHeldTurn();
+        await _theRoomRests(room);
+        await settle(const Duration(milliseconds: 400));
+
+        expect(room.state.stage, SalaStage.conversa);
+        expect(room.state.voice, VoiceState.invite);
+        _expectNoHaltAndNoPerson(room);
+        expect(room.repliedOnTheCanvas, isFalse);
+        expect(
+          room.harness.voice.fixedLines.length +
+              room.harness.voice.assets.length +
+              room.harness.voice.played.length,
+          saidBefore,
+        );
+      },
+    );
+
+    test('an answer with nothing to play calls a person on the conversation, '
+        'as hers', () async {
+      final room = await leftWhileItSends();
+      room.harness.room.answersTurnsWithoutAReply = true;
+
+      room.harness.room.finishHeldTurn();
+      await waitFor('o sinal da pessoa', () => room.state.needsPerson);
+
+      expect(room.state.stage, SalaStage.conversa);
+      expect(room.state.halt, isA<Blocking>());
+      expect(room.state.voice, VoiceState.invite);
+      expect(room.repliedOnTheCanvas, isFalse);
+    });
+
+    test('a tap during the send-off line leaves the reply to play', () async {
+      final room = await _atRest([_unsentWithFrases()]);
+      await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+      room.harness.room.fixedLine = 'A1';
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'a linha de despedida',
+        () => room.state.scene.wentToTheVoice,
+      );
+
+      room.sala.leaveTheSceneRehearsal();
+      await waitFor(
+        'a linha A tocar',
+        () =>
+            room.harness.voice.fixedLines
+                    .where((said) => said.$1 == 'A1')
+                    .length ==
+                1 &&
+            room.state.voice == VoiceState.invite,
+      );
+    });
+
+    test('the screen does not open again until the send lands, and then reads '
+        'it enviado with no terminei', () async {
+      final room = await leftWhileItSends();
+      final listed = room.asked('sceneRehearsalsOf');
+
+      room.sala.openTheSceneRehearsal();
+      await settle();
+      expect(room.state.stage, SalaStage.conversa);
+      expect(room.asked('sceneRehearsalsOf'), listed);
+
+      room.harness.room.finishHeldTurn();
+      await waitFor('a resposta tocar', () => room.repliedOnTheCanvas);
+      await waitFor(
+        'a voz voltar a convidar',
+        () => room.state.voice == VoiceState.invite,
+      );
+      await _theScreenOpens(room, on: _onTheRecordStep);
+      await waitFor('a lista chegar', () => _rows(room).isNotEmpty);
+
+      expect(_rows(room), [(1, false, 2)]);
+      expect(room.harness.room.scenesSent, hasLength(1));
+    });
+
+    test(
+      'a send refused after the way back goes again under its turn id',
+      () async {
+        final room = await leftWhileItSends();
+        room.harness.room.failHeldTurnWith = Refused(RefusalCode.unnamed(422));
+        room.harness.room.finishHeldTurn();
+        await _theRoomRests(room);
+        await settle();
+        await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+
+        room.sala.sendTheSceneRehearsal();
+        await waitFor('a resposta tocar', () => room.repliedOnTheCanvas);
+
+        expect(room.harness.room.scenesSent, hasLength(2));
+        expect(
+          room.harness.room.scenesSent.map((send) => send.turnId).toSet(),
+          hasLength(1),
+        );
+      },
+    );
   });
 
   test(
@@ -2022,22 +2184,18 @@ void main() {
       expectCleared(room);
     });
 
-    test(
-      'after a gone session met at the list a refused speaker reads',
-      () async {
-        final room = await _atRest([_sentOne, _unsentTwo]);
-        await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
-        await _theRowOpens(room, 1, SceneStep.sent);
-        room.harness.room.forgetTheSession(_session);
+    test('after a gone session met at the list a refused row reads', () async {
+      final room = await _atRest([_sentOne, _unsentTwo]);
+      await _theScreenOpens(room, on: _showing(2, SceneStep.translate));
+      room.harness.room.forgetTheSession(_session);
 
-        room.sala.hearTheFraseTranslation('f2');
-        await waitFor(
-          'a escolha abrir',
-          () => room.state.stage == SalaStage.escolha,
-        );
+      room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
+      await waitFor(
+        'a escolha abrir',
+        () => room.state.stage == SalaStage.escolha,
+      );
 
-        expectCleared(room);
-      },
-    );
+      expectCleared(room);
+    });
   });
 }

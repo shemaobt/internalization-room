@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0136, amended by ENG-1853, amended by ENG-2028)
+status: accepted (amended by 0136, amended by ENG-1853, amended by ENG-2028, amended by ENG-2054, amended by ENG-1970)
 date: 2026-10-22
 amends: 0030 (in part: the approval's landing now shows a text), 0014 (her Saved screen is a named exception)
 ---
@@ -10,6 +10,11 @@ This amends ADR 0030 and ADR 0014 without editing their decisions: it adds "amen
 under 0030's title and an "Amended by ENG-1259" paragraph to 0014. Her app at Tripod-Internalization
 18fa7c4 is the bar (`Drafting.tsx` `finalize` and `approve`, the `saved` screen; `strings.ts`).
 
+Amended by ENG-1970 (2026-10-30): the `Fim` Station, `SalaStage.fim`, `TheNecklaceClosed`, the Fim view
+and `beginAgain` are gone, not left in place. A finished passage stays on its conversation canvas
+with the orange dot lit, as hers does (`app/page.tsx`, phase `done`), and no closing screen is
+drawn. A resume point stored on `fim` reads as the conversation.
+
 Amended by ENG-2028 (2026-10-29): a refusal from the Back-translation only writes her text.
 The check is not left before «terminei»: its phase, «terminei», the approve button, lit, and
 the badge stay as they were (`Drafting.tsx` `approve` :1607), and the next press asks again.
@@ -19,6 +24,10 @@ is open or a sentence's re-record is open (`Drafting.tsx:2468`). Only a last lis
 press itself silenced at conferida counts as heard to its end; nothing else is given back.
 Wherever this record or its amendments say a refusal is left before «terminei», read that the
 check stays where it was.
+
+Amended by ENG-2054 (2026-10-29): «terminei» reads the room's count of what was heard, not the
+end of a listening on this tablet (ADR 0030, amended by ENG-2054). The sentence above on the
+last listening the press silenced holds only for a room that names no list.
 
 Amended by ENG-1853 (2026-10-29): a refusal from the Back-translation plays nothing.
 «ainda falta ouvir um trecho da gravação» no longer comes with the part playing, and the

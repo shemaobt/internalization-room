@@ -11,7 +11,6 @@ import 'package:internalization_room/features/sala/domain/facilitator_script.dar
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
-import 'package:internalization_room/features/sala/domain/refusal_code.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -171,33 +170,6 @@ void main() {
     }
 
     testWidgets(
-      'with a re-told frase still in the Outbox gets its parts from the room, '
-      'and no badge',
-      (tester) async {
-        final harness = _aRoomHolding(approved: _approvedAs(1));
-        aPartlessRow(harness);
-        await tester.runAsync(() async {
-          final home = Directory.systemTemp.createTempSync(
-            'sala-frase-na-fila',
-          );
-          addTearDown(() => home.deleteSync(recursive: true));
-          await harness.takes.enqueue(
-            File('${home.path}/frase-1.m4a')..writeAsBytesSync([5, 5]),
-            sessionId: 'sessao-antiga',
-            kind: sentenceKind,
-            scope: '1',
-          );
-        });
-
-        final room = await _enter(tester, harness);
-
-        expect(_state(room).stage, SalaStage.retro);
-        expect(_state(room).partes, hasLength(1));
-        expect(_theBadge(1), findsNothing);
-      },
-    );
-
-    testWidgets(
       'lands on its conversation with the coverage and the moment of that read',
       (tester) async {
         final harness = _aRoomHolding(approved: _approvedAs(1))
@@ -228,7 +200,9 @@ void main() {
 
         _landsOnTheConversation(room);
         expect(
-          harness.room.calls.where((call) => call == 'fetchState'),
+          harness.room.calls.where(
+            (call) => call == 'fetchState' || call == 'createSession',
+          ),
           hasLength(1),
         );
       },
@@ -512,96 +486,20 @@ void main() {
         _landsOnTheConversation(room);
       },
     );
-
-    testWidgets(
-      'with no code still waits for the team\'s tap, and the passage lands '
-      'where it stood',
-      (tester) async {
-        final room = await enterOver(tester, RefusalCode.unnamed(500));
-
-        expect(
-          _state(room).stage,
-          SalaStage.retro,
-          reason: 'uma gravação que o toque ainda envia mudava o rascunho',
-        );
-        expect(
-          _theBadge(1),
-          findsOneWidget,
-          reason: 'a retrotradução sobre o rascunho aprovado perdia o selo',
-        );
-      },
-    );
   });
 
-  group(
-    'a tablet whose Outbox still holds something of the session that changes the '
-    'draft lands where it stood, never on the approved draft',
-    () {
-      for (final (what, kind, scope) in [
-        ('a take', 'ensaio', 'parte-1'),
-        ('a re-told frase', sentenceKind, '1'),
-      ]) {
-        testWidgets(what, (tester) async {
-          final harness = _aRoomHolding(approved: _approvedAs(1))
-            ..room.takeLandsAfter = const Duration(minutes: 1);
-          _aRowOn(harness, SalaStage.ensaio);
-          harness.room.openedSessions.add('sessao-antiga');
-          await tester.runAsync(() async {
-            final home = Directory.systemTemp.createTempSync('sala-no-outbox');
-            addTearDown(() => home.deleteSync(recursive: true));
-            await harness.takes.enqueue(
-              File('${home.path}/de-novo.m4a')..writeAsBytesSync([5, 5]),
-              sessionId: 'sessao-antiga',
-              kind: kind,
-              scope: scope,
-              passNumber: 2,
-            );
-          });
-
-          final room = await _enter(tester, harness);
-
-          expect(_state(room).stage, SalaStage.ensaio);
-          expect(_theBadge(1), findsNothing);
-        });
-      }
-    },
-  );
-
-  testWidgets(
-    'a re-told frase still in the Outbox keeps the badge off the checked '
-    'translation, with the approve button',
-    (tester) async {
-      final harness = _aRoomHolding(approved: _approvedAs(1));
-      _aRowOn(harness, SalaStage.retro);
-      harness.room.openedSessions.add('sessao-antiga');
-      await tester.runAsync(() async {
-        final home = Directory.systemTemp.createTempSync('sala-frase-na-fila');
-        addTearDown(() => home.deleteSync(recursive: true));
-        await harness.takes.enqueue(
-          File('${home.path}/frase-1.m4a')..writeAsBytesSync([5, 5]),
-          sessionId: 'sessao-antiga',
-          kind: sentenceKind,
-          scope: '1',
-        );
-      });
-
-      final room = await _enter(tester, harness);
-
-      expect(_state(room).stage, SalaStage.retro);
-      expect(_theBadge(1), findsNothing);
-      expect(byLabel(retroLabelFor('approve', testLanguage)), findsOneWidget);
-    },
-  );
-
   group('a passage with no approval lands as it always did', () {
-    testWidgets('a passage with takes lands where it stood', (tester) async {
+    testWidgets('a passage with takes lands on its conversation', (
+      tester,
+    ) async {
       final harness = _aRoomHolding();
       _aRowOn(harness, SalaStage.ensaio);
       harness.room.openedSessions.add('sessao-antiga');
 
       final room = await _enter(tester, harness);
 
-      expect(_state(room).stage, SalaStage.ensaio);
+      expect(_state(room).stage, SalaStage.conversa);
+      expect(_state(room).partes.map((parte) => parte.takeId), [_gravacao]);
       expect(_theBadge(1), findsNothing);
     });
 

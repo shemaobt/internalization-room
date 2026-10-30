@@ -130,7 +130,7 @@ void main() {
   );
 
   test(
-    'a remembered session gone and a fresh one refused send the team back to the wheel',
+    'a remembered session reset and a passage the room cannot open rest the team with no sign and no call',
     () async {
       final harness = SalaHarness()
         ..emAberto.forgetsTheSessionAfter = const Duration(milliseconds: 500);
@@ -160,19 +160,16 @@ void main() {
       harness.room.passagesThatCannotOpen = {'P01'};
       notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
       await waitFor(
-        'o lugar da sessão lembrada sair do tablet',
-        () async => (await harness.emAberto.of('Ruth', 'P01', 'pt')) == null,
+        'a sala descansar',
+        () =>
+            harness.room.passagesThatCannotOpen.isNotEmpty &&
+            !container.read(salaSessionProvider).awaitingTheGuide,
       );
+      await settle();
 
       final state = container.read(salaSessionProvider);
-      expect(state.stage, SalaStage.escolha);
       expect(state.needsPerson, isFalse);
       expect(harness.room.personsAsked, 0);
-      expect(
-        await harness.emAberto.of('Ruth', 'P01', 'pt'),
-        isNull,
-        reason: 'a sessão lembrada sumiu, então não há onde retomar',
-      );
     },
   );
 
@@ -353,8 +350,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.playTheRehearsal();
     await settle();
@@ -464,8 +461,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     final recorded = harness.recorder.lastPath;
     expect(recorded, isNotNull);
@@ -483,8 +480,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     await waitFor('a sala nomear a parte', () {
@@ -538,8 +535,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();
@@ -578,7 +575,7 @@ void main() {
         reason: 'não haver ensaio nenhum não abre a tradução',
       );
       expect(state.needsPerson, isFalse);
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
       expect(
         container.read(salaSessionProvider).ensaio,
@@ -597,8 +594,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       await settle();
@@ -616,7 +613,7 @@ void main() {
             'preso tocando, o toque no círculo não faz nada e o play não '
             'desenha o glifo de tocar — a tela move e não responde',
       );
-      notifier.ensaioTap();
+      notifier.gravarACena(2);
       expect(
         container.read(salaSessionProvider).ensaio,
         EnsaioStatus.recording,
@@ -751,8 +748,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       container.dispose();
@@ -811,7 +808,7 @@ void main() {
 
     notifier.goEnsaio();
     harness.recorder.permitted = false;
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
     await settle();
 
     expect(
@@ -996,8 +993,8 @@ void main() {
           }
 
           notifier.goEnsaio();
-          notifier.ensaioTap();
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
+          notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
           notifier.startRetro();
@@ -1027,8 +1024,8 @@ void main() {
           );
           await settle();
           notifier.goEnsaio();
-          notifier.ensaioTap();
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
+          notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
           notifier.startRetro();
@@ -1187,8 +1184,8 @@ void main() {
           'reencontra, porque ir_sessions não guarda aparelho',
     );
     expect(
-      harness.room.pericopesAsked,
-      isEmpty,
+      harness.room.sessionIds,
+      [aberta],
       reason: 'e não se cria outra em cima da que já existe',
     );
   });
@@ -1212,8 +1209,8 @@ void main() {
       await settle();
       expect(await harness.emAberto.startedIn('Ruth', 'pt'), contains('P01'));
 
-      notifier.ensaioTap();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
+      notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
       notifier.startRetro();
@@ -1235,38 +1232,6 @@ void main() {
     },
   );
 
-  test(
-    'a session the server forgot twice sends the team back to the wheel',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-      await settle();
-      notifier.leaveThePassage();
-      await settle();
-
-      harness.room.forgetTheSession(harness.room.sessionIds.single);
-      harness.room.failCreateOnceWith = const SessionGone();
-      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.stage,
-        SalaStage.escolha,
-        reason:
-            'a sessão lembrada e a sessão nova recusada de novo — sem ficar '
-            'presa numa conversa que não abre, a equipe volta à roda',
-      );
-      expect(state.needsPerson, isFalse);
-    },
-  );
-
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
@@ -1277,8 +1242,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
     notifier.startRetro();

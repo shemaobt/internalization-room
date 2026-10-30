@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show enterThePassage, settle;
@@ -117,8 +118,10 @@ void main() {
     final container = await _aEquipeTocaAPassagem(harness);
 
     await waitFor(
-      'a equipe pousar na tradução que deixou',
-      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      'a equipe pousar na conversa da passagem que deixou',
+      () =>
+          container.read(salaSessionProvider).station is Canvas &&
+          !container.read(salaSessionProvider).awaitingTheGuide,
     );
     final estado = container.read(salaSessionProvider);
     expect(
@@ -203,6 +206,13 @@ void main() {
       ]);
 
       final container = await _aEquipeTocaAPassagem(harness);
+      await waitFor(
+        'a equipe pousar na conversa',
+        () =>
+            container.read(salaSessionProvider).station is Canvas &&
+            !container.read(salaSessionProvider).awaitingTheGuide,
+      );
+      container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
 
       await waitFor(
         'as partes voltarem da sala',

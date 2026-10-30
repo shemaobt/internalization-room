@@ -22,10 +22,12 @@ class FraseRow {
   final bool regravando;
   final String? regravar;
   final bool regravarDormindo;
+  final bool regravarArmado;
   final VoidCallback? onRegravar;
   final FraseRevisao? revisao;
   final String? estado;
   final bool estadoDormindo;
+  final bool estadoArmado;
   final VoidCallback? onEstado;
 
   const FraseRow({
@@ -42,10 +44,12 @@ class FraseRow {
     this.regravando = false,
     this.regravar,
     this.regravarDormindo = false,
+    this.regravarArmado = false,
     this.onRegravar,
     this.revisao,
     this.estado,
     this.estadoDormindo = false,
+    this.estadoArmado = false,
     this.onEstado,
   });
 }
@@ -185,9 +189,9 @@ class FraseList extends StatelessWidget {
           if (row.estado case final estado?)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: row.onEstado == null
+              child: row.regravando
                   ? Semantics(
-                      liveRegion: row.regravando,
+                      liveRegion: true,
                       child: Text(
                         estado,
                         style: TextStyle(color: colors.mut, fontSize: 14),
@@ -197,6 +201,8 @@ class FraseList extends StatelessWidget {
                       label: estado,
                       onTap: row.onEstado,
                       dormindo: row.estadoDormindo,
+                      toggled: row.estadoArmado ? true : null,
+                      semEsmaecer: true,
                     ),
             ),
         ],
@@ -210,12 +216,14 @@ class _Pill extends StatelessWidget {
   final VoidCallback? onTap;
   final bool dormindo;
   final bool? toggled;
+  final bool semEsmaecer;
 
   const _Pill({
     required this.label,
     required this.onTap,
     this.dormindo = false,
     this.toggled,
+    this.semEsmaecer = false,
   });
 
   @override
@@ -226,9 +234,13 @@ class _Pill extends StatelessWidget {
       enabled: onTap != null && !dormindo,
       toggled: toggled,
       label: label,
+      onTap: onTap,
+      excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null
-            ? 0.35
+            ? semEsmaecer
+                  ? 1
+                  : 0.35
             : dormindo
             ? 0.4
             : 1,
@@ -392,7 +404,7 @@ class _FraseTile extends StatelessWidget {
                           label: regravar,
                           onTap: row.onRegravar,
                           dormindo: row.regravarDormindo,
-                          toggled: row.regravando,
+                          toggled: row.regravando || row.regravarArmado,
                         ),
                     ],
                   ),

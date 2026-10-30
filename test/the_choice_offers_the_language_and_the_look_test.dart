@@ -76,7 +76,7 @@ Future<ProviderContainer> _reopen(
   ProviderContainer container,
 ) async {
   await tester.pumpWidget(const SizedBox());
-  final (_, next) = await relaunch(harness, container);
+  final (_, next) = await relaunch(harness, container, tester: tester);
   await tester.pumpWidget(
     UncontrolledProviderScope(container: next, child: const SalaApp()),
   );
@@ -290,7 +290,7 @@ void main() {
   });
 
   choiceTest(
-    'an English session reached again after «PT» is tapped still hears her acknowledgement in English',
+    'an English session reached again after «PT» is tapped hears her acknowledgement in the room language',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true, lingua: null);
       final container = await _openTheChoice(tester, harness);
@@ -315,7 +315,7 @@ void main() {
           if (instantAckLines.contains(line.$1)) line.$2,
       ];
       expect(heard, isNotEmpty);
-      expect(heard, everyElement('en'));
+      expect(heard, everyElement('pt'));
     },
   );
 

@@ -325,7 +325,13 @@ void main() {
       final (next, effects) = reduce(machine, const MicClosing());
 
       expect(next.channel, const Microphone(MicOwner.conversation));
-      expect(effects, [const CloseTheMic()]);
+      expect(effects, [
+        isA<CloseTheMic>().having(
+          (close) => close.owner,
+          'owner',
+          MicOwner.conversation,
+        ),
+      ]);
     },
   );
 
@@ -343,6 +349,25 @@ void main() {
       );
 
       expect(next.channel, held);
+      expect(next.lastMic?.take, _file);
+    },
+  );
+
+  test(
+    'a take that answers for a microphone already left keeps the microphone open since',
+    () {
+      const machine = Machine(channel: Microphone(MicOwner.rehearsal));
+
+      final (next, _) = reduce(
+        machine,
+        const MicAnswered(
+          MicAnswer.closed,
+          take: _file,
+          owner: MicOwner.question,
+        ),
+      );
+
+      expect(next.channel, const Microphone(MicOwner.rehearsal));
       expect(next.lastMic?.take, _file);
     },
   );
@@ -376,19 +401,19 @@ void main() {
       await notifier.goConversa(book: 'Ruth');
       await settle();
       notifier.goEnsaio();
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
 
       harness.recorder.failsTheNextStop = PlatformException(
         code: 'the platform broke',
       );
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
 
       expect(read().needsPerson, isFalse);
       expect(read().ensaio, EnsaioStatus.recording);
 
-      notifier.ensaioTap();
+      notifier.gravarACena(1);
       await settle();
 
       expect(read().ensaio, EnsaioStatus.recorded);

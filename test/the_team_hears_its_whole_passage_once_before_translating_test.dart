@@ -27,7 +27,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
@@ -35,6 +35,9 @@ const _soOuvirEn =
     'First, just listen: the whole passage, from beginning to end.';
 const _soOuvirAGravacao =
     'Primeiro, só ouvir: a gravação de vocês inteira, do começo ao fim.';
+const _contar =
+    'Toquem no círculo para pausar onde a frase acaba; toquem de novo para '
+    'traduzir só o que aquela frase diz, e de novo para a gravação seguir.';
 const _ensaioFinal = 'Ensaio Final';
 const _terminei = 'terminei';
 const _naoDeuParaConferir = 'não deu para conferir agora — tentem de novo';
@@ -64,7 +67,6 @@ void _juntadas(Sala it) {
       ],
       savedAt: value.savedAt,
       language: value.language,
-      partBeingRecordedAgain: value.partBeingRecordedAgain,
       passesToGoAbove: value.passesToGoAbove,
     );
   }
@@ -74,8 +76,8 @@ Future<void> _reabrir(Sala it) async {
   it.container.dispose();
   it.container = it.harness.container();
   addTearDown(it.container.dispose);
-  await it.sala.abrirEscolha();
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
 }
 
 /// A Joined recording of three parts on the recording home: nothing told back, nothing
@@ -574,6 +576,45 @@ void main() {
         findsOneWidget,
         reason: 'o círculo sumia junto com a escuta e não voltava para contar',
       );
+      closeTheRoom(it.container);
+    },
+  );
+
+  testWidgets(
+    'while P1 is still said after the listen, the circle and the telling line '
+    'already stand, and the circle answers once she is done',
+    (tester) async {
+      final it = await _naTela(tester, _juntadaNaCasa);
+      await _ate(tester, () async {
+        _nadaOuvido(it);
+        await _oDisco(it);
+        await _ouvirAte(it, ate: 1);
+        _tudoOuvido(it);
+        it.harness.voice.holdNextLine();
+        await _ouvirAte(it, desde: 2);
+        await waitFor(
+          'a P1 dela começar',
+          () => it.harness.voice.fixedLines.last.$1 == 'P1',
+        );
+      });
+
+      expect(
+        _oCirculo(),
+        findsOneWidget,
+        reason: 'a tela de só ouvir ficava de pé enquanto a P1 era dita',
+      );
+      expect(find.text(_contar), findsOneWidget);
+      expect(find.text(_soOuvir), findsNothing);
+
+      await _ate(tester, () async {
+        final tocadas = it.harness.playback.played.length;
+        it.harness.voice.finishHeldLine();
+        await waitFor(
+          'a primeira voltar ao ar',
+          () => it.harness.playback.played.length > tocadas,
+        );
+      });
+      await _ate(tester, () => _abrirOMicrofone(it));
       closeTheRoom(it.container);
     },
   );
@@ -1079,6 +1120,40 @@ void main() {
     );
   });
 
+  test('an automatic check the room refuses leaves her «não deu para '
+      'conferir» on the telling, not a silent screen', () async {
+    final it = await _juntadaNaCasa();
+    _frasesTrazidas(it);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    var conferiu = false;
+    it.harness.room
+      ..listeningAutomaticCheck = true
+      ..listeningFixedLine = 'N1'
+      ..failFinishWith = const Refused('BAD_REQUEST')
+      ..duranteOVeredito = () => conferiu = true;
+
+    await _ouvirAte(it, desde: 2);
+    await waitFor(
+      'a conferência sozinha voltar',
+      () =>
+          conferiu &&
+          !it.estado.btConferindo &&
+          it.estado.btPhase != BtPhase.thinking,
+    );
+    await settle();
+
+    expect(
+      it.estado.btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason: 'a conferência sozinha que a sala recusava não deixava linha',
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
+    expect(it.estado.needsPerson, isFalse);
+  });
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();
@@ -1233,6 +1308,56 @@ void main() {
     );
     closeTheRoom(it.container);
   });
+
+  test(
+    'after a second listen that stays quiet, terminei asks the room to check '
+    'again',
+    () async {
+      final it = await _juntadaNaCasa();
+      _frasesTrazidas(it);
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      it.harness.room
+        ..listeningAutomaticCheck = true
+        ..listeningFixedLine = 'N1';
+      final conferidas = it.harness.room.playedByTakeSent.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a conferência',
+        () => it.harness.room.playedByTakeSent.length > conferidas,
+      );
+      await settle();
+      it.sala.goEnsaio();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      _nadaOuvido(it);
+      it.harness.room
+        ..listeningAutomaticCheck = false
+        ..listeningFixedLine = null;
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      final relatos = it.harness.room.listeningReports.length;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'o relato da última',
+        () => it.harness.room.listeningReports.length > relatos,
+      );
+      await settle();
+      var pedidas = 0;
+      it.harness.room.duranteOVeredito = () => pedidas++;
+
+      unawaited(it.sala.finishBackTranslation());
+      await waitFor('a conferência ser pedida', () => pedidas > 0);
+
+      expect(
+        pedidas,
+        1,
+        reason: 'a escuta quieta deixava terminei sem conferir de novo',
+      );
+    },
+  );
 
   test(
     'heard whole with nothing translated starts the telling with P1',
@@ -1413,7 +1538,7 @@ void main() {
   );
 
   test(
-    'on entry, a take the room names that this tablet does not hold starts the listen with P2 and the whole passage',
+    'on entry, a take the room names that this tablet does not hold starts the listen with N0 and the whole passage',
     () async {
       final it = await _juntadaNaCasa();
       it.harness.room.listeningUnheardTakeIds = const ['de-outro-tablet'];
@@ -1423,7 +1548,7 @@ void main() {
       final microfones = _microfones(it);
 
       await _oDisco(it);
-      expect(it.harness.voice.fixedLines.skip(linhas), [('P2', testLanguage)]);
+      expect(it.harness.voice.fixedLines.skip(linhas), [('N0', testLanguage)]);
       await _ouvirAte(it);
 
       expect(
@@ -1861,6 +1986,187 @@ void main() {
   );
 
   test(
+    'a team that leaves while P1 is said after the listen stays home, and the '
+    'telling never starts behind it',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      it.harness.voice.holdNextLine();
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a P1 dela começar',
+        () => it.harness.voice.fixedLines.last.$1 == 'P1',
+      );
+
+      it.sala.leaveTheBackTranslation();
+      await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
+      final tocadas = it.harness.playback.played.length;
+      it.harness.voice.finishHeldLine();
+      await settle();
+      await settle();
+
+      expect(it.estado.stage, SalaStage.ensaio);
+      expect(
+        it.harness.playback.played.length,
+        tocadas,
+        reason: 'a fala cortada pela saída ainda punha a primeira parte no ar',
+      );
+      expect(it.estado.btSoOuvir, isFalse);
+      expect(it.estado.btPhase, BtPhase.playing);
+    },
+  );
+
+  test(
+    'while N2 is said after the listen, the telling stands but its circle and '
+    'terminei wait for her to finish',
+    () async {
+      final it = await _juntadaNaCasa();
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      it.harness.room
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = [
+          UntranslatedPart(
+            takeId: it.partes[1].takeId!,
+            scene: 2,
+            from: const Duration(milliseconds: 4000),
+          ),
+        ];
+      it.harness.voice.holdNextLine();
+      var pedidas = 0;
+      it.harness.room.duranteOVeredito = () => pedidas++;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a N2 dela começar',
+        () => it.harness.voice.fixedLines.last.$1 == 'N2',
+      );
+
+      expect(
+        it.estado.btSoOuvir,
+        isFalse,
+        reason: 'a tela de só ouvir ficava de pé enquanto a N2 era dita',
+      );
+      final microfones = _microfones(it);
+      unawaited(it.sala.finishBackTranslation());
+      it.sala.retroTap();
+      await settle();
+
+      expect(pedidas, 0, reason: 'nenhuma conferência por cima da fala');
+      expect(_microfones(it), microfones);
+      expect(
+        it.estado.voice,
+        VoiceState.speaking,
+        reason: 'o toque no círculo cortava a fala dela no meio',
+      );
+      final tocadas = it.harness.playback.played.length;
+      it.harness.voice.finishHeldLine();
+      await waitFor(
+        'a segunda voltar ao ar',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      expect(it.harness.playback.played.last, it.partes[1].path);
+    },
+  );
+
+  test(
+    'while N5 is said after the listen, the telling stands but its circle and '
+    'terminei wait for her to finish',
+    () async {
+      final it = await _juntadaNaCasa();
+      _frasesTrazidas(it);
+      it.harness.room.awaitingSegmentId = 'trazida-2';
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      it.harness.voice.holdNextLine();
+      var pedidas = 0;
+      it.harness.room.duranteOVeredito = () => pedidas++;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a N5 dela começar',
+        () => it.harness.voice.fixedLines.last.$1 == 'N5',
+      );
+
+      expect(
+        it.estado.btSoOuvir,
+        isFalse,
+        reason: 'a tela de só ouvir ficava de pé enquanto a N5 era dita',
+      );
+      final microfones = _microfones(it);
+      unawaited(it.sala.finishBackTranslation());
+      it.sala.retroTap();
+      await settle();
+
+      expect(pedidas, 0, reason: 'nenhuma conferência por cima da fala');
+      expect(_microfones(it), microfones);
+      expect(
+        it.estado.voice,
+        VoiceState.speaking,
+        reason: 'o toque no círculo cortava a fala dela no meio',
+      );
+      final tocadas = it.harness.playback.played.length;
+      it.harness.voice.finishHeldLine();
+      await waitFor(
+        'a frase voltar ao ar',
+        () => it.harness.playback.played.length > tocadas,
+      );
+      expect(it.harness.playback.ranges.last, '4000-10000');
+    },
+  );
+
+  test(
+    'while N1 is said after the listen, the telling stands and the check waits '
+    'for her to finish, then runs once',
+    () async {
+      final it = await _juntadaNaCasa();
+      _frasesTrazidas(it);
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await _ouvirAte(it, ate: 1);
+      _tudoOuvido(it);
+      it.harness.room
+        ..listeningAutomaticCheck = true
+        ..listeningFixedLine = 'N1';
+      it.harness.voice.holdNextLine();
+      var pedidas = 0;
+      it.harness.room.duranteOVeredito = () => pedidas++;
+      await _ouvirAte(it, desde: 2);
+      await waitFor(
+        'a N1 dela começar',
+        () => it.harness.voice.fixedLines.last.$1 == 'N1',
+      );
+
+      expect(
+        it.estado.btSoOuvir,
+        isFalse,
+        reason: 'a tela de só ouvir ficava de pé enquanto a N1 era dita',
+      );
+      final microfones = _microfones(it);
+      unawaited(it.sala.finishBackTranslation());
+      it.sala.retroTap();
+      await settle();
+
+      expect(pedidas, 0, reason: 'nenhuma conferência por cima da fala');
+      expect(_microfones(it), microfones);
+      expect(
+        it.estado.voice,
+        VoiceState.speaking,
+        reason: 'o toque no círculo cortava a fala dela no meio',
+      );
+      it.harness.voice.finishHeldLine();
+      await waitFor('a conferência ser pedida', () => pedidas > 0);
+      await settle();
+      expect(pedidas, 1, reason: 'uma conferência, depois da fala dela');
+    },
+  );
+
+  test(
     'a recording no join touched is heard whole after P0, then P1 starts the '
     'telling from its first part, not the telling at once',
     () async {
@@ -1944,6 +2250,34 @@ void main() {
             'sem a sala, a volta esquecia o que ela disse ao fim da primeira '
             'escuta e tocava a primeira parte em voz alta',
       );
+    },
+  );
+
+  test(
+    'entering the Back-translation with the room unreachable starts the first '
+    'listen from the first part, never the telling',
+    () async {
+      final it = await _juntadaNaCasa();
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      it.harness.room.failListeningWith = const NetworkFailed('sem rede');
+
+      it.sala.startRetro();
+      await _ouvirAte(it);
+      await settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N0', testLanguage)],
+        reason: 'sem resposta da sala, a entrada dizia como traduzir',
+      );
+      expect(it.estado.btSoOuvir, isTrue);
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+      closeTheRoom(it.container);
     },
   );
 
@@ -2255,7 +2589,7 @@ void main() {
   );
 
   test(
-    'a relaunch on the back translation of a recording no join touched nobody '
+    'after a relaunch the back translation of a recording no join touched nobody '
     'heard plays P0 and the whole recording, not the telling',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
@@ -2270,6 +2604,7 @@ void main() {
       final tocadas = it.harness.playback.played.length;
 
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>
@@ -2325,7 +2660,8 @@ void main() {
   );
 
   test(
-    'a relaunch on the back translation of a joined recording nobody heard plays the first listen',
+    'after a relaunch the back translation of a joined recording nobody heard '
+    'plays the first listen',
     () async {
       final it = await umEnsaioDeTresPartesGravado();
       it.sala.startRetro();
@@ -2340,6 +2676,7 @@ void main() {
       final tocadas = it.harness.playback.played.length;
 
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>
@@ -2356,6 +2693,25 @@ void main() {
       );
     },
   );
+
+  testWidgets('her N0 plays in the room language when the room language '
+      'changed after the session was opened', (tester) async {
+    final it = await _naTela(tester, _juntadaNaCasa);
+    it.container.read(roomLanguageProvider.notifier).choose('en');
+    await tester.pump();
+    final linhas = it.harness.voice.fixedLines.length;
+    await _ate(tester, () async {
+      _nadaOuvido(it);
+      await _oDisco(it);
+      await theClipOpens(it.harness);
+      it.harness.playback
+        ..length = const Duration(seconds: 10)
+        ..at = const Duration(seconds: 2);
+    });
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(it.harness.voice.fixedLines.skip(linhas), [('N0', 'en')]);
+  });
 
   testWidgets('an English session hears N0 in English and reads her English', (
     tester,
@@ -2441,6 +2797,7 @@ void main() {
       _nadaOuvido(it);
       final tocadas = it.harness.playback.played.length;
       await _reabrir(it);
+      it.sala.startRetro();
       await waitFor(
         'a primeira escuta pôr uma parte no ar',
         () =>
@@ -2457,7 +2814,7 @@ void main() {
       final microfones = _microfones(it);
 
       it.sala.traduzirAFraseDeNovo(0);
-      it.sala.ouvirAConta(0);
+      it.sala.ouvirOTrechoContado(0);
       await settle();
 
       expect(it.harness.playback.played.length, noAr);

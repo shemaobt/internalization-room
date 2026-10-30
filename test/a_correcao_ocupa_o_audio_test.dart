@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
-import 'scenario_helpers.dart' show ouvirOApontado, traduzirOApontadoDeNovo;
+import 'scenario_helpers.dart' show traduzirOApontadoDeNovo;
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -28,8 +28,8 @@ Future<Sala> _aSalaNaPergunta({int lugar = 1}) async {
   await it.sala.goConversa(book: 'Ruth');
   await waitFor('a sala abrir', () => it.estado.sessionId != null);
   it.sala.goEnsaio();
-  await gravarUmaParteDoEnsaio(it);
-  await gravarUmaParteDoEnsaio(it);
+  await gravarUmaParteDoEnsaio(it, 1);
+  await gravarUmaParteDoEnsaio(it, 2);
   it.sala.startRetro();
   await waitFor(
     'a tradução começar a tocar a primeira parte',
@@ -69,7 +69,7 @@ void main() {
         final trecho = it.estado.btFindingTrecho!;
         final caminhoDaParte = it.estado.partes[trecho.parte].path;
 
-        ouvirOApontado(it.container);
+        traduzirOApontadoDeNovo(it.container);
         await waitFor(
           'o trecho apontado estar tocando',
           () => it.estado.btTrechoTocando,
@@ -111,7 +111,7 @@ void main() {
       expect(depois.to, antes.to);
 
       it.harness.playback.played.clear();
-      ouvirOApontado(it.container);
+      traduzirOApontadoDeNovo(it.container);
       await waitFor(
         'o trecho apontado estar tocando',
         () => it.estado.btTrechoTocando,

@@ -25,7 +25,7 @@ Future<(ProviderContainer, String)> _reopensIntoRetro(
     '${Directory.systemTemp.createTempSync('sala-1136').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
   addTearDown(() => gravada.parent.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -36,12 +36,15 @@ Future<(ProviderContainer, String)> _reopensIntoRetro(
       ),
     ],
   );
+  await holdTheSession(harness, row);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await notifier.openTheRoom();
+  await intoTheBackTranslation(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   await settle();
   return (container, gravada.path);
 }
@@ -110,8 +113,8 @@ Future<ProviderContainer> _freshlyInRetro(
   await notifier.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);

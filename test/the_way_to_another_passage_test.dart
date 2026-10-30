@@ -9,7 +9,8 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, withDiskThatAnswersAtOnce;
+import 'scenario_helpers.dart'
+    show byLabel, intoTheRecordingHome, withDiskThatAnswersAtOnce;
 
 const _panorama = Passagem(
   pericope: 'panorama',
@@ -136,8 +137,8 @@ Future<void> _keepAPart(WidgetTester tester, _Room room) async {
   room.notifier.goEnsaio();
   await _passTime(tester, 300);
   await tester.pump(const Duration(seconds: 2));
-  room.notifier.ensaioTap();
-  room.notifier.ensaioTap();
+  room.notifier.gravarACena(1);
+  room.notifier.gravarACena(1);
   await _passTime(tester, 300);
   room.notifier.takeKeep();
   await theRoomNamesTheParts(tester, room.container, parts: 1);
@@ -216,8 +217,8 @@ void main() {
       final room = await _pump(tester, memory: true);
       await _takeThePassage(tester, room, 'P01');
       await _keepAPart(tester, room);
-      room.notifier.ensaioTap();
-      room.notifier.ensaioTap();
+      room.notifier.gravarACena(2);
+      room.notifier.gravarACena(2);
       await _passTime(tester, 300);
       room.notifier.playTheRehearsal();
       await _passTime(tester, 200);
@@ -230,7 +231,11 @@ void main() {
       await _passTime(tester);
       await tester.pump(const Duration(seconds: 1));
       await _tap(tester, _back);
-      await tester.pump(const Duration(seconds: 1));
+      await intoTheRecordingHome(
+        room.notifier,
+        () => room.state,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
 
       expect(room.state.stage, SalaStage.ensaio);
       expect(room.state.takePaused, isFalse);
@@ -283,7 +288,7 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       expect(_live(tester, _back), isTrue);
 
-      room.notifier.ensaioTap();
+      room.notifier.gravarACena(1);
       await _passTime(tester, 300);
 
       expect(room.harness.sounds, contains('recorder:start'));

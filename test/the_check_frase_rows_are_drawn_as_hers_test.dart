@@ -15,6 +15,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/frase_li
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
+import 'scenario_helpers.dart' show holdTheSession, intoTheBackTranslation;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
@@ -22,7 +23,7 @@ import 'the_team_re_records_one_whole_sentence_test.dart'
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
 
-Future<ProviderContainer> _voltaATraducao(
+Future<ProviderContainer> voltaATraducao(
   WidgetTester tester,
   SalaHarness harness,
   BackTranslationProgress contado, {
@@ -34,19 +35,22 @@ Future<ProviderContainer> _voltaATraducao(
   addTearDown(tester.view.reset);
   final pasta = Directory.systemTemp.createTempSync('sala-1937');
   addTearDown(() => pasta.deleteSync(recursive: true));
-  harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in partes)
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${pasta.path}/p$n.m4a',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'gravacao-$n',
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in partes)
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${pasta.path}/p$n.m4a',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'gravacao-$n',
+          ),
+      ],
+    ),
   );
   harness.room.retroSoFar = contado;
   final container = harness.container();
@@ -54,17 +58,16 @@ Future<ProviderContainer> _voltaATraducao(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'a tradução voltar com as frases que a sala guardou',
     () =>
-        container.read(salaSessionProvider).stage == SalaStage.retro &&
         container.read(salaSessionProvider).btTrechos.length ==
-            contado.segments.length,
+        contado.segments.length,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);
@@ -156,7 +159,7 @@ void main() {
   testWidgets('a frase the room serves with no span fills its whole bar, '
       'not the sliver of a frase too short to see', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -192,7 +195,7 @@ void main() {
   testWidgets('a frase of two seconds beside one of nine draws 22% of the '
       'bar, a whole percent as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -226,7 +229,7 @@ void main() {
   testWidgets('a frase on the part the room numbers 3 reads «parte 3», not '
       'its place in the list of parts', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -271,7 +274,7 @@ void main() {
         ordinal: 3,
       ),
     );
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -319,6 +322,62 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a «regravada» frase told on an earlier visit keeps a live '
+      'loudspeaker, not a dimmed one', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-2',
+        scope: 'parte-2',
+        kind: 'ensaio',
+        ordinal: 2,
+      ),
+    );
+    final container = await voltaATraducao(
+      tester,
+      harness,
+      const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-2',
+            startsMs: 0,
+            endsMs: 5000,
+            bridgeTakeId: 'retro-2',
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      tester
+          .widget<FraseList>(find.byType(FraseList))
+          .rows
+          .singleWhere((row) => row.regravada)
+          .onHear,
+      isNotNull,
+      reason:
+          'a frase regravada contada numa visita anterior ficava com o '
+          'alto-falante apagado, sem cópia da tradução no tablet',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase the check found missing or unclear wears her blue on '
       'its bar, its border and its word, and an addition stays terracotta', (
     tester,
@@ -343,6 +402,65 @@ void main() {
       expect(_corDaPalavra(tester, n, palavra), ShemaBrand.azul);
     }
     expect(_borda(tester, 2), ShemaBrand.telha);
+    expect(_corDaBarra(tester, 2), ShemaBrand.telha);
+    expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.telha);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a finding of a kind this tablet does not know still wears her '
+      'blue mark with her fallback word, and one with no kind wears none', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(
+      tester,
+      harness,
+      BtFinding.listFrom({
+        'findings': [
+          {'kind': 'repetition', 'frase': 2, 'segment_id': 'trecho-2'},
+          {'frase': 3, 'segment_id': 'trecho-3'},
+        ],
+      }),
+    );
+
+    expect(
+      _borda(tester, 2),
+      ShemaBrand.azul,
+      reason:
+          'um achado de tipo desconhecido vinha sem marca, como se a frase '
+          'estivesse limpa',
+    );
+    expect(_corDaBarra(tester, 2), ShemaBrand.azul);
+    expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.azul);
+    expect(_borda(tester, 3), isNot(ShemaBrand.azul));
+    expect(
+      find.descendant(
+        of: _aFrase(3).first,
+        matching: find.text('acrescentado'),
+      ),
+      findsNothing,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a silence finding wears terracotta with «acrescentado», as her '
+      'addition does, not the blue of a kind nobody knows', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(
+      tester,
+      harness,
+      BtFinding.listFrom({
+        'findings': [
+          {'kind': 'silence', 'frase': 2, 'segment_id': 'trecho-2'},
+        ],
+      }),
+    );
+
+    expect(
+      _borda(tester, 2),
+      ShemaBrand.telha,
+      reason: 'o silêncio preenchido vinha azul, e o dela é telha',
+    );
     expect(_corDaBarra(tester, 2), ShemaBrand.telha);
     expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.telha);
     closeTheRoom(container);
@@ -439,7 +557,7 @@ void main() {
   testWidgets('a frase that awaits its translation stays terracotta even when '
       'the room still names it unclear', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _voltaATraducao(
+    final container = await voltaATraducao(
       tester,
       harness,
       const BackTranslationProgress(
@@ -496,7 +614,7 @@ void main() {
       tester.platformDispatcher.platformBrightnessTestValue = look;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await _voltaATraducao(
+      final container = await voltaATraducao(
         tester,
         harness,
         const BackTranslationProgress(

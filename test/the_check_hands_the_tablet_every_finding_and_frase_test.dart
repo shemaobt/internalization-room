@@ -49,6 +49,11 @@ void main() {
         'segments': <Object>[],
         'checked': false,
         'findings': _findings,
+        'named_nuance': {
+          'kind': 'nuance',
+          'frase': 1,
+          'segment_id': 'trecho-1',
+        },
       },
     });
 
@@ -56,6 +61,12 @@ void main() {
       _asRead(snapshot.backTranslation.findings),
       _read,
       reason: 'a leitura da sessão jogava fora a lista de achados',
+    );
+    final nuance = snapshot.backTranslation.namedNuance;
+    expect(
+      (nuance?.kind, nuance?.frase, nuance?.segmentId),
+      (BtFindingKind.nuance, 1, 'trecho-1'),
+      reason: 'a nuance que a voz nomeou não voltava com a leitura da sessão',
     );
   });
 
@@ -72,6 +83,7 @@ void main() {
 
     expect(verdict.findings, isEmpty);
     expect(snapshot.backTranslation.findings, isEmpty);
+    expect(snapshot.backTranslation.namedNuance, isNull);
   });
 
   test('the verdict answer hands over its round\'s stamp and the nuance the '
@@ -106,6 +118,50 @@ void main() {
     );
     expect(plain.checkAt, isNull);
     expect(plain.namedNuance, isNull);
+  });
+
+  test('a told stretch carries the take its telling was recorded in, live or '
+      'stale, and a stretch the room names none for carries none', () {
+    const room = {
+      'segments': [
+        {
+          'segment_id': 'trecho-1',
+          'take_id': 'parte-1',
+          'starts_ms': 0,
+          'ends_ms': 4000,
+          'bridge_take_id': 'retro-1',
+          'stale': false,
+        },
+        {
+          'segment_id': 'trecho-2',
+          'take_id': 'parte-1',
+          'starts_ms': 4000,
+          'ends_ms': 6000,
+          'told': false,
+          'bridge_take_id': null,
+          'stale': false,
+        },
+        {
+          'segment_id': 'trecho-velho',
+          'take_id': 'parte-velha',
+          'starts_ms': 0,
+          'ends_ms': 3000,
+          'bridge_take_id': 'retro-velho',
+          'stale': true,
+        },
+      ],
+    };
+
+    expect(
+      [
+        for (final segment in SegmentView.listFrom(room)) segment.bridgeTakeId,
+        for (final segment in SegmentView.staleFrom(room)) segment.bridgeTakeId,
+      ],
+      ['retro-1', null, 'retro-velho'],
+      reason:
+          'o app jogava fora o bridge_take_id, e a frase contada numa visita '
+          'anterior tocava a língua materna no lugar da tradução',
+    );
   });
 
   test('a stretch carries the frase number the voice says, and an untold '

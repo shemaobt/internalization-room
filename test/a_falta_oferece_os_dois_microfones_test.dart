@@ -36,8 +36,8 @@ Future<ProviderContainer> pumpToPergunta(
   await n.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   n.goEnsaio();
-  n.ensaioTap();
-  n.ensaioTap();
+  n.gravarACena(1);
+  n.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   n.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);

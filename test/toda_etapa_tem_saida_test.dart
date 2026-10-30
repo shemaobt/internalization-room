@@ -18,7 +18,7 @@ import 'scenario_helpers.dart' show enterThePanorama, settle;
 /// is looking at.
 const _terminal = <SalaStage>{};
 
-const _noGestureReaches = {SalaStage.fim};
+const _noGestureReaches = <SalaStage>{};
 
 /// What the team can do to leave each stage, named rather than read off the code: a table
 /// derived from the implementation proves only that the code equals itself.
@@ -50,8 +50,8 @@ final _wayOut =
       SalaStage.ensaio: (
         name: 'startRetro',
         take: (n, _) async {
-          n.ensaioTap();
-          n.ensaioTap();
+          n.gravarACena(1);
+          n.gravarACena(1);
           await settle();
           n.takeKeep();
           n.startRetro();
@@ -166,8 +166,8 @@ Future<void> _standIn(
   await settle();
   if (stage == SalaStage.ensaio) return;
 
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   notifier.startRetro();

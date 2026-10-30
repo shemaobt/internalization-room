@@ -180,7 +180,7 @@ A scene take or a part too short to be anything the team said, or one the record
 _Avoid_: empty take, short take, capture guard (the Conversation's window)
 
 **Capture guard**:
-The short window after a Conversation take opens in which the team's next tap on the circle is ignored instead of ending the take: the take goes on recording, and nothing is sent or thrown away. A tap after the window ends the take and sends it. This also covers the take an Interruption opens.
+The short window after the recorder of a Conversation or Panorama take starts in which the team's next tap on the circle is ignored instead of ending the take: the take goes on recording, and nothing is sent or thrown away. A tap while the recorder is still starting is ignored the same way. A tap after the window ends the take and sends it, unless the take is still a ghost, too short or too light, which is thrown away with nothing sent. This also covers the take an Interruption opens.
 
 **Mother tongue**:
 The team's language, in which the passage is recorded in the Conversation and the Rehearsal, and which nobody in the room needs to understand.
@@ -267,7 +267,7 @@ The rows at the top of the Back-translation and the findings, one per Part, hers
 _Avoid_: Bead row (retired on 2026-10-27), cord, reading head (retired on 2026-09-25), contas, bits, progress bar
 
 **Circle**:
-The room's one control, the same size in every station: its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it. On the First listen its tap does nothing.
+The room's control on every station but the recording home, whose Scene rows record; its size is hers per screen (ADR 0040). Its colour is the voice (telha the Guide, wood the Mother tongue, azul the Bridge language) and its motion the direction (ring and ripples in while the room listens, ripples out while it sounds); the first tap opens the microphone and the second closes it. On the First listen its tap does nothing.
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:
@@ -389,7 +389,7 @@ A take of a Part of this session still on this tablet, the newest pass of its Pa
 _Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:
-The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the part being recorded again (ADR 0045), the Cursor, the pending translation, the Listening ledger and the outside listener in progress (its version and number; what that listener has done is the room's to say, ADR 0116) — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). On the Rehearsal, the parts it names that are not here come down behind their rows (ADR 0128). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session — never the clock. An approval keeps it, on the Back-translation (ADR 0112).
+The durable slice of the room's state for one passage, written whole at every transition — the session, the Station and its Step, the kept takes, the Cursor, the pending translation, the Listening ledger and the outside listener in progress (its version and number; what that listener has done is the room's to say, ADR 0116) — so a reopening lands where the team stopped, on a tablet that still holds the recordings or on one that fetches them from the room again. The server rules over what it knows, the slice over the rest (ADR 0046). One per passage and **Session language** (ADR 0077). On the Rehearsal, the parts it names that are not here come down behind their rows (ADR 0128). It never expires by age: what drops it are facts about the room or the passage — the room no longer knowing the session — never the clock. An approval keeps it, on the Back-translation (ADR 0112).
 _Avoid_: ponto de retomada, em curso, checkpoint, snapshot (the session's own lives on the server)
 
 **Current session**:

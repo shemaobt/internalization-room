@@ -8,7 +8,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheBackTranslation, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _cincoPartes = [
@@ -38,7 +39,7 @@ Future<void> _regravada(
     reason: 'o cenário só mede alguma coisa se o achado apontar essa parte',
   );
   if (semNome) it.harness.room.holdNextTake('parte-${onde + 1}');
-  it.sala.gravarAParteDeNovo();
+  it.sala.leaveTheBackTranslation();
   await regravarAParte(it, onde);
   if (!semNome) {
     await waitFor(
@@ -95,21 +96,21 @@ Future<void> _retomadaJuntada(
       ],
       savedAt: value.savedAt,
       language: value.language,
-      partBeingRecordedAgain: value.partBeingRecordedAgain,
       passesToGoAbove: value.passesToGoAbove,
     );
   }
   it.container.dispose();
+  await holdTheSession(
+    it.harness,
+    it.harness.emAberto.rows['Ruth/P01/$testLanguage']!,
+  );
   it.container = it.harness.container();
   addTearDown(it.container.dispose);
-  await it.sala.abrirEscolha();
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await it.sala.openTheRoom();
+  await intoTheBackTranslation(it.sala, () => it.estado);
   await waitFor(
     'a retomada cair na tradução',
-    () =>
-        it.estado.stage == SalaStage.retro &&
-        it.estado.btPhase == BtPhase.playing &&
-        it.harness.playback.sounding,
+    () => it.estado.btPhase == BtPhase.playing && it.harness.playback.sounding,
   );
   expect(it.estado.joined, isTrue, reason: 'o cenário é uma gravação juntada');
   await ouvirAteOFim(it, ultima);
@@ -498,6 +499,7 @@ void main() {
       addTearDown(it.container.dispose);
       await it.sala.abrirEscolha();
       await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(it.sala, () => it.estado);
       await waitFor(
         'a retomada pôr uma parte no ar',
         () =>

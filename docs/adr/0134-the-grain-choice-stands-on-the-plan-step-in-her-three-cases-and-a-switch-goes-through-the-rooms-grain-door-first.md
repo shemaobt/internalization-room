@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -22,8 +22,9 @@ aside from a current one.
 - **Her three cases:** «Como vocês querem gravar?» appears when the plan cannot be read within
   6 seconds or its read fails, when the room answers the passage with no scenes (as soon as it
   answers), or when the rehearsals sit in the other language's session (under her line) — and
-  only while no grain is in force. With a grain in force those cases open that grain's
-  recording home. Every other case is ENG-1382's.
+  only while the room names no grain. With the room's grain those cases open that grain's
+  recording home; a grain read off takes an earlier visit left on the tablet never decides
+  them, as her draft alone does (ENG-2078). Every other case is ENG-1382's.
 - **The choice is a value of the plan, not a Station:** it is drawn on the plan Step, never a
   resume point. «A passagem inteira» switches to `whole` and opens the whole-passage home;
   «Cena por cena» switches to `scene` and reads the plan again.
@@ -158,3 +159,17 @@ nothing:** shema-api's `switch_the_grain` returns before it reads the approval
 and the amendment above still holds. The flag is not left off there: with the listing unread, the
 grain the tablet remembers may not be the room's, and a re-open withheld by that memory would be
 refused on every tap of that button.
+
+## Amendment · 2026-10-30 (ENG-2084)
+
+Her `chooseGrain("whole")` (Drafting.tsx:2292, :540-555) sets the new empty whole draft and
+reads the plan again, and `efScreen` sends an empty draft whose plan holds a scene rehearsal
+of this session to the plan (ensaioFinal.ts:79-80, `planHasRehearsals` :90-92). **«A passagem
+inteira» on the choice still opens the whole-passage home at once, and the home's own read of
+the rehearsals takes it to the Ensaio Final plan when one of this session is there,** while
+it still records the whole and nothing is recorded or kept on it; with none the team stays on
+the home, and a «Gravar cena por cena» tapped before the read answers is her `aside`. A listing that names
+the whole after the choice stood takes the same way. A plan read that follows counts the grain
+as named, so a listing that does not answer there opens the whole home, never the choice again.
+The empty whole home over a rehearsal is still reached from the plan by «gravar a passagem
+inteira de uma vez», her `aside` (ensaioFinal.ts:68-71), and stays.

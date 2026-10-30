@@ -26,8 +26,8 @@ Future<void> _recordATake(
   SalaHarness harness,
   SalaSessionNotifier notifier,
 ) async {
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   await waitFor(

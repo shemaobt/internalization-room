@@ -434,7 +434,6 @@ final _atTheRehearsal = MachineUnderTest<Machine>(
     0 => const TheRehearsalOpened(),
     1 => TheRehearsalWeighed(
       everySceneHasItsPart: random.nextBool(),
-      everyPartIsHere: random.nextBool(),
       everyPartIsSent: random.nextBool(),
     ),
     2 => const TheBackTranslationOpened(),
@@ -700,7 +699,7 @@ void main() {
             const <Invariant<Machine>>[],
             seed,
           ).entries)
-            if (entry.after.somethingPending) seed,
+            if (entry.after.parts.containsValue(PartFact.pending)) seed,
       ];
 
       expect(reached, isNotEmpty);

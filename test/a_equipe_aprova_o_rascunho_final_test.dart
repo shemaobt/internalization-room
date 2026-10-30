@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/way_back_button.dart';
 import 'package:internalization_room/main.dart';
@@ -54,8 +58,8 @@ Future<_Conferida> _ateAConferida(
   await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);
@@ -486,8 +490,8 @@ void main() {
     await sala.goConversa(book: 'Ruth', pericope: 'P01');
     await tester.pump(const Duration(milliseconds: 200));
     sala.goEnsaio();
-    sala.ensaioTap();
-    sala.ensaioTap();
+    sala.gravarACena(1);
+    sala.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     sala.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: 1);
@@ -654,8 +658,21 @@ void main() {
     // que este ticket cria: ela tem de poder ser aprovada como a primeira. A linha é
     // escrita antes da saída porque a roda lê quais passagens já foram começadas ao
     // reabrir.
-    it.harness.emAberto.rows['Ruth/P02/${it.harness.lingua}'] =
-        const ResumePoint(sessionId: 'sessao-da-p02', stage: SalaStage.retro);
+    final pasta = Directory.systemTemp.createTempSync('sala-p02');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    it.harness.emAberto.rows['Ruth/P02/${it.harness.lingua}'] = ResumePoint(
+      sessionId: 'sessao-da-p02',
+      stage: SalaStage.retro,
+      takes: [
+        KeptTake(
+          scopeId: KeptScope.parte(1),
+          path: (File(
+            '${pasta.path}/p1.m4a',
+          )..writeAsBytesSync([1, 2, 3])).path,
+          takeId: 'gravacao-p02',
+        ),
+      ],
+    );
 
     await _aprovarEEsperar(tester);
     await _prontoEFora(tester, it.container);
@@ -680,8 +697,19 @@ void main() {
       ],
       checked: true,
     );
-    await _notifier(it.container).goConversa(book: 'Ruth', pericope: 'P02');
-    await tester.pump(const Duration(milliseconds: 400));
+    unawaited(
+      _notifier(it.container).goConversa(book: 'Ruth', pericope: 'P02'),
+    );
+    await intoTheBackTranslation(
+      _notifier(it.container),
+      () => _estado(it.container),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await waitFor(
+      'a conferida voltar',
+      () => _estado(it.container).btPhase == BtPhase.conferida,
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
 
     expect(
       _estado(it.container).btPhase,

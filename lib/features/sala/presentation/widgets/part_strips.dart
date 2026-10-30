@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/sala_colors.dart';
+import '../../domain/channel.dart';
 import '../../domain/pausa.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'scene_strip.dart';
@@ -13,6 +14,9 @@ final class PartStripRow {
   final List<SceneFrase> stale;
   final Duration? pausa;
   final bool playing;
+  final bool now;
+  final bool unheard;
+  final Paused? paused;
 
   const PartStripRow({
     required this.label,
@@ -22,6 +26,9 @@ final class PartStripRow {
     this.stale = const [],
     this.pausa,
     this.playing = false,
+    this.now = false,
+    this.unheard = false,
+    this.paused,
   });
 }
 
@@ -41,40 +48,61 @@ class PartStrips extends StatelessWidget {
           children: [
             for (final (onde, row) in rows.indexed) ...[
               if (onde > 0) const SizedBox(height: 5),
-              Row(
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 92),
-                    child: Text(
-                      row.label,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.mut, fontSize: 12),
+              Opacity(
+                opacity: row.now ? 1 : .7,
+                child: Row(
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 92),
+                      child: row.unheard
+                          ? Text.rich(
+                              TextSpan(
+                                text: row.label,
+                                children: [
+                                  TextSpan(
+                                    text: ' ·',
+                                    style: TextStyle(color: colors.telha),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: colors.mut, fontSize: 12),
+                            )
+                          : Text(
+                              row.label,
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: colors.mut, fontSize: 12),
+                            ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: SceneStrip.height,
-                      child: switch (row.length) {
-                        final length? => LayoutBuilder(
-                          builder: (context, constraints) => SceneStrip(
-                            envelope: row.envelope,
-                            length: length,
-                            frases: row.told,
-                            stale: row.stale,
-                            pausa: row.pausa,
-                            playing: row.playing,
-                            width: constraints.maxWidth,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: SceneStrip.height,
+                        child: switch (row.length) {
+                          final length? => LayoutBuilder(
+                            builder: (context, constraints) => SceneStrip(
+                              envelope: row.envelope,
+                              length: length,
+                              frases: row.told,
+                              stale: row.stale,
+                              pausa: row.pausa,
+                              playing: row.playing,
+                              paused: row.paused,
+                              width: constraints.maxWidth,
+                            ),
                           ),
-                        ),
-                        null => null,
-                      },
+                          null => null,
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ],

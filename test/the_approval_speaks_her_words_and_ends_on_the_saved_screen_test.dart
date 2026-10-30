@@ -64,8 +64,8 @@ Future<_Sala> _ateAConferida(
   await sala.goConversa(book: 'Ruth', pericope: 'P01');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);
@@ -378,12 +378,18 @@ void main() {
       final aberturasAntes = it.harness.room.calls
           .where((call) => call == 'openSession')
           .length;
+      final tocadasAntes = it.harness.voice.played.length;
       await tester.tap(byLabel(_ouvirDeNovo));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
         it.harness.room.calls.where((call) => call == 'openSession'),
-        hasLength(aberturasAntes + 1),
+        hasLength(aberturasAntes),
+        reason: 'o clipe do Guia está no tablet: a sala não é chamada',
+      );
+      expect(
+        it.harness.voice.played.skip(tocadasAntes),
+        [turnoUrl],
         reason:
             'o ouvir de novo da conversa repetia a fala da aprovação, não a '
             'última do Guia',
@@ -1116,8 +1122,8 @@ void main() {
       await _assentar(tester);
       expect(find.text(_conferida), findsOneWidget);
       it.harness.room.holdNextState();
-      sala.ensaioTap();
-      sala.ensaioTap();
+      sala.gravarACena(2);
+      sala.gravarACena(2);
       await tester.pump(const Duration(milliseconds: 100));
       sala.takeKeep();
       await tester.pump(const Duration(seconds: 3));
@@ -1382,8 +1388,8 @@ void main() {
       await _tocar(tester);
       final sala = it.container.read(salaSessionProvider.notifier);
 
-      sala.ensaioTap();
-      sala.ensaioTap();
+      sala.gravarACena(2);
+      sala.gravarACena(2);
       await tester.pump(const Duration(milliseconds: 100));
       sala.takeKeep();
       await tester.pump(const Duration(seconds: 3));
@@ -1443,28 +1449,44 @@ void main() {
     testWidgets('no offer while a take is being recorded', (tester) async {
       final it = await aCasaConferida(tester);
 
-      it.container.read(salaSessionProvider.notifier).ensaioTap();
+      it.container.read(salaSessionProvider.notifier).gravarACena(2);
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(byLabel(_aprovar), findsNothing);
       closeTheRoom(it.container);
     });
 
-    testWidgets('the circle does not record while the approval is in the air', (
-      tester,
-    ) async {
-      final it = await aCasaConferida(tester);
-      it.harness.room.holdNextRelease();
-      await _tocar(tester);
+    testWidgets(
+      'a Scene row does not record while the approval is in the air',
+      (tester) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room.holdNextRelease();
+        await _tocar(tester);
+        expect(
+          it.harness.room.releasesAsked,
+          isNotEmpty,
+          reason: 'o caso só mede alguma coisa com a aprovação no ar',
+        );
+        final antes = it.harness.recorder.captures;
+        final gravarNaCena2 = find.descendant(
+          of: linhaDoEnsaio(2),
+          matching: byLabel('Gravar'),
+        );
 
-      it.container.read(salaSessionProvider.notifier).ensaioTap();
-      await tester.pump(const Duration(milliseconds: 300));
-      it.harness.room.finishHeldRelease();
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.ensureVisible(gravarNaCena2);
+        await tester.tap(gravarNaCena2, warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 300));
+        it.harness.room.finishHeldRelease();
+        await tester.pump(const Duration(milliseconds: 300));
 
-      expect(it.container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
-      closeTheRoom(it.container);
-    });
+        expect(
+          it.container.read(salaSessionProvider).ensaio,
+          EnsaioStatus.idle,
+        );
+        expect(it.harness.recorder.captures, antes);
+        closeTheRoom(it.container);
+      },
+    );
 
     testWidgets('a kept take takes the offer away until the room reads again', (
       tester,
@@ -1472,8 +1494,8 @@ void main() {
       final it = await aCasaConferida(tester);
       final sala = it.container.read(salaSessionProvider.notifier);
       it.harness.room.holdNextState();
-      sala.ensaioTap();
-      sala.ensaioTap();
+      sala.gravarACena(2);
+      sala.gravarACena(2);
       await tester.pump(const Duration(milliseconds: 100));
       sala.takeKeep();
       await tester.pump(const Duration(seconds: 3));

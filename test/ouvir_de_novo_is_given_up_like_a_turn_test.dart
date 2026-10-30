@@ -83,7 +83,9 @@ Future<_Tablet> _relaunchedAfterAReply() async {
         !first.state.awaitingTheGuide,
   );
   await settle();
-  return _relaunched(first);
+  final again = await _relaunched(first);
+  again.harness.voice.missing.add(turnoUrl);
+  return again;
 }
 
 void main() {

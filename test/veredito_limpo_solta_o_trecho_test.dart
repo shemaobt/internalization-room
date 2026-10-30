@@ -62,8 +62,8 @@ Future<ProviderContainer> _pumpToPergunta(
   await sala.goConversa(book: 'Ruth');
   await tester.pump(const Duration(milliseconds: 200));
   sala.goEnsaio();
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   sala.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);
@@ -190,18 +190,14 @@ void main() {
     await _deixarOColarFechar(tester);
   });
 
-  testWidgets('a conferida desenha o anel telha dela, que não responde ao '
-      'toque, nunca um círculo de barro', (tester) async {
+  testWidgets('a conferida desenha o anel telha dela, nunca um círculo de '
+      'barro', (tester) async {
     final container = await _pumpToPergunta(tester);
     await _consertoQueNaoPegou(tester, container);
     await _oVeredictoVoltaLimpo(tester, container);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
     await tester.pump(const Duration(milliseconds: 1000));
 
-    final circulo = tester.widget<FacilitatorCircle>(
-      find.byType(FacilitatorCircle),
-    );
-    expect(circulo.answersATouch, isFalse);
     final pintados = tester
         .widgetList<Container>(
           find.descendant(

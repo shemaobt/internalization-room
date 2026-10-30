@@ -3,7 +3,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _ateOndeASegundaFoiContada = Duration(seconds: 4);
@@ -43,8 +43,8 @@ Future<void> _irAoEnsaioEVoltar(Sala it) async {
 Future<void> _umaVidaNovaNaCasa(Sala it) async {
   it.container.invalidate(salaSessionProvider);
   it.container.read(salaSessionProvider);
-  await it.sala.abrirEscolha();
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
   await waitFor(
     'a mesma sessão voltar à casa',
     () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,
@@ -236,7 +236,7 @@ void main() {
       );
       it.sala.goEnsaio();
       for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-        await gravarUmaParteDoEnsaio(it);
+        await gravarUmaParteDoEnsaio(it, onde + 1);
       }
       for (final (onde, parte) in it.partes.indexed) {
         it.harness.playback.lengths[parte.path] = partesDoEnsaio[onde];
@@ -252,8 +252,8 @@ void main() {
       );
 
       expect(
-        it.harness.voice.fixedLines.skip(falas),
-        isEmpty,
+        it.harness.voice.fixedLines.skip(falas).map((linha) => linha.$1),
+        ['P0'],
         reason:
             'a passagem nova herdava o que a sala disse da anterior e pulava a '
             'escuta',
@@ -340,6 +340,7 @@ void main() {
     it.harness.room.listeningUnheardTakeIds = [terceira];
     await it.sala.abrirEscolha();
     await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await intoTheRecordingHome(it.sala, () => it.estado);
     await waitFor(
       'a mesma sessão voltar',
       () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,
@@ -488,5 +489,30 @@ void main() {
       isTrue,
       reason: 'o terminei esperava a gravação tocar outra vez até o fim',
     );
+  });
+
+  test('coming back to a telling stopped in the middle keeps terminei dark '
+      'with the room counting every part heard, until the untold rest is '
+      'heard here', () async {
+    final it = await _contadaAteOMeioDaSegunda();
+    await _irAoEnsaioEVoltar(it);
+
+    expect(it.estado.btOuvidaInteira, isTrue);
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isFalse,
+      reason:
+          'a contagem da sala acendia o terminei sobre uma tradução parada no '
+          'meio, que a dela só abre com o resto ouvido',
+    );
+    expect(it.estado.btAindaFaltaOuvir, isTrue);
+
+    it.sala.ouvirGravacao();
+    await theClipOpens(it.harness);
+    await atravessarAFronteira(it);
+    await ouvirAteOFim(it, partesDoEnsaio[2]);
+    await settle();
+
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
   });
 }

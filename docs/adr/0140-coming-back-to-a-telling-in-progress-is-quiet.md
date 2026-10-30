@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0154 (the check waits for every part to reach the room)
+status: accepted, amended by 0154 (the check waits for every part to reach the room) and by ENG-1967 (a checked passage lands on its verdict)
 date: 2026-10-28
 amends: 0123
 ---
@@ -41,7 +41,10 @@ decision in a44568c2.
    report, when a resume lands outside the Back-translation and when it keeps a told stretch
    (ENG-1954). Hers reads the passage when the screen mounts (`:560`) and takes it from every
    frase answer (`:1197`), so a Life that resumed and reported nothing is answered too, and a
-   stretch left open by the frase just kept is said.
+   stretch left open by the frase just kept is said. So is every other change of the frases
+   (ENG-2057): a stretch told again, a scene brought back, the translation started over and
+   a sentence laid in each ask the same way. An ask that fails is made good by the next
+   change; until then the answer held before it stands.
 5. **No answer held, or an older room**, stays on today's path, with one exception: a frase
    awaiting its translation still comes first, unpadded. The tablet already knows which frase
    it is, a relaunch already goes to it without asking the room, and hers reads it from the
@@ -55,3 +58,10 @@ decision in a44568c2.
   unless a frase awaits its translation (rule 5).
 - A relaunch with a frase awaiting still goes straight to it, without asking the room first.
   Hers asks the room on a relaunch too; that difference is a follow-up.
+
+## Amendment (ENG-1967)
+
+- Rule 5: a passage the room calls checked is not on
+  today's path. It lands on the verdict, with the last check's findings and named nuance as
+  marks, only while the room still calls it checked. Hers: `restoreVerdict`,
+  `Drafting.tsx:1010-1012`.

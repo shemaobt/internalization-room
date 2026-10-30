@@ -10,13 +10,20 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/part_strips.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/scene_strip.dart';
 
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show byLabel, stateReads, traduzirOApontadoDeNovo;
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        stateReads,
+        traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -35,6 +42,16 @@ Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
 
 String _barra(int n) => 'Ouvir esta frase de novo e traduzir de novo — $n';
+
+List<List<(int?, int?)>> _bandas(WidgetTester tester) => [
+  for (final faixa in tester.widgetList<SceneStrip>(
+    find.descendant(
+      of: find.byType(PartStrips),
+      matching: find.byType(SceneStrip),
+    ),
+  ))
+    [for (final frase in faixa.frases) (frase.startsMs, frase.endsMs)],
+];
 
 Future<ProviderContainer> _duasFrasesNoVeredito(
   WidgetTester tester,
@@ -122,7 +139,7 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
       frase: 2,
     ),
   ];
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -135,6 +152,7 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
       ),
     ],
   );
+  await holdTheSession(harness, row);
   harness.room
     ..segments.addAll(daSala)
     ..takes.add(
@@ -154,10 +172,10 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     aguarda
@@ -313,6 +331,32 @@ void main() {
   );
 
   testWidgets(
+    'the band of the frase being told again ends at the pause the team moves, not at its old end',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+
+      await tocar(tester, depois);
+
+      expect(
+        _bandas(tester),
+        [
+          [(0, 3200), (3200, 6600)],
+        ],
+        reason:
+            'a faixa da frase traduzida de novo seguia no fim de antes, longe da pausa movida',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     'a frase told on a recording this tablet does not hold replays up to the moved pause on the ruler of its place',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true)
@@ -368,6 +412,62 @@ void main() {
         '3200-${movida.inMilliseconds - 1000}',
         reason:
             'a pausa movida ia na régua do arquivo e a frase começava na régua do lugar',
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a frase told on a recording this tablet does not hold draws its band to the moved pause on the ruler of its place',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true)
+        ..recorder.rehearsalSpeaks = _duasLacunas;
+      final container = await _duasFrasesNoVeredito(
+        tester,
+        harness,
+        apontada: 'trecho-1',
+      );
+      await tocar(tester, _barra(2));
+      final antigas = [...harness.room.segments];
+      harness.room
+        ..failReplaceWith = const Refused('PAUSE_CANNOT_STAND_THERE')
+        ..segments.clear()
+        ..segments.addAll([
+          for (final one in antigas)
+            SegmentView(
+              segmentId: one.segmentId,
+              takeId: 'gravacao-9',
+              startsMs: one.startsMs + 1000,
+              endsMs: one.endsMs + 1000,
+              frase: one.frase,
+            ),
+        ]);
+      await tocar(tester, 'ouvindo a gravação de vocês…');
+      await tocar(tester, 'Tocar ao terminar');
+      await waitFor(
+        'as frases voltarem na gravação que este aparelho não tem',
+        () =>
+            container.read(salaSessionProvider).btTrechoTraduzidoDeNovo ==
+                null &&
+            container
+                .read(salaSessionProvider)
+                .btTrechos
+                .every((trecho) => trecho.takeId == 'gravacao-9'),
+        step: () => _passo(tester),
+      );
+      await _passo(tester);
+      harness.room.failReplaceWith = null;
+      await tocar(tester, _barra(2));
+
+      await tocar(tester, depois);
+
+      final movida = container.read(salaSessionProvider).btCorte;
+      expect(movida, greaterThan(s(7.2)));
+      expect(
+        _bandas(tester).single.last,
+        (3200, movida.inMilliseconds - 1000),
+        reason:
+            'a faixa ia até a pausa na régua do arquivo, um segundo além do lugar da frase',
       );
       closeTheRoom(container);
     },

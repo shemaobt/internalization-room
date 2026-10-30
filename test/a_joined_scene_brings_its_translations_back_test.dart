@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
@@ -17,12 +18,17 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, offTheRows, thePersonSign;
+import 'scenario_helpers.dart'
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        offTheRows,
+        thePersonSign;
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -142,7 +148,12 @@ class _Home {
   }
 
   Future<void> until(String what, bool Function() done) async {
-    for (var vez = 0; vez < 200 && !done(); vez++) {
+    final waited = Stopwatch()..start();
+    for (
+      var vez = 0;
+      !done() && (vez < 200 || waited.elapsed < const Duration(seconds: 30));
+      vez++
+    ) {
       await beat(const Duration(milliseconds: 20));
     }
     expect(done(), isTrue, reason: what);
@@ -282,7 +293,7 @@ Future<_Home> _onTheHome(
 
 Future<_Home> _inTheBackTranslation(
   WidgetTester tester, {
-  int? heldSentence,
+  String? heldSentence,
 }) async {
   const sessionId = 'sessao-antiga';
   final harness = _aHarness('pt', _threeScenes);
@@ -294,11 +305,11 @@ Future<_Home> _inTheBackTranslation(
         File('${folder.path}/frase.wav')..writeAsBytesSync(_bytesOf(9)),
         sessionId: sessionId,
         kind: 'frase',
-        scope: '$heldSentence',
+        scope: heldSentence,
       ),
     );
   }
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: sessionId,
     stage: SalaStage.retro,
     takes: [
@@ -313,6 +324,7 @@ Future<_Home> _inTheBackTranslation(
         ),
     ],
   );
+  await holdTheSession(harness, row);
   harness.room.retroSoFar = BackTranslationProgress(
     segments: [
       for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
@@ -320,7 +332,11 @@ Future<_Home> _inTheBackTranslation(
   );
   final it = await _mount(tester, harness, _threeScenes);
   it.joinedInTheRoom(sessionId);
-  unawaited(it.notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+  await intoTheBackTranslation(
+    it.notifier,
+    () => it.container.read(salaSessionProvider),
+    step: it.beat,
+  );
   await it.until(
     'a tradução voltar',
     () =>
@@ -379,7 +395,7 @@ void main() {
     'its rehearsal\'s frases',
     (tester) async {
       final semantics = tester.ensureSemantics();
-      final it = await _inTheBackTranslation(tester, heldSentence: 3);
+      final it = await _inTheBackTranslation(tester, heldSentence: 'laid-2-a');
       expect(byLabel(_heldFailed), findsOneWidget);
       final laid = [
         for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
@@ -416,7 +432,7 @@ void main() {
     'bring-back',
     (tester) async {
       final semantics = tester.ensureSemantics();
-      final it = await _inTheBackTranslation(tester, heldSentence: 1);
+      final it = await _inTheBackTranslation(tester, heldSentence: 'laid-1-a');
       expect(byLabel(_heldFailed), findsOneWidget);
       final laid = [
         for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
@@ -443,6 +459,200 @@ void main() {
       await it.settle();
 
       expect(byLabel(_heldFailed), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a sentence held in the scene brought back is let go even after the room '
+    'renumbered the frases, by its stretch and not by its old number',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _inTheBackTranslation(tester, heldSentence: 'laid-2-a');
+      expect(byLabel(_heldFailed), findsOneWidget);
+      final laid = [
+        for (final (antes, frase) in [
+          for (final n in [2, 3]) ..._theRehearsalsFrases(n),
+        ].indexed)
+          SegmentView(
+            segmentId: frase.segmentId,
+            takeId: frase.takeId,
+            startsMs: frase.startsMs,
+            endsMs: frase.endsMs,
+            frase: antes + 1,
+          ),
+      ];
+      it.room.segments
+        ..clear()
+        ..addAll(laid);
+      it.room.retroSoFar = BackTranslationProgress(segments: laid);
+      it.notifier.goEnsaio();
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+      it.notifier.startRetro();
+      await it.until(
+        'a sala renumerar as frases',
+        () => it.container.read(salaSessionProvider).btTrechos.length == 4,
+      );
+      await it.settle();
+      expect(byLabel(_heldFailed), findsOneWidget);
+      it.room.retroSoFar = BackTranslationProgress(
+        segments: laid,
+        bringBack: const [2],
+      );
+
+      it.notifier.goEnsaio();
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+      await _bringBackTwice(it, 2);
+      await it.settle();
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      await it.tapThe(byLabel(_conferir));
+      await it.until(
+        'a tradução abrir',
+        () => it.container.read(salaSessionProvider).stage == SalaStage.retro,
+      );
+      await it.settle();
+
+      expect(
+        byLabel(_heldFailed),
+        findsNothing,
+        reason:
+            'a frase guardada da cena trazida de volta ficava, porque o '
+            'número dela já era de outra cena',
+      );
+      expect(it.room.sentencesSent, isEmpty);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a scene brought back asks the room what is left, so a return out of its '
+    'reach says the stretch the room names now, not nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _inTheBackTranslation(tester);
+      final laid = [
+        for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
+      ];
+      it.room.segments
+        ..clear()
+        ..addAll(laid);
+      it.room.retroSoFar = BackTranslationProgress(
+        segments: laid,
+        bringBack: const [2],
+      );
+      it.notifier.goEnsaio();
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+      it.room
+        ..listeningUnheardTakeIds = const []
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = const [
+          UntranslatedPart(
+            takeId: 'gravacao-junta-2',
+            scene: 2,
+            from: Duration(milliseconds: 3000),
+          ),
+        ];
+      await _bringBackTwice(it, 2);
+      await it.settle();
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      it.room.reachable = false;
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await it.tapThe(byLabel(_conferir));
+      await it.until(
+        'a tradução abrir',
+        () => it.container.read(salaSessionProvider).stage == SalaStage.retro,
+      );
+      await it.settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', 'pt')],
+        reason:
+            'a cena trazida de volta não perguntava nada à sala, e a volta sem '
+            'rede ficava calada sobre o trecho que a sala contava sem tradução',
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.container.read(salaSessionProvider).partes[1].path,
+      );
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a bring-back the room made whose answer was lost still asks the room what '
+    'is left, so a return out of its reach says the stretch it names now',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _inTheBackTranslation(tester);
+      final laid = [
+        for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
+      ];
+      it.room.segments
+        ..clear()
+        ..addAll(laid);
+      it.room.retroSoFar = BackTranslationProgress(
+        segments: laid,
+        bringBack: const [2],
+      );
+      it.notifier.goEnsaio();
+      await it.until('a casa de gravação abrir', () => it.showsTheHome);
+      await it.settle();
+      it.room
+        ..listeningUnheardTakeIds = const []
+        ..listeningFixedLine = 'N2'
+        ..listeningUntranslated = const [
+          UntranslatedPart(
+            takeId: 'gravacao-junta-2',
+            scene: 2,
+            from: Duration(milliseconds: 3000),
+          ),
+        ];
+      it.room.failBringBackWith = const NetworkFailed('a resposta se perdeu');
+
+      await it.tapThe(it.control(2, _bringBack));
+      await it.wait(const Duration(milliseconds: 700));
+      it.room.retroSoFar = BackTranslationProgress(segments: laid);
+      await it.tapThe(it.control(2, _bringBackArmed));
+      await it.settle();
+      expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
+      expect(it.control(2, _bringBack), findsNothing);
+      it.room.reachable = false;
+      final linhas = it.harness.voice.fixedLines.length;
+
+      await it.tapThe(byLabel(_conferir));
+      await it.until(
+        'a tradução abrir',
+        () => it.container.read(salaSessionProvider).stage == SalaStage.retro,
+      );
+      await it.settle();
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('N2', 'pt')],
+        reason:
+            'a cena que a sala trouxe de volta com a resposta perdida não '
+            'perguntava nada à sala, e a volta sem rede ficava calada sobre o '
+            'trecho que ela contava sem tradução',
+      );
+      expect(
+        it.harness.playback.played.last,
+        it.container.read(salaSessionProvider).partes[1].path,
+      );
+      expect(
+        it.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 3000),
+      );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -576,7 +786,6 @@ void main() {
       await _bringBackTwice(it, 2);
       expect(it.room.bringBacksAsked, hasLength(1));
       await it.tapThe(it.onRow(1, byLabel(_gravarDeNovo)));
-      await it.tapThe(find.byType(FacilitatorCircle));
       await it.tapThe(offTheRows(_ouvir));
       await it.settle();
 
@@ -587,12 +796,6 @@ void main() {
       expect(retry.hitTestable(), findsNothing);
       for (final control in [
         it.onRow(1, byLabel(_gravarDeNovo)),
-        find.descendant(
-          of: find.byType(FacilitatorCircle),
-          matching: find.byWidgetPredicate(
-            (widget) => widget is Semantics && widget.properties.button == true,
-          ),
-        ),
         offTheRows(_ouvir),
         byLabel(_enviarAGravacao),
         byLabel(_conferir),

@@ -15,7 +15,7 @@ Future<ProviderContainer> pumpAoApontado(SalaHarness harness) async {
   final notifier = container.read(salaSessionProvider.notifier);
 
   notifier.goEnsaio();
-  await gravaParte(container, notifier);
+  await gravaParte(container, notifier, 1);
   notifier.startRetro();
   await settle();
 

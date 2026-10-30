@@ -48,6 +48,7 @@ void main() {
       'not at the invite', () async {
     final it = await _onTheConversationOfAnEndedPassage();
     expect(it.estado.orangeDotLook, OrangeDotLook.bright);
+    expect(it.estado.canHearAgain, isTrue);
 
     it.sala.openTheEnsaioFinal();
     await waitFor('the recording to open', () => it.estado.station is Ensaio);
@@ -66,6 +67,15 @@ void main() {
       OrangeDotLook.bright,
       reason: 'o ponto laranja voltava apagado',
     );
+    expect(it.estado.canHearAgain, isTrue);
+    final played = it.harness.voice.played.length;
+    await it.sala.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => it.harness.voice.played.length > played,
+    );
+    expect(it.harness.voice.played.last, turnoUrl);
+    expect(it.harness.room.sessionsSaidAgain, isEmpty);
   });
 
   test('a relaunch in the Rehearsal of a passage the room has ended lands at '
@@ -233,34 +243,6 @@ void main() {
       reason:
           'a casa das gravações ficava com o que lera antes da tradução, '
           'sem o trazer de volta que a sala acendera',
-    );
-  });
-
-  test('going back to record a part again from a finding reads the room again '
-      'too, not only the way back', () async {
-    final it = await umEnsaioDeTresPartesContadoInteiro();
-    it.harness.room
-      ..verdictChecked = false
-      ..verdictHasFinding = true
-      ..verdictFindingPlace = 1;
-    await pedirOVeredito(it);
-    expect(it.estado.btFindingTrecho, isNotNull);
-    expect(it.estado.toBringBack, isEmpty);
-    it.harness.room.retroSoFar = const BackTranslationProgress(
-      segments: [],
-      bringBack: [3],
-    );
-
-    it.sala.gravarAParteDeNovo();
-    await settle();
-
-    expect(it.estado.station, const Ensaio());
-    expect(
-      it.estado.toBringBack,
-      [3],
-      reason:
-          'regravar uma parte voltava à casa sem ler a sala, como a volta '
-          'pelo canto fazia',
     );
   });
 }

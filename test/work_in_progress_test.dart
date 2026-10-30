@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 void main() {
   test(
@@ -178,17 +180,23 @@ void main() {
     expect(back!.takes.single.path, '${gravacoes.path}/p1.m4a');
   });
 
-  test('a resume point with the part being recorded again keeps it through '
-      'toJson/fromJson', () {
-    const linha = ResumePoint(
-      sessionId: 'sessao-1',
-      stage: SalaStage.ensaio,
-      partBeingRecordedAgain: 1,
+  test('a row stored on the closing stage of an older build resumes on the '
+      'conversation canvas, where a finished passage stays', () {
+    final linha = ResumePoint.fromJson(
+      jsonDecode('{"session_id":"sessao-1","stage":"fim","takes":[]}')
+          as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+
+    final session = SalaSessionState(
+      machine: Machine(station: Station.stored(linha.stage)),
+      endOfThePassage: true,
     );
 
-    final volta = ResumePoint.fromJson(linha.toJson(), folder: '/gravacoes')!;
-
-    expect(volta.partBeingRecordedAgain, 1);
+    expect(session.station, isA<Canvas>());
+    expect(session.stage, SalaStage.conversa);
+    expect(session.voice, VoiceState.done);
+    expect(session.orangeDotLook, OrangeDotLook.bright);
   });
 
   test('a resume point keeps the wholes the room holds set aside through '
@@ -229,17 +237,20 @@ void main() {
     expect(antiga.grain, isNull);
   });
 
-  test('a row written before the part being recorded again existed reopens '
-      'with no part marked', () {
+  test('a row written with or without the part being recorded again reopens '
+      'alike, with no part marked', () {
     const semAMarca =
         '{"session_id":"sessao-antiga","stage":"ensaio","takes":[]}';
+    const comAMarca =
+        '{"session_id":"sessao-antiga","stage":"ensaio","takes":[],'
+        '"part_being_recorded_again":1}';
 
-    final linha = ResumePoint.fromJson(
-      jsonDecode(semAMarca) as Map<String, Object?>,
+    ResumePoint linha(String bruto) => ResumePoint.fromJson(
+      jsonDecode(bruto) as Map<String, Object?>,
       folder: '/gravacoes',
     )!;
 
-    expect(linha.partBeingRecordedAgain, isNull);
+    expect(linha(comAMarca).toJson(), linha(semAMarca).toJson());
   });
 
   test('uma linha escrita com lugares abre igual a uma sem', () async {
