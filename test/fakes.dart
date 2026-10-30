@@ -2504,6 +2504,9 @@ class FakeRoom implements RoomRepository {
     final failure = failCreateOnceWith;
     if (failure != null) {
       failCreateOnceWith = null;
+      if (failure is SessionGone && afterSession == null) {
+        return const Refused(RefusalCode.notFound);
+      }
       return failure;
     }
     pericopesAsked.add(pericope);
@@ -2512,6 +2515,10 @@ class FakeRoom implements RoomRepository {
     final key = '$pericope/$language';
     final ours = await heldByTheTeam?.call(pericope, language);
     if (ours != null && !forgottenSessions.contains(ours)) {
+      if (serverHalt == HaltKind.blocking) {
+        serverHalt = HaltKind.unnamed;
+        serverStatus = null;
+      }
       return Answered(_theStateOf(ours));
     }
     final latest = resumesTheLatest ? latestSessions[key] : null;

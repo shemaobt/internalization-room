@@ -96,8 +96,7 @@ enum RefusalRule {
   /// The call for a person is asked again on the ladder.
   asksAgain,
 
-  /// The resume goes back to the Choice, however it was turned down, keeping its
-  /// session unless the room says it is gone.
+  /// The resume goes back to the Choice, however it was turned down.
   keepsTheResume,
 
   /// A scene refusal reads the scene rehearsals again.
@@ -230,8 +229,10 @@ abstract final class FailurePolicy {
           readAgain: rule == RefusalRule.readsTheListAgain,
           generation: generation,
         ),
-      RoomRefused() || RoomNetworkFailed() || RoomFoundNothing()
-          when rule == RefusalRule.keepsTheResume =>
+      RoomSessionGone() ||
+      RoomRefused() ||
+      RoomNetworkFailed() ||
+      RoomFoundNothing() when rule == RefusalRule.keepsTheResume =>
         TheResumeFailed(generation: generation),
       RoomSessionGone() => TheSessionIsGone(generation: generation),
       _ when context.door == Door.look && context.station is SceneRehearsal =>

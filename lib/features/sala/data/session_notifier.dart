@@ -2884,9 +2884,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       switch (answer) {
         case Answered(value: final session):
           created = session;
-        case final SessionGone gone when waiting != null:
-          _letGoOf(waiting.sessionId, kept: waiting.takes, passage: theResume);
-          return failed(gone);
         case final RoomFailure failure when waiting != null:
           return failed(
             failure,

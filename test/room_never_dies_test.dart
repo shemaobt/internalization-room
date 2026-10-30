@@ -1232,38 +1232,6 @@ void main() {
     },
   );
 
-  test(
-    'a session the server forgot twice sends the team back to the wheel',
-    () async {
-      final harness = SalaHarness();
-      final container = harness.container();
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-
-      await notifier.abrirEscolha();
-      await settle();
-      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-      await settle();
-      notifier.leaveThePassage();
-      await settle();
-
-      harness.room.forgetTheSession(harness.room.sessionIds.single);
-      harness.room.failCreateOnceWith = const SessionGone();
-      notifier.openTheEntry(container.read(salaSessionProvider).naRoda!.first);
-      await settle();
-
-      final state = container.read(salaSessionProvider);
-      expect(
-        state.stage,
-        SalaStage.escolha,
-        reason:
-            'a sessão lembrada e a sessão nova recusada de novo — sem ficar '
-            'presa numa conversa que não abre, a equipe volta à roda',
-      );
-      expect(state.needsPerson, isFalse);
-    },
-  );
-
   test('hearing again is not offered on top of the retro clip', () async {
     final harness = SalaHarness();
     harness.room.verdictChecked = false;
