@@ -139,8 +139,6 @@ Future<void> _terminei(_Room room) async {
   await waitFor('o ensaio ir', () => room.harness.room.scenesSent.isNotEmpty);
 }
 
-/// A tablet reopening straight into an unchecked telling-back. Copied from
-/// `every_door_that_falls_takes_the_room_out_of_reach_test.dart`.
 Future<_Room> _aResumedBackTranslation(SalaHarness harness) async {
   final casa = Directory.systemTemp.createTempSync('sala-1355');
   addTearDown(() => casa.deleteSync(recursive: true));
