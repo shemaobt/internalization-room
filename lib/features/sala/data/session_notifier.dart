@@ -3310,6 +3310,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       grainInForce: waiting.grain,
       partsAway: {for (final takeId in aBuscar) takeId: PartAway.coming},
     );
+    _aLinhaDiz = Station.stored(waiting.stage);
     _readTheScenesForTheRehearsal();
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -3361,7 +3362,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (!adopted) return;
     state = state.copyWith(keptTakes: named);
+    _theNamesWereAdopted();
+  }
+
+  void _theNamesWereAdopted() {
     _weighTheRehearsal();
+    _rememberWhereTheyAre(_aLinhaDiz ?? state.station);
   }
 
   /// The room's current parts, kept on a tablet that no longer holds them.
@@ -7818,8 +7824,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
     }
+    if (adopted) return _theNamesWereAdopted();
     _weighTheRehearsal();
-    if (adopted) _rememberWhereTheyAre(_aLinhaDiz ?? state.station);
   }
 
   Future<void> refreshUnsent() => _countUnsent();

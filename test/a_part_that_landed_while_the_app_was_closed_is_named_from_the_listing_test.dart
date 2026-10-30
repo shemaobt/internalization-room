@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_parte_da_volta_ganha_nome_test.dart' show gravarSemEsperarNome;
@@ -71,7 +76,81 @@ _aParte3QueChegouLongeDaPassagem() async {
   return (harness, container);
 }
 
+Future<ProviderContainer> _umaLinhaComAParte3SemNome(
+  SalaHarness harness,
+) async {
+  final home = Directory.systemTemp.createTempSync('sala-parte-sem-nome');
+  addTearDown(() => home.deleteSync(recursive: true));
+  await harness.emAberto.remember(
+    'Ruth',
+    'P01',
+    'pt',
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.ensaio,
+      takes: [
+        for (var parte = 1; parte <= 3; parte++)
+          KeptTake(
+            scopeId: KeptScope.parte(parte),
+            path: (File(
+              '${home.path}/p$parte.m4a',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: parte == 3 ? null : 'antiga-$parte',
+          ),
+      ],
+    ),
+  );
+  harness.room.takes.addAll([
+    for (var parte = 1; parte <= 3; parte++)
+      TakeView(
+        takeId: parte == 3 ? 'da-sala-3' : 'antiga-$parte',
+        kind: partTakeKind,
+        scope: KeptScope.parte(parte),
+        ordinal: parte,
+        pass: 1,
+      ),
+  ]);
+  harness.room.failTakesWith = const NetworkFailed('sem rede');
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await settle();
+  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  await settle();
+  expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+  expect(container.read(salaSessionProvider).partes[2].takeId, isNull);
+  return container;
+}
+
 void main() {
+  test('a name taken from the listing on a relaunch into the passage is '
+      'written to the row at once, under the station the row said', () async {
+    final before = SalaHarness();
+    final first = await _umaLinhaComAParte3SemNome(before);
+    final (harness, container) = await relaunch(before, first);
+    harness.room.failTakesWith = null;
+    await container.read(salaSessionProvider.notifier).openTheRoom();
+    await _aParte3GanhaONome(container);
+
+    final linha = before.emAberto.rows['Ruth/P01/pt']!;
+    expect(
+      linha.takes.where((take) => take.scopeId == _parte3).single.takeId,
+      'da-sala-3',
+      reason:
+          'o nome vindo da listagem só ia ao disco na próxima gravação da '
+          'linha, e um fechamento antes dela devolvia a parte sem nome',
+    );
+    expect(
+      linha.stage,
+      SalaStage.ensaio,
+      reason:
+          'a gravação da linha na retomada direta à passagem escrevia a tela '
+          'onde a equipe estava, a conversa, e a próxima abertura não achava '
+          'mais o ensaio',
+    );
+  });
+
   test('a name taken back from the Outbox is written to the row at once, not '
       'left for the next save', () async {
     final (harness, container) = await _aParte3QueChegouLongeDaPassagem();
