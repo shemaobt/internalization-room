@@ -376,15 +376,13 @@ final class TheLanguageChosen extends MachineEvent {
 }
 
 /// The Rehearsal's parts or its scene list changed: whether every scene has its part, and
-/// whether every part is on the tablet.
+/// whether every part is sent.
 final class TheRehearsalWeighed extends MachineEvent {
   final bool everySceneHasItsPart;
-  final bool everyPartIsHere;
   final bool everyPartIsSent;
 
   const TheRehearsalWeighed({
     required this.everySceneHasItsPart,
-    required this.everyPartIsHere,
     required this.everyPartIsSent,
   });
 }
@@ -1569,17 +1567,12 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
-  TheRehearsalWeighed(
-    :final everySceneHasItsPart,
-    :final everyPartIsHere,
-    :final everyPartIsSent,
-  ) =>
+  TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsSent) =>
     switch (machine.station) {
       Ensaio(:final step) => (
         machine.copyWith(
           station: Ensaio(
             everySceneHasItsPart: everySceneHasItsPart,
-            everyPartIsHere: everyPartIsHere,
             everyPartIsSent: everyPartIsSent,
             step: step,
           ),
