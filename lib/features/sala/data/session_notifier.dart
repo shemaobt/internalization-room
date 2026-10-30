@@ -4881,6 +4881,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         final read = PlanRead(rehearsals: value, scenes: scenes);
         state = state.copyWith(ensaioFinalPlan: read);
         if (chosen &&
+            state.recordsTheWhole &&
             state.partes.isEmpty &&
             state.ensaio == EnsaioStatus.idle &&
             planHoldsARehearsal(read, sessionId)) {

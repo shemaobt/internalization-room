@@ -540,6 +540,32 @@ void main() {
   );
 
   testWidgets(
+    '«Gravar cena por cena» tapped before the rehearsals answer keeps the team '
+    'on the scene home, never moved to the plan',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.holdNextSceneList();
+      await _tap(tester, _whole);
+      await tester.pump(const Duration(milliseconds: 100));
+      await _tap(tester, _sceneInstead);
+      await _settles(tester);
+      expect(find.text('Cena 1'), findsOneWidget);
+
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'a leitura tardia abria o plano por cima da casa por cenas que a '
+            'equipe tinha acabado de escolher, e o dela deixa de lado',
+      );
+      expect(find.text('Cena 1'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'a whole take kept before the rehearsals answer stays on the home, as her '
     'draft with a clip does',
     (tester) async {

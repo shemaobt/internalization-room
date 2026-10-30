@@ -167,7 +167,8 @@ reads the plan again, and `efScreen` sends an empty draft whose plan holds a sce
 of this session to the plan (ensaioFinal.ts:79-80, `planHasRehearsals` :90-92). **«A passagem
 inteira» on the choice still opens the whole-passage home at once, and the home's own read of
 the rehearsals takes it to the Ensaio Final plan when one of this session is there,** while
-nothing is recorded or kept on it; with none the team stays on the home. A listing that names
+it still records the whole and nothing is recorded or kept on it; with none the team stays on
+the home, and a «Gravar cena por cena» tapped before the read answers is her `aside`. A listing that names
 the whole after the choice stood takes the same way. A plan read that follows counts the grain
 as named, so a listing that does not answer there opens the whole home, never the choice again.
 The empty whole home over a rehearsal is still reached from the plan by «gravar a passagem
