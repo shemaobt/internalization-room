@@ -2243,6 +2243,51 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('over an approved draft the held sentence\'s «tentar de novo» '
+      'still arms, the confirmed tap opens the review instead of sending, and '
+      'its «usar esta» goes up reopening the draft', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await comAFraseGuardadaSobreAQueAguarda(
+      tester,
+      harness,
+      aprovado: true,
+    );
+
+    await tocar(tester, falhou);
+    const armado = 'toquem de novo: isto abre de novo o rascunho aprovado';
+    expect(
+      linhasCom(tester, armado),
+      [2],
+      reason: 'o toque sobre um rascunho aprovado abria a revisão sem armar',
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await tocar(tester, armado);
+    await _passo(tester);
+
+    expect(
+      harness.room.sentencesSent,
+      hasLength(1),
+      reason: 'o toque confirmado subia por cima da frase que aguarda',
+    );
+    expect(naLinha('usar esta'), findsOneWidget);
+
+    await tester.tap(naLinha('usar esta'));
+    await waitFor(
+      'a frase guardada subir da revisão',
+      () => harness.room.sentencesSent.length == 2,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.sentencesSentReopening,
+      [harness.room.sentencesSent.first.sentenceId],
+      reason:
+          'a revisão aberta pelo toque armado mandava a frase sem reabrir o '
+          'rascunho aprovado',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a «terminei» the room refuses because a frase awaits marks '
       'that frase as re-recorded and takes «regravar» off the others', (
     tester,

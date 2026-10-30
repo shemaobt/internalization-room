@@ -10359,6 +10359,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           aguardando,
           PassoDaRegravacao.revendo,
           path: guardada.path,
+          reabre: reabre,
         ),
         clearBtFraseGuardada: true,
       );
