@@ -4206,7 +4206,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _switchTheGrain(
         grain,
         reopens: true,
-        then: () => _toTheGrainsHome(grain, sessionId),
+        then: () => _openThePlan(sessionId),
         fromTheChoice: true,
       ),
     );

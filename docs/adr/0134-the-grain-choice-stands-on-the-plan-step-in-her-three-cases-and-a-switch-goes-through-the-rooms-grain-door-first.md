@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reads the plan again)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -159,3 +159,13 @@ nothing:** shema-api's `switch_the_grain` returns before it reads the approval
 and the amendment above still holds. The flag is not left off there: with the listing unread, the
 grain the tablet remembers may not be the room's, and a re-open withheld by that memory would be
 refused on every tap of that button.
+
+## Amendment · 2026-10-30 (ENG-2084)
+
+Her `chooseGrain("whole")` (Drafting.tsx:2292, :540-555) sets the new empty whole draft and
+reads the plan again, and `efScreen` sends an empty draft whose plan holds a scene rehearsal
+of this session to the plan (ensaioFinal.ts:79-80, `planHasRehearsals` :90-92). **«A passagem
+inteira» on the choice switches to `whole` and reads the plan again, as «Cena por cena» does:**
+with a scene rehearsal of this session the team lands on the Ensaio Final plan, with none on
+the whole-passage home. The empty whole home over a rehearsal is still reached from the plan by
+«gravar a passagem inteira de uma vez», her `aside` (ensaioFinal.ts:68-71).
