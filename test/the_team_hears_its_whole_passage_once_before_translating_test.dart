@@ -1538,7 +1538,7 @@ void main() {
   );
 
   test(
-    'on entry, a take the room names that this tablet does not hold starts the listen with P2 and the whole passage',
+    'on entry, a take the room names that this tablet does not hold starts the listen with N0 and the whole passage',
     () async {
       final it = await _juntadaNaCasa();
       it.harness.room.listeningUnheardTakeIds = const ['de-outro-tablet'];
@@ -1548,7 +1548,7 @@ void main() {
       final microfones = _microfones(it);
 
       await _oDisco(it);
-      expect(it.harness.voice.fixedLines.skip(linhas), [('P2', testLanguage)]);
+      expect(it.harness.voice.fixedLines.skip(linhas), [('N0', testLanguage)]);
       await _ouvirAte(it);
 
       expect(
