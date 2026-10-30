@@ -204,6 +204,49 @@ void main() {
     );
   });
 
+  test('a part still in the Outbox at the kill never takes the name of another '
+      'take at its number, it waits to go up', () async {
+    final harness = SalaHarness();
+    final container = await aRetomadaNoEnsaio(
+      harness,
+      traduzidasAte: [30000, 30000],
+    );
+    harness.room.unreachableTake = 'ensaio/$_parte3';
+    await gravarSemEsperarNome(container, 3);
+    await waitFor(
+      'a parte 3 ficar na Fila',
+      () async =>
+          (await harness.takes.pending()).any((row) => row.scope == _parte3),
+    );
+    await settle();
+    harness.room.takes.add(
+      TakeView(
+        takeId: 'de-outro-tablet',
+        kind: partTakeKind,
+        scope: _parte3,
+        ordinal: 3,
+        pass: 1,
+      ),
+    );
+    final (again, next) = await relaunch(harness, container);
+
+    await _voltarAoEnsaio(next);
+    await waitFor(
+      'a parte 3 aparecer por enviar',
+      () => next.read(salaSessionProvider).unsentParts.containsKey(3),
+    );
+    await settle();
+
+    expect(
+      next.read(salaSessionProvider).partes[2].takeId,
+      isNull,
+      reason:
+          'a parte ainda na Fila tomava o nome de outra gravação do mesmo '
+          'número, e o trecho contado sobre ela ia para a gravação errada',
+    );
+    expect(again.room.clipsFetched, isEmpty);
+  });
+
   test('a name taken back from the Outbox is written to the row at once, not '
       'left for the next save', () async {
     final (harness, container) = await _aParte3QueChegouLongeDaPassagem();
