@@ -10842,7 +10842,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         () => _abandoned(generation),
       );
     }
-    if (verdict.audioUrl.isEmpty && verdict.fixedLine.isEmpty) {
+    if (verdict.refusal == null &&
+        verdict.audioUrl.isEmpty &&
+        verdict.fixedLine.isEmpty) {
       return _theVerdictDidNotSound(pressedFrom);
     }
     final line = SpokenLine(
