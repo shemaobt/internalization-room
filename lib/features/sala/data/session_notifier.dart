@@ -7623,7 +7623,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _enviarACena(int cena) {
     if (state.station is! Ensaio ||
-        state.sendNowRests ||
+        state.phaseBusy ||
         state.ensaio == EnsaioStatus.recording ||
         state.machine.beingKept(state.sessionId, state.scopeOfRow(cena)) ||
         state.unsentParts[cena]?.failure == SendFailure.gone ||

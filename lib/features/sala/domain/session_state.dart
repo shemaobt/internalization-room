@@ -1035,12 +1035,13 @@ class SalaSessionState {
       bringingBack != null ||
       grainSwitching;
 
+  bool get phaseBusy =>
+      joining != null || swapping != null || bringingBack != null;
+
   bool get sendNowRests =>
       _theTakeInTheAirOf(partTakeKind) != null ||
       machine.keeping.keys.any((part) => part.session == sessionId) ||
-      joining != null ||
-      swapping != null ||
-      bringingBack != null;
+      phaseBusy;
 
   /// Each Scene row's plan row and what it offers on the recording home, by number, from
   /// the scene-rehearsal listing the home last read.
