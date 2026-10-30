@@ -520,6 +520,68 @@ void main() {
   }
 
   test(
+    'a refusal that lands after the tablet was put down still forgets the link',
+    () async {
+      final ledger = await _alreadyLinked();
+      final room = FakeRoom()
+        ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken)
+        ..holdingTheCredential = Completer<void>();
+      final container = _tablet(room: room, ledger: ledger);
+
+      unawaited(container.read(deviceLinkProvider.notifier).findTheTeam());
+      await waitFor(
+        'a credencial ser pedida',
+        () => room.credentialsCollected.isNotEmpty,
+      );
+      container.dispose();
+      room.holdingTheCredential!.complete();
+      await settle();
+
+      expect((await ledger.read()).team, isNull);
+    },
+  );
+
+  test(
+    'a link the room forgot while the credential was not yet ready ends the life and forgets the team',
+    () async {
+      final ledger = await _alreadyLinked();
+      final room = FakeRoom()
+        ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialNotYet)
+        ..refuseLinkWith = const Refused(RefusalCode.notFound);
+      final takes = FakeTakeQueue(room: room)..sweepFails = true;
+      final home = Directory.systemTemp.createTempSync('sala-vida');
+      addTearDown(() => home.deleteSync(recursive: true));
+      await takes.enqueue(
+        File('${home.path}/parte.m4a')..writeAsBytesSync([1]),
+        sessionId: 's',
+        kind: 'x',
+        scope: 'p',
+      );
+      final container = _tablet(
+        room: room,
+        ledger: ledger,
+        takes: takes,
+        linkPoll: _quickPoll,
+      );
+      addTearDown(container.dispose);
+
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      await settle();
+      expect(room.codesAskedFor, isEmpty);
+
+      takes.sweepFails = false;
+      await waitFor(
+        'um código novo aparecer',
+        () => container.read(deviceLinkProvider).code != null,
+      );
+      expect(takes.rows, isEmpty);
+      expect((await ledger.read()).team, isNull);
+    },
+  );
+
+  test(
     'a tablet linked before the credential existed collects one on its next start',
     () async {
       final ledger = await _alreadyLinked();

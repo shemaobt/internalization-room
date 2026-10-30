@@ -251,6 +251,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     if (_closed) return;
     final deviceId = _deviceId;
     if (deviceId == null) return _showACode();
+    final ledger = _ledger;
+    final current = _currentSession;
+    final takes = ref.read(takeUploadQueueProvider);
     switch (await _room.readTheLink(deviceId)) {
       case Answered(value: final team):
         if (_closed) return;
@@ -271,8 +274,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         }
         _lookAgainLater();
       case Refused(code: RefusalCode.notFound):
-        _deviceId = null;
-        await _showACode();
+        await _endTheLife(ledger, current, takes);
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_lookForTheTeam);
     }

@@ -1601,6 +1601,7 @@ class FakeRoom implements RoomRepository {
   String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  Completer<void>? holdingTheCredential;
   RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
@@ -1775,6 +1776,7 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
     if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
+    await holdingTheCredential?.future;
     final refusal = refuseCredentialWith;
     if (refusal != null) return refusal;
     return Answered(credential);
