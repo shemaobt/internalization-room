@@ -18,22 +18,7 @@ final _parte3 = KeptScope.parte(3);
 
 Future<(SalaHarness, ProviderContainer)>
 _aParte3QueChegouComOAppFechado() async {
-  final harness = SalaHarness();
-  final container = await aRetomadaNoEnsaio(
-    harness,
-    traduzidasAte: [30000, 30000],
-  );
-  harness.room.holdNextTake(_parte3);
-  await gravarSemEsperarNome(container, 3);
-  await harness.room.untilTakeHeld();
-  container.read(salaSessionProvider.notifier).leaveThePassage();
-  await settle();
-  harness.room.finishHeldTake();
-  await waitFor(
-    'a parte 3 chegar à sala',
-    () => harness.room.takesKept.contains('ensaio/$_parte3'),
-  );
-  await settle();
+  final (harness, container) = await _aParte3QueChegouLongeDaPassagem();
   return relaunch(harness, container);
 }
 
@@ -113,12 +98,7 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
   harness.room.failTakesWith = const NetworkFailed('sem rede');
   final container = harness.container();
   addTearDown(container.dispose);
-  final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
-  expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+  await _voltarAoEnsaio(container);
   expect(container.read(salaSessionProvider).partes[2].takeId, isNull);
   return container;
 }
