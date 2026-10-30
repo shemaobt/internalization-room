@@ -1712,6 +1712,115 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('the read of a telling-back the team already left lands on '
+      'nothing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await waitFor(
+      'a casa abrir',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+    harness.room
+      ..retroSoFar = const BackTranslationProgress(
+        segments: _daSala,
+        awaitingSegmentId: 'trecho-3',
+      )
+      ..holdNextState();
+    notifier.startRetro();
+    await _passo(tester);
+    notifier.goEnsaio();
+    await waitFor(
+      'a casa abrir de novo',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+
+    harness.room.finishHeldState();
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btFraseQueAguarda,
+      isNull,
+      reason:
+          'a leitura da tradução deixada pousava a frase que aguarda sobre a '
+          'casa',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a held sentence over a frase of the whole set aside, which the '
+      'room still offers, is kept on entering a checked telling-back', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(820, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final harness = SalaHarness(filaEmMemoria: true);
+    final pasta = Directory.systemTemp.createTempSync('sala-1964-de-lado');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    const doInteiro = SegmentView(
+      segmentId: 'trecho-do-inteiro',
+      takeId: 'gravacao-inteira-velha',
+      startsMs: 0,
+      endsMs: 4000,
+    );
+    final guardada = await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: doInteiro.segmentId,
+    );
+    await holdTheSession(
+      harness,
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: [
+          for (final n in [1, 2])
+            KeptTake(
+              scopeId: KeptScope.parte(n),
+              path: (File(
+                '${pasta.path}/p$n.wav',
+              )..writeAsBytesSync(aSpokenWav(length: parte))).path,
+              takeId: 'gravacao-$n',
+            ),
+        ],
+        wholeHeldByTheRoom: const ['gravacao-inteira-velha'],
+      ),
+    );
+    harness.room.retroSoFar = const BackTranslationProgress(
+      segments: [..._daSala, doInteiro],
+      checked: true,
+    );
+    final container = harness.container();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const SalaApp()),
+    );
+    await _passo(tester);
+    await intoTheBackTranslation(
+      container.read(salaSessionProvider.notifier),
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      (await harness.takes.sentenceHeldIn('sessao-antiga'))?.id,
+      guardada.id,
+      reason:
+          'a frase guardada sobre o inteiro posto de lado era largada, embora '
+          'a sala ainda a oferecesse',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('entering the telling-back on a read that fails lets go of no '
       'held sentence, as hers', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

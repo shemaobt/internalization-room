@@ -8316,17 +8316,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     Set<String>? oferecidas;
     if ((juntada || conferida) && sessionId != null) {
-      final falha = await _readTheStretchesBack(sessionId, generation);
+      final falha = await _readTheStretchesBack(
+        sessionId,
+        generation,
+        lida: (told) => oferecidas = _oferecidas(told),
+      );
       if (_abandoned(generation) || _endedSince(life)) return;
-      if (falha == null) {
-        conferida = state.btChecked;
-        oferecidas = {
-          for (final trecho in state.btTrechos) ?trecho.segmentId,
-          ?state.btFraseQueAguarda,
-        };
-      }
+      if (falha == null) conferida = state.btChecked;
     } else if (entrando && sessionId != null) {
-      oferecidas = await _readWhatAwaits(sessionId);
+      oferecidas = await _readWhatAwaits(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
     if (entrando && sessionId != null) {
@@ -10479,13 +10477,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The frase that awaits its translation, as the room reads it on entering the
-  /// telling-back.
-  /// The frases the read still offers, or null when it failed.
-  Future<Set<String>?> _readWhatAwaits(String sessionId) async {
+  /// telling-back, and the frases the read still offers; null when it failed.
+  Future<Set<String>?> _readWhatAwaits(String sessionId, int generation) async {
+    final life = _thisLife;
     final sent = ++_readsSent;
-    if (await _room.fetchState(sessionId) case Answered(
-      value: final lida,
-    ) when sent > _stretchesAt && state.sessionId == sessionId) {
+    if (await _room.fetchState(sessionId) case Answered(value: final lida)
+        when !_abandoned(generation) &&
+            !_endedSince(life) &&
+            sent > _stretchesAt &&
+            state.sessionId == sessionId) {
+      _stretchesAt = sent;
       final aguardando = lida.backTranslation.awaitingSegmentId;
       state = state.copyWith(
         btFraseQueAguarda: aguardando,
@@ -11341,8 +11342,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// and only the pointer is lost.
   Future<RoomFailure?> _readTheStretchesBack(
     String sessionId,
-    int generation,
-  ) async {
+    int generation, {
+    void Function(BackTranslationProgress told)? lida,
+  }) async {
     final life = _thisLife;
     final sent = ++_readsSent;
     switch (await _room.fetchState(sessionId)) {
@@ -11350,6 +11352,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_abandoned(generation)) return null;
         if (sent > _stretchesAt) {
           _stretchesAt = sent;
+          lida?.call(snapshot.backTranslation);
           final trechos = _trechosFrom(snapshot.backTranslation.segments);
           if (trechos.isNotEmpty) {
             final nomes = {
