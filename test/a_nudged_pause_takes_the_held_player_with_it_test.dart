@@ -133,4 +133,41 @@ void main() {
     expect(_ondeOTocadorEsta(tester), closeTo(0.46, 1e-9));
     closeTheRoom(container);
   });
+
+  testWidgets('after «manter a tradução de antes» play goes on from the moved '
+      'pause, not from where the take stopped', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _pausadaAos4(tester, harness);
+    await traduzirEConfirmar(tester);
+    await waitFor(
+      'a frase chegar à sala',
+      () => container
+          .read(salaSessionProvider)
+          .btTrechos
+          .any((trecho) => trecho.contado),
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tocar(tester, _barraDaFrase1);
+    await tocar(tester, depois);
+    expect(container.read(salaSessionProvider).btCorte, s(4.6));
+
+    await tocar(tester, 'manter a tradução de antes');
+
+    expect(
+      container.read(salaSessionProvider).channel,
+      _aParteSeguradaEm(container, s(4.6)),
+      reason:
+          'manter a tradução calava a sala e perdia a parte segurada na '
+          'pausa movida',
+    );
+    await tocar(tester, ouvir);
+    expect(
+      harness.playback.playedFrom.last,
+      s(4.6),
+      reason:
+          'depois da pausa movida o tocador seguia de onde a gravação '
+          'tinha parado, não da pausa',
+    );
+    closeTheRoom(container);
+  });
 }

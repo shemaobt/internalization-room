@@ -11545,7 +11545,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.playing || trecho == null) return;
     final aguardando = state.btFraseQueAguarda;
     if (aguardando != null && trecho.segmentId == aguardando) return;
-    _silenceTheRoom();
+    _silenceTheRoom(holdTheClip: true);
     _descartarATraducaoPendente();
     _trechoTraduzidoDeNovo = null;
     _walkTheCursorBack(state.btTrechos);
