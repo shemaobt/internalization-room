@@ -2867,6 +2867,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _resumeFailures[theResume] = failures;
         if (failures >= _resumeFailuresBeforeForgetting) {
           _resumeFailures.remove(theResume);
+          _endsOf.remove(waiting.sessionId);
+          unawaited(_store.letGoOfTheEnd(waiting.sessionId).catchError((_) {}));
           unawaited(
             _mindingThePlace(() => _emAberto.forget(book, pericope!, speaking)),
           );
@@ -2889,12 +2891,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = waiting?.sessionId ?? created!.sessionId;
     if (_abandoned(generation)) return;
     if (_goneSessions.contains(sessionId)) return _openTheChoice();
-    if (resumed && !_endsOf.containsKey(sessionId)) {
-      if (await _store.endOf(sessionId) case (line: final line)) {
-        _endsOf[sessionId] = line;
-      }
-      if (_abandoned(generation)) return;
-    }
     if (!resumed) _startTheSessionClean((book: book, pericope: pericope));
     state = state.copyWith(
       pericope: pericope,
@@ -2930,6 +2926,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(_hand.pull());
     _watchBusyState();
+    if (resumed && !_endsOf.containsKey(sessionId)) {
+      final end = await _store.endOf(sessionId);
+      if (_abandoned(generation)) return;
+      if (end != null) _endsOf[sessionId] = end.line;
+    }
     if (resumed) {
       (SessionSnapshot, int)? lida;
       final onde = await _backToWhereTheyStopped(

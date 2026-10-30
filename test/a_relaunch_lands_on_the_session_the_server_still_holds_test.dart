@@ -465,6 +465,23 @@ void main() {
     expect(again.harness.room.sessionsSaidAgain, isEmpty);
   });
 
+  test('a session whose resume the room refuses twice is forgotten with its '
+      'end', () async {
+    final tablet = await _inP01();
+    final session = tablet.state.sessionId!;
+    expect(await tablet.harness.currentSession.endOf(session), isNotNull);
+    tablet.notifier.leaveThePassage();
+    for (var refusal = 0; refusal < 2; refusal++) {
+      tablet.harness.room.failStateOnceWith = const Refused('RECUSADA');
+      await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
+      await settle();
+      tablet.notifier.leaveThePassage();
+      await settle();
+    }
+
+    expect(await tablet.harness.currentSession.endOf(session), isNull);
+  });
+
   test('the clip survives a round trip to the Panorama: a later relaunch still '
       'replays it from the tablet', () async {
     final first = await _inP01();
