@@ -377,8 +377,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the room lost waits for before it leaves the Rehearsal.
   late bool _aLeituraDecidiu;
 
-  /// The station this opening last wrote in the Resume point, so the parts coming down
-  /// never write back a station the team has left.
+  /// The station the Resume point says, read at the landing or last written here, so the
+  /// parts coming down and a name adopted never write back a station the team has left.
   late Station? _aLinhaDiz;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -2152,8 +2152,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.voice == VoiceState.speaking) return _cutTheVoice();
     if (state.panoramaSaid) {
-      switch (state.voice) {
+      switch (state.circleVoice) {
         case VoiceState.invite:
+          if (_recordingStarting) return;
+          if (state.channel is Microphone) _dispatch(const MicDiscarded());
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
           if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
@@ -3310,6 +3312,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       grainInForce: waiting.grain,
       partsAway: {for (final takeId in aBuscar) takeId: PartAway.coming},
     );
+    _aLinhaDiz = Station.stored(waiting.stage);
     _readTheScenesForTheRehearsal();
     if (faltavam) {
       state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
@@ -3322,7 +3325,61 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(_countUnsent());
     unawaited(_adoptTheNames(_takes, _thisLife));
+    unawaited(_adoptTheNamesTheRoomLists(waiting.sessionId, _thisLife));
     return _Resume.landed;
+  }
+
+  bool _namelessOffTheOutbox(KeptTake take) =>
+      take.takeId == null &&
+      !state.unsentParts.containsKey(state.rowOf(take.scopeId));
+
+  Future<void> _adoptTheNamesTheRoomLists(String sessionId, int? life) async {
+    await _countUnsentIn(life);
+    if (_endedSince(life) ||
+        state.sessionId != sessionId ||
+        !state.keptTakes.any(_namelessOffTheOutbox)) {
+      return;
+    }
+    final listing = await _room.takesOf(sessionId);
+    if (_endedSince(life) || state.sessionId != sessionId) return;
+    if (listing case Answered(value: final guardadas)) {
+      await _takeTheNamesTheRoomLists(guardadas, life);
+    }
+  }
+
+  Future<void> _takeTheNamesTheRoomLists(
+    List<TakeView> guardadas,
+    int? life,
+  ) async {
+    final correntes = _correntes(guardadas);
+    final names = <String, String>{};
+    for (final take in state.keptTakes) {
+      final corrente = _namelessOffTheOutbox(take)
+          ? correntes[KeptScope.numberOf(take.scopeId)]
+          : null;
+      if (corrente == null || (corrente.pass ?? 1) != take.pass) continue;
+      final fingerprint = await _takes.fingerprintOf(take.path);
+      if (_endedSince(life)) return;
+      if (fingerprint != null && fingerprint == corrente.sha256) {
+        names[take.path] = corrente.takeId;
+      }
+    }
+    if (names.isEmpty) return;
+    state = state.copyWith(
+      keptTakes: [
+        for (final take in state.keptTakes)
+          if (names[take.path] case final id? when take.takeId == null)
+            take.withTakeId(id)
+          else
+            take,
+      ],
+    );
+    _theNamesWereAdopted();
+  }
+
+  void _theNamesWereAdopted() {
+    _weighTheRehearsal();
+    _rememberWhereTheyAre(_aLinhaDiz ?? state.station);
   }
 
   /// The room's current parts, kept on a tablet that no longer holds them.
@@ -3694,7 +3751,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _hand.noteTap();
       return;
     }
-    switch (state.voice) {
+    switch (state.circleVoice) {
       case VoiceState.invite:
       case VoiceState.listening:
       case VoiceState.done:
@@ -3717,12 +3774,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _actOnConversaTap() {
     if (_recordingStarting) return;
-    final isRecording = state.voice == VoiceState.listening;
+    final isRecording = state.circleVoice == VoiceState.listening;
     switch (_captureGuard.decide(
       isRecording: isRecording,
       elapsed: _listenedFor,
     )) {
       case TapDecision.start:
+        if (state.channel is Microphone) _dispatch(const MicDiscarded());
         _startListening('conversa_${_stamp()}');
       case TapDecision.stop:
         _handOff(_finishListening());
@@ -5463,6 +5521,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
     }
     if (guardadas == null) return;
+    if (_abandoned(generation)) return;
+    await _takeTheNamesTheRoomLists(guardadas, _thisLife);
     if (_abandoned(generation)) return;
     final held = state.partNumbers;
     final standing = _theRowsStanding;
@@ -7785,10 +7845,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.
   ///
-  /// A told-back stretch is a slice of one recording and says which, and this is the only
-  /// moment those names are said for recordings this tablet made. A rehearsal whose files
-  /// are not here any more is fetched back from the room, and those parts arrive already
-  /// named by it, so there is nothing to adopt for them.
+  /// A told-back stretch is a slice of one recording and says which, and this is where
+  /// those names are said for recordings this tablet made while the Outbox still knows
+  /// them; a part the Outbox no longer holds takes its name from the room's listing. A
+  /// rehearsal whose files are not here any more is fetched back from the room, and those
+  /// parts arrive already named by it, so there is nothing to adopt for them.
   ///
   /// Every flush, not only the one the keep ran: a recording the room refused, or one
   /// held behind an earlier recording of its own part, lands later, and a part still
@@ -7799,11 +7860,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the two apart by row; a row an earlier visit wrote, by its pass and the file it was
   /// copied from.
   Future<void> _adoptTheNames(TakeUploadQueue queue, int? life) async {
+    var adopted = false;
     if (state.sessionId case final sessionId? when !_endedSince(life)) {
       for (final take in state.keptTakes) {
         if (take.takeId != null) continue;
         final id = queue.takeIdOfThePart(sessionId, take);
         if (id == null) continue;
+        adopted = true;
         state = state.copyWith(
           keptTakes: [
             for (final kept in state.keptTakes)
@@ -7817,6 +7880,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_endedSince(life)) return;
       if (id == null) continue;
       final arquivo = _semNome.remove(linha);
+      adopted = true;
       state = state.copyWith(
         keptTakes: [
           for (final take in state.keptTakes)
@@ -7824,6 +7888,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
     }
+    if (adopted) return _theNamesWereAdopted();
     _weighTheRehearsal();
   }
 
