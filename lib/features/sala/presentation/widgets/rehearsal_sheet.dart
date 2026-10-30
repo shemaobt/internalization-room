@@ -27,6 +27,7 @@ class RehearsalSheet extends ConsumerWidget {
   final String Function(SceneRehearsalRecord)? useLabelOf;
   final bool Function(SceneRehearsalRecord)? armedOf;
   final bool Function(SceneRehearsalRecord)? wakingOf;
+  final void Function(SceneRehearsalRecord)? onFocusLeft;
   final VoidCallback? onRecordAgain;
 
   const RehearsalSheet({
@@ -43,6 +44,7 @@ class RehearsalSheet extends ConsumerWidget {
     this.useLabelOf,
     this.armedOf,
     this.wakingOf,
+    this.onFocusLeft,
     this.onRecordAgain,
   });
 
@@ -53,6 +55,7 @@ class RehearsalSheet extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     final onRecordAgain = this.onRecordAgain;
+    final onFocusLeft = this.onFocusLeft;
     final screen = MediaQuery.sizeOf(context);
     final inset = MediaQuery.viewPaddingOf(context).top;
 
@@ -112,6 +115,9 @@ class RehearsalSheet extends ConsumerWidget {
                         notifier.playARehearsal(candidate.rehearsalId),
                     onUse: () =>
                         notifier.useThisRehearsal(candidate.rehearsalId),
+                    onFocusLeft: onFocusLeft == null
+                        ? null
+                        : () => onFocusLeft(candidate),
                   ),
               ],
             ),
@@ -190,6 +196,7 @@ class _SheetLine extends StatelessWidget {
   final bool busy;
   final VoidCallback onPlay;
   final VoidCallback onUse;
+  final VoidCallback? onFocusLeft;
 
   const _SheetLine({
     required this.rehearsal,
@@ -205,6 +212,7 @@ class _SheetLine extends StatelessWidget {
     required this.busy,
     required this.onPlay,
     required this.onUse,
+    required this.onFocusLeft,
   });
 
   @override
@@ -312,6 +320,7 @@ class _SheetLine extends StatelessWidget {
                     enabled: usable,
                     label: '$useLabel — $line',
                     onTap: usable ? onUse : null,
+                    onDidLoseAccessibilityFocus: onFocusLeft,
                     excludeSemantics: true,
                     child: Opacity(
                       opacity: busy

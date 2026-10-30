@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/semantics.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';

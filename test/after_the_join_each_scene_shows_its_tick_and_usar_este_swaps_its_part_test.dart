@@ -23,7 +23,7 @@ import 'package:path/path.dart' as p;
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, relaunch;
+import 'scenario_helpers.dart' show byLabel, relaunch, voiceOverFocusLeaves;
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -839,6 +839,45 @@ void main() {
         await it.wait(const Duration(seconds: 7));
         expect(it.received(2), hasLength(before));
         expect(it.use(s2b), findsOneWidget, reason: 'o toque armado caducou');
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'VoiceOver focus leaving the armed «usar este» disarms it, and the next '
+      'tap only arms',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+        it.room.approvedDraft = const ApprovedDraft(version: 1);
+        await it.relaunchOnTheHome();
+        final before = it.received(2).length;
+        await it.openTheSheet(2, _swap);
+        await it.tapThe(it.use(s2b));
+        await it.wait(const Duration(seconds: 1));
+        expect(it.use(s2b, _reopenArmed), findsOneWidget);
+
+        voiceOverFocusLeaves(tester, it.use(s2b, _reopenArmed));
+        await it.wait(const Duration(milliseconds: 100));
+
+        expect(
+          it.use(s2b),
+          findsOneWidget,
+          reason: 'o usar este seguia armado depois que o foco saiu dele',
+        );
+        expect(it.use(s2b, _reopenArmed), findsNothing);
+
+        await it.tapThe(it.use(s2b));
+        await it.wait(const Duration(seconds: 1));
+
+        expect(it.use(s2b, _reopenArmed), findsOneWidget);
+        expect(
+          it.received(2),
+          hasLength(before),
+          reason: 'o toque seguinte trocava o ensaio em vez de só armar',
+        );
+        await it.wait(const Duration(seconds: 7));
         semantics.dispose();
       },
     );
