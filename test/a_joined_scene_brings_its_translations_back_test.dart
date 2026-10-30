@@ -22,7 +22,13 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, offTheRows, thePersonSign;
+import 'scenario_helpers.dart'
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        offTheRows,
+        thePersonSign;
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -303,7 +309,7 @@ Future<_Home> _inTheBackTranslation(
       ),
     );
   }
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: sessionId,
     stage: SalaStage.retro,
     takes: [
@@ -318,6 +324,7 @@ Future<_Home> _inTheBackTranslation(
         ),
     ],
   );
+  await holdTheSession(harness, row);
   harness.room.retroSoFar = BackTranslationProgress(
     segments: [
       for (final n in [1, 2, 3]) ..._theRehearsalsFrases(n),
@@ -325,7 +332,11 @@ Future<_Home> _inTheBackTranslation(
   );
   final it = await _mount(tester, harness, _threeScenes);
   it.joinedInTheRoom(sessionId);
-  unawaited(it.notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+  await intoTheBackTranslation(
+    it.notifier,
+    () => it.container.read(salaSessionProvider),
+    step: it.beat,
+  );
   await it.until(
     'a tradução voltar',
     () =>

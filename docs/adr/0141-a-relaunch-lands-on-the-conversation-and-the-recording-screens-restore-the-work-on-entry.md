@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1861 (2026-10-29: after a relaunch the dot counts only takes the room has received)
+status: accepted, amended by ENG-1861 (2026-10-29: after a relaunch the dot counts only takes the room has received) and ENG-1964 (2026-10-30: a Choice pick lands on the conversation too)
 date: 2026-10-28
 amends: 0064 (in part: a relaunch lands on the Station its row names), 0138 (in part: what still counts as waiting in the Outbox)
 ---
@@ -76,3 +76,15 @@ the room (ADR 0117, amended by ENG-1861): a take the relaunch loaded that never 
 no longer opens the recording home at once. The dot opens the Ensaio Final plan or the grain
 choice the room's listing calls for, with that take offered on top under her notice, and the
 recording home is reached from there by «Gravar cena por cena» or once the take is sent.
+
+## Amendment · 2026-10-30 (ENG-1964)
+
+**A passage picked on the Choice lands as a relaunch does**, on its conversation at rest with
+the room's phase: a done passage reads done, with the dot lit. Hers lands every pick there
+(`app/page.tsx:774-798`). The Choice no longer lands on the recording home, the check or the
+telling-back, and no entry picks a telling back up at its cursor. The entry loads the takes the
+tablet holds and fetches nothing; the recording home the orange dot opens lays the room's parts
+in. A relaunch lands on the snapshot its launch already read, so a read that fails sends it to
+the Choice and nothing after it can fail the landing. The Consequence that the Choice still
+lands on its row's Station no longer holds, and neither does the approved draft standing on the
+home for one read.

@@ -3,7 +3,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/ports.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -91,8 +90,8 @@ void main() {
   );
 
   test(
-    'a language tapped while the tablet still lands on its session never leaves '
-    'the team on an unread Choice',
+    'a language tapped while the tablet still lands on its session does not move '
+    'the landing',
     () async {
       final harness = SalaHarness(
         currentSession: FakeCurrentSessionLedger()
@@ -115,10 +114,10 @@ void main() {
       await settle();
 
       expect(
-        it.estado.entriesOpen || it.estado.station is! Menu,
-        isTrue,
+        it.estado.sessionId,
+        'sessao-7',
         reason:
-            'a língua tocada no meio do pouso deixava a escolha sem roda e sem pouso',
+            'a língua tocada no meio do pouso movia a geração e o pouso era abandonado',
       );
     },
   );

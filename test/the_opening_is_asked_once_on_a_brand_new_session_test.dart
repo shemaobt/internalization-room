@@ -90,35 +90,33 @@ void main() {
     });
 
     test(
-      '«Ouvir de novo» after coming back plays the room\'s last line said again',
+      '«Ouvir de novo» after coming back plays the clip held, asking the room '
+      'for nothing',
       () async {
         expect(read().canHearAgain, isTrue);
+        final asked = harness.room.turnIdsAsked.length;
+        final played = harness.voice.played.length;
 
         await notifier.hearAgain();
         await waitFor(
-          'the last line to be said again',
-          () => harness.voice.played.contains(deNovoUrl),
+          'the clip to be played again',
+          () => harness.voice.played.length == played + 1,
         );
 
-        expect(harness.room.sessionsSaidAgain, [session]);
-        expect(
-          harness.room.turnIdsAsked.last,
-          allOf(isNotNull, isNot(harness.room.turnIdsAsked.first)),
-          reason: 'o dito de novo vai sob um turn id próprio (ADR 0097)',
-        );
-
+        expect(harness.voice.played.last, turnoUrl);
         await waitFor(
           'the room to rest again',
           () => read().voice == VoiceState.invite,
         );
         await notifier.hearAgain();
         await waitFor(
-          'the line to be said again from memory',
-          () =>
-              harness.voice.played.where((url) => url == deNovoUrl).length == 2,
+          'the clip to be played from memory again',
+          () => harness.voice.played.length == played + 2,
         );
 
-        expect(harness.room.sessionsSaidAgain, [session]);
+        expect(harness.voice.played.last, turnoUrl);
+        expect(harness.room.sessionsSaidAgain, isEmpty);
+        expect(harness.room.turnIdsAsked, hasLength(asked));
       },
     );
   });
@@ -189,18 +187,18 @@ void main() {
     expect(_opensAsked(harness), 0);
   });
 
-  group('a resumed passage whose session read fell with the network', () {
+  group('a resumed passage whose ask to the room fell with the network', () {
     Future<(SalaHarness, SalaSessionNotifier, SalaSessionState Function())>
     theReadFalls({required bool opened}) async {
       final harness = SalaHarness();
       _aCanvasRow(harness, opened: opened);
-      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+      harness.room.failCreateOnceWith = const NetworkFailed('sem rede');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await enterThePassage(notifier, read, 'P01');
-      await waitFor('the session to be read', () => stateReads(harness) > 0);
+      await waitFor('the room to be asked', () => _roomAsks(harness) > 0);
       await settle();
       return (harness, notifier, read);
     }
@@ -293,8 +291,8 @@ void main() {
   });
 
   test(
-    'a stored Rehearsal whose session read fell with the network goes back to '
-    'the Choice, and opened again lands on the Rehearsal',
+    'a stored Rehearsal whose ask to the room fell with the network goes back to '
+    'the Choice, and opened again lands on its conversation',
     () async {
       final home = Directory.systemTemp.createTempSync('sala-ensaio-lembrado');
       addTearDown(() => home.deleteSync(recursive: true));
@@ -305,24 +303,27 @@ void main() {
         stage: SalaStage.ensaio,
         takes: [KeptTake(scopeId: KeptScope.parte(1), path: part.path)],
       );
-      harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+      harness.room.failCreateOnceWith = const NetworkFailed('sem rede');
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);
       SalaSessionState read() => container.read(salaSessionProvider);
       await enterThePassage(notifier, read, 'P01');
-      await waitFor('the session to be read', () => stateReads(harness) == 1);
+      await waitFor('the room to be asked', () => _roomAsks(harness) == 1);
       await settle();
       expect(read().stage, SalaStage.escolha);
 
       await enterThePassage(notifier, read, 'P01');
       await waitFor(
-        'the entry to read the session again',
-        () => stateReads(harness) == 2,
+        'the entry to ask the room again',
+        () => _roomAsks(harness) == 2,
       );
       await settle();
-      expect(read().stage, SalaStage.ensaio);
+      expect(read().stage, SalaStage.conversa);
       expect(read().sessionId, _rememberedSession);
     },
   );
 }
+
+int _roomAsks(SalaHarness harness) =>
+    harness.room.calls.where((call) => call == 'createSession').length;

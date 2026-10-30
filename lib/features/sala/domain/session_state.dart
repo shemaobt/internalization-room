@@ -17,16 +17,7 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage {
-  panorama,
-  escolha,
-  conversa,
-  ensaio,
-  retro,
-  fim,
-  cena,
-  checagem,
-}
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, cena, checagem }
 
 enum OrangeDotLook { gone, faint, bright }
 
@@ -426,6 +417,7 @@ class SalaSessionState {
 
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
+  final Passagem? openingEntry;
   final PassageLeft? passageLeft;
   final bool endOfThePassage;
 
@@ -440,9 +432,6 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
 
-  /// The note the team sent that is still on its way to the facilitator, by the number
-  /// the raised hand gave it.
-  final int? noteOnItsWay;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -642,13 +631,11 @@ class SalaSessionState {
   /// Whether a switch of the grain is in the air.
   final bool grainSwitching;
 
-  /// The current parts the room holds that this tablet does not yet, by take id.
-  final Map<String, PartAway> partsAway;
-
   const SalaSessionState({
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
     this.leftEntry,
+    this.openingEntry,
     this.passageLeft,
     this.endOfThePassage = false,
     this.panoramaSaid = false,
@@ -658,7 +645,6 @@ class SalaSessionState {
     this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
-    this.noteOnItsWay,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -753,10 +739,9 @@ class SalaSessionState {
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
-    this.partsAway = const {},
   });
 
-  bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
+  bool get colarOn => stage == SalaStage.conversa;
 
   bool get entriesOpen =>
       stage == SalaStage.escolha &&
@@ -768,7 +753,9 @@ class SalaSessionState {
   bool isTheEntryLeft(Passagem entry) {
     final left = leftEntry;
     if (left == null) return false;
-    return entry.isPanorama == left.panorama && entry.pericope == left.pericope;
+    return entry.isPanorama == left.panorama &&
+        entry.pericope == left.pericope &&
+        (left.panorama || entry.book == left.book);
   }
 
   String? get sessionId => machine.session;
@@ -818,16 +805,10 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part, every Part is on the tablet and
-  /// none waits in the Outbox, with nothing recorded and waiting.
+  /// The advance disc lights: every Scene has its Part and none waits in the Outbox,
+  /// with nothing recorded and waiting.
   bool get ensaioDone =>
-      ensaio == EnsaioStatus.idle &&
-      everySceneHasItsPart &&
-      everyPartIsHere &&
-      everyPartIsSent;
-
-  /// Whether no Part on its way is still to come down.
-  bool get everyPartIsHere => partsAway.isEmpty;
+      ensaio == EnsaioStatus.idle && everySceneHasItsPart && everyPartIsSent;
 
   bool get everyPartIsSent => !partes.any(_waitsToGoUp);
 
@@ -987,10 +968,6 @@ class SalaSessionState {
               : unsentParts[number] ?? _unsentByTheNewestKeptTake(number),
           inTheAir: partInTheAir(number),
           saved: saved.contains(scopeOfRow(number)),
-          away: switch (partIndexOf(number)) {
-            final index? => partsAway[partes[index].takeId],
-            null => null,
-          },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           playing: _numberAt(playing) == number,
         ),
@@ -1039,7 +1016,6 @@ class SalaSessionState {
       !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
-      stage != SalaStage.fim &&
       stage != SalaStage.checagem &&
       !sceneRehearsalIsOpen;
 
@@ -1186,7 +1162,17 @@ class SalaSessionState {
 
   Station get station => machine.station;
 
-  SalaStage get stage => station.stage;
+  /// The entry tapped on the Choice whose session has not landed: the team stays on the
+  /// Choice until it does.
+  Passagem? get theEntryOpening => switch (station) {
+    _ when !awaitingTheGuide => null,
+    Canvas() when sessionId == null => openingEntry,
+    Panorama() when panoramaSessionId == null => openingEntry,
+    _ => null,
+  };
+
+  SalaStage get stage =>
+      theEntryOpening != null ? SalaStage.escolha : station.stage;
 
   Halt get halt => machine.halt;
 
@@ -1271,10 +1257,12 @@ class SalaSessionState {
     _ => voice,
   };
 
+  bool get writesTheThinkingNote =>
+      circleVoice == VoiceState.thinking && halt is! Blocking;
+
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||
-        stage == SalaStage.fim ||
         (stage == SalaStage.retro && btPhase == BtPhase.conferida)) {
       return VoiceState.done;
     }
@@ -1354,20 +1342,24 @@ class SalaSessionState {
 
   bool get needsPerson => halt is Blocking;
 
-  /// The Choice offers the way back to the entry left, once the Wheel is read; the scene
-  /// rehearsal's screen always offers the way back to the Conversation.
+  bool get _aPassageWaits => leftEntry != null && machine.waiting != null;
+
+  /// The Choice offers the way back to a passage held at once; to an entry left with no
+  /// session, once the Wheel is read. The scene rehearsal's screen always offers the way
+  /// back to the Conversation. The person sign hides it.
   bool get theWayBackIsOffered =>
       sceneRehearsalIsOpen ||
       (stage == SalaStage.escolha &&
           leftEntry != null &&
-          naRoda != null &&
-          !needsPerson);
+          !needsPerson &&
+          (_aPassageWaits || naRoda != null));
 
-  /// The way back answers the finger only while the Wheel is quiet, and from any Step of
-  /// the scene rehearsal, its microphone open included.
+  /// The way back to a passage held answers the finger always; to any other entry, only
+  /// while the Wheel is quiet. From any Step of the scene rehearsal it answers with its
+  /// microphone open and «terminei» in the air included.
   bool get theWayBackIsLive => sceneRehearsalIsOpen
-      ? !theSceneIsSending
-      : theWayBackIsOffered && voice == VoiceState.invite;
+      ? !scene.wentToTheVoice
+      : theWayBackIsOffered && (_aPassageWaits || voice == VoiceState.invite);
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or the person sign stands
@@ -1533,7 +1525,6 @@ class SalaSessionState {
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
-      everyPartIsHere &&
       !wordlessTelling &&
       (btClipRodando ||
           btContaEscolhida != null ||
@@ -1630,15 +1621,11 @@ class SalaSessionState {
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
   bool get canOuvirTudo =>
-      partes.isNotEmpty &&
-      ensaio == EnsaioStatus.idle &&
-      everyPartIsHere &&
-      !needsPerson;
+      partes.isNotEmpty && ensaio == EnsaioStatus.idle && !needsPerson;
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
-      ensaio != EnsaioStatus.recording &&
-      everyPartIsHere;
+      ensaio != EnsaioStatus.recording;
 
   Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
     final Trecho trecho
@@ -1676,8 +1663,7 @@ class SalaSessionState {
       !needsPerson &&
       trecho.parte >= 0 &&
       trecho.parte < partes.length &&
-      partes[trecho.parte].isWav &&
-      aParteDoTrechoEstaAqui(trecho);
+      partes[trecho.parte].isWav;
 
   bool get overAnApprovedDraft => btRascunhoAprovado != null;
 
@@ -1704,7 +1690,6 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida &&
       partes.isNotEmpty &&
-      everyPartIsHere &&
       aBackTranslationGestureActs;
 
   /// Whether a gesture on the Back-translation acts: never while an approval or an open of
@@ -1777,16 +1762,6 @@ class SalaSessionState {
         _ => btPhase == BtPhase.playing || btPhase == BtPhase.conferida,
       };
 
-  /// Whether the part the stretch [trecho] sits on is on the tablet.
-  bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
-
-  /// The part the stretch [trecho] sits on while it is not on the tablet.
-  KeptTake? aParteDoTrecho(Trecho trecho) => switch (trecho.parte) {
-    final at when at >= 0 && at < partes.length =>
-      partsAway.containsKey(partes[at].takeId) ? partes[at] : null,
-    _ => null,
-  };
-
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
       !btSoOuvir &&
@@ -1825,6 +1800,8 @@ class SalaSessionState {
     bool? arrivedAtTheChoice,
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
+    Passagem? openingEntry,
+    bool clearOpeningEntry = false,
     PassageLeft? passageLeft,
     bool clearPassageLeft = false,
     bool? endOfThePassage,
@@ -1836,8 +1813,6 @@ class SalaSessionState {
     List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
-    int? noteOnItsWay,
-    bool clearNoteOnItsWay = false,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -1966,12 +1941,14 @@ class SalaSessionState {
     ({int cena, bool cannotEnter})? bringBackFailed,
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
-    Map<String, PartAway>? partsAway,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
+      openingEntry: clearOpeningEntry
+          ? null
+          : (openingEntry ?? this.openingEntry),
       passageLeft: clearPassageLeft ? null : (passageLeft ?? this.passageLeft),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
@@ -1981,9 +1958,6 @@ class SalaSessionState {
       keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      noteOnItsWay: clearNoteOnItsWay
-          ? null
-          : (noteOnItsWay ?? this.noteOnItsWay),
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
@@ -2124,7 +2098,6 @@ class SalaSessionState {
           ? null
           : (bringBackFailed ?? this.bringBackFailed),
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
-      partsAway: partsAway ?? this.partsAway,
     );
   }
 }
@@ -2142,7 +2115,6 @@ class SceneRow {
   final UnsentPart? unsent;
   final TakeInTheAir? inTheAir;
   final bool saved;
-  final PartAway? away;
   final bool recording;
 
   /// The part in the air, playing or held.
@@ -2156,7 +2128,6 @@ class SceneRow {
     required this.unsent,
     required this.inTheAir,
     required this.saved,
-    required this.away,
     required this.recording,
     required this.playing,
   });

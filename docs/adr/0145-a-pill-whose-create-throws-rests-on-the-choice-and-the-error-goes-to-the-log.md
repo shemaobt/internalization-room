@@ -1,10 +1,17 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1979
 date: 2026-10-28
 amends: 0137 (in part: a thrown error before the session is held is an open that brought no session), 0125 (in part: an `Error` under a pill's open, before its session, raises no sign)
 ---
 
 # A pill whose create throws rests on the Choice, and the error goes to the log
+
+Amended by ENG-1979 (2026-10-30): the third and fourth bullets of the Decision. Once the session
+is held, an `Error` thrown while the Opening of a passage or of the Panorama is voiced no longer
+raises ADR 0125's sign: the team rests in its session at the invite, with no sign and nothing
+said, and the error goes to the log. Her catch first calls `recoverTurn`, which says the Opening
+again if the server already holds it; ours says nothing even then, a known difference. Any other
+`Error` once the session is held keeps the sign.
 
 This amends ADR 0137 and ADR 0125 without editing their decisions: it adds "amended by 0145"
 to their status lines. Her app is the bar: the open's request and its reading are wrapped in

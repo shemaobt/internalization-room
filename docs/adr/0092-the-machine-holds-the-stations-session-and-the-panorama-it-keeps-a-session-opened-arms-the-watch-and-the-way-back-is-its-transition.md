@@ -1,10 +1,18 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1977, amended by ENG-1900
 date: 2026-10-20
 amends: 0053, 0062
 ---
 
 # The machine holds the Station's session and the Panorama it keeps, a session opened arms the Watch, and the way back is its transition
+
+Amended by ENG-1900 (2026-10-30): the way back to a held passage is offered and live at once; the machine's waiting entry decides it. As in her app (`app/page.tsx:408`, `:950-956`), the chevron
+shows whenever a passage is held under the Choice, is always live, and its tap lays the passage back with
+no call to the room. The transition itself stands.
+
+Amended by ENG-1977 (2026-10-30): the Panorama also comes back in silence when its line was cut
+before it was heard but the tablet holds the line that began to speak; it offers «Ouvir de novo»
+and asks the room nothing, as hers (openOnce.ts:83). The Decision below stands for every other case.
 
 This amends ADR 0053 and ADR 0062 without editing their decisions; it adds "amended by 0092"
 to their status lines. Settled on the ticket (ENG-1705), 19 and 20 October.

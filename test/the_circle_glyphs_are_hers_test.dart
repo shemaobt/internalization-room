@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
+import 'package:internalization_room/core/theme/sala_colors.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -254,6 +255,74 @@ void main() {
           );
         }
       }
+    },
+  );
+
+  testWidgets(
+    'each glyph cross-fades on its own 1 s ease: half way the old one still '
+    'shows and the new one has come in',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.invite);
+      expect(paintedGlyph(CircleGlyph.sound), findsOneWidget);
+      const key = ValueKey('o mesmo canvas');
+      Widget circle({required bool noteMode, bool still = false}) =>
+          MaterialApp(
+            key: key,
+            theme: AppTheme.light,
+            home: MediaQuery(
+              data: MediaQueryData(disableAnimations: still),
+              child: Scaffold(
+                body: Center(
+                  child: FacilitatorCircle(
+                    size: 200,
+                    voice: VoiceState.invite,
+                    canvas: true,
+                    noteMode: noteMode,
+                    semanticLabel: 'circulo',
+                  ),
+                ),
+              ),
+            ),
+          );
+      double veil(CircleGlyph glyph) => tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: paintedGlyph(glyph),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity;
+
+      await tester.pumpWidget(circle(noteMode: false));
+      await tester.pumpWidget(circle(noteMode: true));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(veil(CircleGlyph.sound), closeTo(0.92 * (1 - 0.8024), 0.01));
+      expect(veil(CircleGlyph.hand), closeTo(0.92 * 0.8024, 0.01));
+      Color ink(CircleGlyph glyph) =>
+          (tester.widget<CustomPaint>(paintedGlyph(glyph)).painter!
+                  as CircleGlyphPainter)
+              .ink;
+      expect(
+        ink(CircleGlyph.sound),
+        SalaColors.of(tester.element(paintedGlyph(CircleGlyph.sound))).telha,
+        reason: 'o alto-falante que sai guarda a telha dele (globals.css:124)',
+      );
+      expect(
+        ink(CircleGlyph.hand),
+        SalaColors.of(tester.element(paintedGlyph(CircleGlyph.hand))).azul,
+        reason: 'a mão que entra é azul (globals.css:174)',
+      );
+
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(paintedGlyph(CircleGlyph.sound), findsNothing);
+      expect(veil(CircleGlyph.hand), closeTo(0.92, 1e-6));
+
+      await tester.pumpWidget(circle(noteMode: false, still: true));
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(paintedGlyph(CircleGlyph.hand), findsNothing);
+      expect(veil(CircleGlyph.sound), closeTo(0.92, 1e-6));
     },
   );
 }
