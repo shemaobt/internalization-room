@@ -94,7 +94,7 @@ class EscutaDasPartes {
     if (escutada == null || tamanho <= 0) return false;
     var ouvido = 0;
     final desde = _desde[arquivo] ?? 0;
-    for (final faixa in _unidas(escutada.faixas.sublist(desde))) {
+    for (final faixa in _unidas([...escutada.faixas.skip(desde)])) {
       final de = faixa[0] < 0 ? 0 : faixa[0];
       final ate = faixa[1] > tamanho ? tamanho : faixa[1];
       if (ate > de) ouvido += ate - de;
