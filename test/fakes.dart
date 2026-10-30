@@ -450,7 +450,10 @@ class FakeRecorder implements RecordingRepository {
         ? _holdingStarts[_startsTaken++]
         : null;
     if (held != null) await held.future;
+    final stopping = _stopping;
+    if (stopping != null) await stopping;
     captures++;
+    _named = null;
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
     _recording = true;
@@ -485,38 +488,39 @@ class FakeRecorder implements RecordingRepository {
   /// a name a take already holds, as a frozen clock repeats, falls back to a count.
   String? _named;
 
-  String get _take => '${home.path}/${_named ?? 'captura-$captures'}';
-
   @override
   Future<String?> stop() async {
+    final named = '${home.path}/${_named ?? 'captura-$captures'}';
+    final owner = lastOwner;
+    final count = captures;
     final held = _holdingStop;
     if (held != null) await (_stopping = held.future);
     _stopping = null;
     _recording = false;
     if (stopThrows) {
-      _lost = '$_take.m4a';
+      _lost = '$named.m4a';
       throw const FileSystemException('o gravador perdeu o arquivo');
     }
     if (returnsNothing) return null;
     final deliverable =
-        lastOwner == MicOwner.rehearsal ||
-        lastOwner == MicOwner.scene ||
-        lastOwner == MicOwner.frase ||
-        lastOwner == MicOwner.listener;
+        owner == MicOwner.rehearsal ||
+        owner == MicOwner.scene ||
+        owner == MicOwner.frase ||
+        owner == MicOwner.listener;
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
-        '$_take.'
+        '$named.'
         '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
       )..writeAsBytesSync(fala);
       return lastPath = take.path;
     }
-    final file = File('$_take.m4a')
+    final file = File('$named.m4a')
       ..writeAsStringSync(
         returnsEmpty
             ? ''
-            : lastOwner == MicOwner.frase
-            ? '$_aWholeTake$captures'
+            : owner == MicOwner.frase
+            ? '$_aWholeTake$count'
             : deliverable
             ? _aWholeTake
             : 'a equipe falou',

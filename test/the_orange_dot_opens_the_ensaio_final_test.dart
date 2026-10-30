@@ -860,6 +860,44 @@ void main() {
   );
 
   testWidgets(
+    'a scene recorded from the dot\'s home while a sent note\'s microphone '
+    'still closes keeps its take, and the note still goes out',
+    (tester) async {
+      final (harness, container) = await _reopenedOverPartOne(
+        tester,
+        origin: null,
+      );
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      expect(find.text(_homeLine), findsOneWidget);
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
+
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+      final scene = harness.recorder.starts.last;
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
+
+      expect(
+        harness.recorder.deleted.where((path) => path.contains(scene)),
+        isEmpty,
+        reason:
+            'o fecho da pergunta fechou o microfone da cena e o take se perdeu',
+      );
+      expect(
+        harness.recorder.starts.last,
+        scene,
+        reason: 'o toque para parar a cena abriu outro microfone',
+      );
+      expect(harness.inbox.questionsSent, hasLength(1));
+    },
+  );
+
+  testWidgets(
     'a revocation while a sent note\'s microphone still closes sends nothing '
     'and leaves no note on the tablet',
     (tester) async {

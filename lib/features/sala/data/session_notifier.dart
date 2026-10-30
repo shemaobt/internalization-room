@@ -11652,7 +11652,6 @@ class _HandHost implements HandHost {
       atTheTeamsIdleTurn: state.atTheTeamsIdleTurn,
       aQuestionRecords: state.aQuestionRecords,
       oldestUnheardReply: state.oldestUnheardReply,
-      noteOnItsWay: state.noteOnItsWay,
     );
   }
 
@@ -11680,14 +11679,6 @@ class _HandHost implements HandHost {
   @override
   void leaveNoteMode() =>
       _notifier._current = _notifier._current.copyWith(noteMode: false);
-
-  @override
-  void markNoteOnItsWay(int note) => _notifier._current = _notifier._current
-      .copyWith(noteMode: false, noteOnItsWay: note);
-
-  @override
-  void clearNoteOnItsWay() =>
-      _notifier._current = _notifier._current.copyWith(clearNoteOnItsWay: true);
 
   @override
   bool get gone => _notifier._gone;

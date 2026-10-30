@@ -3943,7 +3943,7 @@ void main() {
       expect(harness.inbox.questionsSent, ['sessao-1']);
       expect(
         harness.recorder.deleted,
-        [contains('/pergunta_')],
+        [harness.recorder.lastPath],
         reason:
             'a pergunta já está no servidor, esperando uma pessoa — '
             'a cópia no tablet não serve para nada',
