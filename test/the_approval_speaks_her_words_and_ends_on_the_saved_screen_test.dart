@@ -191,12 +191,7 @@ void main() {
           ),
         );
         await tester.pump();
-        final segunda = it.partes[1];
-        it.harness.room
-          ..releaseBlockers = [caso.codigo]
-          ..releaseUnheardTakeIds = [segunda.takeId!]
-          ..releaseUntoldTakeIds = [segunda.takeId!]
-          ..releaseUntoldSegmentId = 'trecho-2';
+        it.harness.room.releaseBlockers = [caso.codigo];
 
         expect(find.text(caso.texto), findsNothing);
         final sons = it.harness.sounds.length;
@@ -224,18 +219,16 @@ void main() {
     );
   }
 
-  for (final (codigo, trecho) in [
-    ('telling_back_not_checked', null),
-    ('telling_back_never_analysed', null),
-    ('untold_stretch', 'trecho-1'),
+  for (final codigo in [
+    'telling_back_not_checked',
+    'telling_back_never_analysed',
+    'untold_stretch',
   ]) {
     testWidgets(
       'no clean check on these takes ($codigo): «$_precisaConferida»',
       (tester) async {
         final it = await _ateAConferida(tester);
-        it.harness.room
-          ..releaseBlockers = [codigo]
-          ..releaseUntoldSegmentId = trecho;
+        it.harness.room.releaseBlockers = [codigo];
         expect(find.text(_precisaConferida), findsNothing);
 
         await _tocar(tester);
@@ -880,9 +873,7 @@ void main() {
     tester,
   ) async {
     final it = await _ateAConferida(tester);
-    it.harness.room
-      ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1';
+    it.harness.room.releaseBlockers = const ['untold_stretch'];
     await _tocar(tester);
 
     it.container.read(salaSessionProvider.notifier).recomecarATraducao();
