@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1994 (2026-10-29: the bead material is hers, and the row's 9% is measured from the canvas box)
 date: 2026-10-28
 amends: 0130
 ---
@@ -8,6 +8,10 @@ amends: 0130
 
 This amends ADR 0130's cord without editing it; it adds "amended by 0149" to its status
 line. The work is ENG-1961.
+
+Amended by ENG-1994 (2026-10-29): the row's 9% is measured from the bottom of the canvas box
+the necklace is laid in (under the status bar), not from the screen height. The beads take
+her material, as ADR 0130 records, in place of the oat, wood and glow of the Decision below.
 
 ## Context
 
