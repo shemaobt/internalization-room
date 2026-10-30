@@ -4083,6 +4083,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
     var listingRead = grainHeard;
+    final Future<RoomAnswer<List<Scene>>> scenesAsked = known == null
+        ? _room.scenesOf(sessionId)
+        : Future.value(Answered(known));
     final reads = (
       _takes.pending(),
       _room.takesListingOf(sessionId).then((listing) {
@@ -4098,7 +4101,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return listing;
       }),
       _room.sceneRehearsalsOf(sessionId),
-      known == null ? _room.scenesOf(sessionId) : Future.value(Answered(known)),
+      scenesAsked,
     ).wait;
     (
       List<PendingTake>,
@@ -4114,7 +4117,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('planRead')?.cancel();
     final read = answered;
     if (read == null) {
-      return _theGrainOrItsHome(sessionId, unread: !listingRead);
+      return _theGrainOrItsHome(
+        sessionId,
+        scenes: scenesAsked,
+        unread: !listingRead,
+      );
     }
     final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
@@ -4144,7 +4151,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               rows.isEmpty &&
               rehearsalsElsewhere(listed, sessionId):
         state = state.copyWith(rehearsalsElsewhere: true);
-        _theGrainOrItsHome(sessionId, listed: guardadas, elsewhere: true);
+        _theGrainOrItsHome(
+          sessionId,
+          scenes: scenesAsked,
+          listed: guardadas,
+          elsewhere: true,
+        );
       case (
             Answered(value: TakesListing(takes: final guardadas)),
             Answered(value: final listed),
@@ -4179,12 +4191,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scenesOfThePassage: passage,
         );
       default:
-        _theGrainOrItsHome(sessionId, unread: !listingRead);
+        _theGrainOrItsHome(
+          sessionId,
+          scenes: scenesAsked,
+          unread: !listingRead,
+        );
     }
   }
 
   void _theGrainOrItsHome(
     String sessionId, {
+    required Future<RoomAnswer<List<Scene>>> scenes,
     List<TakeView>? listed,
     bool elsewhere = false,
     bool unread = false,
@@ -4196,7 +4213,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.scenesOfThePassage != null) return;
     final generation = _generation;
     unawaited(
-      _room.scenesOf(sessionId).then((answer) {
+      scenes.then((answer) {
         if (answer case Answered(
           :final value,
         ) when value.isNotEmpty && !_abandoned(generation)) {

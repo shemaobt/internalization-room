@@ -543,6 +543,39 @@ void main() {
   );
 
   testWidgets(
+    'the choice counts the scenes from the ask the plan read already sent, '
+    'never a second ask on the same slow link',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        before: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      harness.room
+        ..failScenesWith = null
+        ..holdNextScenes();
+      final asked = harness.room.calls.where((c) => c == 'scenesOf').length;
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text(_how), findsOneWidget);
+      expect(
+        harness.room.calls.where((c) => c == 'scenesOf').length - asked,
+        1,
+        reason:
+            'a escolha pedia as cenas de novo com o pedido do plano ainda no ar',
+      );
+
+      harness.room.finishHeldScenes();
+      await _settles(tester);
+
+      expect(find.text('3 partes'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     '3. a passage the room answers with no scenes shows the choice without the '
     '6 s wait',
     (tester) async {
