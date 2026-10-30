@@ -29,19 +29,24 @@ Future<Sala> _relancarEAbrirACasa({required String takeDaFrase}) async {
   );
   harness.room
     ..takes.addAll([
+      TakeView(
+        takeId: 'gravacao-1',
+        kind: 'ensaio',
+        scope: KeptScope.parte(1),
+        ordinal: 1,
+      ),
       const TakeView(
         takeId: 'gravacao-velha-2',
         kind: 'ensaio',
         scope: 'parte-2',
         ordinal: 2,
       ),
-      for (final n in [1, 2])
-        TakeView(
-          takeId: 'gravacao-$n',
-          kind: 'ensaio',
-          scope: KeptScope.parte(n),
-          ordinal: n,
-        ),
+      TakeView(
+        takeId: 'gravacao-2',
+        kind: 'ensaio',
+        scope: KeptScope.parte(2),
+        ordinal: 2,
+      ),
     ])
     ..retroSoFar = BackTranslationProgress(
       segments: [
@@ -69,8 +74,11 @@ Future<Sala> _relancarEAbrirACasa({required String takeDaFrase}) async {
 
 void main() {
   for (final (nome, take) in [
-    ('a gravação que o tablet guarda', 'gravacao-2'),
-    ('uma gravação que o tablet não tem', 'gravacao-velha-2'),
+    ('a gravação emendada que o tablet guarda', 'gravacao-2'),
+    (
+      'a gravação velha que a emendada, listada depois, trocou',
+      'gravacao-velha-2',
+    ),
   ]) {
     test('a relaunch keeps the frase that awaits on $nome, so the home shows '
         'it on its scene row', () async {
