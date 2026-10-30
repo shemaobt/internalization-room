@@ -8,7 +8,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaConferida;
+    show aprovadaNaCasa;
 import 'fakes.dart' show SalaHarness, closeTheRoom;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart' show entrarNaTraducao;
@@ -26,7 +26,7 @@ Future<ProviderContainer> _naRetro(WidgetTester tester, Size tela) async {
 }
 
 Future<ProviderContainer> _naChecagem(WidgetTester tester, Size tela) async {
-  final container = await aprovadaNaConferida(
+  final container = await aprovadaNaCasa(
     tester,
     SalaHarness(filaEmMemoria: true),
   );
