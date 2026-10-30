@@ -236,7 +236,7 @@ void main() {
         );
 
         expect(read().sessionId, 'sessao-antiga');
-        expect(harness.room.calls, isNot(contains('createSession')));
+        expect(harness.room.sessionIds, isEmpty);
       });
     }
   });

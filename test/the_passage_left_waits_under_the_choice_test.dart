@@ -104,7 +104,7 @@ void main() {
     tablet.notifier.openTheEntry(p02);
     await waitFor(
       'the room to be asked for P02',
-      () => harness.room.calls.skip(asked).contains('fetchState'),
+      () => harness.room.calls.skip(asked).contains('createSession'),
     );
     await settle();
     await settle();
@@ -132,14 +132,14 @@ void main() {
     tablet.notifier.openTheEntry(p01);
     await waitFor(
       'the room to be asked for P01',
-      () => harness.room.calls.skip(asked).contains('fetchState'),
+      () => harness.room.calls.skip(asked).contains('createSession'),
     );
     await settle();
     await settle();
 
     expect(
       harness.room.calls.skip(asked),
-      contains('fetchState'),
+      contains('createSession'),
       reason: 'a pílula da passagem deixada não perguntava à sala',
     );
     expect(
@@ -161,12 +161,12 @@ void main() {
     final read = tablet.read;
     final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
     final asked = harness.room.calls.length;
-    harness.room.failStateOnceWith = Refused(RefusalCode.unnamed(400));
+    harness.room.failCreateOnceWith = Refused(RefusalCode.unnamed(400));
 
     tablet.notifier.openTheEntry(p01);
     await waitFor(
       'the room to be asked for P01',
-      () => harness.room.calls.skip(asked).contains('fetchState'),
+      () => harness.room.calls.skip(asked).contains('createSession'),
     );
     await settle();
     await settle();
@@ -182,6 +182,38 @@ void main() {
     expect(read().pericope, 'P01');
     expect(read().coverage.engaged, 2);
   });
+
+  test(
+    'the pill of the passage left whose session the facilitator reset '
+    'opens on the session the room returns, never on the canvas left',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p01 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P01');
+      harness.room.forgetTheSession(tablet.p01);
+      harness.room.nextCoverage = coverage(engaged: 0, surfaced: 3);
+
+      tablet.notifier.openTheEntry(p01);
+      await waitFor(
+        'P01 to open on the room\'s new session',
+        () =>
+            read().sessionId != null &&
+            read().sessionId != tablet.p01 &&
+            read().voice == VoiceState.invite,
+      );
+
+      expect(read().sessionId, harness.room.sessionIds.last);
+      expect(read().pericope, 'P01');
+      expect(
+        read().coverage.engaged,
+        0,
+        reason: 'a tela da P01 deixada voltava sobre a sessão zerada',
+      );
+      expect(read().passageLeft, isNull);
+      expect(read().leftEntry, isNull);
+    },
+  );
 
   test('the pill of a passage left with no session that cannot open rests on '
       'the Choice with the way back still there', () async {

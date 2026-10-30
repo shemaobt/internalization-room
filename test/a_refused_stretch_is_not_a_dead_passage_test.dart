@@ -213,8 +213,8 @@ void _aSessaoContinuaAMesma(_Retomada it) {
   );
   expect(it.estado.stage, SalaStage.retro, reason: 'a equipe fica onde estava');
   expect(
-    it.harness.room.calls,
-    isNot(contains('createSession')),
+    it.harness.room.sessionIds,
+    isEmpty,
     reason: 'nenhuma sessão nova nasce por cima da que a sala ainda guarda',
   );
 }
@@ -354,7 +354,7 @@ void main() {
         ['gravacao-1', 'gravacao-2', 'gravacao-3'],
         reason: 'as partes do ensaio voltam com a sessão',
       );
-      expect(harness.room.calls, isNot(contains('createSession')));
+      expect(harness.room.sessionIds, isEmpty);
     },
   );
 
