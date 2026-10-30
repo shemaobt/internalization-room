@@ -1519,7 +1519,7 @@ class TakeUploadQueue {
     String? passage,
   }) async {
     PendingTake? newest;
-    for (final entry in await pending()) {
+    for (final entry in await _inTurn(pending)) {
       if (entry.kind == sentenceKind &&
           _ofTheVisit(entry, sessionId, passage)) {
         newest = entry;
