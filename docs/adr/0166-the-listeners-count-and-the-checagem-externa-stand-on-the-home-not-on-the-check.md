@@ -36,6 +36,9 @@ more; retiring them is a lifecycle change through the machine, left to its own d
 - «While the open is in the air no other Back-translation gesture acts» (ADR 0114) has no door
   left; its tests went with the button. The home's own rule stands (a Scene row does not record
   while the external check is opening).
-- Her home says «a checagem externa abre depois que o rascunho final é aprovado» when the open
-  is refused; ours says only the open-failed line there. Not built here: the Checagem externa is
-  paused (26 October), and moving the button is the whole of this decision.
+- A refused open (`DRAFT_NOT_APPROVED`) used to write «a checagem externa abre depois que o
+  rascunho final é aprovado» on the check's status line and nothing on the home. With the door
+  off the check, the home draws that same word (`externalCheckNotFinal`) in place of the
+  open-failed line, beside its reading of the session that takes the badge and the button away,
+  as her home says `extNotFinal` on a 409. The Checagem externa stays paused (26 October):
+  nothing else is built there.
