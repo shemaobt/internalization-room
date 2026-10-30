@@ -2091,4 +2091,33 @@ void main() {
     expect(room.state.channel, isA<PartPlaying>());
     expect(room.harness.playback.played.last, take);
   });
+
+  test(
+    '«manter a tradução de antes» while the team\'s translation sounds leaves '
+    'it sounding, as hers',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.sala.hearTheFraseTranslation('f1');
+      await waitFor(
+        'a tradução da frase tocar',
+        () => room.harness.playback.played.any(
+          (path) => path.endsWith('cena-ensaio-da-cena-1-frase-f1.wav'),
+        ),
+      );
+
+      room.sala.keepTheEarlierTranslation();
+      await settle();
+
+      expect(room.state.scene.translatingAgain, isNull);
+      expect(
+        room.state.channel,
+        isA<PartPlaying>(),
+        reason: 'o manter calava a tradução de vocês que ainda soava',
+      );
+    },
+  );
 }
