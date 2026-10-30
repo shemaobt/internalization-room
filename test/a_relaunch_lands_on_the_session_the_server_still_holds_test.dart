@@ -266,6 +266,33 @@ void main() {
   });
 
   test(
+    '«Ouvir de novo» is pinned to a line when it starts to speak, not when it '
+    'has been heard',
+    () async {
+      const speaking = '/voice/still-speaking';
+      final tablet = await _inP01();
+      tablet.harness.room
+        ..replyUrl = speaking
+        ..holdNextTurn();
+      tablet.notifier.conversaTap();
+      await settle();
+      tablet.notifier.conversaTap();
+      await waitFor('the turn to be sent', () => tablet.asked('sendTurn') == 1);
+      tablet.harness.voice.holdNextLine();
+      tablet.harness.room.finishHeldTurn();
+      await waitFor(
+        'the reply to start',
+        () => tablet.harness.voice.played.contains(speaking),
+      );
+
+      expect(tablet.state.lastSpoken?.url, speaking);
+
+      tablet.harness.voice.finishHeldLine();
+      await settle();
+    },
+  );
+
+  test(
     'a relaunch after a turn of the team\'s, whose answer never came, asks the '
     'room to say it again',
     () async {
