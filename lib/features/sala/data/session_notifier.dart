@@ -8657,7 +8657,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
       btOuvidoAlemDoCursor: false,
-      clearBtRecusa: state.btRecusa == CheckRefusal.checkUnavailable,
     );
     _parteJaTocou = true;
     // The deadline is armed once this clip's own `openings` event lands, never here:
@@ -8672,11 +8671,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _aParteNaoTocou() {
     if (state.btRegravacao != null) return;
     state = state.copyWith(btAviso: BtAviso.tocarFalhou);
-  }
-
-  void _aParteTocou() {
-    if (state.btAviso != BtAviso.tocarFalhou) return;
-    state = state.copyWith(clearAviso: true);
   }
 
   void _fimDeParte({required bool seguir}) {
@@ -11951,9 +11945,6 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearThePlayFailed() => _notifier._aParteNaoTocou();
-
-  @override
-  void hearThePlayOpened() => _notifier._aParteTocou();
 
   @override
   void hearTheSendFailed() => _notifier._theSendFailed();

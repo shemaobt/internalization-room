@@ -127,8 +127,6 @@ abstract interface class StationHost {
 
   void hearThePlayFailed();
 
-  void hearThePlayOpened();
-
   /// The scene's «terminei» could not be sent.
   void hearTheSendFailed();
 
@@ -293,8 +291,6 @@ class EffectRunner {
           host.hearTheDiskFailed();
         case TellThePlayFailed():
           host.hearThePlayFailed();
-        case TellThePlayOpened():
-          host.hearThePlayOpened();
         case TellTheSendFailed():
           host.hearTheSendFailed();
         case TellItWentAlready():
