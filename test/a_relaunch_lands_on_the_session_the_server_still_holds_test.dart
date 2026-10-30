@@ -719,13 +719,18 @@ void main() {
     await settle();
 
     expect(
-      tablet.state.sessionId == 'sessao-da-linha' &&
-          tablet.state.station is Canvas,
-      isFalse,
-      reason:
-          'a leitura da sessão guardada pousava a linha de outra sessão, '
-          'que a sala já não conhece',
+      tablet.harness.room.askedOfTheForgotten,
+      contains('fetchState'),
+      reason: 'a sessão da linha nunca era lida, só a guardada',
     );
+    expect(
+      tablet.state.station,
+      isA<Menu>(),
+      reason:
+          'a linha de uma sessão que a sala esqueceu pousava na conversa com a '
+          'leitura de outra sessão',
+    );
+    expect(tablet.state.sessionId, isNull);
   });
 
   test('a relaunch lands on the read its launch made, and reads the room '
