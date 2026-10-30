@@ -5943,14 +5943,6 @@ void main() {
     await settle();
   });
 
-  Future<void> gravaParte(SalaSessionNotifier notifier, int cena) async {
-    notifier.gravarACena(cena);
-    notifier.gravarACena(cena);
-    await settle();
-    notifier.takeKeep();
-    await settle();
-  }
-
   Future<void> gravaEGuardaAParte(ProviderContainer container, int cena) async {
     final notifier = container.read(salaSessionProvider.notifier);
     final guardadas = container.read(salaSessionProvider).partes.length;
@@ -5980,9 +5972,9 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
-    await gravaParte(notifier, 3);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
+    await gravaEGuardaAParte(container, 3);
 
     final state = container.read(salaSessionProvider);
     expect(state.partes.length, 3);
@@ -6015,7 +6007,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      await gravaParte(notifier, 1);
+      await gravaEGuardaAParte(container, 1);
       notifier.gravarACena(2);
       notifier.gravarACena(2);
       await settle();
@@ -6047,7 +6039,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
+    await gravaEGuardaAParte(container, 1);
     notifier.gravarACena(2);
     await settle();
 
@@ -6071,8 +6063,8 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
 
     notifier.playTheRehearsal();
     await settle();
@@ -6096,10 +6088,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     final primeira = harness.playback.played.single;
 
     harness.playback.at = const Duration(seconds: 10);
@@ -6211,10 +6206,13 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.playback.at = const Duration(seconds: 6);
     await settle();
     notifier.ouvirGravacao();
@@ -6238,11 +6236,14 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     harness.playback.length = const Duration(seconds: 10);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     expect(
       container.read(salaSessionProvider).btParteNoArMs,
@@ -6259,12 +6260,15 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     harness.playback.length = const Duration(seconds: 10);
     harness.playback.measured = const Duration(seconds: 10);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
 
     expect(
       container.read(salaSessionProvider).btFimDasPartesMs,
@@ -6295,7 +6299,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
+    await gravaEGuardaAParte(container, 1);
     notifier.startRetro();
     await waitFor(
       'a retro tocar',
@@ -6418,11 +6422,14 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.playback.finishPlayback();
     await settle();
 
@@ -6515,9 +6522,12 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
+    await gravaEGuardaAParte(container, 1);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     final captures = harness.recorder.captures;
 
     notifier.retroTap();
@@ -6540,11 +6550,14 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.playback.at = const Duration(seconds: 10);
     harness.playback.finishPlayback();
     await settle();
@@ -6590,11 +6603,14 @@ void main() {
     final room = notifier as _RoomThatKeepsAnOwnTake;
 
     notifier.goEnsaio();
-    await gravaParte(notifier, 1);
-    await gravaParte(notifier, 2);
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
     await theRoomNamesBothParts(container);
     notifier.startRetro();
-    await settle();
+    await waitFor(
+      'o clipe estar rodando',
+      () => container.read(salaSessionProvider).btClipRodando,
+    );
     harness.playback.at = const Duration(seconds: 10);
     notifier.retroTap();
     notifier.retroTap();
