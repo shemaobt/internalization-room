@@ -192,11 +192,16 @@ class EnsaioView extends ConsumerWidget {
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
                   ],
-                  if (session.btAviso == BtAviso.checagemFalhou &&
-                      session.stage == SalaStage.ensaio) ...[
+                  if (session.btAviso case final aviso?
+                      when (aviso == BtAviso.checagemFalhou ||
+                              aviso == BtAviso.checagemNaoAbre) &&
+                          session.stage == SalaStage.ensaio) ...[
                     const SizedBox(height: 12),
                     Text(
-                      retroLabelFor('externalCheckFailed', language),
+                      retroLabelFor(switch (aviso) {
+                        BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
+                        _ => 'externalCheckFailed',
+                      }, language),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),

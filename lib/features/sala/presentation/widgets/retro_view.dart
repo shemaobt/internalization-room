@@ -19,8 +19,6 @@ import 'bead_styles.dart';
 import 'facilitator_circle.dart';
 import 'frase_list.dart';
 import 'grain_choice_view.dart';
-import 'external_check_button.dart';
-import 'listeners_line.dart';
 import 'motion.dart';
 import 'part_strips.dart';
 import 'pause_adjust_row.dart';
@@ -226,11 +224,6 @@ class RetroView extends ConsumerWidget {
                     ? notifier.ouvirARespostaDeNovo
                     : null,
               ),
-            ],
-            if (session.approvedDraftDrawn case final aprovado?) ...[
-              ListenersLine(aprovado.listeners),
-              const SizedBox(height: 12),
-              const ExternalCheckButton(),
             ],
             const SizedBox(height: 32),
             FraseList(
@@ -620,7 +613,9 @@ class RetroView extends ConsumerWidget {
   BtFindingKind? _achadoNoTrecho(String? segmentId, SalaSessionState session) {
     if (segmentId == null) return null;
     for (final finding in session.btFindings) {
-      if (finding.segmentId == segmentId) return finding.kind;
+      if (finding.segmentId == segmentId && finding.kind != null) {
+        return finding.kind;
+      }
     }
     return null;
   }
@@ -628,7 +623,7 @@ class RetroView extends ConsumerWidget {
   BtFindingKind? _markOn(int? frase, SalaSessionState session) {
     if (frase == null) return null;
     for (final finding in session.btFindings) {
-      if (finding.frase == frase) return finding.kind;
+      if (finding.frase == frase && finding.kind != null) return finding.kind;
     }
     return null;
   }

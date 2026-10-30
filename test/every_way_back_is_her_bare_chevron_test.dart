@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaConferida;
+    show aprovadaNaCasa, aprovadaNaConferida;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
@@ -102,7 +102,7 @@ Future<void> _onTheCheck(WidgetTester tester) async {
 }
 
 Future<void> _onTheExternalCheck(WidgetTester tester) async {
-  final container = await aprovadaNaConferida(
+  final container = await aprovadaNaCasa(
     tester,
     SalaHarness(filaEmMemoria: true),
   );
