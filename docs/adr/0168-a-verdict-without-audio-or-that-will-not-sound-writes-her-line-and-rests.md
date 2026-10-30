@@ -6,7 +6,7 @@ amends: 0152 (in part: the verdict is no longer a reply loaded once more), 0160 
 
 # A verdict without audio or that will not sound writes her line and rests
 
-This amends ADRs 0152 and 0160 without editing their decisions: it adds "amended by 0166" to
+This amends ADRs 0152 and 0160 without editing their decisions: it adds "amended by 0168" to
 their status lines. Her app is the bar, and it wins over our ADRs (João, 26 October). Settled
 on the ticket (ENG-2092).
 

@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0166 (the verdict's sound no longer raises a halt that waits)
+status: accepted, amended by 0168 (the verdict's sound no longer raises a halt that waits)
 date: 2026-10-29
 amends: 0029, 0036, 0044, 0159
 ---
