@@ -262,7 +262,7 @@ Future<Sala> _reabrirComOInteiro({
   addTearDown(() => casa.deleteSync(recursive: true));
   final harness = SalaHarness()
     ..playback.measured = const Duration(seconds: 10);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: _sessao,
     stage: parouEm,
     takes: [
@@ -280,6 +280,12 @@ Future<Sala> _reabrirComOInteiro({
         ),
     ],
   );
+  final pelaEscolha = parouEm == SalaStage.retro && comACena1;
+  if (pelaEscolha) {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  } else {
+    await holdTheSession(harness, row);
+  }
   harness.room
     ..passageScenes = _duasCenas
     ..retroSoFar = BackTranslationProgress(
@@ -290,10 +296,17 @@ Future<Sala> _reabrirComOInteiro({
   final container = harness.container();
   addTearDown(container.dispose);
   final it = Sala(harness, container);
-  await it.sala.abrirEscolha();
-  await settle();
-  unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
-  await waitFor('a passagem reabrir', () => it.estado.stage == parouEm);
+  if (pelaEscolha) {
+    await it.sala.abrirEscolha();
+    await settle();
+    unawaited(it.sala.goConversa(book: 'Ruth', pericope: 'P01'));
+    await waitFor('a passagem reabrir', () => it.estado.stage == parouEm);
+  } else {
+    await it.sala.openTheRoom();
+    await (parouEm == SalaStage.retro
+        ? intoTheBackTranslation
+        : intoTheRecordingHome)(it.sala, () => it.estado);
+  }
   await settle();
   return it;
 }
@@ -324,7 +337,7 @@ Future<ProviderContainer> _retomarNoEnsaio(
     ..room.passageScenes = cenas
     ..room.takes.addAll(naSala);
   antes?.call(harness);
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: _sessao,
     stage: SalaStage.ensaio,
     takes: [
@@ -338,6 +351,11 @@ Future<ProviderContainer> _retomarNoEnsaio(
         ),
     ],
   );
+  if (arquivosNoTablet) {
+    await holdTheSession(harness, row);
+  } else {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  }
   final container = harness.container();
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -345,11 +363,19 @@ Future<ProviderContainer> _retomarNoEnsaio(
   );
   await tester.pump(const Duration(milliseconds: 100));
   final notifier = container.read(salaSessionProvider.notifier);
-  await tester.runAsync(notifier.abrirEscolha);
-  await tester.pump(const Duration(milliseconds: 200));
-  await tester.runAsync(
-    () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
-  );
+  if (arquivosNoTablet) {
+    await intoTheRecordingHome(
+      notifier,
+      () => _estado(container),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+  } else {
+    await tester.runAsync(notifier.abrirEscolha);
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.runAsync(
+      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+  }
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(seconds: 1));
   }
