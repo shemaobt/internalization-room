@@ -157,11 +157,13 @@ Future<(SalaHarness, ProviderContainer)> _atRest(
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
   List<SceneRehearsalRecord> Function(String session)? seed,
+  void Function(SalaHarness harness)? before,
 }) async {
   final harness = SalaHarness(lingua: lingua, filaEmMemoria: true)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
     ..room.passageScenes = scenes;
+  before?.call(harness);
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -255,12 +257,15 @@ Future<(SalaHarness, ProviderContainer)> _onTheChoice(
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
   String contentType = 'audio/wav',
+  bool rehearsed = true,
 }) async {
   final (harness, container) = await _atRest(
     tester,
     lingua: lingua,
     scenes: scenes,
-    seed: (session) => [_rehearsal(session, contentType: contentType)],
+    seed: (session) => [
+      if (rehearsed) _rehearsal(session, contentType: contentType),
+    ],
   );
   harness.room.holdNextSceneList();
   await _tapTheDot(tester);
@@ -271,7 +276,8 @@ Future<(SalaHarness, ProviderContainer)> _onTheChoice(
   return (harness, container);
 }
 
-/// The choice answered «A passagem inteira»: the team on the empty whole home.
+/// The choice answered «A passagem inteira», the plan it opened over the rehearsal
+/// answered «gravar a passagem inteira de uma vez»: the team on the empty whole home.
 Future<(SalaHarness, ProviderContainer)> _onTheEmptyWholeHome(
   WidgetTester tester, {
   String contentType = 'audio/wav',
@@ -281,6 +287,8 @@ Future<(SalaHarness, ProviderContainer)> _onTheEmptyWholeHome(
     contentType: contentType,
   );
   await _tap(tester, _whole);
+  await _settles(tester);
+  await _tap(tester, _wholeAtOnce);
   await _settles(tester);
   return (harness, container);
 }
@@ -418,13 +426,19 @@ void main() {
   testWidgets(
     '2. «A passagem inteira» opens the recording home with one row, the whole',
     (tester) async {
-      final (harness, container) = await _onTheChoice(tester);
+      final (harness, container) = await _onTheChoice(tester, rehearsed: false);
 
       await _tap(tester, _whole);
       await _settles(tester);
 
       expect(harness.room.grainSwitches, [(grain: Grain.whole, reopens: true)]);
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'sem ensaio de cena desta sessão, o dela abre a casa da passagem '
+            'inteira, não o plano',
+      );
       expect(find.text(_whole), findsOneWidget);
       expect(find.text('Cena 1'), findsNothing);
       expect(find.text('Cena 2'), findsNothing);
@@ -445,6 +459,230 @@ void main() {
       expect(kept.kind, 'ensaio');
       expect(kept.scope, 'passagem-inteira');
       expect(kept.chunkIndex, isNull);
+    },
+  );
+
+  testWidgets(
+    '«A passagem inteira» over a scene rehearsal of this session lands on the '
+    'Ensaio Final plan, not on the empty whole home',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches, [(grain: Grain.whole, reopens: true)]);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason:
+            'a passagem inteira abria a casa vazia, e o dela volta pelo '
+            'efScreen e para no plano quando há ensaio de cena',
+      );
+      expect(find.text(_homeLine), findsNothing);
+      expect(find.text(_how), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '«A passagem inteira» draws the whole home at once and moves to the plan '
+    'only when the rehearsals answer with one of this session',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.holdNextSceneList();
+
+      await _tap(tester, _whole);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a escolha esperava a leitura do plano em «pensando…», e o dela '
+            'desenha a casa inteira na hora',
+      );
+      expect(find.text(_thinking), findsNothing);
+
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+
+      expect(find.text(_planLine), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a whole recording under way when the rehearsals answer stays on the home, '
+    'never moved to the plan',
+    (tester) async {
+      final (harness, container) = await _onTheChoice(tester);
+      harness.room.holdNextSceneList();
+      await _tap(tester, _whole);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(
+        find.descendant(of: byLabel(_whole), matching: byLabel(_record)),
+      );
+      await _settles(tester);
+
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'o plano abria por cima da gravação e o microfone era jogado fora',
+      );
+      expect(
+        container.read(salaSessionProvider).ensaio,
+        isNot(EnsaioStatus.idle),
+      );
+    },
+  );
+
+  testWidgets(
+    '«Gravar cena por cena» tapped before the rehearsals answer keeps the team '
+    'on the scene home, never moved to the plan',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.holdNextSceneList();
+      await _tap(tester, _whole);
+      await tester.pump(const Duration(milliseconds: 100));
+      await _tap(tester, _sceneInstead);
+      await _settles(tester);
+      expect(find.text('Cena 1'), findsOneWidget);
+
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason:
+            'a leitura tardia abria o plano por cima da casa por cenas que a '
+            'equipe tinha acabado de escolher, e o dela deixa de lado',
+      );
+      expect(find.text('Cena 1'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a whole take kept before the rehearsals answer stays on the home, as her '
+    'draft with a clip does',
+    (tester) async {
+      final (harness, container) = await _onTheChoice(tester);
+      harness.room.holdNextSceneList();
+      await _tap(tester, _whole);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(
+        find.descendant(of: byLabel(_whole), matching: byLabel(_record)),
+      );
+      await _settles(tester);
+      await tester.tap(
+        find.descendant(of: byLabel(_whole), matching: byLabel('Parar')),
+      );
+      await _settles(tester);
+      container.read(salaSessionProvider.notifier).takeKeep();
+      await _settles(tester);
+      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsNothing,
+        reason: 'o plano abria por cima de uma passagem já gravada',
+      );
+      expect(find.text(_homeLine), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'after «A passagem inteira» the room answered, a plan read with the '
+    'listing unread opens the whole home, not the choice again',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+
+      await _tap(tester, _whole);
+      await _settles(tester);
+      await _settles(tester);
+
+      expect(harness.room.grainSwitches, [(grain: Grain.whole, reopens: true)]);
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a sala já tinha dito o grão na troca, e a leitura sem a listagem '
+            'perguntava a escolha de novo; o dela, sem plano, abre a casa',
+      );
+      expect(find.text(_how), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '«Cena por cena» counts the passage\'s scenes on a choice that stood before '
+    'they were read, not «0 partes»',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+        before: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      harness.room
+        ..failScenesWith = null
+        ..holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 5900));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text(_how), findsOneWidget);
+      expect(
+        find.text('3 partes'),
+        findsOneWidget,
+        reason:
+            'a escolha só contava as cenas que o plano tinha guardado, e dizia '
+            '«0 partes» quando a leitura não chegava',
+      );
+      expect(find.text('0 partes'), findsNothing);
+      harness.room.finishHeldSceneList();
+      await _settles(tester);
+    },
+  );
+
+  testWidgets(
+    'the choice counts the scenes from the ask the plan read already sent, '
+    'never a second ask on the same slow link',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        before: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      harness.room
+        ..failScenesWith = null
+        ..holdNextScenes();
+      final asked = harness.room.calls.where((c) => c == 'scenesOf').length;
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 6000));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text(_how), findsOneWidget);
+      expect(
+        harness.room.calls.where((c) => c == 'scenesOf').length - asked,
+        1,
+        reason:
+            'a escolha pedia as cenas de novo com o pedido do plano ainda no ar',
+      );
+
+      harness.room.finishHeldScenes();
+      await _settles(tester);
+
+      expect(find.text('3 partes'), findsOneWidget);
     },
   );
 
@@ -744,8 +982,8 @@ void main() {
       await _tap(tester, _whole);
       await _settles(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
-      expect(find.text(_whole), findsOneWidget);
+      expect(find.text(_planLine), findsOneWidget);
+      expect(find.text(_how), findsNothing);
     },
   );
 
@@ -1122,7 +1360,7 @@ void main() {
     '11. on the choice over a draft the tablet did not know was approved, the '
     'one tap re-opens it and opens the home, not a refusal',
     (tester) async {
-      final (harness, _) = await _onTheChoice(tester);
+      final (harness, _) = await _onTheChoice(tester, rehearsed: false);
       harness.room.approvedDraft = const ApprovedDraft(version: 1);
 
       await _tap(tester, _whole);
@@ -1145,7 +1383,7 @@ void main() {
     '12. a switch whose answer is lost after the room acted opens the grain the '
     'room holds',
     (tester) async {
-      final (harness, _) = await _onTheChoice(tester);
+      final (harness, _) = await _onTheChoice(tester, rehearsed: false);
       harness.room.loseTheNextGrainAnswer = true;
 
       await _tap(tester, _whole);
@@ -1182,6 +1420,38 @@ void main() {
       expect(find.text(_how), findsNothing);
       expect(find.text(_planLine), findsOneWidget);
     });
+
+    testWidgets(
+      'naming the whole over a scene rehearsal of this session lands on the '
+      'plan, not on the empty whole home',
+      (tester) async {
+        final (harness, _) = await _atRest(
+          tester,
+          seed: (session) => [_rehearsal(session)],
+        );
+        harness.room
+          ..grain = Grain.whole
+          ..holdTheTakesListing();
+
+        await _tapTheDot(tester);
+        await tester.pump(const Duration(milliseconds: 6000));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text(_how), findsOneWidget);
+
+        harness.room.finishTheTakesListing();
+        await _settles(tester);
+        await _settles(tester);
+
+        expect(
+          find.text(_planLine),
+          findsOneWidget,
+          reason:
+              'a listagem tardia abria a casa inteira vazia, e o dela passa '
+              'pelo efScreen e para no plano',
+        );
+        expect(find.text(_how), findsNothing);
+      },
+    );
 
     testWidgets('never overwrites the grain the team chose after it', (
       tester,
@@ -1417,7 +1687,7 @@ void main() {
   testWidgets('12. a switch the room does not answer changes nothing', (
     tester,
   ) async {
-    final (harness, _) = await _onTheChoice(tester);
+    final (harness, _) = await _onTheChoice(tester, rehearsed: false);
     harness.room.grainAnswersFirst.add(const NetworkFailed('sem rede'));
     final played = harness.voice.played.length;
     final lines = harness.voice.fixedLines.length;
@@ -1444,7 +1714,7 @@ void main() {
     '13. while the switch is in the air, the grain controls are closed and the '
     'new grain\'s home waits for the door',
     (tester) async {
-      final (harness, _) = await _onTheChoice(tester);
+      final (harness, _) = await _onTheChoice(tester, rehearsed: false);
       harness.room.holdTheGrainSwitch();
 
       await _tap(tester, _whole);
@@ -1492,7 +1762,7 @@ void main() {
   testWidgets('a VoiceOver double-tap on «$_wholeChoice» chooses the whole, as '
       'a finger does', (tester) async {
     final semantics = tester.ensureSemantics();
-    final (harness, _) = await _onTheChoice(tester);
+    final (harness, _) = await _onTheChoice(tester, rehearsed: false);
 
     voiceOverTap(tester, _wholeChoice);
     await _settles(tester);
@@ -1592,7 +1862,10 @@ void main() {
       tester,
     ) async {
       final (harness, container) = await _onTheChoice(tester);
-      harness.room.sceneListsAnswerFirst.add(const NetworkFailed('sem rede'));
+      harness.room.sceneListsAnswerFirst.addAll(const [
+        NetworkFailed('sem rede'),
+        NetworkFailed('sem rede'),
+      ]);
 
       await _tap(tester, _whole);
       await _settles(tester);
@@ -1800,7 +2073,7 @@ void main() {
       await _tap(tester, _whole);
       await _settles(tester);
 
-      expect(find.text(_homeLine), findsOneWidget);
+      expect(find.text(_planLine), findsOneWidget);
       expect(harness.voice.played, hasLength(played));
       expect(harness.voice.fixedLines, hasLength(lines));
     });
@@ -1853,6 +2126,8 @@ void main() {
       expect(find.text('3 parts'), findsOneWidget);
 
       await _tap(tester, 'The whole passage');
+      await _settles(tester);
+      await _tap(tester, 'record the whole passage in one go');
       await _settles(tester);
 
       expect(find.text('Record scene by scene instead'), findsOneWidget);
