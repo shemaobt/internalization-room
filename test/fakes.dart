@@ -402,6 +402,7 @@ class FakeRecorder implements RecordingRepository {
 
   bool? answersPermission = true;
   bool startThrows = false;
+  final List<String> starts = [];
 
   /// Whether closing the microphone fails, the way a recorder that lost its file does.
   bool stopThrows = false;
@@ -439,6 +440,7 @@ class FakeRecorder implements RecordingRepository {
     MicOwner owner = MicOwner.conversation,
   }) async {
     lastOwner = owner;
+    starts.add(fileName);
     sounds.add('recorder:start');
     final held = _startsTaken < _holdingStarts.length
         ? _holdingStarts[_startsTaken++]

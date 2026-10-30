@@ -2152,8 +2152,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (state.voice == VoiceState.speaking) return _cutTheVoice();
     if (state.panoramaSaid) {
-      switch (state.voice) {
+      switch (state.circleVoice) {
         case VoiceState.invite:
+          if (state.channel is Microphone) _dispatch(const MicDiscarded());
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
           if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
@@ -3694,7 +3695,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _hand.noteTap();
       return;
     }
-    switch (state.voice) {
+    switch (state.circleVoice) {
       case VoiceState.invite:
       case VoiceState.listening:
       case VoiceState.done:
@@ -3717,12 +3718,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _actOnConversaTap() {
     if (_recordingStarting) return;
-    final isRecording = state.voice == VoiceState.listening;
+    final isRecording = state.circleVoice == VoiceState.listening;
     switch (_captureGuard.decide(
       isRecording: isRecording,
       elapsed: _listenedFor,
     )) {
       case TapDecision.start:
+        if (state.channel is Microphone) _dispatch(const MicDiscarded());
         _startListening('conversa_${_stamp()}');
       case TapDecision.stop:
         _handOff(_finishListening());
