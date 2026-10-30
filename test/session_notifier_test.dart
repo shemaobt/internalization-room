@@ -1927,26 +1927,49 @@ void main() {
       notifier.goEnsaio();
       notifier.gravarACena(1);
       notifier.gravarACena(1);
-      await settle();
+      await waitFor(
+        'a gravação da parte chegar',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+      );
       notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte guardada',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
       notifier.startRetro();
-      await settle();
+      await waitFor('a conferida abrir', () {
+        final state = container.read(salaSessionProvider);
+        return state.stage == SalaStage.retro &&
+            state.btPhase == BtPhase.playing;
+      });
       harness.playback.at = const Duration(seconds: 2);
       notifier.retroTap();
       notifier.retroTap();
-      await settle();
-      await confirmarATraducao(container);
-      await settle();
-      harness.playback.finishPlayback();
-      await settle();
-      await notifier.finishBackTranslation();
-      await settle();
-      await notifier.aprovarRascunhoFinal();
       await waitFor(
-        'o ensaio salvo',
-        () => container.read(salaSessionProvider).ensaioSalvo != null,
+        'a captura abrir',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
       );
-      await settle();
+      await confirmarATraducao(container);
+      await waitFor(
+        'o clipe voltar a tocar',
+        () => container.read(salaSessionProvider).btClipRodando,
+      );
+      harness.playback.finishPlayback();
+      await waitFor(
+        'o clipe acabar',
+        () => container.read(salaSessionProvider).btClipEnded,
+      );
+      await notifier.finishBackTranslation();
+      await waitFor(
+        'o veredito ser ouvido',
+        () => container.read(salaSessionProvider).btVeredito,
+      );
+      await notifier.aprovarRascunhoFinal();
+      await waitFor('o ensaio salvo descansar', () {
+        final state = container.read(salaSessionProvider);
+        return state.ensaioSalvo != null && state.btAprovando == null;
+      });
 
       var emits = 0;
       container.listen(salaSessionProvider, (_, _) => emits++);
