@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show intoTheRecordingHome, settle;
+import 'scenario_helpers.dart'
+    show holdTheSession, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _duasPartes = [Duration(seconds: 10), Duration(seconds: 8)];
@@ -208,4 +214,108 @@ void main() {
     await settle();
     expect(it.estado.canAdvanceToTheVerdict, isTrue);
   });
+
+  test(
+    'a joined part told halfway, its told ground heard on the recording '
+    'home, is still to hear once the first listen of the other part is over',
+    () async {
+      final harness = SalaHarness();
+      final pasta = Directory.systemTemp.createTempSync('sala-2109');
+      addTearDown(() => pasta.deleteSync(recursive: true));
+      final caminhos = [
+        for (final n in [1, 2])
+          (File('${pasta.path}/p$n.wav')..writeAsBytesSync([1, 2, 3])).path,
+      ];
+      await holdTheSession(
+        harness,
+        ResumePoint(
+          sessionId: 'sessao-antiga',
+          stage: SalaStage.retro,
+          takes: [
+            for (final n in [1, 2])
+              KeptTake(
+                scopeId: KeptScope.parte(n),
+                path: caminhos[n - 1],
+                takeId: 'gravacao-$n',
+                origin: 'ensaio-da-cena-$n',
+              ),
+          ],
+        ),
+      );
+      harness.room.takes.addAll([
+        for (final n in [1, 2])
+          TakeView(
+            takeId: 'gravacao-$n',
+            kind: 'ensaio',
+            scope: KeptScope.parte(n),
+            ordinal: n,
+            pass: 1,
+            origin: 'ensaio-da-cena-$n',
+          ),
+      ]);
+      harness.room
+        ..listeningUnheardTakeIds = const ['gravacao-2']
+        ..retroSoFar = const BackTranslationProgress(
+          segments: [
+            SegmentView(
+              segmentId: 'trecho-1',
+              takeId: 'gravacao-1',
+              startsMs: 0,
+              endsMs: 5000,
+              frase: 1,
+            ),
+            SegmentView(
+              segmentId: 'trecho-2',
+              takeId: 'gravacao-2',
+              startsMs: 0,
+              endsMs: 8000,
+              frase: 2,
+            ),
+          ],
+        );
+      harness.playback.lengths[caminhos[0]] = _duasPartes[0];
+      harness.playback.lengths[caminhos[1]] = _duasPartes[1];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      await it.sala.openTheRoom();
+      await intoTheRecordingHome(it.sala, () => it.estado);
+
+      it.sala.ouvirACena(1);
+      await theClipOpens(harness);
+      harness.playback
+        ..length = _duasPartes[0]
+        ..at = _duasPartes[0]
+        ..finishPlayback();
+      await settle();
+
+      it.sala.startRetro();
+      await waitFor(
+        'a primeira escuta tocar a segunda parte',
+        () =>
+            it.estado.btSoOuvir &&
+            harness.playback.sounding &&
+            harness.playback.played.last == caminhos[1],
+      );
+      harness.room.listeningUnheardTakeIds = const [];
+      await ouvirAteOFim(it, _duasPartes[1]);
+      await waitFor(
+        'a tradução abrir depois da escuta',
+        () =>
+            !it.estado.btSoOuvir &&
+            it.estado.btPhase == BtPhase.playing &&
+            !it.estado.awaitingTheGuide,
+      );
+      await settle();
+
+      expect(it.estado.btOuvidaInteira, isTrue);
+      expect(
+        it.estado.canAdvanceToTheVerdict,
+        isFalse,
+        reason:
+            'a contagem da sala acendia o terminei sobre uma parte contada só '
+            'até o meio, com a tradução sem ter tocado o resto dela',
+      );
+    },
+  );
 }
