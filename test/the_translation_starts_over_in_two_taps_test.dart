@@ -232,7 +232,11 @@ void main() {
       final harness = SalaHarness();
       final container = await _voltaATraducao(tester, harness, _quatroFrases);
 
-      await tester.pump(const Duration(seconds: 2));
+      await waitFor(
+        '«$_recomecar» acender',
+        () => _enabledAt(tester, _recomecar) == Tristate.isTrue,
+        step: () => _passo(tester),
+      );
       voiceOverTap(tester, _recomecar);
       await _passo(tester);
 

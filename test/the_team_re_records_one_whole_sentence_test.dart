@@ -1574,6 +1574,7 @@ void main() {
       tester,
       harness,
       aguardando: 'trecho-3',
+      pelaEscolha: true,
     );
     await _passo(tester);
     await _passo(tester);
