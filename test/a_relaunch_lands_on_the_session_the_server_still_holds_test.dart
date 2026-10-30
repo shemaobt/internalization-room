@@ -503,7 +503,12 @@ void main() {
         await tablet.notifier.openTheRoom();
         await _theChoiceShowsItsWheel(tablet);
         await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
-        await _landsOn(tablet, _held);
+        await waitFor(
+          'the team to land on the session',
+          () =>
+              tablet.state.sessionId == _held && !tablet.state.awaitingTheGuide,
+        );
+        await settle();
         return tablet;
       }
 

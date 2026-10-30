@@ -23,7 +23,7 @@ final class Panorama extends Station {
     PassageChosen() => const Canvas(),
     TheRehearsalOpened() => const Ensaio(),
     ThePlanOpened() => this,
-    TheBackTranslationOpened() || TheBackTranslationResumed() => const Retro(),
+    TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
     TheNecklaceClosed() => this,
     TheExternalCheckOpened() ||
