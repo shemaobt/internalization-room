@@ -8,30 +8,7 @@ import 'um_ensaio_de_tres_partes.dart';
 
 Future<Sala> _ouvidaInteiraPelaSala() async {
   final it = await umEnsaioDeTresPartesGravado();
-  it.harness.room.listeningUnheardTakeIds = [
-    for (final parte in it.partes) parte.takeId!,
-  ];
-  it.sala.startRetro();
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await waitFor(
-      'a parte ${onde + 1} entrar no ar',
-      () =>
-          it.harness.playback.played.isNotEmpty &&
-          it.harness.playback.played.last == it.partes[onde].path &&
-          it.harness.playback.sounding,
-    );
-    if (onde == partesDoEnsaio.length - 1) {
-      it.harness.room.listeningUnheardTakeIds = const [];
-    }
-    await ouvirAteOFim(it, partesDoEnsaio[onde]);
-  }
-  await waitFor(
-    'a primeira escuta acabar e a primeira parte voltar ao ar',
-    () =>
-        !it.estado.btSoOuvir &&
-        it.estado.btPhase == BtPhase.playing &&
-        it.harness.playback.sounding,
-  );
+  await ouvidaInteiraPelaSala(it);
   return it;
 }
 
@@ -151,6 +128,71 @@ void main() {
       reason:
           'a resposta atrasada da passagem deixada valia como a contagem da '
           'que veio depois',
+    );
+  });
+
+  test('the unheard parts of a passage the team left, answered late, never '
+      'dot the passage opened next', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    final deixada = it.estado.sessionId!;
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[0].takeId!]
+      ..holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    it.harness.room.listeningUnheardTakeIds = const [];
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => it.estado.stage == SalaStage.escolha && it.estado.naRoda != null,
+    );
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+    await waitFor(
+      'a outra passagem abrir',
+      () => it.estado.sessionId != null && it.estado.sessionId != deixada,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btNaoOuvidas,
+      isEmpty,
+      reason:
+          'a resposta atrasada da passagem deixada marcava como não ouvidas '
+          'as partes da passagem aberta depois',
+    );
+  });
+
+  test('the unheard parts of a passage the team left, answered late on the '
+      'Choice, are not kept', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[0].takeId!]
+      ..holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => it.estado.stage == SalaStage.escolha && it.estado.naRoda != null,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btNaoOuvidas,
+      isEmpty,
+      reason:
+          'a resposta atrasada da passagem deixada guardava partes por ouvir '
+          'numa Escolha sem passagem',
     );
   });
 }

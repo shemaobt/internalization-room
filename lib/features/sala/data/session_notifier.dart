@@ -377,7 +377,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late bool _personAsked;
   late int _lastAcknowledgement;
   final _random = Random();
-  late DateTime? _listeningSince;
   late bool _recordingStarting;
 
   /// The attempt of a «Novo ouvinte» no answer has landed for, with the version it asks
@@ -558,7 +557,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _stretchKeys = {};
     _personAsked = false;
     _lastAcknowledgement = 0;
-    _listeningSince = null;
     _recordingStarting = false;
     _listenerAttempt = null;
     _listenerLineAwaited = false;
@@ -1151,9 +1149,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ouvida.unheardTakeIds != null &&
             ordem > (_oQueASalaDisse?.ordem ?? 0)) {
       _oQueASalaDisse = (sessionId: sessionId, ordem: ordem, ouvida: ouvida);
-      state = state.copyWith(btNaoOuvidas: ouvida.unheardTakeIds);
       if (sessionId == state.sessionId) {
-        state = state.copyWith(btOuvidaInteira: ouvida.unheardTakeIds!.isEmpty);
+        state = state.copyWith(
+          btNaoOuvidas: ouvida.unheardTakeIds,
+          btOuvidaInteira: ouvida.unheardTakeIds!.isEmpty,
+        );
       }
     }
     return resposta;
@@ -1548,6 +1548,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _stretchesAt = max(_stretchesAt, sent);
     state = state.copyWith(btTrechos: _trechosFrom(told.segments));
+    _largarARegravacaoSemTrecho();
   }
 
   bool _applyWhatOnlyGrows(SessionSnapshot snapshot, {TurnClock? clock}) {
@@ -3635,7 +3636,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _listen(MachineEvent opening) {
     _recordingStarting = true;
-    _listeningSince = clock.now();
     state = state.copyWith(clearRecorderStartedAt: true);
     _dispatch(opening);
     if (state.channel is! Microphone) {
@@ -3895,9 +3895,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (answer) {
       case Answered(value: final segmentos):
         _readsApplied = max(_readsApplied, sent);
-        final segurada =
-            state.trechoChamado(state.btFraseGuardada)?.frase ??
-            state.btRegravacao?.frase;
+        final segurada = state.btFraseGuardada ?? state.btRegravacao?.segmentId;
         if (segurada != null && _numeroDaParteDe(segurada) == cena) {
           _esquecerAFrase();
         }
@@ -3987,6 +3985,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (listing case Answered(:final value) when !_abandoned(generation)) {
           listingRead = true;
           _theRoomsGrainHeard(value);
+          if (value.grain == null) {
+            state = state.copyWith(clearGrainInForce: true);
+          }
           if (value.grain case final grain?
               when state.ensaioFinalPlan is GrainAsked &&
                   !state.grainSwitching) {
@@ -4078,7 +4079,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
-        if (state.recordsTheWhole && !planHoldsARehearsal(read, sessionId)) {
+        if (state.grainInForce == Grain.whole &&
+            !planHoldsARehearsal(read, sessionId)) {
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
         state = state.copyWith(
@@ -6290,6 +6292,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final shown = state.scene;
     final waiting = shown.asWaiting;
+    _theTranslationAsked = null;
     state = state.copyWith(scene: waiting);
     return _sendTheSceneFrase(frase, shown, waiting, generation);
   }
@@ -6542,7 +6545,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       shown.rehearsal!.rehearsalId,
       shown.translatingAgain!,
     );
-    _silenceTheRoom();
+    if (_theTranslationAsked == null) _silenceTheRoom();
     _theRefusalLineGoes();
     state = state.copyWith(
       scene: shown.nothingAskedAgain.copyWith(clearPausa: true),
@@ -6623,6 +6626,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final unseen = state.sceneTranslationsUnseen[told?.rehearsalId];
     if (sessionId == null || told == null || unseen == null) return true;
     final waiting = shown.asWaiting;
+    _theTranslationAsked = null;
     state = state.copyWith(scene: waiting);
     final generation = _waitOnTheGeneration;
     final listed = await _room.sceneRehearsalsOf(sessionId);
@@ -6709,19 +6713,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     state = state.copyWith(scene: asked);
     _theTranslationAsked = asked;
-    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
+    _handOff(_hearTheFrase(shown.rehearsal!, frase, asked));
   }
 
   Future<void> _hearTheFrase(
     SceneRehearsalRecord rehearsal,
     SceneFrase frase,
-    SceneScreen shown,
     SceneScreen waiting,
   ) async {
     final generation = _waitOnTheGeneration;
     bool movedOn() =>
-        _theSceneMovedOn(waiting, generation) ||
-        !identical(_theTranslationAsked, waiting);
+        _abandoned(generation) || !identical(_theTranslationAsked, waiting);
     final path = await _fetchASceneClip(
       'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
       RoomRepository.sceneFraseAudioUrl(
@@ -6734,7 +6736,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       failed: (_) {},
     );
     if (movedOn()) return;
-    state = state.copyWith(scene: shown);
     if (path != null) _play(PartSound(0, path));
   }
 
@@ -9546,13 +9547,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final ondeCabe = _ondeAPausaCabe();
     if (ondeCabe == null) return;
     final (envelope, :lo, :hi) = ondeCabe;
-    _semOTrechoNoAr();
-    _trechoEnd = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
+    final pausa = nudgeThePause(envelope, _trechoEnd, para, lo: lo, hi: hi);
+    _semOTrechoNoAr(pausa);
+    _trechoEnd = pausa;
   }
 
-  void _semOTrechoNoAr() {
-    final segurada = _tirarAParteDoPlayer();
-    if (segurada != null) _dispatch(TheHeldPartReturns(segurada));
+  void _semOTrechoNoAr(Duration pausa) {
+    if (_tirarAParteDoPlayer() case Paused(what: final PartSound parte)) {
+      _dispatch(
+        TheHeldPartReturns(
+          Paused(
+            PartSound(parte.part, parte.path, from: pausa),
+            started: false,
+          ),
+        ),
+      );
+    }
   }
 
   void ouvirAPausa() => _gesture(() => _ouvirAPausa());
@@ -9961,18 +9971,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.aBackTranslationGestureActs) return;
     final reabre = state.overAnApprovedDraft;
     _armedTap(
-      'rerecord:${trecho.frase}',
+      'rerecord:${trecho.segmentId}',
       needs: reabre && state.btRegravacao == null,
       then: () => _handOff(_regravarAFrase(trecho, reabre: reabre)),
     );
   });
 
   Future<void> _regravarAFrase(Trecho trecho, {required bool reabre}) async {
-    final frase = trecho.frase;
-    if (frase == null || !state.fraseRegravavel(trecho)) return;
+    final nome = trecho.segmentId;
+    if (nome == null || !state.fraseRegravavel(trecho)) return;
     final aberta = state.btRegravacao;
     if (aberta != null) {
-      if (aberta.frase == frase) _fecharARegravacao();
+      if (aberta.segmentId == nome) _fecharARegravacao();
       return;
     }
     final generation = _waitOnTheGeneration;
@@ -9982,7 +9992,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(
-        frase,
+        nome,
         PassoDaRegravacao.ouvindo,
         reabre: reabre,
       ),
@@ -10022,15 +10032,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  Future<void> _fecharAFrase(int frase) async {
+  Future<void> _fecharAFrase(String nome) async {
     final aberta = state.btRegravacao;
     final generation = _waitOnTheGeneration;
     final vez = _regravacoes;
     bool largada() => _abandoned(generation) || vez != _regravacoes;
     final path = (await _closeTheMicrophone()).take;
     if (largada()) return;
-    final nome = _aFrase(frase)?.segmentId;
-    if (path == null || nome == null || _anAccidentalTap(path)) {
+    if (path == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(
         btRegravacao: aberta?.em(PassoDaRegravacao.pronta),
@@ -10078,16 +10087,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     final nome = guardada.scope;
     final generation = _waitOnTheGeneration;
-    var frase = _aFraseChamada(nome)?.frase;
-    if (frase == null) {
+    if (_aFraseChamada(nome) == null) {
       await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation)) return;
-      frase = _aFraseChamada(nome)?.frase;
+      if (_aFraseChamada(nome) == null) return _esquecerAFrase();
     }
-    if (frase == null) return _esquecerAFrase();
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(
-        frase,
+        nome,
         PassoDaRegravacao.enviando,
         path: guardada.path,
         reabre: reabre,
@@ -10210,14 +10217,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     final nome = state.btFraseDevida;
     final trecho = state.trechoChamado(nome);
-    final frase = state.trechoChamado(state.btFraseGuardada)?.frase;
-    if (sessionId == null || nome == null || trecho == null || frase == null) {
+    final guardada = state.btFraseGuardada;
+    if (sessionId == null ||
+        nome == null ||
+        trecho == null ||
+        guardada == null) {
       return;
     }
     final generation = _waitOnTheGeneration;
     _silenceTheRoom();
     state = state.copyWith(
-      btRegravacao: RegravacaoDaFrase(frase, PassoDaRegravacao.enviando),
+      btRegravacao: RegravacaoDaFrase(guardada, PassoDaRegravacao.enviando),
       clearBtFraseGuardada: true,
     );
     await _readTheStretchesBack(sessionId, generation);
@@ -10408,14 +10418,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btRegravacao: state.btRegravacao?.em(passo));
   }
 
-  int? _numeroDaParteDe(int frase) {
-    final parte = _aFrase(frase)?.parte;
+  int? _numeroDaParteDe(String nome) {
+    final parte = _aFraseChamada(nome)?.parte;
     if (parte == null || parte >= state.partes.length) return null;
     return state.numeroDaParte(parte);
   }
-
-  Trecho? _aFrase(int frase) =>
-      state.btTrechos.where((trecho) => trecho.frase == frase).firstOrNull;
 
   Trecho? _aFraseChamada(String nome) =>
       state.btTrechos.where((trecho) => trecho.segmentId == nome).firstOrNull;
@@ -10457,6 +10464,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _largarARegravacao();
   }
 
+  void _largarARegravacaoSemTrecho() {
+    if (state.btRegravacao case final aberta?
+        when aberta.passo != PassoDaRegravacao.enviando &&
+            _aFraseChamada(aberta.segmentId) == null) {
+      _regravacoes++;
+      _silenceTheRoom();
+      if (aberta.passo == PassoDaRegravacao.gravando) {
+        _dispatch(const MicDiscarded());
+      }
+      _esquecerAFrase();
+    }
+  }
+
   void _largarARegravacao() {
     _regravacoes++;
     final aberta = state.btRegravacao;
@@ -10492,12 +10512,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _dispatch(
             MicOpened(
               MicOwner.rehearsal,
-              take: 'frase_${regravacao.frase}_${_stamp()}',
+              take: 'frase_${_stamp()}',
               generation: _generation,
             ),
           );
         case PassoDaRegravacao.gravando:
-          _handOff(_fecharAFrase(regravacao.frase));
+          _handOff(_fecharAFrase(regravacao.segmentId));
         case PassoDaRegravacao.ouvindo ||
             PassoDaRegravacao.revendo ||
             PassoDaRegravacao.enviando ||
@@ -10784,6 +10804,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _finishBackTranslation() async {
     if (!state.canFinishBackTranslation) return;
     if (state.btTraducaoPendenteEmprestada) _manterATraducaoDeAntes();
+    if (_trechoTraduzidoDeNovo == null) _trechoEnd = _trechoStart;
     _dispatch(const TheVerdictAsked());
     state = state.copyWith(clearAviso: true);
     _silenceTheRoom();
@@ -11211,6 +11232,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                 when !frases.containsKey(guardada)) {
               _esquecerAFrase();
             }
+            _largarARegravacaoSemTrecho();
           }
           final numeros = {
             for (final regravada in snapshot.backTranslation.stale)
@@ -11585,7 +11607,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btPhase != BtPhase.playing || trecho == null) return;
     final aguardando = state.btFraseQueAguarda;
     if (aguardando != null && trecho.segmentId == aguardando) return;
-    _silenceTheRoom();
+    final segurada = _tirarAParteDoPlayer();
+    if (segurada != null) _dispatch(TheHeldPartReturns(segurada));
     _descartarATraducaoPendente();
     _trechoTraduzidoDeNovo = null;
     _walkTheCursorBack(state.btTrechos);
@@ -11757,17 +11780,11 @@ class _HandHost implements HandHost {
   int get waitOnTheGeneration => _notifier._waitOnTheGeneration;
 
   @override
-  Duration get listenedFor => switch (_notifier._listeningSince) {
-    final since? => clock.now().difference(since),
-    null => Duration.zero,
-  };
-
-  @override
   String stamp() => _notifier._stamp();
 
   @override
-  bool theGuardKeeps(String path, Duration listenedFor) =>
-      _notifier._theGuardKeeps(path, listenedFor);
+  bool theGuardKeeps(String path) =>
+      _notifier._captureGuard.acceptsAQuestion(bytes: _notifier._bytesAt(path));
 
   @override
   void dispatch(MachineEvent event) => _notifier._dispatch(event);

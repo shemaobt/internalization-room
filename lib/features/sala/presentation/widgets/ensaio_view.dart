@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -525,7 +526,18 @@ class _SceneRowView extends StatelessWidget {
       null => null,
     };
     final said = switch (row.unsent) {
-      _ when recording => _said(words('recording'), colors),
+      _ when recording => switch (session.recorderStartedAt) {
+        final since? => Loop(
+          period: const Duration(seconds: 1),
+          reducible: false,
+          builder: (context, _) => _said(
+            '${words('recording')} · '
+            '${minutesAndSecondsOf(clock.now().difference(since))}',
+            colors,
+          ),
+        ),
+        null => _said(words('recording'), colors),
+      },
       _ when inTheAir != null => Row(
         children: [
           _said(words('sending'), colors),
