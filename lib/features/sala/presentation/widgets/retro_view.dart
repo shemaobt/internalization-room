@@ -359,24 +359,26 @@ class RetroView extends ConsumerWidget {
           trecho.segmentId != null &&
           trecho.segmentId == session.btFraseTraduzidaDeNovo?.segmentId,
       regravando:
-          trecho.frase != null && session.btRegravacao?.frase == trecho.frase,
+          trecho.segmentId != null &&
+          session.btRegravacao?.segmentId == trecho.segmentId,
       regravar:
           _aFraseVai(trecho, session) ||
               session.fraseRegravavel(trecho) &&
                   (session.btPhase != BtPhase.conferida ||
                       _markOn(trecho.frase, session) == BtFindingKind.nuance ||
                       session.overAnApprovedDraft)
-          ? session.armedTap?.control == 'rerecord:${trecho.frase}'
+          ? session.armedTap?.control == 'rerecord:${trecho.segmentId}'
                 ? retroLabelFor('reopenArmed', language)
                 : sceneRehearsalLabelFor('rerecordFrase', language, n: n)
           : null,
-      regravarDormindo: _dormindo('rerecord:${trecho.frase}', session),
-      regravarArmado: session.armedTap?.control == 'rerecord:${trecho.frase}',
+      regravarDormindo: _dormindo('rerecord:${trecho.segmentId}', session),
+      regravarArmado:
+          session.armedTap?.control == 'rerecord:${trecho.segmentId}',
       onRegravar:
           switch (session.btRegravacao) {
             null => quieta,
             final regravacao =>
-              regravacao.frase == trecho.frase &&
+              regravacao.segmentId == trecho.segmentId &&
                   regravacao.passo != PassoDaRegravacao.gravando &&
                   regravacao.passo != PassoDaRegravacao.enviando,
           }
@@ -384,7 +386,7 @@ class RetroView extends ConsumerWidget {
           : null,
       revisao:
           atua &&
-              session.btRegravacao?.frase == trecho.frase &&
+              session.btRegravacao?.segmentId == trecho.segmentId &&
               session.btRegravacao?.passo == PassoDaRegravacao.revendo
           ? FraseRevisao(
               ouvir: sceneRehearsalLabelFor('listenN', language, n: n),
@@ -397,11 +399,14 @@ class RetroView extends ConsumerWidget {
             )
           : null,
       estado: switch (session.btRegravacao) {
-        RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.enviando)
-            when frase == trecho.frase =>
+        RegravacaoDaFrase(:final segmentId, passo: PassoDaRegravacao.enviando)
+            when segmentId == trecho.segmentId =>
           sceneRehearsalLabelFor('takeSending', language),
-        RegravacaoDaFrase(:final frase, passo: PassoDaRegravacao.longaDemais)
-            when frase == trecho.frase =>
+        RegravacaoDaFrase(
+          :final segmentId,
+          passo: PassoDaRegravacao.longaDemais,
+        )
+            when segmentId == trecho.segmentId =>
           sceneRehearsalLabelFor('spliceTooLong', language),
         null
             when trecho.segmentId != null &&
@@ -546,7 +551,7 @@ class RetroView extends ConsumerWidget {
 
   bool _aFraseVai(Trecho trecho, SalaSessionState session) =>
       session.btFraseDevida == null &&
-      session.btRegravacao?.frase == trecho.frase &&
+      session.btRegravacao?.segmentId == trecho.segmentId &&
       session.btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   bool _dormindo(String control, SalaSessionState session) =>
@@ -1040,10 +1045,7 @@ String _oLugar(
 Trecho? _aFraseDeNovo(SalaSessionState session) =>
     session.btTrechoTraduzidoDeNovo ??
     switch (session.btRegravacao) {
-      final regravacao? =>
-        session.btTrechos
-            .where((trecho) => trecho.frase == regravacao.frase)
-            .firstOrNull,
+      final regravacao? => session.trechoChamado(regravacao.segmentId),
       null => null,
     };
 
