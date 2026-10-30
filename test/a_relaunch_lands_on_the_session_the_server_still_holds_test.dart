@@ -397,17 +397,18 @@ void main() {
     },
   );
 
-  test('a passage switched back to, whose conversation ends on a turn of the '
-      'team\'s, offers no «Ouvir de novo» and asks the room nothing', () async {
+  test('a passage switched back to, whose last turn of the team\'s the room '
+      'refused, still ends on the Guide: it plays that clip', () async {
     final tablet = await _inP01();
     final session = tablet.state.sessionId!;
-    tablet.harness.room.holdNextTurn();
+    tablet.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
     tablet.notifier.conversaTap();
     await settle();
     tablet.notifier.conversaTap();
     await waitFor('the turn to be sent', () => tablet.asked('sendTurn') == 1);
+    await settle();
+    tablet.harness.room.failTurnsWith = null;
     tablet.notifier.leaveThePassage();
-    tablet.harness.room.finishHeldTurn();
     await enterThePassage(tablet.notifier, () => tablet.state, 'P02');
     await waitFor(
       'P02 to open',
@@ -419,8 +420,16 @@ void main() {
     tablet.notifier.leaveThePassage();
     await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
     await _landsOn(tablet, session);
+    final played = tablet.harness.voice.played.length;
 
-    expect(tablet.state.canHearAgain, isFalse);
+    expect(tablet.state.canHearAgain, isTrue);
+    await tablet.notifier.hearAgain();
+    await waitFor(
+      'the clip to be played again',
+      () => tablet.harness.voice.played.length > played,
+    );
+
+    expect(tablet.harness.voice.played.last, turnoUrl);
     expect(tablet.harness.room.sessionsSaidAgain, isEmpty);
   });
 

@@ -85,11 +85,13 @@ class CurrentSessionLedger {
           jsonDecode(await file.readAsString()) as Map<String, Object?>;
       return {
         for (final MapEntry(:key, :value) in json.entries)
-          key: switch (value as Map<String, Object?>) {
-            {'url': final String url, 'fixed_line': final String fixed} =>
-              SpokenLine(url: url, fixedLine: fixed),
-            _ => null,
-          },
+          if (value case {
+            'url': final String url,
+            'fixed_line': final String fixed,
+          })
+            key: SpokenLine(url: url, fixedLine: fixed)
+          else if (value case {'team': true})
+            key: null,
       };
     } on Object {
       return {};
