@@ -1389,7 +1389,7 @@ void main() {
     );
 
     testWidgets(
-      'an approval from the home lost on the network writes «não deu para conferir agora — tentem de novo», keeps the button and calls no person; the failure policy decides it at the approval door and lets nothing go',
+      'an approval from the home lost on the network writes «não deu para conferir agora — tentem de novo», keeps the button and calls no person; the failure policy decides it at the approval door',
       (tester) async {
         final logged = <String>[];
         final print = debugPrint;

@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0138, amended by 0150, amended by 0151, amended by ENG-1910 (2026-10-30))
+status: accepted (amended by 0138, amended by 0150, amended by 0151, amended by ENG-1910 (2026-10-30: a refused approval on the home keeps its button)
 date: 2026-10-26
 amends: 0106 (in part: the approved badge also stands on the recording home), 0112 (in part: the approval is offered, refused and saved from the recording home too), 0116 (in part: the external check opened from the home leaves to the home)
 ---
@@ -36,5 +36,5 @@ approve door on the recording home, whatever the mode, ending in the Saved scree
 As hers (`Drafting.tsx:709-717`), which refreshes nothing after a refused approval:
 
 - A refusal because the telling is not conferida writes «para aprovar, a tradução precisa estar conferida» and the offer stays: the button and «✓ traduzida e conferida» are no longer withdrawn by the refusal. Only a Session read that says the passage is not checked takes them away.
-- An approval from the home lost on the network writes «não deu para conferir agora — tentem de novo» and the Failure policy decides it at the approval's own door: her line only, no person, no Step let go.
+- An approval from the home lost on the network writes «não deu para conferir agora — tentem de novo» and the Failure policy decides it at the approval's own door: her line only, no person.
 - A gone session and a refused request still take the Failure policy.
