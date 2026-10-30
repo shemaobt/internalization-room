@@ -8469,8 +8469,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final doComeco =
         !juntada ||
         naoOuvidas == null ||
+        naoOuvidas.isEmpty ||
         naoOuvidas.length == state.partes.length;
-    final partes = doComeco || naoOuvidas.isEmpty
+    final partes = doComeco
         ? [for (var onde = 0; onde < state.partes.length; onde++) onde]
         : naoOuvidas;
     state = state.copyWith(btSoOuvir: true);
