@@ -3160,6 +3160,7 @@ class FakeRoom implements RoomRepository {
         pass: passNumber,
         origin: origin,
         setAsideAt: leftBehind ? grainSwitchedAt : null,
+        sha256: held,
       ),
     );
     takeAudio[id] = origin == null
