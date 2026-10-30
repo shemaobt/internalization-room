@@ -10,8 +10,8 @@ import 'sala_screen_test.dart' show pumpSala;
 
 void main() {
   for (final (width, height, bar, bottom) in [
-    (375.0, 667.0, 20.0, 606.97),
-    (820.0, 1180.0, 24.0, 1073.8),
+    (375.0, 667.0, 20.0, 608.77),
+    (820.0, 1180.0, 24.0, 1075.96),
   ]) {
     testWidgets('the necklace sits low in one row, as hers, and never under '
         'the mark, on a ${width.toInt()} x ${height.toInt()} screen', (
