@@ -16,6 +16,8 @@ const _checagem = 'Checagem externa';
 const _conferida = '✓ traduzida e conferida';
 const _badge = '✓ aprovado como rascunho final (v1)';
 const _doisOuvintes = 'checagem externa: 2 ouvintes';
+const _naoAbre =
+    'a checagem externa abre depois que o rascunho final é aprovado';
 const _naoDeu = 'não deu para abrir a checagem externa — tentem de novo';
 const _sinal = 'Um momento para uma pessoa';
 
@@ -136,7 +138,7 @@ void main() {
   });
 
   testWidgets('«Checagem externa» needs no facilitator\'s code, and over a '
-      'draft the room no longer holds as approved it opens nothing, and the '
+      'draft the room no longer holds as approved the home says why, and the '
       'button and the badge leave with the read', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
@@ -144,6 +146,13 @@ void main() {
 
     await _tocarNaChecagem(tester);
 
+    expect(
+      find.text(_naoAbre),
+      findsOneWidget,
+      reason:
+          'a recusa da abertura na casa não dizia nada, e a tela da checagem '
+          'era a única que escrevia a linha dela',
+    );
     expect(_sala(container).stage, SalaStage.ensaio);
     expect(byLabel(_checagem), findsNothing);
     expect(find.text(_badge), findsNothing);
