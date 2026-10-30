@@ -1,23 +1,17 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/checagem_externa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
-import 'package:internalization_room/main.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida;
@@ -119,48 +113,6 @@ void main() {
     _noLoudspeakerInVoiceTime(tester, RetroView, 'Drafting.tsx:2405');
     closeTheRoom(container);
   });
-
-  testWidgets(
-    'the Ensaio circle in voice time draws no loudspeaker, as her rehearsal '
-    'circle draws none',
-    (tester) async {
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-1831-ensaio').path}/p1.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
-      final harness = SalaHarness(filaEmMemoria: true, lingua: 'pt');
-      harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-        sessionId: 'sessao-antiga',
-        stage: SalaStage.ensaio,
-        takes: [
-          KeptTake(
-            scopeId: KeptScope.parte(1),
-            path: gravada.path,
-            takeId: 'gravacao-1',
-          ),
-        ],
-      );
-      final container = harness.container();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(container: container, child: const SalaApp()),
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      final notifier = container.read(salaSessionProvider.notifier);
-      await tester.runAsync(notifier.abrirEscolha);
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.runAsync(
-        () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
-      );
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(seconds: 1));
-      }
-      expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
-
-      _noLoudspeakerInVoiceTime(tester, EnsaioView, 'Rehearsal.tsx:848, :903');
-    },
-  );
-
   testWidgets(
     'the external check circle in voice time draws no loudspeaker, as her '
     'external check circle draws none',

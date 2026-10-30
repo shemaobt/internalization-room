@@ -55,7 +55,7 @@ void main() {
     _blockTheDisk(home);
     notifier.goEnsaio();
     await settle();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
 
     await waitFor(
       'a sala seguir gravando',

@@ -300,7 +300,7 @@ void main() {
       );
       final session = first.state.sessionId!;
       it.sala.goEnsaio();
-      await gravarUmaParteDoEnsaio(it);
+      await gravarUmaParteDoEnsaio(it, 1);
       await settle();
 
       final again = await _relaunch(first);

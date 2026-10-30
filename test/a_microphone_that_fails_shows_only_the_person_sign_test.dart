@@ -365,9 +365,9 @@ void main() {
           fails(harness.recorder);
           final starts = harness.recorder.captures;
 
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
           await settle();
-          notifier.ensaioTap();
+          notifier.gravarACena(1);
           await settle();
 
           expect(harness.recorder.captures, greaterThanOrEqualTo(starts + 2));

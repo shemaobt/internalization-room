@@ -16,7 +16,6 @@ import 'approve_button.dart';
 import 'bead_styles.dart';
 import 'ensaio_final_plan_view.dart';
 import 'external_check_button.dart';
-import 'facilitator_circle.dart';
 import 'grain_choice_view.dart';
 import 'listeners_line.dart';
 import 'motion.dart';
@@ -129,15 +128,6 @@ class EnsaioView extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 24),
-                  FacilitatorCircle(
-                    size: herCircleSize(MediaQuery.sizeOf(context), 46, 180),
-                    halt: session.halt,
-                    voice: _voice(session),
-                    semanticLabel: _circleLabel(session, language),
-                    enabled: !frozen,
-                    onTap: notifier.ensaioTap,
-                  ),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -307,21 +297,6 @@ class EnsaioView extends ConsumerWidget {
       onRecordAgain: notifier.rehearseThisSceneAgain,
     );
   }
-
-  VoiceState _voice(SalaSessionState session) {
-    if (session.ensaio == EnsaioStatus.recording && !session.micTaken) {
-      return VoiceState.listening;
-    }
-    if (session.playPing) return VoiceState.speaking;
-    return VoiceState.invite;
-  }
-
-  String _circleLabel(SalaSessionState session, String language) =>
-      recordingHomeLabelFor(switch (session.ensaio) {
-        EnsaioStatus.recording => 'stop',
-        EnsaioStatus.recorded => 'recordAgain',
-        EnsaioStatus.idle => 'record',
-      }, language);
 }
 
 class _Aviso extends StatelessWidget {
@@ -381,7 +356,7 @@ class _SceneRowView extends StatelessWidget {
     final title = row.title;
     final named = title == null ? cena : '$cena — $title';
     final mark = _mark();
-    final playing = row.current && session.playPing;
+    final playing = row.playing && session.playPing;
     final recording = row.recording && session.ensaio == EnsaioStatus.recording;
     final frozen = session.bringingBack != null;
     final another =
@@ -400,7 +375,6 @@ class _SceneRowView extends StatelessWidget {
 
     return Semantics(
       container: true,
-      selected: row.current,
       label: [
         named,
         if (playing) recordingHomeLabelFor('playing', language),
@@ -409,7 +383,6 @@ class _SceneRowView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         decoration: BoxDecoration(
-          color: row.current ? colors.card : null,
           border: Border(bottom: BorderSide(color: colors.line)),
         ),
         child: Column(

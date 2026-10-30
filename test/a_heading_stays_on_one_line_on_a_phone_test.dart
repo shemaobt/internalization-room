@@ -49,8 +49,8 @@ Future<ProviderContainer> _atTheCheckScreen(
 ) async {
   final container = await _atTheRecordingHome(tester, language);
   final notifier = container.read(salaSessionProvider.notifier);
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   notifier.takeKeep();
   notifier.startRetro();

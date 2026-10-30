@@ -115,8 +115,8 @@ void main() {
     _onAPhone(tester, width: 390, bar: 59);
     final container = await _atTheRecordingHome(tester);
     final notifier = container.read(salaSessionProvider.notifier);
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     notifier.startRetro();

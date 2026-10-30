@@ -82,7 +82,13 @@ void main() {
     await tester.ensureVisible(daLinhaDois);
     await tester.tap(daLinhaDois);
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, pararAGravacao);
+    final pararNaLinhaDois = find.descendant(
+      of: linhaDoEnsaio(2),
+      matching: byLabel(pararAGravacao),
+    );
+    await tester.ensureVisible(pararNaLinhaDois);
+    await tester.tap(pararNaLinhaDois);
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       naLinhaDoEnsaio(tester, 'Ouvir'),
       [true, true, true, null],

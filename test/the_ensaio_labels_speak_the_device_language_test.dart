@@ -4,7 +4,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show offTheRows, onTheCircle, inTheHome;
+import 'scenario_helpers.dart' show offTheRows, onTheRows, inTheHome;
 
 Future<ProviderContainer> _pumpNoEnsaio(
   WidgetTester tester, {
@@ -32,8 +32,8 @@ Future<ProviderContainer> _pumpAoGravado(
 }) async {
   final container = await _pumpNoEnsaio(tester, lingua: lingua);
   final notifier = container.read(salaSessionProvider.notifier);
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await tester.pump(const Duration(milliseconds: 100));
   return container;
 }
@@ -61,9 +61,10 @@ void main() {
     await letTheRehearsalReachTheRoom(tester);
 
     expect(
-      onTheCircle('Record'),
+      onTheRows('Record'),
       findsOneWidget,
-      reason: 'confirmada a parte, o círculo convida a próxima em inglês',
+      reason:
+          'confirmada a parte, a linha seguinte convida a próxima em inglês',
     );
   });
 
@@ -104,36 +105,4 @@ void main() {
       expect(offTheRows('Ouvir'), findsNothing);
     },
   );
-
-  testWidgets('the record circle speaks english to an english room', (
-    tester,
-  ) async {
-    final container = await _pumpNoEnsaio(tester, lingua: 'en');
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    expect(
-      onTheCircle('Record'),
-      findsOneWidget,
-      reason: 'a tela recém-aberta convida a gravar, no idioma da equipe',
-    );
-
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      onTheCircle('Stop'),
-      findsOneWidget,
-      reason: 'gravando, o círculo diz em inglês que o toque encerra',
-    );
-
-    notifier.ensaioTap();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      onTheCircle('Record again'),
-      findsOneWidget,
-      reason: 'com a parte pendente, o círculo oferece regravá-la em inglês',
-    );
-  });
 }

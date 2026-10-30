@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
@@ -16,7 +15,6 @@ import 'scenario_helpers.dart';
 const _gravarOEnsaio = 'Gravar';
 const _gravarAProxima = 'Gravar';
 const _terminar = 'Parar';
-const _gravarDeNovo = 'Gravar de novo';
 const _ouvirOEnsaio = 'Ouvir';
 const _pausarOEnsaio = 'Parar';
 const _confirmar = 'Enviar a gravação';
@@ -45,23 +43,27 @@ Future<void> _tocar(WidgetTester tester, String label) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
-Future<void> _gravarEDeixarPendente(WidgetTester tester, String circulo) async {
-  await _tocar(tester, circulo);
-  await _tocar(tester, _terminar);
+Future<void> _naLinha(WidgetTester tester, int cena, String label) =>
+    _tocarNaLinha(
+      tester,
+      find.descendant(of: linhaDoEnsaio(cena), matching: byLabel(label)),
+    );
+
+Future<void> _tocarNaLinha(WidgetTester tester, Finder controle) async {
+  await tester.ensureVisible(controle);
+  await tester.tap(controle);
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
+Future<void> _gravarEDeixarPendente(WidgetTester tester, int cena) async {
+  await _naLinha(tester, cena, _gravarOEnsaio);
+  await _naLinha(tester, cena, _terminar);
 }
 
 Future<void> _confirmarAParte(WidgetTester tester) async {
   await _tocar(tester, _confirmar);
   await letTheRehearsalReachTheRoom(tester);
 }
-
-FacilitatorCircle _circulo(WidgetTester tester) =>
-    tester.widget<FacilitatorCircle>(
-      find.descendant(
-        of: find.byType(EnsaioView),
-        matching: find.byType(FacilitatorCircle),
-      ),
-    );
 
 (bool, double) _estadoDoBotao(WidgetTester tester, String label) => (
   tester.widget<Semantics>(offTheRows(label)).properties.enabled == true,
@@ -102,13 +104,12 @@ void main() {
       final container = await _noEnsaio(tester, harness: harness);
 
       expect(naLinhaDoEnsaio(tester, 'Ouvir'), [null]);
-      await _tocar(tester, _gravarOEnsaio);
+      await _naLinha(tester, 1, _gravarOEnsaio);
       expect(naLinhaDoEnsaio(tester, 'Parar'), [
         true,
       ], reason: 'a gravação aberta é a da linha 1');
-      expect(_circulo(tester).voice, VoiceState.listening);
 
-      await _tocar(tester, _terminar);
+      await _naLinha(tester, 1, _terminar);
       final primeira = harness.recorder.lastPath!;
       expect(
         naLinhaDoEnsaio(tester, 'Gravar'),
@@ -123,9 +124,9 @@ void main() {
         reason: 'com uma parte pendente o disco não leva à tradução',
       );
 
-      await _gravarEDeixarPendente(tester, _gravarDeNovo);
+      await _gravarEDeixarPendente(tester, 1);
       final segunda = harness.recorder.lastPath!;
-      await _gravarEDeixarPendente(tester, _gravarDeNovo);
+      await _gravarEDeixarPendente(tester, 1);
       final terceira = harness.recorder.lastPath!;
 
       expect(
@@ -152,8 +153,7 @@ void main() {
       ], reason: 'só a última gravação sobe, como a parte 1');
       expect(_apagado(tester, _confirmar), isTrue);
       expect(_aceso(tester, _irParaATraducao), isTrue);
-      expect(offTheRows(_gravarAProxima), findsOneWidget);
-      expect(_circulo(tester).voice, VoiceState.invite);
+      expect(onTheRows(_gravarAProxima), findsOneWidget);
       expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
     },
   );
@@ -163,16 +163,16 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _noEnsaio(tester, harness: harness);
-      await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+      await _gravarEDeixarPendente(tester, 1);
       await _confirmarAParte(tester);
 
-      await _tocar(tester, _gravarAProxima);
+      await _naLinha(tester, 2, _gravarAProxima);
       expect(
         _apagado(tester, _ouvirOEnsaio),
         isTrue,
         reason: 'com a parte 1 confirmada, nada toca enquanto a 2 grava',
       );
-      await _tocar(tester, _terminar);
+      await _naLinha(tester, 2, _terminar);
       expect(naLinhaDoEnsaio(tester, 'Ouvir'), [true, null]);
       expect(naLinhaDoEnsaio(tester, 'Gravar'), [null, true]);
       expect(_apagado(tester, _irParaATraducao), isTrue);
@@ -207,9 +207,9 @@ void main() {
   testWidgets('o play toca o ensaio até aqui, pausa e retoma', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _noEnsaio(tester, harness: harness);
-    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _gravarEDeixarPendente(tester, 1);
     await _confirmarAParte(tester);
-    await _gravarEDeixarPendente(tester, _gravarAProxima);
+    await _gravarEDeixarPendente(tester, 2);
     await _confirmarAParte(tester);
     final partes = [
       for (final parte in container.read(salaSessionProvider).partes)
@@ -219,7 +219,6 @@ void main() {
 
     await _tocar(tester, _ouvirOEnsaio);
     expect(harness.playback.played, [partes[0]]);
-    expect(_circulo(tester).voice, VoiceState.speaking);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 200));
     expect(harness.playback.played, partes, reason: 'a parte 1, depois a 2');
@@ -249,9 +248,9 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _noEnsaio(tester, harness: harness);
-    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _gravarEDeixarPendente(tester, 1);
     await _confirmarAParte(tester);
-    await _gravarEDeixarPendente(tester, _gravarAProxima);
+    await _gravarEDeixarPendente(tester, 2);
     await _confirmarAParte(tester);
     final partes = [
       for (final parte in container.read(salaSessionProvider).partes)
@@ -281,9 +280,9 @@ void main() {
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _noEnsaio(tester, harness: harness);
-    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _gravarEDeixarPendente(tester, 1);
     await _confirmarAParte(tester);
-    await _gravarEDeixarPendente(tester, _gravarAProxima);
+    await _gravarEDeixarPendente(tester, 2);
     final pendente = harness.recorder.lastPath!;
     final confirmada = container.read(salaSessionProvider).partes.single.path;
 
@@ -298,7 +297,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     await _noEnsaio(tester, harness: harness);
     expect(_apagado(tester, _ouvirOEnsaio), isTrue);
-    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _gravarEDeixarPendente(tester, 1);
 
     await _tocar(tester, _ouvirOEnsaio);
 
@@ -314,9 +313,9 @@ void main() {
       final sala = _sala(container);
       EnsaioStatus ensaio() => container.read(salaSessionProvider).ensaio;
       sala.goEnsaio();
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor('gravar', () => ensaio() == EnsaioStatus.recording);
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor(
         'a parte ficar pendente',
         () => ensaio() == EnsaioStatus.recorded,
@@ -324,12 +323,12 @@ void main() {
       final pendente = harness.recorder.lastPath!;
 
       harness.recorder.returnsNothing = true;
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor(
         'gravar por cima',
         () => ensaio() == EnsaioStatus.recording,
       );
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor(
         'a gravação por cima voltar sem tomada',
         () => ensaio() == EnsaioStatus.recorded,
@@ -355,12 +354,12 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await _noEnsaio(tester, harness: harness);
-      await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+      await _gravarEDeixarPendente(tester, 1);
       await _confirmarAParte(tester);
-      await _gravarEDeixarPendente(tester, _gravarAProxima);
+      await _gravarEDeixarPendente(tester, 2);
 
       harness.recorder.startThrows = true;
-      await _tocar(tester, _gravarDeNovo);
+      await _naLinha(tester, 2, _gravarAProxima);
 
       expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
       expect(_aceso(tester, _confirmar), isTrue);
@@ -377,9 +376,9 @@ void main() {
       final sala = _sala(container);
       EnsaioStatus ensaio() => container.read(salaSessionProvider).ensaio;
       sala.goEnsaio();
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor('gravar', () => ensaio() == EnsaioStatus.recording);
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor(
         'a parte ficar pendente',
         () => ensaio() == EnsaioStatus.recorded,
@@ -387,7 +386,7 @@ void main() {
       final pendente = harness.recorder.lastPath!;
 
       harness.recorder.permitted = false;
-      sala.ensaioTap();
+      sala.gravarACena(1);
       await waitFor('a recusa voltar', () => harness.recorder.captures == 2);
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -402,14 +401,14 @@ void main() {
     },
   );
 
-  testWidgets('o círculo não grava sobre o ensaio que soa', (tester) async {
+  testWidgets('a linha não grava sobre o ensaio que soa', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     await _noEnsaio(tester, harness: harness);
-    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _gravarEDeixarPendente(tester, 1);
     await _tocar(tester, _ouvirOEnsaio);
     final capturas = harness.recorder.captures;
 
-    await _tocar(tester, _gravarDeNovo);
+    await _naLinha(tester, 1, _gravarOEnsaio);
 
     expect(harness.recorder.captures, capturas);
     expect(harness.playback.sounding, isTrue);
@@ -418,7 +417,7 @@ void main() {
   testWidgets('o check cala o ensaio que está tocando', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     await _noEnsaio(tester, harness: harness);
-    await _gravarEDeixarPendente(tester, _gravarOEnsaio);
+    await _gravarEDeixarPendente(tester, 1);
     await _tocar(tester, _ouvirOEnsaio);
     expect(harness.playback.sounding, isTrue);
 
@@ -462,9 +461,9 @@ void main() {
     }
 
     nadaAposentado('vazio');
-    await _tocar(tester, _gravarOEnsaio);
+    await _naLinha(tester, 1, _gravarOEnsaio);
     nadaAposentado('gravando');
-    await _tocar(tester, _terminar);
+    await _naLinha(tester, 1, _terminar);
     nadaAposentado('pendente');
     await _confirmarAParte(tester);
     nadaAposentado('confirmada');
@@ -475,16 +474,16 @@ void main() {
   testWidgets('os rótulos falam a língua da sala', (tester) async {
     await _noEnsaio(tester, lingua: 'en');
 
-    expect(offTheRows('Record'), findsOneWidget);
+    expect(onTheRows('Record'), findsOneWidget);
     expect(offTheRows('Listen'), findsOneWidget);
     expect(offTheRows('Send the recording'), findsOneWidget);
     expect(inTheHome('Translate the recording'), findsOneWidget);
 
-    await _tocar(tester, 'Record');
-    expect(offTheRows('Stop'), findsOneWidget);
+    await _tocarNaLinha(tester, onTheRows('Record'));
+    expect(onTheRows('Stop'), findsOneWidget);
     expect(byLabel('Scene 1'), findsOneWidget);
-    await _tocar(tester, 'Stop');
-    expect(offTheRows('Record again'), findsOneWidget);
+    await _tocarNaLinha(tester, onTheRows('Stop'));
+    expect(onTheRows('Record'), findsOneWidget);
 
     await _tocar(tester, 'Listen');
     expect(offTheRows('Stop'), findsOneWidget);
@@ -492,7 +491,7 @@ void main() {
 
     await _tocar(tester, 'Send the recording');
     await letTheRehearsalReachTheRoom(tester);
-    expect(offTheRows('Record'), findsOneWidget);
+    expect(onTheRows('Record'), findsOneWidget);
     expect(byLabel('Scene 1'), findsOneWidget);
   });
 }

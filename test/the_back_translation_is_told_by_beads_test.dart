@@ -102,8 +102,8 @@ Future<ProviderContainer> entrarNaTraducao(
   notifier.goEnsaio();
   await tester.pump(const Duration(milliseconds: 100));
   for (var gravada = 0; gravada < partes; gravada++) {
-    notifier.ensaioTap();
-    notifier.ensaioTap();
+    notifier.gravarACena(gravada + 1);
+    notifier.gravarACena(gravada + 1);
     await tester.pump(const Duration(milliseconds: 100));
     notifier.takeKeep();
     await theRoomNamesTheParts(tester, container, parts: gravada + 1);

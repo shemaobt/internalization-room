@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'bt_finding.dart';
 import 'channel.dart';
 import 'halt.dart';
@@ -385,6 +383,20 @@ class Trecho {
     this.frase,
     this.bridgeTakeId,
   });
+
+  Trecho naParte(int parte) => Trecho(
+    segmentId: segmentId,
+    takeId: takeId,
+    retroPath: retroPath,
+    parte: parte,
+    from: from,
+    to: to,
+    contado: contado,
+    lugarFrom: lugarFrom,
+    lugarTo: lugarTo,
+    frase: frase,
+    bridgeTakeId: bridgeTakeId,
+  );
 }
 
 class PassageLeft {
@@ -932,22 +944,6 @@ class SalaSessionState {
     return index < 0 ? null : index;
   }
 
-  /// The Scene the circle records: the first Scene with no part, else none. A passage
-  /// the room answered with no scenes takes the lowest number free. With no scene list
-  /// answered it never goes past the parts already held: only a number missing below the
-  /// highest, or the first part.
-  int? get sceneForTheCircle {
-    if (recordsTheWhole) return partes.isEmpty ? 1 : null;
-    final numbers = partNumbers;
-    final free = KeptScope.firstFree(numbers);
-    return switch (scenes) {
-      ScenesHad(scenes: final had) when had.isNotEmpty =>
-        free <= had.length ? free : null,
-      ScenesHad() => free,
-      _ => free <= numbers.fold(1, max) ? free : null,
-    };
-  }
-
   bool get aTakeFromAnEarlierVisitWaits =>
       sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
 
@@ -996,7 +992,7 @@ class SalaSessionState {
             null => null,
           },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
-          current: _numberAt(playing) == number,
+          playing: _numberAt(playing) == number,
         ),
     ];
   }
@@ -1576,7 +1572,12 @@ class SalaSessionState {
   /// rehearsal an app before 19 August sent is the rehearsal only while no scene has its
   /// part; from the first one on it is set aside, kept but no longer played or told. While
   /// the room records the passage whole, only the whole is (ADR 0134).
-  List<KeptTake> get partes {
+  List<KeptTake> get partes => _partesDe(keptTakes, grainInForce);
+
+  static List<KeptTake> _partesDe(
+    List<KeptTake> keptTakes,
+    Grain? grainInForce,
+  ) {
     final wholes = [
       for (final take in keptTakes)
         if (take.scopeId == KeptScope.whole) take,
@@ -1588,6 +1589,31 @@ class SalaSessionState {
     ]..sort((a, b) => _byNumber(a).compareTo(_byNumber(b)));
     if (numbered.isNotEmpty || grainInForce == Grain.scene) return numbered;
     return wholes;
+  }
+
+  List<Trecho> _nasSuasPartes(
+    List<Trecho> trechos,
+    List<KeptTake>? keptTakes,
+    Grain? grainInForce,
+  ) {
+    if (keptTakes == null) return trechos;
+    final agora = _partesDe(keptTakes, grainInForce ?? this.grainInForce);
+    final onde = [
+      for (final era in partes)
+        agora.indexWhere((parte) => parte.scopeId == era.scopeId),
+    ];
+    final ficam = [
+      for (final trecho in trechos)
+        if (trecho.parte < 0 || trecho.parte >= onde.length)
+          trecho
+        else if (onde[trecho.parte] >= 0)
+          trecho.naParte(onde[trecho.parte]),
+    ];
+    if (ficam.length != trechos.length) return ficam;
+    for (final (i, trecho) in ficam.indexed) {
+      if (trecho.parte != trechos[i].parte) return ficam;
+    }
+    return trechos;
   }
 
   /// The recordings of a whole rehearsal set aside behind the scenes' own parts; none
@@ -1970,8 +1996,11 @@ class SalaSessionState {
       btChunkFailures: btChunkFailures ?? this.btChunkFailures,
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
-      btTrechos: btTrechos ?? this.btTrechos,
-      btTrechosRegravados: btTrechosRegravados ?? this.btTrechosRegravados,
+      btTrechos:
+          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, grainInForce),
+      btTrechosRegravados:
+          btTrechosRegravados ??
+          _nasSuasPartes(this.btTrechosRegravados, keptTakes, grainInForce),
       btNaoOuvidas: btNaoOuvidas ?? this.btNaoOuvidas,
       btParteQueTocou: clearBtParteQueTocou
           ? null
@@ -2116,7 +2145,7 @@ class SceneRow {
   final bool recording;
 
   /// The part in the air, playing or held.
-  final bool current;
+  final bool playing;
 
   const SceneRow({
     required this.number,
@@ -2128,7 +2157,7 @@ class SceneRow {
     required this.saved,
     required this.away,
     required this.recording,
-    required this.current,
+    required this.playing,
   });
 
   /// Whether «Ouvir» would play the take that is gone: the room's own part, which carries

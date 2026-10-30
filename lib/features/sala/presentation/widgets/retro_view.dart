@@ -368,6 +368,7 @@ class RetroView extends ConsumerWidget {
           ? sceneRehearsalLabelFor('awaiting', language)
           : switch (_markOn(trecho.frase, session)) {
               null || BtFindingKind.nuance => null,
+              BtFindingKind.other => retroLabelFor('addition', language),
               final kind => retroLabelFor(kind.name, language),
             },
       achado: aguarda(trecho) ? null : _markOn(trecho.frase, session),
@@ -394,6 +395,7 @@ class RetroView extends ConsumerWidget {
             null => quieta,
             final regravacao =>
               regravacao.frase == trecho.frase &&
+                  regravacao.passo != PassoDaRegravacao.gravando &&
                   regravacao.passo != PassoDaRegravacao.enviando,
           }
           ? () => notifier.regravarAFrase(trecho)
@@ -431,7 +433,9 @@ class RetroView extends ConsumerWidget {
       estadoArmado: session.armedTap?.control == 'resend:${trecho.frase}',
       onEstado:
           atua &&
-              session.channel is! GuideSpeaking &&
+              quieta &&
+              !session.needsPerson &&
+              !session.btSoOuvir &&
               session.btRegravacao == null &&
               trecho.frase != null &&
               session.btFraseGuardada == trecho.frase

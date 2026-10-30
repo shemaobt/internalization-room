@@ -14,10 +14,11 @@ import 'scenario_helpers.dart' show settle;
 Future<void> gravaParte(
   ProviderContainer container,
   SalaSessionNotifier notifier,
+  int cena,
 ) async {
   final partesAntes = container.read(salaSessionProvider).partes.length;
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
+  notifier.gravarACena(cena);
   await settle();
   notifier.takeKeep();
   await waitFor('a sala nomear a parte', () {
@@ -37,7 +38,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      await gravaParte(container, notifier);
+      await gravaParte(container, notifier, 1);
       notifier.startRetro();
       await settle();
 
@@ -80,7 +81,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(container, notifier);
+    await gravaParte(container, notifier, 1);
     notifier.startRetro();
     await settle();
 
@@ -111,8 +112,8 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      await gravaParte(container, notifier);
-      await gravaParte(container, notifier);
+      await gravaParte(container, notifier, 1);
+      await gravaParte(container, notifier, 2);
       notifier.startRetro();
       await settle();
 
@@ -142,7 +143,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
 
     notifier.goEnsaio();
-    await gravaParte(container, notifier);
+    await gravaParte(container, notifier, 1);
     notifier.startRetro();
     await settle(const Duration(milliseconds: 300));
 
@@ -177,7 +178,7 @@ void main() {
       final notifier = container.read(salaSessionProvider.notifier);
 
       notifier.goEnsaio();
-      await gravaParte(container, notifier);
+      await gravaParte(container, notifier, 1);
       harness.playback.holdNextOpening();
       notifier.startRetro();
       await settle();

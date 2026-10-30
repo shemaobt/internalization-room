@@ -18,7 +18,6 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
@@ -713,7 +712,6 @@ void main() {
       await _bringBackTwice(it, 2);
       expect(it.room.bringBacksAsked, hasLength(1));
       await it.tapThe(it.onRow(1, byLabel(_gravarDeNovo)));
-      await it.tapThe(find.byType(FacilitatorCircle));
       await it.tapThe(offTheRows(_ouvir));
       await it.settle();
 
@@ -724,12 +722,6 @@ void main() {
       expect(retry.hitTestable(), findsNothing);
       for (final control in [
         it.onRow(1, byLabel(_gravarDeNovo)),
-        find.descendant(
-          of: find.byType(FacilitatorCircle),
-          matching: find.byWidgetPredicate(
-            (widget) => widget is Semantics && widget.properties.button == true,
-          ),
-        ),
         offTheRows(_ouvir),
         byLabel(_enviarAGravacao),
         byLabel(_conferir),

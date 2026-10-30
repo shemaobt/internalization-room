@@ -64,8 +64,8 @@ Future<ProviderContainer> _primeiraRetro(SalaHarness harness) async {
   await notifier.goConversa(book: 'Ruth');
   await settle();
   notifier.goEnsaio();
-  notifier.ensaioTap();
-  notifier.ensaioTap();
+  notifier.gravarACena(1);
+  notifier.gravarACena(1);
   await settle();
   notifier.takeKeep();
   await waitFor('a sala nomear a parte', () {

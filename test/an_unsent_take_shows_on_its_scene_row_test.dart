@@ -22,8 +22,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart'
-    show byLabel, offTheRows, onTheCircle, relaunch, settle;
+import 'scenario_helpers.dart' show byLabel, offTheRows, relaunch, settle;
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -184,8 +183,7 @@ class _Casa {
     });
   }
 
-  void controles({required String circulo, required String madeira}) {
-    expect(onTheCircle(circulo), findsOneWidget, reason: 'o círculo');
+  void controles({required String madeira}) {
     expect(offTheRows(madeira), findsOneWidget, reason: 'o play de madeira');
     expect(
       offTheRows(_enviarAGravacao),
@@ -431,7 +429,8 @@ void main() {
     final semantica = tester.ensureSemantics();
     try {
       final casa = await _naCasa(tester);
-      casa.controles(circulo: _gravar, madeira: _ouvir);
+      casa.controles(madeira: _ouvir);
+      expect(casa.naLinha(1, byLabel(_gravar)), findsOneWidget);
 
       await casa.emTempoReal(() async {
         casa.sala.gravarACena(1);
@@ -440,7 +439,8 @@ void main() {
           () => casa.estado.ensaio == EnsaioStatus.recording,
         );
       });
-      casa.controles(circulo: _parar, madeira: _ouvir);
+      casa.controles(madeira: _ouvir);
+      expect(casa.naLinha(1, byLabel(_parar)), findsOneWidget);
 
       await casa.emTempoReal(() async {
         casa.sala.gravarACena(1);
@@ -449,7 +449,7 @@ void main() {
           () => casa.estado.ensaio == EnsaioStatus.recorded,
         );
       });
-      casa.controles(circulo: _gravarDeNovo, madeira: _ouvir);
+      casa.controles(madeira: _ouvir);
 
       await casa.emTempoReal(() async {
         final antes = casa.envios;
@@ -458,17 +458,17 @@ void main() {
         await settle(const Duration(milliseconds: 300));
       });
       await casa.guardar(3);
-      casa.controles(circulo: _gravar, madeira: _ouvir);
+      casa.controles(madeira: _ouvir);
 
       await casa.tocar(offTheRows(_ouvir));
-      casa.controles(circulo: _gravar, madeira: _parar);
+      casa.controles(madeira: _parar);
       await casa.tocar(offTheRows(_parar));
 
       casa.room.unreachableTake = 'ensaio/parte-2';
       await casa.guardar(2);
       casa.room.refuseTake = 'ensaio/parte-4';
       await casa.guardar(4);
-      casa.controles(circulo: _gravar, madeira: _ouvir);
+      casa.controles(madeira: _ouvir);
       expect(
         casa.naLinha(2, byLabel(_tentarDeNovo)),
         findsOneWidget,
@@ -481,7 +481,7 @@ void main() {
       );
 
       await casa.relancar();
-      casa.controles(circulo: _gravar, madeira: _ouvir);
+      casa.controles(madeira: _ouvir);
       expect(casa.naLinha(2, byLabel(_enviarAGravacao)), findsOneWidget);
     } finally {
       semantica.dispose();
@@ -493,7 +493,7 @@ void main() {
   ) async {
     final casa = await _naCasa(tester, lingua: 'en', cenas: _scenes);
 
-    expect(onTheCircle('Record'), findsOneWidget);
+    expect(casa.naLinha(2, byLabel('Record')), findsOneWidget);
     expect(offTheRows('Listen'), findsOneWidget);
     expect(offTheRows('Send the recording'), findsOneWidget);
     expect(offTheRows('Translate the recording'), findsOneWidget);
@@ -505,7 +505,7 @@ void main() {
         () => casa.estado.ensaio == EnsaioStatus.recording,
       );
     });
-    expect(onTheCircle('Stop'), findsOneWidget);
+    expect(casa.naLinha(2, byLabel('Stop')), findsOneWidget);
     await casa.emTempoReal(() async {
       casa.sala.gravarACena(2);
       await waitFor(
@@ -513,7 +513,6 @@ void main() {
         () => casa.estado.ensaio == EnsaioStatus.recorded,
       );
     });
-    expect(onTheCircle('Record again'), findsOneWidget);
 
     casa.room.unreachableTake = 'ensaio/parte-2';
     await casa.emTempoReal(() async {

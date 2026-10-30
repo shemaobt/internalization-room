@@ -350,16 +350,16 @@ Future<void> _traduzirAFraseApontadaDeNovo(
 }
 
 Future<void> _gravarDeNovoNaLinhaUm(WidgetTester tester) async {
-  final daLinhaUm = find.descendant(
-    of: linhaDoEnsaio(1),
-    matching: byLabel('Gravar de novo'),
-  );
-  await tester.ensureVisible(daLinhaUm);
-  await tester.tap(daLinhaUm);
-  await tester.pump(const Duration(milliseconds: 300));
-  for (final gesto in ['Parar', 'Enviar a gravação']) {
-    await tocar(tester, gesto);
+  for (final controle in ['Gravar de novo', 'Parar']) {
+    final daLinhaUm = find.descendant(
+      of: linhaDoEnsaio(1),
+      matching: byLabel(controle),
+    );
+    await tester.ensureVisible(daLinhaUm);
+    await tester.tap(daLinhaUm);
+    await tester.pump(const Duration(milliseconds: 300));
   }
+  await tocar(tester, 'Enviar a gravação');
 }
 
 Future<void> _aVozNoCanal(

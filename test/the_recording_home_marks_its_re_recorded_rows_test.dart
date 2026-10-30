@@ -65,8 +65,8 @@ Future<ProviderContainer> _oInteiroContado(
   sala.recordTheWholePassageInstead();
   await tester.pump(const Duration(milliseconds: 300));
   await letTheRehearsalReachTheRoom(tester);
-  sala.ensaioTap();
-  sala.ensaioTap();
+  sala.gravarACena(1);
+  sala.gravarACena(1);
   await _passo(tester);
   sala.takeKeep();
   await theRoomNamesTheParts(tester, container, parts: 1);

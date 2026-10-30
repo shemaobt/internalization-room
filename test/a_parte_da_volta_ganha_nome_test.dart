@@ -12,14 +12,14 @@ import 'scenario_helpers.dart' show relaunch, settle, umaParteInteira;
 /// name it. Two of these back to back are what a team recording two parts on the way
 /// out of the rehearsal actually does: the second `takeKeep` fires while the first
 /// one's upload is still in flight.
-Future<void> gravarSemEsperarNome(ProviderContainer container) async {
+Future<void> gravarSemEsperarNome(ProviderContainer container, int cena) async {
   final notifier = container.read(salaSessionProvider.notifier);
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
   await waitFor(
     'a gravação da parte começar',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recording,
   );
-  notifier.ensaioTap();
+  notifier.gravarACena(cena);
   await waitFor(
     'a gravação da parte terminar',
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
@@ -43,9 +43,9 @@ void main() {
     // rede rápida de teste nunca abre sozinha, mas uma rede real, mais lenta num dos
     // dois envios, abre.
     harness.room.holdNextTake(KeptScope.parte(3));
-    await gravarSemEsperarNome(container);
+    await gravarSemEsperarNome(container, 3);
     await harness.room.untilTakeHeld();
-    await gravarSemEsperarNome(container);
+    await gravarSemEsperarNome(container, 4);
     await settle();
     harness.room.finishHeldTake();
 
@@ -135,8 +135,8 @@ void main() {
     );
     final notifier = container.read(salaSessionProvider.notifier);
 
-    final t3take = await gravarMaisUmaParte(container);
-    final t4take = await gravarMaisUmaParte(container);
+    final t3take = await gravarMaisUmaParte(container, 3);
+    final t4take = await gravarMaisUmaParte(container, 4);
 
     final partes = container.read(salaSessionProvider).keptTakes;
     expect(partes, hasLength(4));
@@ -184,10 +184,10 @@ void main() {
       traduzidasAte: [30000, 30000],
     );
 
-    final t3take = await gravarMaisUmaParte(daVolta);
+    final t3take = await gravarMaisUmaParte(daVolta, 3);
 
     antes.room.unreachableTake = 'ensaio/${KeptScope.parte(4)}';
-    await gravarSemEsperarNome(daVolta);
+    await gravarSemEsperarNome(daVolta, 4);
     await settle();
     final (harness, container) = await relaunch(antes, daVolta);
     final notifier = container.read(salaSessionProvider.notifier);
@@ -280,7 +280,7 @@ void main() {
     notifier.goEnsaio();
     await settle();
 
-    await gravarSemEsperarNome(container);
+    await gravarSemEsperarNome(container, 1);
     await waitFor('a sala nomear a parte', () {
       final partes = container.read(salaSessionProvider).keptTakes;
       return partes.length == 1 && partes.first.takeId != null;

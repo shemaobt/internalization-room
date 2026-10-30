@@ -404,6 +404,65 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a finding of a kind this tablet does not know still wears her '
+      'blue mark with her fallback word, and one with no kind wears none', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(
+      tester,
+      harness,
+      BtFinding.listFrom({
+        'findings': [
+          {'kind': 'repetition', 'frase': 2, 'segment_id': 'trecho-2'},
+          {'frase': 3, 'segment_id': 'trecho-3'},
+        ],
+      }),
+    );
+
+    expect(
+      _borda(tester, 2),
+      ShemaBrand.azul,
+      reason:
+          'um achado de tipo desconhecido vinha sem marca, como se a frase '
+          'estivesse limpa',
+    );
+    expect(_corDaBarra(tester, 2), ShemaBrand.azul);
+    expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.azul);
+    expect(_borda(tester, 3), isNot(ShemaBrand.azul));
+    expect(
+      find.descendant(
+        of: _aFrase(3).first,
+        matching: find.text('acrescentado'),
+      ),
+      findsNothing,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a silence finding wears terracotta with «acrescentado», as her '
+      'addition does, not the blue of a kind nobody knows', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(
+      tester,
+      harness,
+      BtFinding.listFrom({
+        'findings': [
+          {'kind': 'silence', 'frase': 2, 'segment_id': 'trecho-2'},
+        ],
+      }),
+    );
+
+    expect(
+      _borda(tester, 2),
+      ShemaBrand.telha,
+      reason: 'o silêncio preenchido vinha azul, e o dela é telha',
+    );
+    expect(_corDaBarra(tester, 2), ShemaBrand.telha);
+    expect(_corDaPalavra(tester, 2, 'acrescentado'), ShemaBrand.telha);
+    closeTheRoom(container);
+  });
+
   testWidgets('the frase being translated again wears terracotta on its bar '
       'and its border, so the team sees which one the circle will tell', (
     tester,

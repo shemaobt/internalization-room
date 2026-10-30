@@ -243,7 +243,7 @@ void main() {
       await _inThePassage(it, 'P01');
       final portuguese = it.estado.sessionId;
       it.sala.goEnsaio();
-      await gravarUmaParteDoEnsaio(it);
+      await gravarUmaParteDoEnsaio(it, 1);
       await settle();
       await _leftForTheChoice(it);
       await _choose(it, 'en');
@@ -270,7 +270,7 @@ void main() {
       await _inThePassage(it, 'P01');
       final portuguese = it.estado.sessionId;
       it.sala.goEnsaio();
-      await gravarUmaParteDoEnsaio(it);
+      await gravarUmaParteDoEnsaio(it, 1);
       final takes = [for (final take in it.estado.keptTakes) take.path];
       await settle();
       await _leftForTheChoice(it);

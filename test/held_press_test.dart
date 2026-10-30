@@ -4,27 +4,26 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show onTheCircle;
-
-Future<void> _holdTheCircle(WidgetTester tester) async {
-  final circle = onTheCircle('Gravar');
-  final finger = await tester.startGesture(tester.getCenter(circle));
-  await tester.pump(const Duration(milliseconds: 900));
-  await finger.up();
-  await tester.pump(const Duration(milliseconds: 100));
-}
+import 'scenario_helpers.dart' show onTheRows;
 
 void main() {
-  testWidgets('a finger held on the record circle opens the microphone', (
+  testWidgets('a finger held on a Scene row\'s record opens the microphone', (
     tester,
   ) async {
     final container = await pumpSala(tester, SalaHarness());
     final notifier = container.read(salaSessionProvider.notifier);
 
+    await notifier.goConversa(book: 'Ruth');
+    await tester.pump(const Duration(milliseconds: 200));
     notifier.goEnsaio();
     await tester.pump(const Duration(milliseconds: 120));
 
-    await _holdTheCircle(tester);
+    final finger = await tester.startGesture(
+      tester.getCenter(onTheRows('Gravar')),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    await finger.up();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       container.read(salaSessionProvider).ensaio,
@@ -32,27 +31,6 @@ void main() {
       reason:
           'o toque longo ganha a arena do toque, e numa sala saudável ele '
           'não tem o que fazer — segurar o dedo não abria microfone nenhum',
-    );
-  });
-
-  testWidgets('a held press still unsticks an ensaio the room abandoned', (
-    tester,
-  ) async {
-    final harness = SalaHarness();
-    final container = await pumpSala(tester, harness);
-    final notifier = container.read(salaSessionProvider.notifier);
-
-    notifier.goEnsaio();
-    notifier.haltForABrokenBuild();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(container.read(salaSessionProvider).needsPerson, isTrue);
-
-    await _holdTheCircle(tester);
-
-    expect(
-      container.read(salaSessionProvider).voice,
-      VoiceState.invite,
-      reason: 'um ensaio travado não tem outra saída pela tela',
     );
   });
 }
