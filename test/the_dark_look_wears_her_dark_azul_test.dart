@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,10 @@ import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show settle;
 
 const _looks = [('light', Color(0xFF89AAA3)), ('dark', Color(0xFF8FB1A9))];
+
+const _branco = {'light': Color(0xFFF6F5EB), 'dark': Color(0xFF1E1B15)};
+const _areia = {'light': Color(0xFFC5C29F), 'dark': Color(0xFF6E6A57)};
+const _verdeClaro = {'light': Color(0xFF777D45), 'dark': Color(0xFFAAB07E)};
 
 ThemeData _theme(String look) =>
     look == 'dark' ? AppTheme.dark : AppTheme.light;
@@ -43,14 +48,18 @@ const _passages = [
   ),
 ];
 
-Future<void> _atTheChoice(WidgetTester tester, String look) async {
+Future<void> _atTheChoice(
+  WidgetTester tester,
+  String look, {
+  List<Passagem> passages = _passages,
+}) async {
   tester.platformDispatcher.platformBrightnessTestValue = look == 'dark'
       ? Brightness.dark
       : Brightness.light;
   addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
   await pumpSala(
     tester,
-    SalaHarness(filaEmMemoria: true)..room.passages = _passages,
+    SalaHarness(filaEmMemoria: true)..room.passages = passages,
   );
   await tester.runAsync(settle);
   await tester.pump(const Duration(milliseconds: 1500));
@@ -83,6 +92,80 @@ void main() {
           hasLength(2),
           reason: 'no escuro o escolhido era pintado com o azul claro',
         );
+      },
+    );
+
+    testWidgets(
+      'in the $look look the selected chip writes her $look branco and the other her verde-claro',
+      (tester) async {
+        await _atTheChoice(tester, look);
+
+        final inks = tester
+            .widgetList<DefaultTextStyle>(
+              find.descendant(
+                of: find.byType(LanguageAndLook),
+                matching: find.byType(DefaultTextStyle),
+              ),
+            )
+            .map((it) => it.style.color)
+            .whereType<Color>();
+        expect(inks.where((c) => c == _branco[look]), hasLength(2));
+        expect(inks.where((c) => c == _verdeClaro[look]), hasLength(2));
+      },
+    );
+
+    testWidgets('in the $look look the chip clusters are edged in her areia', (
+      tester,
+    ) async {
+      await _atTheChoice(tester, look);
+
+      expect(
+        _paintedUnder<DecoratedBox>(tester, find.byType(LanguageAndLook))
+            .where((paint) => paint.border is Border)
+            .map((paint) => (paint.border as Border).top.color),
+        everyElement(_areia[look]),
+      );
+    });
+
+    testWidgets(
+      'in the $look look a pressed passage pill fills azul and writes her branco',
+      (tester) async {
+        await _atTheChoice(
+          tester,
+          look,
+          passages: [
+            _passages.first,
+            for (var n = 1; n <= 40; n++)
+              Passagem(
+                pericope: 'P$n',
+                audioUrl: '/voice/p$n',
+                book: 'Ruth',
+                reference: 'Ruth $n:1–5',
+              ),
+          ],
+        );
+        final theWords = find.byWidgetPredicate(
+          (it) => it is Text && RegExp(r'(^|\D)1:1–5$').hasMatch(it.data ?? ''),
+        );
+        await tester.ensureVisible(theWords);
+        await tester.pump();
+        final pill = find.ancestor(
+          of: theWords,
+          matching: find.byType(GestureDetector),
+        );
+        final press = await tester.startGesture(tester.getCenter(pill.first));
+        await tester.pump(kPressTimeout + const Duration(milliseconds: 100));
+
+        expect(
+          _paintedUnder<DecoratedBox>(
+            tester,
+            pill.first,
+          ).where((paint) => paint.color == azul),
+          isNotEmpty,
+        );
+        expect(tester.widget<Text>(theWords).style?.color, _branco[look]);
+        await press.cancel();
+        await tester.pump();
       },
     );
 

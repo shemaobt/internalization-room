@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0163 (a part that landed while the app was closed is named from the room's listing)
 date: 2026-10-28
 amends: 0140 (coming back to a telling in progress is quiet; in part: rule 3's last sentence, a part whose upload has not landed)
 ---
