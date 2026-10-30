@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -480,8 +481,8 @@ void main() {
   });
 
   menuTest(
-    'while the Wheel cannot be read, the circle stands where the books were, and '
-    'its tap reads the Wheel again',
+    'while the Wheel cannot be read, the mark and the title stand over an empty '
+    'list, and the next open of the Choice fills it in place',
     (tester) async {
       final harness =
           SalaHarness(
@@ -495,22 +496,21 @@ void main() {
             )
             ..room.passages = _ruth
             ..room.reachable = false;
-      await _theChoice(tester, harness);
+      final container = await _theChoice(tester, harness);
 
       expect(find.text('Rute 1:1–5'), findsNothing);
-      expect(byLabel('Tocar para procurar as passagens'), findsOneWidget);
+      expect(find.text('Escolha a passagem'), findsOneWidget);
+      expect(find.byType(FacilitatorCircle), findsNothing);
 
       harness.room.reachable = true;
-      await tester.tap(byLabel('Tocar para procurar as passagens'));
+      await container.read(salaSessionProvider.notifier).abrirEscolha();
       await _catchUp(tester);
 
       expect(find.text('Rute 1:1–5'), findsOneWidget);
     },
   );
 
-  menuTest('under a call for a person the books give way to the circle', (
-    tester,
-  ) async {
+  menuTest('under a call for a person the books give way', (tester) async {
     final harness = _aRoomListing(_ruth);
     final container = await _theChoice(tester, harness);
     final where = tester.getCenter(find.text('Rute 1:6–14'));
