@@ -592,6 +592,49 @@ void main() {
   );
 
   testWidgets(
+    'an armed «usar este» is announced as pressed, and at rest as not '
+    'pressed, as her aria-pressed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: false),
+        reason: '«usar este» em repouso não carregava o estado de pressionado',
+      );
+      await it.tapThe(it.use(s2b));
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: true),
+        reason:
+            'armado, «usar este» só mudava de cor: o VoiceOver não ouvia o '
+            'primeiro toque armar',
+      );
+      expect(
+        it.enabled(it.use(s2b)),
+        isFalse,
+        reason: 'acordando, desabilitado',
+      );
+      await it.wait(const Duration(seconds: 1));
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: true),
+        reason: 'acordado, segue pressionado até o segundo toque',
+      );
+      await it.wait(const Duration(seconds: 7));
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: false),
+        reason: 'caducado, volta a não pressionado',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     'a joined row whose only other rehearsal is unsent offers «trocar», and '
     '«usar este» swaps it in',
     (tester) async {

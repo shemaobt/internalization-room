@@ -325,6 +325,7 @@ class _SheetLine extends StatelessWidget {
                   Semantics(
                     button: true,
                     enabled: usable,
+                    toggled: armed,
                     label: '$useLabel — $line',
                     onTap: usable ? onUse : null,
                     excludeSemantics: true,
