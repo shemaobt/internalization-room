@@ -96,6 +96,8 @@ Future<ProviderContainer> quatroFrasesEmWav(
   return container;
 }
 
+const _aParteComAFraseDeitada = Duration(milliseconds: 7200);
+
 const _daSala = [
   SegmentView(
     segmentId: 'trecho-1',
@@ -1803,6 +1805,7 @@ void main() {
       'span, and once that lands the frase stops waiting', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
+    harness.playback.measured = _aParteComAFraseDeitada;
     await deitarAFrase(tester, harness, 2);
     final nova = harness.room.takes.last.takeId;
 
@@ -2359,6 +2362,7 @@ void main() {
       'new take, and the check is told so', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
+    harness.playback.measured = _aParteComAFraseDeitada;
     await deitarAFrase(tester, harness, 2);
     final nova = harness.room.takes.last.takeId;
 
@@ -2375,7 +2379,7 @@ void main() {
           if (parte['take_id'] == nova)
             '${parte['played_ranges']} em ${parte['clip_duration_ms']}',
       ],
-      ['[[2500, 8700]] em 10000'],
+      ['[[2500, 7200]] em 7200'],
       reason:
           'a frase nova tocada no lugar não contava como ouvida, e a sala '
           'recusava o terminei',

@@ -10277,6 +10277,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         ],
       );
       await _medirAsPartes(state.partes, generation);
+      if (_abandoned(generation)) return false;
+      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
       return true;
     }
     return false;
