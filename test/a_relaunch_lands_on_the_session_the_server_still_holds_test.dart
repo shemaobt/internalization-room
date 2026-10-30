@@ -168,6 +168,24 @@ KeptTake _aPartHere() {
   );
 }
 
+Future<void> _afterARelaunchTheClipIsReplayedFromTheTablet(
+  _Tablet tablet,
+  String session,
+) async {
+  final again = await _relaunch(tablet);
+  await again.notifier.openTheRoom();
+  await _landsOn(again, session);
+
+  expect(again.state.canHearAgain, isTrue);
+  await again.notifier.hearAgain();
+  await waitFor(
+    'the clip to be played again',
+    () => again.harness.voice.played.isNotEmpty,
+  );
+  expect(again.harness.voice.played, [turnoUrl]);
+  expect(again.harness.room.sessionsSaidAgain, isEmpty);
+}
+
 void main() {
   test(
     'a relaunch asks the room for the session the tablet holds before anything else',
@@ -289,12 +307,16 @@ void main() {
 
       tablet.harness.voice.finishHeldLine();
       await settle();
+      await tablet.notifier.hearAgain();
+      await settle();
+
+      expect(tablet.harness.voice.played.last, speaking);
     },
   );
 
   test(
-    'a relaunch after a turn of the team\'s, whose answer never came, asks the '
-    'room to say it again',
+    'a relaunch after a turn of the team\'s, whose answer never came, offers '
+    'no «Ouvir de novo», as hers',
     () async {
       final first = await _inP01();
       final session = first.state.sessionId!;
@@ -307,15 +329,39 @@ void main() {
       final again = await _relaunch(first);
       await again.notifier.openTheRoom();
       await _landsOn(again, session);
-      await again.notifier.hearAgain();
-      await waitFor(
-        'the last line to be said again',
-        () => again.harness.voice.played.contains(deNovoUrl),
-      );
 
-      expect(again.harness.room.sessionsSaidAgain, [session]);
+      expect(again.state.canHearAgain, isFalse);
+      expect(again.harness.room.sessionsSaidAgain, isEmpty);
     },
   );
+
+  test('the clip survives a round trip to the Panorama: a later relaunch still '
+      'replays it from the tablet', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    await _intoThePanorama(first);
+    await enterThePassage(first.notifier, () => first.state, 'P01');
+    await _landsOn(first, session);
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
+  });
+
+  test('the clip survives a relaunch whose read failed and the same passage '
+      'opened after it', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    final offline = await _relaunch(first);
+    offline.harness.room.reachable = false;
+    await offline.notifier.openTheRoom();
+    await settle();
+    offline.harness.room.reachable = true;
+    offline.notifier.escolhaTap();
+    await _theChoiceShowsItsWheel(offline);
+    await enterThePassage(offline.notifier, () => offline.state, 'P01');
+    await _landsOn(offline, session);
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(offline, session);
+  });
 
   test(
     'a relaunch while the conversation\'s microphone is open loses that take and says nothing',
@@ -396,7 +442,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento voltava para a casa das gravações',
       );
-      expect(again.state.roomSaysItAgain, isTrue);
+      expect(again.state.lastSpoken, isNotNull);
       expect(
         again.harness.room.calls.skip(before),
         isNot(contains('openSession')),
@@ -419,7 +465,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento voltava para a retrotradução',
       );
-      expect(tablet.state.roomSaysItAgain, isTrue);
+      expect(tablet.state.lastSpoken, isNull);
       expect(tablet.harness.playback.played, isEmpty);
       expect(tablet.said, isEmpty);
     },
@@ -427,7 +473,7 @@ void main() {
 
   test(
     'a relaunch onto a checked Back-translation the room holds no parts for '
-    'lands on its conversation with «Ouvir de novo», not on the check',
+    'lands on its conversation, not on the check, with no «Ouvir de novo»',
     () async {
       final tablet = _aTabletHolding(SalaStage.retro);
       tablet.harness.room.retroSoFar = const BackTranslationProgress(
@@ -454,7 +500,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento abria a retrotradução conferida',
       );
-      expect(tablet.state.roomSaysItAgain, isTrue);
+      expect(tablet.state.lastSpoken, isNull);
       expect(tablet.said, isEmpty);
     },
   );
@@ -472,7 +518,7 @@ void main() {
         isA<Canvas>(),
         reason: 'o relançamento abria o ensaio vazio',
       );
-      expect(tablet.state.roomSaysItAgain, isTrue);
+      expect(tablet.state.lastSpoken, isNull);
     },
   );
 

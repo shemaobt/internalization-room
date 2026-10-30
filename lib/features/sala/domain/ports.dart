@@ -166,4 +166,12 @@ class CurrentSession {
     required this.language,
     this.lastLine,
   });
+
+  CurrentSession withLine(SpokenLine? line) => CurrentSession(
+    sessionId: sessionId,
+    book: book,
+    pericope: pericope,
+    language: language,
+    lastLine: line,
+  );
 }

@@ -193,6 +193,7 @@ class FacilitatorVoiceService {
   /// colour twice for a line that starts instantly.
   Future<bool> holds(String url) async {
     if (url.isEmpty) return false;
+    if (_arriving.containsKey(url)) return true;
     try {
       final file = await _fileFor(url);
       return file.existsSync() && file.lengthSync() > 0;
