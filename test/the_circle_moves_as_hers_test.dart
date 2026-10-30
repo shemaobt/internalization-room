@@ -461,6 +461,61 @@ void main() {
     );
   });
 
+  testWidgets('her canvas glow leaves over 1.6 s, speaking and thinking, and '
+      'at once under reduced motion', (tester) async {
+    Finder glow(double alpha, double reach) => find.byWidgetPredicate(
+      (widget) =>
+          widget is Container &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration! as BoxDecoration).gradient ==
+              RadialGradient(
+                radius: 0.7071,
+                colors: [
+                  Color.fromRGBO(190, 74, 1, alpha),
+                  const Color.fromRGBO(190, 74, 1, 0),
+                ],
+                stops: [0, reach],
+              ),
+    );
+    double veil(WidgetTester tester, Finder glow) => tester
+        .widget<Opacity>(
+          find.ancestor(of: glow, matching: find.byType(Opacity)).last,
+        )
+        .opacity;
+
+    for (final (voice, lit) in [
+      (VoiceState.speaking, glow(.20, .66)),
+      (VoiceState.thinking, glow(.16, .62)),
+    ]) {
+      final same = ValueKey('o mesmo canvas ${voice.name}');
+      await tester.pumpWidget(_circle(voice, canvas: true, key: same));
+      await tester.pumpWidget(
+        _circle(VoiceState.invite, canvas: true, key: same),
+      );
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(lit, findsOneWidget, reason: '${voice.name}: ainda aceso a meio');
+      expect(
+        veil(tester, lit),
+        closeTo(0.198, 0.01),
+        reason:
+            '${voice.name}: o .glow dela anda em 1,6 s com ease '
+            '(globals.css:118); o nosso sumia no mesmo quadro',
+      );
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(lit, findsNothing);
+
+      final still = ValueKey('o mesmo canvas parado ${voice.name}');
+      await tester.pumpWidget(
+        _circle(voice, canvas: true, still: true, key: still),
+      );
+      await tester.pumpWidget(
+        _circle(VoiceState.invite, canvas: true, still: true, key: still),
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(lit, findsNothing, reason: '${voice.name}: movimento reduzido');
+    }
+  });
+
   testWidgets('a check circle that thinks breathes her thinkBreath on 4.5 s '
       'and lights no glow', (tester) async {
     await tester.pumpWidget(_circle(VoiceState.thinking, canvas: false));

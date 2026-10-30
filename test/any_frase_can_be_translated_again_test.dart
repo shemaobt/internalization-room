@@ -15,7 +15,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, voiceOverTap;
+import 'scenario_helpers.dart'
+    show byLabel, holdTheSession, intoTheBackTranslation, voiceOverTap;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         aceso,
@@ -176,10 +177,14 @@ Future<ProviderContainer> _voltaAUmaTraducao(
         takeId: 'gravacao-$n',
       ),
   ];
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: partes,
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: partes,
+    ),
+    language: 'pt',
   );
   harness.room.retroSoFar = BackTranslationProgress(
     checked: conferida,
@@ -205,10 +210,10 @@ Future<ProviderContainer> _voltaAUmaTraducao(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
     'a tradução voltar com as duas frases',

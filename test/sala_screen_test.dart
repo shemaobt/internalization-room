@@ -1282,6 +1282,13 @@ void main() {
             'combinou, e a marca desenhada por cima dele não pode ficar no '
             'caminho do dedo',
       );
+      expect(
+        container.read(salaSessionProvider).peerCue,
+        isTrue,
+        reason:
+            'o talkMode dela só muda na próxima resposta (page.tsx:628): um '
+            'microfone aberto e largado devolve o círculo ao glifo da equipe',
+      );
     },
   );
 
