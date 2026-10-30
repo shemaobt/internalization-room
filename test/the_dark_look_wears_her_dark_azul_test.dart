@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,14 +48,18 @@ const _passages = [
   ),
 ];
 
-Future<void> _atTheChoice(WidgetTester tester, String look) async {
+Future<void> _atTheChoice(
+  WidgetTester tester,
+  String look, {
+  List<Passagem> passages = _passages,
+}) async {
   tester.platformDispatcher.platformBrightnessTestValue = look == 'dark'
       ? Brightness.dark
       : Brightness.light;
   addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
   await pumpSala(
     tester,
-    SalaHarness(filaEmMemoria: true)..room.passages = _passages,
+    SalaHarness(filaEmMemoria: true)..room.passages = passages,
   );
   await tester.runAsync(settle);
   await tester.pump(const Duration(milliseconds: 1500));
@@ -125,13 +130,31 @@ void main() {
     testWidgets(
       'in the $look look a pressed passage pill fills azul and writes her branco',
       (tester) async {
-        await _atTheChoice(tester, look);
+        await _atTheChoice(
+          tester,
+          look,
+          passages: [
+            _passages.first,
+            for (var n = 1; n <= 40; n++)
+              Passagem(
+                pericope: 'P$n',
+                audioUrl: '/voice/p$n',
+                book: 'Ruth',
+                reference: 'Ruth $n:1–5',
+              ),
+          ],
+        );
+        final theWords = find.byWidgetPredicate(
+          (it) => it is Text && RegExp(r'(^|\D)1:1–5$').hasMatch(it.data ?? ''),
+        );
+        await tester.ensureVisible(theWords);
+        await tester.pump();
         final pill = find.ancestor(
-          of: find.textContaining('1:1'),
+          of: theWords,
           matching: find.byType(GestureDetector),
         );
         final press = await tester.startGesture(tester.getCenter(pill.first));
-        await tester.pump();
+        await tester.pump(kPressTimeout + const Duration(milliseconds: 100));
 
         expect(
           _paintedUnder<DecoratedBox>(
@@ -140,10 +163,7 @@ void main() {
           ).where((paint) => paint.color == azul),
           isNotEmpty,
         );
-        expect(
-          tester.widget<Text>(find.textContaining('1:1')).style?.color,
-          _branco[look],
-        );
+        expect(tester.widget<Text>(theWords).style?.color, _branco[look]);
         await press.cancel();
         await tester.pump();
       },
