@@ -335,6 +335,21 @@ void main() {
     },
   );
 
+  test('a team turn the room refused leaves the conversation ending on the '
+      'Guide: a relaunch still replays the clip', () async {
+    final first = await _inP01();
+    final session = first.state.sessionId!;
+    first.harness.room.failTurnsWith = const Refused('BAD_REQUEST');
+    first.notifier.conversaTap();
+    await settle();
+    first.notifier.conversaTap();
+    await waitFor('the turn to be sent', () => first.asked('sendTurn') == 1);
+    await settle();
+    first.harness.room.failTurnsWith = null;
+
+    await _afterARelaunchTheClipIsReplayedFromTheTablet(first, session);
+  });
+
   test('a team turn the room never took leaves the conversation ending on the '
       'Guide: a relaunch still replays the clip', () async {
     final first = await _inP01();

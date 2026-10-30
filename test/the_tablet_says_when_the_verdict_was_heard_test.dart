@@ -235,4 +235,22 @@ void main() {
       reason: 'a conexão caiu no meio do veredito e a nuance contava como dita',
     );
   });
+
+  test('a verdict that never loads is not the clip the conversation is kept '
+      'ending on', () async {
+    final harness = SalaHarness()..voice.refuses.add(falaDoVeredito);
+    harness.room.verdictCheckAt = _stamp;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await settle();
+
+    await _toTheVerdict(harness, notifier);
+    await settle(const Duration(milliseconds: 100));
+
+    final held = (harness.currentSession as FakeCurrentSessionLedger).held;
+    expect(harness.voice.played, contains(falaDoVeredito));
+    expect(held?.lastLine?.url, turnoUrl);
+  });
 }
