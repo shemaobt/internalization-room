@@ -112,8 +112,9 @@ double piorContraste(
   WidgetTester tester,
   String rotulo, {
   Type tela = RetroView,
+  Finder? control,
 }) {
-  final botao = byLabel(rotulo);
+  final botao = control ?? byLabel(rotulo);
   final texto = find.descendant(of: botao, matching: find.text(rotulo));
   final disco = find.descendant(
     of: botao,
