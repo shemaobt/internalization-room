@@ -80,7 +80,9 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
 
 **No entry lands on the Rehearsal or the Back-translation any more** (ADR 0141, amended by
 ENG-1964): a passage picked on the Choice lands on its conversation, as hers. The resume no
-longer lists the room's takes or brings parts down at entry; the recording home the orange
-dot opens lays the room's parts in behind its rows, one at a time as above. The telling-back is
+longer lists the room's takes or brings parts down at entry, so no part is on its way when the
+team lands: the parts on their way, their dark rows and their fetch one at a time go with that
+landing. The recording home the orange dot opens lays the room's parts in under their rows as
+its listing answers (ADR 0141). The telling-back is
 opened from the home, and on entry it reads the frase that awaits from the room and brings back
 the sentence the tablet holds, as hers does on every entry.
