@@ -1670,8 +1670,7 @@ class SalaSessionState {
   bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
-  /// Warning mark, with its listeners and the Checagem externa: only while nothing of this
-  /// session waits in the Outbox (ADR 0106, 0150).
+  /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
           btPhase == BtPhase.conferida &&
