@@ -76,7 +76,7 @@ Future<ProviderContainer> _reopen(
   ProviderContainer container,
 ) async {
   await tester.pumpWidget(const SizedBox());
-  final (_, next) = await relaunch(harness, container);
+  final (_, next) = await relaunch(harness, container, tester: tester);
   await tester.pumpWidget(
     UncontrolledProviderScope(container: next, child: const SalaApp()),
   );
