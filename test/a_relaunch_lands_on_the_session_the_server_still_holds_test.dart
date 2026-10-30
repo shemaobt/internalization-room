@@ -702,6 +702,38 @@ void main() {
     },
   );
 
+  test('a relaunch whose row names another session than the one held reads '
+      'the row\'s session, not the launch\'s', () async {
+    final tablet = _aTabletHolding(SalaStage.ensaio, takes: [_aPartHere()]);
+    tablet.harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
+      sessionId: 'sessao-da-linha',
+      stage: SalaStage.ensaio,
+      takes: [_aPartHere()],
+    );
+    tablet.harness.room.forgottenSessions.add('sessao-da-linha');
+
+    await tablet.notifier.openTheRoom();
+    await waitFor(
+      'the row\'s session to be read',
+      () => tablet.harness.room.askedOfTheForgotten.contains('fetchState'),
+    );
+    await settle();
+
+    expect(
+      tablet.harness.room.askedOfTheForgotten,
+      contains('fetchState'),
+      reason: 'a sessão da linha nunca era lida, só a guardada',
+    );
+    expect(
+      tablet.state.station,
+      isA<Menu>(),
+      reason:
+          'a linha de uma sessão que a sala esqueceu pousava na conversa com a '
+          'leitura de outra sessão',
+    );
+    expect(tablet.state.sessionId, isNull);
+  });
+
   test('a relaunch lands on the read its launch made, and reads the room '
       'only once', () async {
     final tablet = _aTabletHolding(SalaStage.ensaio, takes: [_aPartHere()]);
