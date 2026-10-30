@@ -18,6 +18,7 @@ const _lookBack = Duration(milliseconds: 1500);
 const _lookAhead = Duration(milliseconds: 250);
 const _nudgeStep = Duration(milliseconds: 400);
 const _nudgeTolerance = Duration(milliseconds: 50);
+const _atTheEnd = Duration(milliseconds: 50);
 
 class Envelope {
   final Duration length;
@@ -173,6 +174,8 @@ Duration? pauseAtTheTap(Duration tap, Duration cursor, Duration? length) {
 }
 
 bool isAStub(Duration cursor, Duration end) => end - cursor < _shortestTail;
+
+bool isAtTheEnd(Duration pausa, Duration end) => pausa >= end - _atTheEnd;
 
 Duration theMomentBefore(Duration pausa, Duration cursor) {
   final from = pausa - _lookBack;

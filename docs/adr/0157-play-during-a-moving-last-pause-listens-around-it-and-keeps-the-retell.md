@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0171
 date: 2026-10-29
 amends: 0100 (play during a move no longer drops it)
 ---

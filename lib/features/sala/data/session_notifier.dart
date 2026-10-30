@@ -6138,9 +6138,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
-        final from = state.scene.heard == SceneHeard.toTheEnd
+        final stopped = state.sceneStoppedAt ?? Duration.zero;
+        final end = state.scene.takeEnd;
+        final from =
+            state.scene.heard == SceneHeard.toTheEnd ||
+                (end != null && stopped >= end)
             ? Duration.zero
-            : state.sceneStoppedAt ?? Duration.zero;
+            : stopped;
         state = state.copyWith(
           scene: state.scene.copyWith(heard: SceneHeard.partly),
         );
@@ -6158,7 +6162,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final end = state.scene.takeEnd;
       if (playing) {
         _silenceTheRoom();
-      } else if (end != null && pausa >= end) {
+      } else if (end != null && isAtTheEnd(pausa, end)) {
         _silenceTheRoom();
         _play(
           PartSound(
@@ -6180,7 +6184,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (translatingAgain != null) {
       _letItsNewTranslationGo(rehearsal.rehearsalId, translatingAgain);
       state = state.copyWith(scene: shown.copyWith(clearPausa: true));
-      _translateOnFrom(rehearsal.frontier);
+      if (playing) {
+        _silenceTheRoom();
+      } else {
+        _translateOnFrom(state.sceneStoppedAt ?? rehearsal.frontier);
+      }
     } else if (!shown.listened) {
       state = state.copyWith(scene: shown.copyWith(listened: true));
       _translateOnFrom(rehearsal.frontier);

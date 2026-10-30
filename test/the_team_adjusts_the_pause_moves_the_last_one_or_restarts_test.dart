@@ -544,6 +544,33 @@ void main() {
     );
 
     testWidgets(
+      'play with the last frase\'s pause on the move 30 ms before the take\'s end plays «ouvir a pausa», not the 30 ms after it',
+      (tester) async {
+        final screen = await _onScreen(
+          tester,
+          rehearsal: _rehearsal([
+            _frase('f1', 0, 4000),
+            _frase('f2', 4000, 9970),
+          ]),
+        );
+        await screen.listens();
+        await screen.tap(_bar(2));
+        screen.playback.finishPlayback();
+        await screen.beat();
+        final plays = screen.playback.playedFrom.length;
+
+        await screen.tap(_playPause);
+
+        expect(
+          screen.playback.ranges.last,
+          '8470-9970',
+          reason: 'o play tocava os 30 ms depois da pausa e calava na hora',
+        );
+        expect(screen.playback.playedFrom, hasLength(plays));
+      },
+    );
+
+    testWidgets(
       'a failed restart\'s line stays when play hears the moving pause at the take\'s end, as it stays anywhere earlier',
       (tester) async {
         final screen = await _onScreen(

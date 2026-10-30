@@ -682,6 +682,39 @@ void main() {
     );
   });
 
+  test('play in listen mode after a frase bar played the take to its end '
+      'starts it again from its start, not from its end', () async {
+    final toTheEnd = _rehearsal(
+      scene: 'S2',
+      recordedAt: DateTime(2026, 10, 15, 14, 5),
+      sentAt: '2026-10-15T14:20:00+00:00',
+      frases: [_frase('f1', 0, 12000), _frase('f2', 12000, 20000)],
+    );
+    final room = await _inListenModeOf(toTheEnd, _unsentTwo);
+    room.sala.playTheFrase('f2');
+    await waitFor(
+      'a frase abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(seconds: 8);
+    room.harness.playback.finishPlayback();
+    await waitFor('a frase acabar', () => room.state.channel is! PartPlaying);
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      Duration.zero,
+      reason:
+          'o play depois da última frase tocava do fim do ensaio e calava na '
+          'hora',
+    );
+  });
+
   test('«gravar de novo» in listen mode while another row opens leaves the '
       'row to open, not a record step', () async {
     final room = await _inListenModeOf(_sentOne, _unsentTwo);
