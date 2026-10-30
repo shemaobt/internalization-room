@@ -202,6 +202,9 @@ class FakeVoice implements FacilitatorVoiceService {
   }
 
   @override
+  bool arrives(String url) => false;
+
+  @override
   Future<bool> holds(String url) async {
     aLookIsPending = true;
     await _looking?.future;

@@ -1399,7 +1399,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   Future<bool> _isOnTheTablet(SpokenLine line) async =>
-      line.fixedLine.isNotEmpty || await _voice.holds(line.url);
+      line.fixedLine.isNotEmpty ||
+      _voice.arrives(line.url) ||
+      await _voice.holds(line.url);
 
   Future<void> _repeatLastSpoken(SpokenLine line) async {
     final generation = _waitOnTheGeneration;
@@ -1774,7 +1776,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ..clear()
       ..[turn] = (play: heard, gestures: _chain);
     _dispatch(TurnSent(turn, keeps: keeps));
-    _keepTheLastLine(null);
     final answer = await _theTakeGoes(send);
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
@@ -2239,6 +2240,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _decideTheFailure(failure, rule: RefusalRule.aSpokenTurn);
     }
 
+    _keepTheLastLine(null);
     await _sendATurn(
       Turn(panorama, turnId),
       generation,
@@ -3950,6 +3952,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     final clientTiming = _pendingClock?.clientTiming(_clockSegments);
     _pendingClock = turnClock;
+    _keepTheLastLine(null);
     await _sendATurn(
       Turn(sessionId, turnId),
       generation,
@@ -7192,6 +7195,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.needsPerson) _sayImThinking();
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
+    _keepTheLastLine(null);
     await _sendATurn(
       Turn(sessionId, turnId),
       generation,
