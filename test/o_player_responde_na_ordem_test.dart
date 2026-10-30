@@ -201,4 +201,82 @@ void main() {
     );
     expect(playback.played, isEmpty);
   });
+
+  test(
+    'no dublê, um trecho no ar responde a medida do trecho, não a do arquivo',
+    () async {
+      final playback = FakePlayback();
+      addTearDown(playback.dispose);
+      playback.length = const Duration(seconds: 10);
+
+      unawaited(
+        playback.playRange(
+          '/take.wav',
+          const Duration(seconds: 4),
+          const Duration(seconds: 8),
+        ),
+      );
+      await settle();
+
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 4),
+        reason:
+            'o repositório carrega um ClippingAudioSource e a medida que volta '
+            'é a do trecho; o dublê respondia os 10 s do arquivo, e o teto da '
+            'escuta de uma frase era armado com o take inteiro',
+      );
+
+      await playback.stop();
+      unawaited(playback.play('/take.wav'));
+      await settle();
+
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 10),
+        reason: 'um clipe inteiro continua respondendo o arquivo',
+      );
+    },
+  );
+
+  test(
+    'no dublê, um play por cima de um trecho aberto responde pelo trecho até o load assentar',
+    () async {
+      final playback = FakePlayback();
+      addTearDown(playback.dispose);
+      playback.length = const Duration(seconds: 10);
+      unawaited(
+        playback.playRange(
+          '/take.wav',
+          const Duration(seconds: 4),
+          const Duration(seconds: 8),
+        ),
+      );
+      await settle();
+      expect(playback.playingLength, const Duration(seconds: 4));
+
+      playback.holdNextOpening();
+      unawaited(playback.play('/take.wav'));
+      await settle();
+
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 4),
+        reason:
+            'o repositório responde pelo clipe de antes até o load do novo '
+            'assentar; o dublê trocava a medida no gesto, e um play por cima '
+            'de um trecho aberto respondia os 10 s do arquivo com o trecho de '
+            '4 s ainda no ar',
+      );
+
+      playback.finishHeldOpening();
+      await settle();
+
+      expect(
+        playback.playingLength,
+        const Duration(seconds: 10),
+        reason: 'assentado o load, o clipe inteiro responde pelo arquivo',
+      );
+    },
+  );
 }
