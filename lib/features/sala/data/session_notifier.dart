@@ -1493,7 +1493,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       arrivedAtTheChoice: machine.station is Menu ? null : false,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
-      clearSceneTurn: leavesTheScene,
+      clearSceneTurn: leavesTheScene && !machine.holdsATurn,
       clearSceneStoppedAt: leavesTheScene,
       clearArmedTap: machine.generation != before.generation,
       clearBtRecusa: machine.generation != before.generation,
@@ -6923,6 +6923,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       play: (reply) async {
         if (_answeredWithNothingToPlay(reply)) return;
         _frases.letGoOf(rehearsal.rehearsalId);
+        if (state.station is! SceneRehearsal) {
+          return _voiceTurn(reply, _waitOnTheGeneration);
+        }
         state = state.copyWith(
           scene: state.scene.copyWith(wentToTheVoice: true),
         );
@@ -6997,7 +7000,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
 
   void _leaveTheSceneRehearsal() {
-    if (state.station is! SceneRehearsal || state.theSceneIsSending) return;
+    if (!state.theWayBackIsLive) return;
+    if (state.machine.holdsATurn) {
+      return _arriveAt(const TheSceneRehearsalLeft());
+    }
     _closeTheSceneRehearsal();
   }
 
@@ -8063,11 +8069,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final juntada = state.joined;
     final sessionId = state.sessionId;
     Set<String>? oferecidas;
+    List<BtFinding>? achados;
     if ((juntada || conferida) && sessionId != null) {
       final falha = await _readTheStretchesBack(
         sessionId,
         generation,
-        lida: (told) => oferecidas = _oferecidas(told),
+        lida: (told) {
+          oferecidas = _oferecidas(told);
+          achados = [?told.namedNuance, ...told.findings];
+        },
       );
       if (_abandoned(generation) || _endedSince(life)) return;
       if (falha == null) conferida = state.btChecked;
@@ -8109,7 +8119,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _sairDaEspera();
       if (conferida) {
-        state = state.copyWith(btPhase: BtPhase.conferida, btVeredito: true);
+        state = state.copyWith(
+          btPhase: BtPhase.conferida,
+          btVeredito: true,
+          btFindings: _osAchadosQueFicam(
+            achados ?? state.btFindings,
+            state.btTrechos,
+          ),
+        );
         return;
       }
       _tocarDoChaoNaoContado(emSilencio: naoOuvidas != null);
