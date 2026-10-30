@@ -297,20 +297,20 @@ enum PassoDaRegravacao {
 }
 
 class RegravacaoDaFrase {
-  final int frase;
+  final String segmentId;
   final PassoDaRegravacao passo;
   final String? path;
   final bool reabre;
 
   const RegravacaoDaFrase(
-    this.frase,
+    this.segmentId,
     this.passo, {
     this.path,
     this.reabre = false,
   });
 
   RegravacaoDaFrase em(PassoDaRegravacao passo, {String? path}) =>
-      RegravacaoDaFrase(frase, passo, path: path, reabre: reabre);
+      RegravacaoDaFrase(segmentId, passo, path: path, reabre: reabre);
 }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
