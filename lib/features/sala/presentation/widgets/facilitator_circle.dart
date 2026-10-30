@@ -82,7 +82,22 @@ class FacilitatorCircle extends StatelessWidget {
             key: const ValueKey(VoiceState.thinking),
             child: _herArcs(colors, still),
           ),
-        if (!_halted && canvas && voice == VoiceState.speaking) _herGlow(still),
+        if (canvas) ...[
+          Presence(
+            opacity: voice == VoiceState.thinking ? 1 : 0,
+            span: _glowSpan,
+            child: _thinkBreath(
+              still,
+              (glowing) =>
+                  Opacity(opacity: glowing, child: _herLight(.16, .62)),
+            ),
+          ),
+          Presence(
+            opacity: !_halted && voice == VoiceState.speaking ? 1 : 0,
+            span: _glowSpan,
+            child: _herGlow(still),
+          ),
+        ],
         if (canvas)
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 1400),
@@ -99,13 +114,11 @@ class FacilitatorCircle extends StatelessWidget {
           _body(context, colors, still),
         if (notUnderstood != null && !_halted)
           _notUnderstoodMark(notUnderstood!, colors),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 1000),
-          child: switch (_modeGlyph) {
-            null => const SizedBox.shrink(),
-            final glyph => Opacity(
-              key: ValueKey(glyph),
-              opacity: 0.92,
+        if (canvas)
+          for (final glyph in CircleGlyph.values)
+            Presence(
+              opacity: glyph == _modeGlyph ? 0.92 : 0,
+              span: const Duration(milliseconds: 1000),
               child: CustomPaint(
                 size: Size.square(
                   size * (glyph == CircleGlyph.hand ? 0.36 : 0.6),
@@ -113,8 +126,6 @@ class FacilitatorCircle extends StatelessWidget {
                 painter: CircleGlyphPainter(glyph: glyph, ink: _herInk(colors)),
               ),
             ),
-          },
-        ),
       ],
     );
     return AnimatedOpacity(
@@ -155,6 +166,8 @@ class FacilitatorCircle extends StatelessWidget {
 
   /// Whether the room is already showing a stop for this voice.
   bool get _halted => halt is Blocking;
+
+  static const _glowSpan = Duration(milliseconds: 1600);
 
   CircleGlyph? get _modeGlyph {
     if (_halted || !canvas) return null;
@@ -202,17 +215,7 @@ class FacilitatorCircle extends StatelessWidget {
   }
 
   Widget _waiting(BuildContext context, SalaColors colors, bool still) =>
-      _thinkBreath(
-        still,
-        (glowing) => Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            Opacity(opacity: glowing, child: _herLight(.16, .62)),
-            _herRing(context, colors),
-          ],
-        ),
-      );
+      _thinkBreath(still, (_) => _herRing(context, colors));
 
   Widget _thinkBreath(bool still, Widget Function(double glowing) inside) {
     if (still) {

@@ -256,4 +256,58 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'each glyph cross-fades on its own 1 s ease: half way the old one still '
+    'shows and the new one has come in',
+    (tester) async {
+      await _pumpCircle(tester, VoiceState.invite);
+      expect(paintedGlyph(CircleGlyph.sound), findsOneWidget);
+      const key = ValueKey('o mesmo canvas');
+      Widget circle({required bool noteMode, bool still = false}) =>
+          MaterialApp(
+            key: key,
+            theme: AppTheme.light,
+            home: MediaQuery(
+              data: MediaQueryData(disableAnimations: still),
+              child: Scaffold(
+                body: Center(
+                  child: FacilitatorCircle(
+                    size: 200,
+                    voice: VoiceState.invite,
+                    canvas: true,
+                    noteMode: noteMode,
+                    semanticLabel: 'circulo',
+                  ),
+                ),
+              ),
+            ),
+          );
+      double veil(CircleGlyph glyph) => tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: paintedGlyph(glyph),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity;
+
+      await tester.pumpWidget(circle(noteMode: false));
+      await tester.pumpWidget(circle(noteMode: true));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(veil(CircleGlyph.sound), closeTo(0.92 * (1 - 0.8024), 0.01));
+      expect(veil(CircleGlyph.hand), closeTo(0.92 * 0.8024, 0.01));
+
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(paintedGlyph(CircleGlyph.sound), findsNothing);
+      expect(veil(CircleGlyph.hand), closeTo(0.92, 1e-6));
+
+      await tester.pumpWidget(circle(noteMode: false, still: true));
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(paintedGlyph(CircleGlyph.hand), findsNothing);
+      expect(veil(CircleGlyph.sound), closeTo(0.92, 1e-6));
+    },
+  );
 }
