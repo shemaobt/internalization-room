@@ -28,7 +28,6 @@ Future<ProviderContainer> voltaATraducao(
   SalaHarness harness,
   BackTranslationProgress contado, {
   List<int> partes = const [1, 2],
-  bool pelaEscolha = false,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 2400)
@@ -36,44 +35,34 @@ Future<ProviderContainer> voltaATraducao(
   addTearDown(tester.view.reset);
   final pasta = Directory.systemTemp.createTempSync('sala-1937');
   addTearDown(() => pasta.deleteSync(recursive: true));
-  final row = ResumePoint(
-    sessionId: 'sessao-antiga',
-    stage: SalaStage.retro,
-    takes: [
-      for (final n in partes)
-        KeptTake(
-          scopeId: KeptScope.parte(n),
-          path: (File(
-            '${pasta.path}/p$n.m4a',
-          )..writeAsBytesSync([1, 2, 3])).path,
-          takeId: 'gravacao-$n',
-        ),
-    ],
+  await holdTheSession(
+    harness,
+    ResumePoint(
+      sessionId: 'sessao-antiga',
+      stage: SalaStage.retro,
+      takes: [
+        for (final n in partes)
+          KeptTake(
+            scopeId: KeptScope.parte(n),
+            path: (File(
+              '${pasta.path}/p$n.m4a',
+            )..writeAsBytesSync([1, 2, 3])).path,
+            takeId: 'gravacao-$n',
+          ),
+      ],
+    ),
   );
-  if (pelaEscolha) {
-    harness.emAberto.rows['Ruth/P01/$testLanguage'] = row;
-  } else {
-    await holdTheSession(harness, row);
-  }
   harness.room.retroSoFar = contado;
   final container = harness.container();
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  if (pelaEscolha) {
-    unawaited(
-      container
-          .read(salaSessionProvider.notifier)
-          .goConversa(book: 'Ruth', pericope: 'P01'),
-    );
-  } else {
-    await intoTheBackTranslation(
-      container.read(salaSessionProvider.notifier),
-      () => container.read(salaSessionProvider),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-  }
+  await intoTheBackTranslation(
+    container.read(salaSessionProvider.notifier),
+    () => container.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   await waitFor(
     'a tradução voltar com as frases que a sala guardou',
     () =>
@@ -597,7 +586,6 @@ void main() {
         ],
         awaitingSegmentId: 'trecho-2',
       ),
-      pelaEscolha: true,
     );
 
     expect(
@@ -648,7 +636,6 @@ void main() {
           ],
           awaitingSegmentId: 'trecho-2',
         ),
-        pelaEscolha: true,
       );
       final telha = look == Brightness.dark
           ? const Color(0xFFD6612A)
