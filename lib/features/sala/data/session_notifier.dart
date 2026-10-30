@@ -10890,6 +10890,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btSoOuvir: false,
     );
     _watchBusyState();
+    void theCheckFailed(RoomFailure failure) {
+      if (failure case NetworkFailed() || Refused()) {
+        state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+        _decideAt(failure, door: Door.verdict);
+        state = state.copyWith(btPhase: pressedFrom);
+        return;
+      }
+      state = state.copyWith(btPhase: pressedFrom);
+      _decideTheFailure(failure);
+    }
+
     final BackTranslationVerdict verdict;
     final asked = await _room.finishBackTranslation(
       sessionId,
@@ -10901,15 +10912,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final answer):
         verdict = answer;
       case final RoomFailure failure:
-        if (failure case NetworkFailed() || Refused()) {
-          state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
-          _decideAt(failure, door: Door.verdict);
-          state = state.copyWith(btPhase: pressedFrom);
-          return;
-        }
-        state = state.copyWith(btPhase: pressedFrom);
-        _decideTheFailure(failure);
-        return;
+        return theCheckFailed(failure);
     }
     if (verdict.refusal
         case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
@@ -10948,12 +10951,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       checkAt: verdict.checkAt,
     );
     try {
-      final spoke = await _loadTheReply(
-        line,
-        generation,
-        asked: false,
-        remember: !verdict.usedFailSafe,
-      );
+      final Said spoke;
+      try {
+        spoke = await _loadTheReply(
+          line,
+          generation,
+          asked: false,
+          remember: !verdict.usedFailSafe,
+        );
+      } on RoomFailure catch (failure) {
+        if (_abandoned(generation)) return;
+        return theCheckFailed(failure);
+      }
       if (_abandoned(generation)) return;
       if (verdict.unheardTakeIds.isNotEmpty &&
           verdict.refusal == CheckRefusal.partUnheard) {

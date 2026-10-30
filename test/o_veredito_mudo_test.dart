@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -20,8 +21,9 @@ Future<ProviderContainer> _inConversa(SalaHarness harness) async {
 /// Tell the passage back and ask the room for its verdict.
 Future<void> _toTheVerdict(
   SalaHarness harness,
-  SalaSessionNotifier notifier,
-) async {
+  SalaSessionNotifier notifier, {
+  void Function()? beforeTheVerdict,
+}) async {
   notifier.goEnsaio();
   notifier.gravarACena(1);
   notifier.gravarACena(1);
@@ -31,6 +33,7 @@ Future<void> _toTheVerdict(
   await settle();
   harness.playback.finishPlayback();
   await settle();
+  beforeTheVerdict?.call();
   await notifier.finishBackTranslation();
   await settle();
 }
@@ -170,6 +173,33 @@ void main() {
       expect(read().needsPerson, isFalse);
     },
   );
+
+  test('a verdict whose clip the room refuses writes her «não deu para '
+      'conferir» and calls nobody, as a refused check does', () async {
+    final harness = SalaHarness();
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+
+    await _toTheVerdict(
+      harness,
+      notifier,
+      beforeTheVerdict: () =>
+          harness.voice.roomFailsWith = const Refused('HTTP_500'),
+    );
+
+    expect(
+      read().btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason:
+          'a sala recusando o clipe do veredito soltava o passo em silêncio, '
+          'sem a linha que a recusa da própria conferência escreve',
+    );
+    expect(read().btPhase, BtPhase.playing);
+    expect(read().machine.aHaltWaitsForTheCanvas, isNull);
+    expect(read().needsPerson, isFalse);
+    expect(read().canFinishBackTranslation, isTrue);
+  });
 
   test('a verdict that speaks calls nobody', () async {
     final harness = SalaHarness();
