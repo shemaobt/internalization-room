@@ -1493,7 +1493,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       arrivedAtTheChoice: machine.station is Menu ? null : false,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
-      clearSceneTurn: leavesTheScene,
+      clearSceneTurn: leavesTheScene && !machine.holdsATurn,
       clearSceneStoppedAt: leavesTheScene,
       clearArmedTap: machine.generation != before.generation,
       clearBtRecusa: machine.generation != before.generation,
@@ -6924,6 +6924,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       play: (reply) async {
         if (_answeredWithNothingToPlay(reply)) return;
         _frases.letGoOf(rehearsal.rehearsalId);
+        if (state.station is! SceneRehearsal) {
+          return _voiceTurn(reply, _waitOnTheGeneration);
+        }
         state = state.copyWith(
           scene: state.scene.copyWith(wentToTheVoice: true),
         );
@@ -6998,7 +7001,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveTheSceneRehearsal() => _gesture(() => _leaveTheSceneRehearsal());
 
   void _leaveTheSceneRehearsal() {
-    if (state.station is! SceneRehearsal || state.theSceneIsSending) return;
+    if (!state.theWayBackIsLive) return;
+    if (state.machine.holdsATurn) {
+      return _arriveAt(const TheSceneRehearsalLeft());
+    }
     _closeTheSceneRehearsal();
   }
 
