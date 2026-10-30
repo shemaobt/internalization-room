@@ -3166,6 +3166,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       roomSaysItAgain: end == null || end.line != null,
       lastSpoken: state.station is Retro ? null : end?.line,
+      clearLastSpoken: state.station is Retro || end?.line == null,
     );
   }
 
