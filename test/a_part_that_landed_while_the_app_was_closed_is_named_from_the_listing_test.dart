@@ -62,8 +62,9 @@ _aParte3QueChegouLongeDaPassagem() async {
 }
 
 Future<ProviderContainer> _umaLinhaComAParte3SemNome(
-  SalaHarness harness,
-) async {
+  SalaHarness harness, {
+  int passNaSala = 1,
+}) async {
   final home = Directory.systemTemp.createTempSync('sala-parte-sem-nome');
   addTearDown(() => home.deleteSync(recursive: true));
   await harness.emAberto.remember(
@@ -92,7 +93,7 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
         kind: partTakeKind,
         scope: KeptScope.parte(parte),
         ordinal: parte,
-        pass: 1,
+        pass: parte == 3 ? passNaSala : 1,
       ),
   ]);
   harness.room.failTakesWith = const NetworkFailed('sem rede');
@@ -257,6 +258,26 @@ void main() {
       reason:
           'a casa das gravações deitava só as partes de fileiras vazias e '
           'nunca tocava uma fileira com parte, mesmo sem nome',
+    );
+    expect(harness.room.clipsFetched, isEmpty);
+  });
+
+  test('a nameless part never takes the name of a take at a higher pass than '
+      'its own, another recording went up above it', () async {
+    final before = SalaHarness();
+    final first = await _umaLinhaComAParte3SemNome(before, passNaSala: 3);
+    final (harness, container) = await relaunch(before, first);
+    harness.room.failTakesWith = null;
+    await _voltarAoEnsaio(container);
+    await settle(const Duration(seconds: 1));
+
+    expect(
+      container.read(salaSessionProvider).partes[2].takeId,
+      isNull,
+      reason:
+          'a parte guardada no passe 1 tomava o nome da gravação do passe 3 '
+          'que outro tablet subiu, e os trechos contados sobre ela iam para '
+          'a gravação errada',
     );
     expect(harness.room.clipsFetched, isEmpty);
   });
