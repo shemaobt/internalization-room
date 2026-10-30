@@ -366,6 +366,18 @@ final class TheWayBackTaken extends MachineEvent {
   const TheWayBackTaken(this.left);
 }
 
+/// The entry left that waits under the Choice for a failed open to return to.
+final class TheEntryWaits extends MachineEvent {
+  final LeftEntry left;
+
+  const TheEntryWaits(this.left);
+}
+
+/// An open from the Choice ended with no session.
+final class TheOpenBroughtNoSession extends MachineEvent {
+  const TheOpenBroughtNoSession();
+}
+
 final class TheLeftPassageReturns extends MachineEvent {
   final String session;
   final bool warned;
@@ -795,6 +807,23 @@ final class EnterThePassageLeft extends LifecycleHandOff {
   int get hashCode => left.hashCode;
 }
 
+final class ReturnToTheEntryLeft extends LifecycleHandOff {
+  final LeftEntry left;
+
+  const ReturnToTheEntryLeft(this.left);
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReturnToTheEntryLeft && other.left == left;
+
+  @override
+  int get hashCode => left.hashCode;
+}
+
+final class RestOnTheChoice extends LifecycleHandOff {
+  const RestOnTheChoice();
+}
+
 final class LookAtTheSession extends Effect {
   final Turn turn;
   final Kept sounding;
@@ -1098,6 +1127,9 @@ final class Machine {
 
   final HeldPanorama? panorama;
 
+  /// The passage or said Panorama left under the Choice, which a failed open returns to.
+  final LeftEntry? waiting;
+
   const Machine({
     this.halt = const NoHalt(),
     this.channel = const Silence(),
@@ -1120,6 +1152,7 @@ final class Machine {
     this.theCanvasEnded = false,
     this.session,
     this.panorama,
+    this.waiting,
   });
 
   String? get stationSession =>
@@ -1189,6 +1222,8 @@ final class Machine {
     bool clearSession = false,
     HeldPanorama? panorama,
     bool clearPanorama = false,
+    LeftEntry? waiting,
+    bool clearWaiting = false,
   }) => Machine(
     halt: halt ?? this.halt,
     channel: channel ?? this.channel,
@@ -1215,6 +1250,7 @@ final class Machine {
     theCanvasEnded: theCanvasEnded ?? this.theCanvasEnded,
     session: clearSession ? null : (session ?? this.session),
     panorama: clearPanorama ? null : (panorama ?? this.panorama),
+    waiting: clearWaiting ? null : (waiting ?? this.waiting),
   );
 }
 
@@ -1459,9 +1495,18 @@ const _watch = ArmTheWatch();
         [...effects, if (theWaitRanOut) const StopLooking()],
       ),
     },
-  ThePassageCannotOpen() => (machine, const [RefuseThePassage()]),
+  ThePassageCannotOpen() => _orBackToWhatWaits(
+    machine,
+    const [],
+    const RefuseThePassage(),
+  ),
   TheStepFailed() => (machine, const [LetTheStepGo()]),
   TheResumeFailed() => _theResumeFailed(machine),
+  TheOpenBroughtNoSession() => _orBackToWhatWaits(
+    machine,
+    const [],
+    const RestOnTheChoice(),
+  ),
   TheSceneTurnFoundNothing() when machine.station is SceneRehearsal => (
     machine.copyWith(aHaltWaitsForTheCanvas: const RoomRaisedAHalt()),
     const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
@@ -1560,13 +1605,14 @@ const _watch = ArmTheWatch();
         ),
       _ when machine.station is Panorama => machine,
       _ => machine.copyWith(session: session),
-    },
+    }.copyWith(clearWaiting: true),
     const [_watch],
   ),
   ThePanoramaFound(:final session, :final opened) => switch (machine.panorama) {
     final HeldPanorama held when machine.station is Panorama => (
       machine.copyWith(
         panorama: HeldPanorama(held.id, held.language, session: session),
+        clearWaiting: true,
       ),
       [
         _watch,
@@ -1576,6 +1622,8 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
+  TheSessionLetGo(:final session) when machine.waiting?.session == session =>
+    reduce(machine.copyWith(clearWaiting: true), event),
   TheSessionLetGo(:final session) => switch (machine.panorama) {
     final HeldPanorama held when held.session == session => (
       machine.copyWith(panorama: HeldPanorama(held.id, held.language)),
@@ -1583,6 +1631,24 @@ const _watch = ArmTheWatch();
     ),
     _ => (machine, const []),
   },
+  TheEntryWaits(:final left) => (
+    switch (left) {
+      LeftEntry(panorama: false, session: _?) => machine.copyWith(
+        waiting: left,
+      ),
+      LeftEntry(
+        panorama: true,
+        said: true,
+        pericope: _?,
+        language: _?,
+        :final session?,
+      )
+          when machine.panorama?.session == session =>
+        machine.copyWith(waiting: left),
+      _ => machine.copyWith(clearWaiting: true),
+    },
+    const [],
+  ),
   TheRehearsalWeighed(:final everySceneHasItsPart, :final everyPartIsSent) =>
     switch (machine.station) {
       Ensaio(:final step) => (
@@ -1597,15 +1663,37 @@ const _watch = ArmTheWatch();
       ),
       _ => (machine, const []),
     },
-  TheWayBackTaken(:final left) => _takeTheWayBack(machine, left),
+  TheWayBackTaken(:final left) => _takeTheWayBack(
+    machine.copyWith(clearWaiting: true),
+    left,
+  ),
   TheLeftPassageReturns(:final session, :final warned) => (
     machine.copyWith(
+      clearWaiting: true,
       session: session,
       halt: warned ? const Warning() : const NoHalt(),
     ),
     const [_watch],
   ),
   StationEvent() => _reachTheStation(machine, event),
+};
+
+/// A failed open returns to what waits under the Choice, its Panorama held again.
+(Machine, List<Effect>) _orBackToWhatWaits(
+  Machine machine,
+  List<Effect> leaving,
+  Effect toTheChoice,
+) => switch (machine.waiting) {
+  final LeftEntry left => (
+    machine.copyWith(
+      clearWaiting: true,
+      panorama: left.panorama
+          ? HeldPanorama(left.pericope!, left.language!, session: left.session)
+          : null,
+    ),
+    [...leaving, ReturnToTheEntryLeft(left)],
+  ),
+  null => (machine, [...leaving, toTheChoice]),
 };
 
 /// The Panorama comes back silent once its line was said on the session the machine
@@ -2161,12 +2249,13 @@ Machine _land(Machine machine, Turn turn) =>
 
 /// A resume that failed keeps its session, so the next open of the passage asks again
 /// (ADR 0064), and so does the warning the session holds.
-(Machine, List<Effect>) _theResumeFailed(Machine machine) => (
+(Machine, List<Effect>) _theResumeFailed(Machine machine) => _orBackToWhatWaits(
   _leftThePassage(machine, switch (machine.halt) {
     Warning() || Blocking(warningBeneath: true) => const Warning(),
     _ => const NoHalt(),
   }),
-  [..._leavingThePassage(machine), const OpenTheChoice()],
+  _leavingThePassage(machine),
+  const OpenTheChoice(),
 );
 
 Machine _leftThePassage(Machine machine, Halt halt) => machine.copyWith(
@@ -2282,6 +2371,8 @@ List<Effect> _leavingThePassage(Machine machine) => [
   ThePanoramaFound() ||
   TheSessionLetGo() ||
   TheWayBackTaken() ||
+  TheEntryWaits() ||
+  TheOpenBroughtNoSession() ||
   TheLeftPassageReturns() => (halt, const []),
 };
 

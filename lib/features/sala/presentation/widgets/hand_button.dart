@@ -9,7 +9,6 @@ class HandButton extends StatelessWidget {
   final bool visible;
   final bool noteMode;
   final bool hasUnheardReply;
-  final bool playingReply;
   final String language;
   final VoidCallback onTap;
 
@@ -18,7 +17,6 @@ class HandButton extends StatelessWidget {
     required this.visible,
     required this.noteMode,
     required this.hasUnheardReply,
-    required this.playingReply,
     required this.language,
     required this.onTap,
   });
@@ -33,7 +31,7 @@ class HandButton extends StatelessWidget {
         ignoring: !visible,
         child: Semantics(
           button: true,
-          label: playingReply || hasUnheardReply
+          label: hasUnheardReply
               ? handLabelFor('hearTheAnswer', language)
               : handLabelFor('leaveAQuestion', language),
           child: GestureDetector(

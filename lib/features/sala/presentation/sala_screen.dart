@@ -250,7 +250,6 @@ class _HandLayer extends ConsumerWidget {
         visible: session.atTheTeamsIdleTurn || session.aQuestionRecords,
         noteMode: session.noteMode,
         hasUnheardReply: session.hasUnheardReply,
-        playingReply: session.playingReplyId != null,
         language: ref.watch(roomLanguageProvider),
         onTap: notifier.handTap,
       ),

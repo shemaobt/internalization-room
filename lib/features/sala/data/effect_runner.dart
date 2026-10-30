@@ -248,6 +248,10 @@ class EffectRunner {
           host.handOver(effect);
         case EnterThePassageLeft():
           host.handOver(effect);
+        case ReturnToTheEntryLeft():
+          host.handOver(effect);
+        case RestOnTheChoice():
+          host.handOver(effect);
         case LookAtTheSession(:final turn, :final sounding):
           _lookAt(turn, sounding);
         case PlayTheReply(:final turn, :final reply):

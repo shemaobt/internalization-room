@@ -73,6 +73,9 @@ UI and hands effects to the runner. A change to the lifecycle (opening a passage
 person sign, resuming, an upload, a Station) lands as an event and a transition, with its test
 at the machine level and in the generator (`test/machine_generator.dart`). It never lands as a
 new field or branch in the notifier.
+One exception, by the ticket (ENG-1898): the entry tapped on the Choice is a state field, kept
+until its session lands or the open ends, and `stage` reads it so the Choice stays on screen
+while the session is asked, as her picker does.
 
 Every field of `SalaSessionNotifier` is declared `late`, never `late final`, with no
 initializer, and is assigned in `_aNewLife()` or `build()`, so a relink begins a whole new
