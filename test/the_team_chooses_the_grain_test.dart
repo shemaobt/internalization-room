@@ -390,12 +390,10 @@ Future<ProviderContainer> _relaunchOnTheApp(
   );
   await tester.pump(const Duration(milliseconds: 100));
   final notifier = next.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await tester.pump(const Duration(milliseconds: 300));
-  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
-  await _pumpUntil(
-    tester,
-    () => !next.read(salaSessionProvider).awaitingTheGuide,
+  await intoTheRecordingHome(
+    notifier,
+    () => next.read(salaSessionProvider),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   for (var vez = 0; vez < 10; vez++) {
     await tester.pump(const Duration(milliseconds: 500));

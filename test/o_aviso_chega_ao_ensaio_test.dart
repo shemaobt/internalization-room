@@ -60,7 +60,7 @@ void main() {
             find.byType(EnsaioView).evaluate().isNotEmpty,
         step: () => letTheRehearsalReachTheRoom(tester),
       );
-      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
 
       expect(
         container.read(salaSessionProvider).stage,
