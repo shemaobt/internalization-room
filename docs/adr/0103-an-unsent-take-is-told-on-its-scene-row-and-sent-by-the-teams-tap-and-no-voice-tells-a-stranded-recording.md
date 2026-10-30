@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0131 (2026-10-22: a take of this visit reads «enviando…», a refused take of this visit offers no tap, only a tap sends a spent take, and a part beyond the last scene is no longer retried by itself: its take is told and sent by the tap on its own row after the scenes, which records nothing)
+status: accepted, amended by 0131 (2026-10-22: a take of this visit reads «enviando…», a refused take of this visit offers no tap, only a tap sends a spent take, and a part beyond the last scene is no longer retried by itself: its take is told and sent by the tap on its own row after the scenes, which records nothing), amended by 0166 (a row whose send ended on a wait reads failed with its tap; an earlier visit's take sent by the tap reads «✓ salvo»)
 date: 2026-10-20
 amends: 0087, 0047, 0049, 0084
 ---
