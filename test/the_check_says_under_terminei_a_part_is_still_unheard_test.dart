@@ -14,6 +14,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
+        parte,
         passaDoCursor,
         tocarNoCirculo;
 
@@ -86,8 +87,9 @@ void main() {
   });
 
   testWidgets('a frase told and the telling paused in the middle of the part '
-      'writes nothing under a lit terminei when the room counts every part '
-      'heard', (tester) async {
+      'writes «ainda falta ouvir um trecho da gravação» under a dark terminei '
+      'though the room counts every part heard, until the part plays here to '
+      'its end', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _umaFraseEPausada(
       tester,
@@ -96,14 +98,37 @@ void main() {
     );
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
-    expect(aceso(tester, conferir), isTrue);
+    expect(container.read(salaSessionProvider).btOuvidaInteira, isTrue);
+    expect(
+      aceso(tester, conferir),
+      isFalse,
+      reason:
+          'a contagem da sala acendia o terminei com a parte tocada só até o '
+          'meio aqui, que a dela só acende com cada parte ouvida nesta tela',
+    );
     expect(
       _naTela(_faltaOuvir),
-      findsNothing,
-      reason:
-          'a linha de que falta ouvir vinha da tradução parada no meio da '
-          'parte, com a sala já contando tudo ouvido',
+      findsOneWidget,
+      reason: 'a linha de que falta ouvir seguia só a contagem da sala',
     );
+
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await waitFor(
+      'a parte seguir depois da segunda frase',
+      () => harness.playback.sounding,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await waitFor(
+      'o terminei acender',
+      () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+
+    expect(aceso(tester, conferir), isTrue);
+    expect(_naTela(_faltaOuvir), findsNothing);
     closeTheRoom(container);
   });
 

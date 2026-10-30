@@ -8,15 +8,34 @@ import 'um_ensaio_de_tres_partes.dart';
 
 Duration _s(double seconds) => Duration(milliseconds: (seconds * 1000).round());
 
+const _aParte = Duration(seconds: 10);
+
 Future<Sala> _umaPausaMovidaComTudoOuvido() async {
   final it = await umEnsaioGravado(
-    partesDoEnsaio,
+    const [_aParte],
     numaSala: SalaHarness()
       ..recorder.rehearsalSpeaks = aSpokenWav(
         gaps: [(_s(3.0), _s(3.4)), (_s(6.0), _s(6.4))],
       ),
   );
-  await ouvidaInteiraPelaSala(it);
+  it.harness.room.listeningUnheardTakeIds = [it.partes.single.takeId!];
+  it.sala.startRetro();
+  await waitFor(
+    'a parte entrar no ar',
+    () =>
+        it.harness.playback.played.isNotEmpty &&
+        it.harness.playback.played.last == it.partes.single.path &&
+        it.harness.playback.sounding,
+  );
+  it.harness.room.listeningUnheardTakeIds = const [];
+  await ouvirAteOFim(it, _aParte);
+  await waitFor(
+    'a primeira escuta acabar e a parte voltar ao ar',
+    () =>
+        !it.estado.btSoOuvir &&
+        it.estado.btPhase == BtPhase.playing &&
+        it.harness.playback.sounding,
+  );
   await traduzirUmTrecho(it, _s(4.2));
   await waitFor(
     'a equipe voltar ao círculo',
@@ -24,6 +43,11 @@ Future<Sala> _umaPausaMovidaComTudoOuvido() async {
   );
   if (!it.estado.btClipRodando) it.sala.ouvirGravacao();
   await waitFor('a parte tocar', () => it.estado.btClipRodando);
+  it.harness.playback.at = _aParte - _s(0.5);
+  it.sala.ouvirGravacao();
+  await waitFor('a parte pausar', () => !it.harness.playback.sounding);
+  it.sala.ouvirGravacao();
+  await waitFor('a parte seguir', () => it.estado.btClipRodando);
   it.harness.playback.at = _s(7.4);
   it.sala.retroTap();
   await waitFor('a pausa ficar', () => it.estado.btCorte == _s(6.2));

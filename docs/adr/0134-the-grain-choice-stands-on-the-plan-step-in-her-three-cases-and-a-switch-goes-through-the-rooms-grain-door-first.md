@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home); amended by ENG-2103 (2026-10-30: a remembered grain is let go when the room's listing names none)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home); amended by ENG-2103 (2026-10-30: a remembered grain is let go when the room's listing names none); amended by ENG-2094 (2026-10-30: «Cena por cena» reads the plan with the grain heard)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -186,3 +186,16 @@ by ENG-2103) reads no remembered grain. A listing that does not answer still ask
 whatever is remembered (ENG-1862), and a grain the room names is still the tablet's. The grain
 read off the current parts still orders the rows, the row of the whole and the home's one row
 (ENG-2078); it decides no screen.
+
+## Amendment · 2026-10-30 (ENG-2094)
+
+Her `chooseGrain("scene")` sets the draft from the PUT's answer and reads the plan again
+(Drafting.tsx:540-555), and `efScreen` with no plan goes to `todaysScreen(draft)`: a draft that
+carries the scene grain opens the scene-by-scene home, never the grain choice again
+(ensaioFinal.ts:43,76). Ours read the plan after «Cena por cena» with the grain counted as
+unread, so a read cut at 6 seconds with the listing still in the air showed «Como vocês querem
+gravar?» a second time. **«Cena por cena» on the choice opens the plan with the grain counted as
+heard: a plan read that fails or runs out there opens the scene recording home, never the
+choice again.** A listing that answers after the choice stood and names the scene grain takes
+the same way: the plan it reads again counts the grain as heard. «A passagem inteira» is
+unchanged.
