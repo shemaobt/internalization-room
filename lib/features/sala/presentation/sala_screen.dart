@@ -260,9 +260,6 @@ class _HandLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!session.atTheTeamsIdleTurn && !session.aQuestionRecords) {
-      return const SizedBox.shrink();
-    }
     final notifier = ref.read(salaSessionProvider.notifier);
     final screen = MediaQuery.sizeOf(context);
     return Positioned(
@@ -270,6 +267,7 @@ class _HandLayer extends ConsumerWidget {
       bottom:
           MediaQuery.viewPaddingOf(context).bottom + screen.height * 0.16 - 2,
       child: HandButton(
+        visible: session.atTheTeamsIdleTurn || session.aQuestionRecords,
         noteMode: session.noteMode,
         hasUnheardReply: session.hasUnheardReply,
         playingReply: session.playingReplyId != null,

@@ -1673,17 +1673,20 @@ void main() {
     expect(container.read(salaSessionProvider).peerCue, isTrue);
   });
 
-  test('the next tap leaves team-talk mode and addresses the app', () async {
-    final harness = SalaHarness()..room.peerCue = true;
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
+  test(
+    'the next tap addresses the app and keeps the cue until the reply',
+    () async {
+      final harness = SalaHarness()..room.peerCue = true;
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
 
-    container.read(salaSessionProvider.notifier).conversaTap();
+      container.read(salaSessionProvider.notifier).conversaTap();
 
-    final state = container.read(salaSessionProvider);
-    expect(state.peerCue, isFalse);
-    expect(state.voice, VoiceState.listening);
-  });
+      final state = container.read(salaSessionProvider);
+      expect(state.peerCue, isTrue);
+      expect(state.voice, VoiceState.listening);
+    },
+  );
 
   test(
     'an opening the network lost is looked at once under its own id, and the room rests at the invite',

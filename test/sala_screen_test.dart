@@ -33,6 +33,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'retro_findings_exits_test.dart' as achados;
+import 'package:internalization_room/features/sala/presentation/widgets/replay_arc.dart';
 import 'scenario_helpers.dart'
     show byLabel, offTheRows, onTheCircle, onTheRows, stateReads, inTheHome;
 import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
@@ -55,6 +56,12 @@ Set<Color> paintedBy(WidgetTester tester, Finder corner) {
   )) {
     if (mark.color != null) colours.add(mark.color!);
   }
+  for (final paint in tester.widgetList<CustomPaint>(
+    find.descendant(of: corner, matching: find.byType(CustomPaint)),
+  )) {
+    final painter = paint.painter;
+    if (painter is ReplayArcPainter) colours.add(painter.ink);
+  }
   return colours;
 }
 
@@ -75,9 +82,20 @@ double contrastOf(Color one, Color other) {
 }
 
 Color markAsSeen(WidgetTester tester, Finder corner, Color background) {
-  final marca = find.descendant(of: corner, matching: find.byType(Icon));
-  final tinta = tester.widget<Icon>(marca).color!;
+  final marca = find.descendant(
+    of: corner,
+    matching: find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is ReplayArcPainter,
+    ),
+  );
+  final tinta =
+      (tester.widget<CustomPaint>(marca).painter! as ReplayArcPainter).ink;
   var alpha = tinta.a;
+  for (final veu in tester.widgetList<FadeTransition>(
+    find.ancestor(of: marca, matching: find.byType(FadeTransition)),
+  )) {
+    alpha *= veu.opacity.value;
+  }
   for (final veu in tester.widgetList<Opacity>(
     find.ancestor(of: marca, matching: find.byType(Opacity)),
   )) {
@@ -1263,6 +1281,13 @@ void main() {
             'sendo o mesmo botão: é assim que ela volta para contar o que '
             'combinou, e a marca desenhada por cima dele não pode ficar no '
             'caminho do dedo',
+      );
+      expect(
+        container.read(salaSessionProvider).peerCue,
+        isTrue,
+        reason:
+            'o talkMode dela só muda na próxima resposta (page.tsx:628): um '
+            'microfone aberto e largado devolve o círculo ao glifo da equipe',
       );
     },
   );
