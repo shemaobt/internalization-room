@@ -1346,12 +1346,13 @@ class SalaSessionState {
 
   /// The Choice offers the way back to a passage held at once; to an entry left with no
   /// session, once the Wheel is read. The scene rehearsal's screen always offers the way
-  /// back to the Conversation.
+  /// back to the Conversation. The person sign hides it.
   bool get theWayBackIsOffered =>
       sceneRehearsalIsOpen ||
       (stage == SalaStage.escolha &&
           leftEntry != null &&
-          (_aPassageWaits || (naRoda != null && !needsPerson)));
+          !needsPerson &&
+          (_aPassageWaits || naRoda != null));
 
   /// The way back to a passage held answers the finger always; to any other entry, only
   /// while the Wheel is quiet. From any Step of the scene rehearsal it answers with its
