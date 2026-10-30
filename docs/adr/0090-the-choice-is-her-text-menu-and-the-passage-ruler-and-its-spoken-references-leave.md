@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-2034 (2026-10-29: the entry left is tinted in either language)
+status: accepted, amended by ENG-2034 (2026-10-29: the entry left is tinted in either language), amended by ENG-1899 (2026-10-30: no circle on the Choice), amended by ENG-1898 (2026-10-30: the tapped pill breathes)
 date: 2026-10-16
 amends: 0014, 0061
 ---
@@ -12,6 +12,17 @@ pill is current whenever it is the session's passage, and «PT» and «EN» only
 pills. The tint and the way back now agree in both languages. A tap on the tinted pill in
 the other language still opens that passage in the Room language, as hers does; only the
 way back returns to the session left, in the language it was opened in.
+
+Amended by ENG-1899 (2026-10-30): the fifth bullet of the Decision. As in her app, while the
+Wheel is unread or failed the Choice draws the mark and its title over an empty list, with no
+circle. The list fills in place when the Wheel is read. Nothing on the Choice retries the
+read: the next open of the Choice reads it again, as hers does.
+
+Amended by ENG-1898 (2026-10-30): the fourth bullet of the Decision. As in her app, a tap does
+not leave the Choice at once: the team stays on it while the entry's session is asked. The
+tapped pill breathes, the other entries rest faded at 0.45 and do not answer, and the canvas
+opens when the session lands. A failure behaves as ENG-1856: the Choice stays, every pill at
+rest and tappable. Reduced motion stops the breath and keeps the fill.
 
 This amends ADRs 0014 and 0061 without editing their decisions; it adds a paragraph at the
 top of 0014 and "amended by 0090" to 0061's status line. The Definer settled it on
@@ -42,11 +53,12 @@ therefore decides: her menu ships. The teams learned the ruler, so this changes 
   included (amended 29 October, ENG-2034; it used to be tinted only when its Session
   language was the Room language). Nothing else is tinted, so nothing on the menu marks a
   passage as started.
-- **One tap opens an entry.** There is no confirmation step and no «opening» state on the
-  pill: the tap leaves the Choice at once.
-- **While no entry can be opened, the circle stands where the books were** and answers as it
-  did (ADR 0019, no dead end): it reads the Wheel again, retries offline, and takes the call
-  for a person.
+- **One tap opens an entry.** There is no confirmation step (amended 30 October, ENG-1898; it
+  used to add «no opening state on the pill: the tap leaves the Choice at once»: the tapped
+  pill now breathes on the Choice until its session lands).
+- **While no entry can be opened, nothing stands where the books were** (amended 30 October,
+  ENG-1899; it used to be the circle, which read the Wheel again on a tap). The mark and the
+  title stay over an empty list, as in her app.
 - **The passage ruler, the wooden enter button and the spoken references leave the
   Choice.** Nothing on the tablet plays the references any more. The server still voices
   them, and the 21 September ruling stays recorded as history.

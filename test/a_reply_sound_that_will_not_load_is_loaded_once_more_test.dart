@@ -200,6 +200,7 @@ void main() {
       await _theRoomRests(room);
       expect(room.state.canHearAgain, isTrue);
 
+      again.voice.missing.add(_theReply);
       await room.sala.hearAgain();
       await waitFor(
         'a sala dizer de novo',

@@ -8,7 +8,6 @@ import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
 import '../data/store_build_gate.dart';
-import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
 import 'widgets/checagem_externa_view.dart';
@@ -215,30 +214,11 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         return const EnsaioView();
       case SalaStage.retro:
         return const RetroView();
-      case SalaStage.fim:
-        return const _FimView();
       case SalaStage.cena:
         return const SceneRehearsalView();
       case SalaStage.checagem:
         return const ChecagemExternaView();
     }
-  }
-}
-
-class _FimView extends ConsumerWidget {
-  const _FimView();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Semantics(
-      button: true,
-      label: roomLabelFor('beginAgain', ref.watch(roomLanguageProvider)),
-      child: GestureDetector(
-        onTap: ref.read(salaSessionProvider.notifier).beginAgain,
-        behavior: HitTestBehavior.opaque,
-        child: const SizedBox.expand(),
-      ),
-    );
   }
 }
 
@@ -260,9 +240,6 @@ class _HandLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
-    if (!session.atTheTeamsIdleTurn && !session.aQuestionRecords) {
-      return const SizedBox.shrink();
-    }
     final notifier = ref.read(salaSessionProvider.notifier);
     final screen = MediaQuery.sizeOf(context);
     return Positioned(
@@ -270,9 +247,9 @@ class _HandLayer extends ConsumerWidget {
       bottom:
           MediaQuery.viewPaddingOf(context).bottom + screen.height * 0.16 - 2,
       child: HandButton(
+        visible: session.atTheTeamsIdleTurn || session.aQuestionRecords,
         noteMode: session.noteMode,
         hasUnheardReply: session.hasUnheardReply,
-        playingReply: session.playingReplyId != null,
         language: ref.watch(roomLanguageProvider),
         onTap: notifier.handTap,
       ),

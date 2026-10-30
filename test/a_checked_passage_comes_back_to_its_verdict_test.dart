@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -79,6 +80,59 @@ void main() {
       );
     },
   );
+
+  test('a passage checked clean comes back with the marks the room keeps on '
+      'its frases', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    final trechos = [
+      for (final (n, one) in it.harness.room.segments.indexed)
+        SegmentView(
+          segmentId: one.segmentId,
+          takeId: one.takeId,
+          startsMs: one.startsMs,
+          endsMs: one.endsMs,
+          told: one.told,
+          frase: n + 1,
+        ),
+    ];
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..retroSoFar = BackTranslationProgress(
+        segments: trechos,
+        checked: true,
+        namedNuance: BtFinding(
+          kind: BtFindingKind.nuance,
+          frase: 1,
+          segmentId: trechos[0].segmentId,
+        ),
+        findings: [
+          BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: 2,
+            segmentId: trechos[1].segmentId,
+          ),
+        ],
+      );
+
+    await _traduzirAGravacao(it);
+
+    expect(it.estado.btPhase, BtPhase.conferida);
+    expect(
+      [
+        for (final trecho in it.estado.btTrechos)
+          [
+            for (final f in it.estado.btFindings)
+              if (f.frase == trecho.frase) f.kind,
+          ],
+      ],
+      [
+        [BtFindingKind.nuance],
+        [BtFindingKind.unclear],
+        for (var n = 2; n < trechos.length; n++) <BtFindingKind>[],
+      ],
+      reason: 'a volta à conferência voltava sem as marcas que a sala guardou',
+    );
+  });
 
   test('a passage the room no longer counts as checked when the team comes '
       'back gets no verdict restored', () async {

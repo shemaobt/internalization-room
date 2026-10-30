@@ -347,6 +347,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.runAsync(() async {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(
+        notifier,
+        () => container.read(salaSessionProvider),
+      );
       await waitFor(
         'a tradução retomada pôr a parte no ar',
         () => harness.playback.sounding,
@@ -607,16 +611,20 @@ void main() {
     harness.playback
       ..measured = parte
       ..length = parte;
-    harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
-      sessionId: 'sessao-antiga',
-      stage: SalaStage.retro,
-      takes: [
-        KeptTake(
-          scopeId: KeptScope.parte(1),
-          path: gravada.path,
-          takeId: 'gravacao-1',
-        ),
-      ],
+    await holdTheSession(
+      harness,
+      ResumePoint(
+        sessionId: 'sessao-antiga',
+        stage: SalaStage.retro,
+        takes: [
+          KeptTake(
+            scopeId: KeptScope.parte(1),
+            path: gravada.path,
+            takeId: 'gravacao-1',
+          ),
+        ],
+      ),
+      language: harness.lingua ?? testLanguage,
     );
     harness.room
       ..serverHalt = HaltKind.warning
@@ -637,10 +645,10 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     final notifier = container.read(salaSessionProvider.notifier);
-    await tester.runAsync(notifier.abrirEscolha);
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.runAsync(
-      () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
+    await intoTheBackTranslation(
+      notifier,
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
     );
     await tester.pump(const Duration(milliseconds: 600));
     return container;
