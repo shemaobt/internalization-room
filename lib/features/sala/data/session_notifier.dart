@@ -8064,11 +8064,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final juntada = state.joined;
     final sessionId = state.sessionId;
     Set<String>? oferecidas;
+    List<BtFinding>? achados;
     if ((juntada || conferida) && sessionId != null) {
       final falha = await _readTheStretchesBack(
         sessionId,
         generation,
-        lida: (told) => oferecidas = _oferecidas(told),
+        lida: (told) {
+          oferecidas = _oferecidas(told);
+          achados = [?told.namedNuance, ...told.findings];
+        },
       );
       if (_abandoned(generation) || _endedSince(life)) return;
       if (falha == null) conferida = state.btChecked;
@@ -8110,7 +8114,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       _sairDaEspera();
       if (conferida) {
-        state = state.copyWith(btPhase: BtPhase.conferida, btVeredito: true);
+        state = state.copyWith(
+          btPhase: BtPhase.conferida,
+          btVeredito: true,
+          btFindings: _osAchadosQueFicam(
+            achados ?? state.btFindings,
+            state.btTrechos,
+          ),
+        );
         return;
       }
       _tocarDoChaoNaoContado(emSilencio: naoOuvidas != null);

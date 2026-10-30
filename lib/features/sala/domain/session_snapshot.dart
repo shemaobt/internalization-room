@@ -184,6 +184,7 @@ class BackTranslationProgress {
   final bool checked;
   final String? findingSegmentId;
   final List<BtFinding> findings;
+  final BtFinding? namedNuance;
   final String? awaitingSegmentId;
   final List<SegmentView> stale;
   final List<int> bringBack;
@@ -193,6 +194,7 @@ class BackTranslationProgress {
     this.checked = false,
     this.findingSegmentId,
     this.findings = const [],
+    this.namedNuance,
     this.awaitingSegmentId,
     this.stale = const [],
     this.bringBack = const [],
@@ -204,6 +206,7 @@ class BackTranslationProgress {
         checked: json['checked'] as bool? ?? false,
         findingSegmentId: json['finding_segment_id'] as String?,
         findings: BtFinding.listFrom(json),
+        namedNuance: BtFinding.namedNuanceFrom(json),
         awaitingSegmentId: json['awaiting_segment_id'] as String?,
         stale: SegmentView.staleFrom(json),
         bringBack: [
