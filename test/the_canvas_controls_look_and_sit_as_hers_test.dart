@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/claquete.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/hand_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/hear_again_button.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/replay_arc.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -67,7 +68,7 @@ final _herArrow = find.descendant(
 );
 
 Finder _herHand(String label) => find.descendant(
-  of: byLabel(label),
+  of: find.byType(HandButton),
   matching: find.byWidgetPredicate(
     (widget) => widget is CustomPaint && widget.painter is CircleGlyphPainter,
   ),

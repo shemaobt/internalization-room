@@ -31,7 +31,9 @@ const _panorama = Passagem(
   kind: PassagemKind.panorama,
 );
 
-final _hand = find.byType(HandButton);
+final _hand = find.byWidgetPredicate(
+  (widget) => widget is HandButton && widget.visible,
+);
 
 final _handInTheCircle = find.descendant(
   of: find.byType(FacilitatorCircle),

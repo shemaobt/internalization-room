@@ -20,24 +20,28 @@ class HearAgainButton extends ConsumerWidget {
     return Positioned(
       right: screen.width * 0.08,
       bottom: MediaQuery.viewPaddingOf(context).bottom + screen.height * 0.16,
-      child: ExcludeSemantics(
-        excluding: !canHear,
-        child: IgnorePointer(
-          ignoring: !canHear,
-          child: AnimatedOpacity(
-            opacity: canHear ? 0.42 : 0,
-            duration: herFade(context, const Duration(milliseconds: 1200)),
-            curve: Curves.ease,
-            child: RoundActionButton(
-              size: 44,
-              semanticLabel: roomLabelFor(
-                'hearAgain',
-                ref.watch(roomLanguageProvider),
-              ),
-              onTap: ref.read(salaSessionProvider.notifier).hearAgain,
-              child: CustomPaint(
-                size: const Size.square(22),
-                painter: ReplayArcPainter(ink: SalaColors.of(context).verde),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: ExcludeSemantics(
+          excluding: !canHear,
+          child: IgnorePointer(
+            ignoring: !canHear,
+            child: AnimatedOpacity(
+              opacity: canHear ? 0.42 : 0,
+              duration: herFade(context, const Duration(milliseconds: 1200)),
+              curve: Curves.ease,
+              child: RoundActionButton(
+                size: 44,
+                semanticLabel: roomLabelFor(
+                  'hearAgain',
+                  ref.watch(roomLanguageProvider),
+                ),
+                onTap: ref.read(salaSessionProvider.notifier).hearAgain,
+                child: CustomPaint(
+                  size: const Size.square(22),
+                  painter: ReplayArcPainter(ink: SalaColors.of(context).verde),
+                ),
               ),
             ),
           ),

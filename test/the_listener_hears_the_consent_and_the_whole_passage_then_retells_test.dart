@@ -12,7 +12,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
     show aprovadaNaConferida;
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, thePersonSign;
+import 'scenario_helpers.dart' show byLabel, isHeard, thePersonSign;
 
 const _checagem = 'Checagem externa';
 const _novoOuvinte = 'Novo ouvinte';
@@ -618,12 +618,17 @@ void main() {
       isEmpty,
     );
     final controles = {
-      for (final control in tester.widgetList<Semantics>(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is Semantics && (widget.properties.button ?? false),
-        ),
-      ))
+      for (final control
+          in find
+              .byElementPredicate(
+                (element) =>
+                    element.widget is Semantics &&
+                    ((element.widget as Semantics).properties.button ??
+                        false) &&
+                    isHeard(element),
+              )
+              .evaluate()
+              .map((element) => element.widget as Semantics))
         control.properties.label,
     };
     expect(controles, {_voltar, _circulo});
