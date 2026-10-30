@@ -3751,6 +3751,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       btTrechos: trechos,
       btFindings: _osAchadosQueFicam(told.findings, trechos),
+      btFraseQueAguarda: told.awaitingSegmentId,
+      clearBtFraseQueAguarda: told.awaitingSegmentId == null,
     );
   }
 

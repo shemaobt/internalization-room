@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/grain.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -90,6 +91,7 @@ Future<_Retomada> _reabrir(
   Set<int> aindaNoTablet = const {},
   Set<int> aindaSemNome = const {},
   Map<int, int> passadas = const {},
+  bool inteira = false,
   BackTranslationProgress contado = const BackTranslationProgress(),
   List<TakeView>? naSala,
 }) async {
@@ -104,10 +106,11 @@ Future<_Retomada> _reabrir(
   final linha = ResumePoint(
     sessionId: _sessao,
     stage: parouEm,
+    grain: inteira ? Grain.whole : null,
     takes: [
       for (var n = 1; n <= partes; n++)
         KeptTake(
-          scopeId: KeptScope.parte(n),
+          scopeId: inteira ? KeptScope.whole : KeptScope.parte(n),
           path: nomeados[n - 1],
           takeId: aindaSemNome.contains(n) ? null : 'gravacao-$n',
           pass: passadas[n] ?? 1,
@@ -388,6 +391,71 @@ void main() {
     );
     return it;
   }
+
+  test(
+    'uma retomada na casa traz a frase que aguarda para a sua linha',
+    () async {
+      final it = await _reabrir(
+        SalaHarness(),
+        parouEm: SalaStage.ensaio,
+        contado: BackTranslationProgress(
+          segments: _contado([1, 2]).segments,
+          awaitingSegmentId: 'trecho-2',
+        ),
+      );
+      await waitFor(
+        'a casa abrir com as partes',
+        () => it.estado.stage == SalaStage.ensaio && it.estado.everyPartIsHere,
+      );
+
+      expect(
+        it.estado.trechoChamado(it.estado.btFraseQueAguarda)?.parte,
+        1,
+        reason:
+            'a linha da cena 2 não dizia «traduzam esta frase» após o relançar',
+      );
+    },
+  );
+
+  test('uma retomada na casa da passagem inteira põe a frase regravada na '
+      'linha da passagem', () async {
+    final it = await _reabrir(
+      SalaHarness(),
+      parouEm: SalaStage.ensaio,
+      partes: 1,
+      aindaNoTablet: const {1},
+      inteira: true,
+      naSala: const [
+        TakeView(
+          takeId: 'gravacao-velha',
+          kind: 'ensaio',
+          scope: KeptScope.whole,
+        ),
+        TakeView(takeId: 'gravacao-1', kind: 'ensaio', scope: KeptScope.whole),
+      ],
+      contado: const BackTranslationProgress(
+        stale: [
+          SegmentView(
+            segmentId: 'trecho-velho',
+            takeId: 'gravacao-velha',
+            startsMs: 0,
+            endsMs: 4000,
+          ),
+        ],
+      ),
+    );
+    await waitFor(
+      'a casa abrir com a gravação inteira',
+      () => it.estado.stage == SalaStage.ensaio && it.estado.everyPartIsHere,
+    );
+    await settle();
+
+    expect(
+      [for (final t in it.estado.btTrechosRegravados) t.parte],
+      [it.estado.partIndexOf(1)],
+      reason: 'a linha da passagem inteira não dizia «traduzam de novo»',
+    );
+  });
 
   test('uma frase regravada contada numa visita anterior toca a sua tradução, '
       'buscada pela gravação que a sala nomeia', () async {
