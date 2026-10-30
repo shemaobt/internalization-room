@@ -1064,7 +1064,6 @@ void main() {
 
       await relaunchedOnTheChoice(tablet);
     });
-
   });
 
   test(
