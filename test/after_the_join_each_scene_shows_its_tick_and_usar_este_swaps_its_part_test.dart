@@ -1743,6 +1743,36 @@ void main() {
     },
   );
 
+  testWidgets(
+    'while a Rehearsal swap is in the air on the home, «gravar esta cena de '
+    'novo» called on the notifier opens nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+      it.holdTheTake('parte-2');
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+
+      it.container.read(salaSessionProvider.notifier).rehearseThisSceneAgain();
+      await it.wait(const Duration(seconds: 1));
+
+      expect(
+        byLabel(_question),
+        findsNothing,
+        reason:
+            'a troca no ar ainda deixava sair para gravar a cena pelo '
+            'notifier',
+      );
+      expect(it.showsTheSheet(), isTrue);
+
+      it.room.finishHeldTake();
+      await it.swapLands();
+      semantics.dispose();
+    },
+  );
+
   group('«ouçam a cena nova antes de conferir»', () {
     testWidgets('stands until the listen starts', (tester) async {
       final semantics = tester.ensureSemantics();

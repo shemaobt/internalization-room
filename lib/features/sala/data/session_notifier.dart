@@ -4771,6 +4771,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         sessionId == null ||
         (_thePlan == null && _theHomeRead == null) ||
         state.planBusy ||
+        state.homeBusy ||
         state.bringingBack != null ||
         state.machine.inFlight != null ||
         state.awaitingTheGuide) {
