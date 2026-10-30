@@ -4,6 +4,7 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
+import 'package:internalization_room/features/sala/domain/left_entry.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
@@ -528,5 +529,39 @@ void main() {
 
     expect(machine.session, 's2');
     expect(machine.halt, isA<NoHalt>());
+  });
+
+  test('What waits under the Choice is the machine\'s: a failed resume, a pill '
+      'that cannot open and an open that brings no session return to it', () {
+    const left = LeftEntry(
+      book: 'Ruth',
+      pericope: 'P01',
+      session: 's1',
+      language: 'pt',
+    );
+    final (waiting, _) = reduce(
+      const Machine(generation: 4),
+      const TheEntryWaits(left),
+    );
+
+    for (final failed in const <MachineEvent>[
+      TheResumeFailed(),
+      ThePassageCannotOpen(),
+      TheOpenBroughtNoSession(),
+    ]) {
+      final (machine, effects) = reduce(
+        waiting.copyWith(station: const Canvas()),
+        failed,
+      );
+      expect(effects, contains(const ReturnToTheEntryLeft(left)));
+      expect(effects, isNot(contains(const OpenTheChoice())));
+      expect(effects, isNot(contains(const RefuseThePassage())));
+      expect(machine.waiting, isNull);
+    }
+    final (_, effects) = reduce(
+      const Machine(station: Canvas(), generation: 4),
+      const TheResumeFailed(),
+    );
+    expect(effects, contains(const OpenTheChoice()));
   });
 }

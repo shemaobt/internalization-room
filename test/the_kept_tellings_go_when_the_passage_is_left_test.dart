@@ -2,12 +2,31 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/passagem.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show aKept, atRestAfterATurn;
+
+const _twoPassages = [
+  Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+  Passagem(pericope: 'P02', audioUrl: '/voice/p02'),
+];
+
+bool _onTheChoice(ProviderContainer container) {
+  final state = container.read(salaSessionProvider);
+  return state.entriesOpen && state.theWayBackIsLive;
+}
+
+void _openP02(ProviderContainer container) {
+  final state = container.read(salaSessionProvider);
+  container
+      .read(salaSessionProvider.notifier)
+      .openTheEntry(state.naRoda!.firstWhere((p) => p.pericope == 'P02'));
+}
 
 List<String> _keptOnTheTablet(SalaHarness harness) => harness.recorder.home
     .listSync()
@@ -37,18 +56,55 @@ Future<(SalaHarness, ProviderContainer)> _withATellingOnTheTablet(
 }
 
 void main() {
-  testWidgets('leaving the passage takes its kept tellings off the tablet', (
-    tester,
-  ) async {
-    final (harness, _) = await _withATellingOnTheTablet(tester);
+  testWidgets('the passage left keeps its kept tellings while it waits under '
+      'the Choice, and they go when another passage opens', (tester) async {
+    final (harness, container) = await _withATellingOnTheTablet(tester);
+    harness.room.passages = _twoPassages;
 
     await tester.tap(byLabel('Choose another passage'));
+    await _pumpUntil(tester, () => _onTheChoice(container));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      _keptOnTheTablet(harness),
+      hasLength(1),
+      reason: 'o take baixado saiu do tablet com a passagem ainda guardada',
+    );
+
+    _openP02(container);
     await _pumpUntil(tester, () => _keptOnTheTablet(harness).isEmpty);
 
     expect(
       _keptOnTheTablet(harness),
       isEmpty,
-      reason: 'o take baixado ficou no tablet depois de sair da passagem',
+      reason: 'o take baixado ficou no tablet depois de abrir outra passagem',
+    );
+  });
+
+  testWidgets('offline, a kept telling of the passage left plays again once a '
+      'failed open lays that passage back', (tester) async {
+    final (harness, container) = await _withATellingOnTheTablet(tester);
+    harness.room.passages = _twoPassages;
+    await tester.tap(byLabel('Choose another passage'));
+    await _pumpUntil(tester, () => _onTheChoice(container));
+    harness.room
+      ..reachable = false
+      ..failKeptRetellingWith = const NetworkFailed('sem rede');
+
+    _openP02(container);
+    await _pumpUntil(
+      tester,
+      () => container.read(salaSessionProvider).pericope == 'P01',
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    final played = harness.playback.played.length;
+    await tester.tap(byLabel('Hear how you told part 2'));
+    await _pumpUntil(tester, () => harness.playback.played.length > played);
+
+    expect(
+      harness.playback.played.skip(played),
+      [contains('kept-')],
+      reason: 'sem rede, o take guardado da passagem deixada não tocava mais',
     );
   });
 
