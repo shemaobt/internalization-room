@@ -252,8 +252,8 @@ void main() {
       );
 
       expect(
-        it.harness.voice.fixedLines.skip(falas),
-        isEmpty,
+        it.harness.voice.fixedLines.skip(falas).map((linha) => linha.$1),
+        ['P0'],
         reason:
             'a passagem nova herdava o que a sala disse da anterior e pulava a '
             'escuta',

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -101,6 +102,85 @@ void main() {
     expect(state.stage, SalaStage.retro);
     expect(state.btTrechos, hasLength(1));
     expect(_haltEntered(container), isFalse);
+  });
+
+  test('a resume onto a telling in progress whose listened report fails stays '
+      'quiet and plays from the told end, not the first listen', () async {
+    final harness = SalaHarness()
+      ..room.failListeningWith = const NetworkFailed('sem rede');
+
+    final container = await _reopensInto(
+      harness,
+      SalaStage.retro,
+      contado: _traduzidos,
+    );
+    await waitFor('a parte tocar', () => harness.playback.played.isNotEmpty);
+
+    expect(harness.voice.fixedLines, isEmpty);
+    expect(container.read(salaSessionProvider).btSoOuvir, isFalse);
+    expect(
+      harness.playback.playedFrom.last,
+      const Duration(milliseconds: 12000),
+    );
+  });
+
+  test('a resume onto a frase that awaits whose listened report fails goes '
+      'back to the frase, not the first listen', () async {
+    final harness = SalaHarness()
+      ..room.failListeningWith = const NetworkFailed('sem rede');
+
+    final container = await _reopensInto(
+      harness,
+      SalaStage.retro,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 12000,
+          ),
+        ],
+        awaitingSegmentId: 'trecho-1',
+      ),
+    );
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btSoOuvir, isFalse);
+    expect(state.btFraseQueAguarda, isNotNull);
+    expect(
+      harness.voice.fixedLines.map((linha) => linha.$1),
+      isNot(contains('P0')),
+    );
+  });
+
+  test('entering from the home a passage the room checked, when the listened '
+      'report fails, keeps the verdict and not the first listen', () async {
+    final harness = SalaHarness();
+    final container = await _reopensInto(
+      harness,
+      SalaStage.ensaio,
+      contado: const BackTranslationProgress(
+        segments: [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 12000,
+          ),
+        ],
+        checked: true,
+      ),
+    );
+    harness.room.failListeningWith = const NetworkFailed('sem rede');
+
+    container.read(salaSessionProvider.notifier).startRetro();
+    await settle();
+
+    final state = container.read(salaSessionProvider);
+    expect(state.btSoOuvir, isFalse);
+    expect(state.btPhase, BtPhase.conferida);
   });
 
   test('reopening into the rehearsal while the server says it needs a person '
