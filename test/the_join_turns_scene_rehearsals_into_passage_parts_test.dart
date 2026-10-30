@@ -1747,6 +1747,156 @@ void main() {
     },
   );
 
+  testWidgets('a scene recording asked while a join runs opens no microphone', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.seed();
+    for (final n in [1, 2, 3]) {
+      await it.heldOnTheTablet(n);
+    }
+    await it.toTheRecordingHome();
+    it.container.read(salaSessionProvider.notifier).leaveTheRecording();
+    await it.settle();
+    await it.openThePlan();
+    it.holdTheTake('parte-1');
+    await it.tapJoin();
+    await it.until(
+      'a junta da cena 1 chegar à porta',
+      () =>
+          it.theHeldTakeArrived &&
+          it.container.read(salaSessionProvider).joining == 1,
+    );
+
+    it.container.read(salaSessionProvider.notifier).gravarACena(1);
+    await it.settle();
+
+    expect(
+      it.container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.idle,
+      reason:
+          'a gravação da cena abria o microfone no meio da junta, e a tomada '
+          'ia parar debaixo da parte que a sala estava juntando',
+    );
+    expect(it.harness.recorder.captures, 0);
+
+    it.room.finishHeldTake();
+    await _theJoinEnds(it);
+    closeTheRoom(it.container);
+    semantics.dispose();
+  });
+
+  testWidgets('a keep asked while a join runs keeps nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.seed();
+    for (final n in [1, 2, 3]) {
+      await it.heldOnTheTablet(n);
+    }
+    await it.toTheRecordingHome();
+    final notifier = it.container.read(salaSessionProvider.notifier);
+    notifier.leaveTheRecording();
+    await it.settle();
+    await it.openThePlan();
+    notifier.gravarACena(1);
+    await it.until(
+      'a gravação da cena 1 começar',
+      () =>
+          it.container.read(salaSessionProvider).ensaio ==
+          EnsaioStatus.recording,
+    );
+    notifier.gravarACena(1);
+    await it.until(
+      'a gravação da cena 1 terminar',
+      () =>
+          it.container.read(salaSessionProvider).ensaio ==
+          EnsaioStatus.recorded,
+    );
+    it.holdTheTake('parte-1');
+    notifier.joinTheScenes();
+    await it.until(
+      'a junta da cena 1 chegar à porta',
+      () =>
+          it.theHeldTakeArrived &&
+          it.container.read(salaSessionProvider).joining == 1,
+    );
+
+    notifier.takeKeep();
+    await it.settle();
+
+    expect(
+      it.container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.recorded,
+      reason:
+          'o guardar no meio da junta levava a tomada, e a parte da mão entrava '
+          'na fila por cima da parte que a sala estava juntando',
+    );
+    final entries = (await tester.runAsync(it.harness.takes.entries))!;
+    expect([
+      for (final row in entries)
+        if (row.origin == null) row.scope,
+    ], isEmpty);
+
+    it.room.finishHeldTake();
+    await _theJoinEnds(it);
+    closeTheRoom(it.container);
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'a scene microphone open when a join starts still closes at its stop',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2, 3]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.toTheRecordingHome();
+      final notifier = it.container.read(salaSessionProvider.notifier);
+      notifier.leaveTheRecording();
+      await it.settle();
+      await it.openThePlan();
+      notifier.gravarACena(1);
+      await it.until(
+        'a gravação da cena 1 começar',
+        () =>
+            it.container.read(salaSessionProvider).ensaio ==
+            EnsaioStatus.recording,
+      );
+      it.holdTheTake('parte-1');
+      notifier.joinTheScenes();
+      await it.until(
+        'a junta da cena 1 chegar à porta',
+        () =>
+            it.theHeldTakeArrived &&
+            it.container.read(salaSessionProvider).joining == 1,
+      );
+
+      notifier.gravarACena(1);
+      await it.until(
+        'a gravação da cena 1 terminar',
+        () =>
+            it.container.read(salaSessionProvider).ensaio !=
+            EnsaioStatus.recording,
+      );
+
+      expect(
+        it.container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recorded,
+        reason:
+            'a trava da junta ficava à frente do toque que fecha o microfone, e '
+            'uma gravação aberta quando a junta começava não tinha como parar',
+      );
+
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
   testWidgets(
     "while a join runs, the notice's «enviar agora» of a take still on the "
     'tablet rests, and a tap sends nothing',
