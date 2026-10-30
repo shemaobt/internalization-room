@@ -6951,8 +6951,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// «terminei» is a turn on the house path: the screen waits on it, shows her
-  /// send-off line on the answer for [_theSceneStaysAfterItWent], then closes, and the
-  /// reply plays on the Canvas.
+  /// send-off line on the answer for [_theSceneStaysAfterItWent], then closes onto the
+  /// Canvas; the reply plays from the moment it lands, beneath the line, and the close
+  /// keeps the generation so it is not cut.
   Future<void> _sendTheScene(
     String sessionId,
     SceneRehearsalRecord rehearsal,
@@ -6975,10 +6976,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state = state.copyWith(
           scene: state.scene.copyWith(wentToTheVoice: true),
         );
+        final voiced = _voiceTurn(reply, generation);
         await Future<void>.delayed(_theSceneStaysAfterItWent);
         if (_abandoned(generation)) return;
-        _closeTheSceneRehearsal();
-        await _voiceTurn(reply, _waitOnTheGeneration);
+        _closeTheSceneRehearsal(keepingTheReply: true);
+        await voiced;
       },
       failed: (failure) {
         if (_abandoned(generation)) return;
@@ -7053,10 +7055,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _closeTheSceneRehearsal();
   }
 
-  void _closeTheSceneRehearsal() {
-    _silenceTheRoom();
+  void _closeTheSceneRehearsal({bool keepingTheReply = false}) {
+    if (!keepingTheReply) _silenceTheRoom();
     _dispatch(const MicDiscarded());
-    _arriveAt(const TheSceneRehearsalLeft());
+    _arriveAt(TheSceneRehearsalLeft(keepsTheReply: keepingTheReply));
   }
 
   void leaveTheRecording() => _gesture(() => _leaveTheRecording());
@@ -7209,6 +7211,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.aBackTranslationGestureActs) return;
     final row = state.sceneRows.where((row) => row.number == cena).firstOrNull;
     if (row == null || row.beyondTheScenes) return;
+    if (state.joining != null && state.ensaio != EnsaioStatus.recording) {
+      return;
+    }
     final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
@@ -7313,6 +7318,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void takeKeep() => _gesture(() => _takeKeep());
 
   void _takeKeep() {
+    if (state.joining != null) return;
     _silenceTheRoom();
     final path = _pendingTakePath;
     _pendingTakePath = null;
