@@ -4,7 +4,7 @@ part of '../station.dart';
 /// take yet.
 enum EnsaioStep { home, plan }
 
-/// The Rehearsal; the Closing is not reached from it, and the Back-translation is opened
+/// The Rehearsal; the Back-translation is opened
 /// from it only once every scene has its part, every part is on the tablet and none waits
 /// in the Outbox. A reopened passage that had already
 /// reached its telling-back resumes it whatever the Rehearsal weighed.

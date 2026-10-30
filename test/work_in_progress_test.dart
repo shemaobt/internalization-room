@@ -190,10 +190,13 @@ void main() {
 
     final session = SalaSessionState(
       machine: Machine(station: Station.stored(linha.stage)),
+      endOfThePassage: true,
     );
 
     expect(session.station, isA<Canvas>());
     expect(session.stage, SalaStage.conversa);
+    expect(session.voice, VoiceState.done);
+    expect(session.orangeDotLook, OrangeDotLook.bright);
   });
 
   test('a resume point keeps the wholes the room holds set aside through '

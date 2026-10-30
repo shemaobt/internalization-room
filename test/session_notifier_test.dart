@@ -1054,7 +1054,7 @@ void main() {
     );
   });
 
-  test('the necklace is on only for the conversa and the fim', () {
+  test('the necklace is on only for the conversa', () {
     expect(
       SalaSessionState(
         machine: Machine(station: Station.stored(SalaStage.escolha)),

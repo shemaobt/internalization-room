@@ -11732,10 +11732,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// Mostly counters and latches with no home in the state object, so nothing about them
   /// is reset by rebuilding it; the cursor, the cut, the stretch being told again and the
   /// pending translation live in the state and are let go here too, the pending file with
-  /// them. `leaveThePassage` reset none of them and the old start-over reset most: the stretch
-  /// being told again — armed when the team asks to tell one again and let go only by a
-  /// telling that lands — made the very first stretch of the next back translation upload
-  /// as a correction of a stretch that does not exist.
+  /// them. The stretch being told again — armed when the team asks to tell one again and
+  /// let go only by a telling that lands — would make the very first stretch of the next
+  /// back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
     _relatarAEscuta();
     state = state.copyWith(btSoOuvir: false);
