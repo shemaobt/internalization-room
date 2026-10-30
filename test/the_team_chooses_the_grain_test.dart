@@ -460,6 +460,38 @@ void main() {
   );
 
   testWidgets(
+    '1. «Cena por cena» whose plan read runs out with the room unread opens the '
+    'scene home, never «Como vocês querem gravar?» again',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room
+        ..holdNextTakesList()
+        ..holdNextSceneList();
+
+      await _tap(tester, _sceneByScene);
+      await _settles(tester);
+      expect(find.text(_thinking), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a leitura do plano depois de «Cena por cena» esgotava sem a '
+            'listagem e perguntava de novo o grão que a sala acabara de '
+            'responder; o dela abre a casa das cenas',
+      );
+      expect(find.text(_wholeInstead), findsOneWidget);
+      expect(find.text(_how), findsNothing);
+      harness.room
+        ..finishHeldTakesList()
+        ..finishHeldSceneList();
+    },
+  );
+
+  testWidgets(
     '2. «A passagem inteira» opens the recording home with one row, the whole',
     (tester) async {
       final (harness, container) = await _onTheChoice(tester, rehearsed: false);
@@ -1456,6 +1488,49 @@ void main() {
       expect(find.text(_how), findsNothing);
       expect(find.text(_planLine), findsOneWidget);
     });
+
+    testWidgets(
+      'naming the scene grain reads the plan again with the grain heard: a '
+      'read that runs out there opens the scene home, never the choice again',
+      (tester) async {
+        final (harness, _) = await _atRest(
+          tester,
+          seed: (session) => [_rehearsal(session)],
+        );
+        harness.room
+          ..grain = Grain.scene
+          ..holdTheTakesListing();
+
+        await _tapTheDot(tester);
+        await tester.pump(const Duration(milliseconds: 6000));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text(_how), findsOneWidget);
+
+        harness.room
+          ..holdNextTakesList()
+          ..holdNextSceneList()
+          ..finishTheTakesListing();
+        await _settles(tester);
+        expect(find.text(_thinking), findsOneWidget);
+
+        await tester.pump(const Duration(milliseconds: 6000));
+        await _settles(tester);
+
+        expect(
+          find.text(_homeLine),
+          findsOneWidget,
+          reason:
+              'a listagem tardia que nomeava as cenas relia o plano com o grão '
+              'por ouvir, e a releitura esgotada perguntava o grão de novo; o '
+              'dela, com o rascunho lido, abre a casa das cenas',
+        );
+        expect(find.text(_wholeInstead), findsOneWidget);
+        expect(find.text(_how), findsNothing);
+        harness.room
+          ..finishHeldTakesList()
+          ..finishHeldSceneList();
+      },
+    );
 
     testWidgets(
       'naming the whole over a scene rehearsal of this session lands on the '
