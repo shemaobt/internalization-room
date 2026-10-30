@@ -1,5 +1,14 @@
 # The stored row wins at every door
 
+Amended by ENG-1987 (2026-10-30): at a passage's pill the room's answer wins. As in her
+app, every pill asks the room to resume or create the passage's session, and the tablet
+enters the session the room returns. The row restores its takes only when it names that
+session. A row naming another session names one the facilitator reset: the server
+answers a new session for it, so the row's session is let go with its files, exactly as
+a session gone is, and the passage starts on the room's session. The resume no longer
+reads the session's state again: the room's answer is that state. The doors that hand
+over a session the room already opened, the relaunch and the Panorama's, are unchanged.
+
 ## Context
 
 A **Resume point** was read only at the doors the **Wheel** opens. The tablet looked the

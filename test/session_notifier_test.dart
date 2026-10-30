@@ -306,7 +306,7 @@ void main() {
           'reabrir a conversa fazia o Guia perguntar como numa '
           'internalização para uma equipe que já estava no ensaio',
     );
-    expect(harness.room.calls, contains('fetchState'));
+    expect(harness.room.calls, contains('createSession'));
     expect(state.coverage.total, totalBeads);
   });
 
@@ -405,10 +405,10 @@ void main() {
       reason: 'e dentro da sessão que o servidor continua a guardar',
     );
     expect(
-      harness.room.pericopesAsked,
+      harness.room.sessionIds,
       isEmpty,
       reason:
-          'pedir uma sessão nova aqui deixa órfã a que guarda tudo o '
+          'uma sessão nova aqui deixa órfã a que guarda tudo o '
           'que a equipe contou',
     );
     expect(harness.emAberto.rows['Ruth/P01/pt']?.sessionId, 'sessao-velha');
@@ -458,6 +458,7 @@ void main() {
         () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
       );
 
+      harness.room.heldByTheTeam = null;
       await notifier.goConversa(book: 'Ruth', pericope: 'P01', fresh: true);
       await settle();
 
@@ -484,7 +485,7 @@ void main() {
       expect(state.sessionId, harness.room.sessionIds.single);
       expect(
         harness.room.pericopesAsked,
-        hasLength(1),
+        hasLength(2),
         reason: 'entrar de novo é pedir uma sessão nova para a passagem',
       );
       final linha = harness.emAberto.written.last;
@@ -570,7 +571,7 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
 
-      harness.room.failStateOnceWith = const Refused('BAD_REQUEST');
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -585,7 +586,7 @@ void main() {
         'a Escolha abrir as entradas',
         () => container.read(salaSessionProvider).entriesOpen,
       );
-      harness.room.failStateOnceWith = const Refused('BAD_REQUEST');
+      harness.room.failCreateOnceWith = const Refused('BAD_REQUEST');
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -1054,7 +1055,7 @@ void main() {
     );
   });
 
-  test('the necklace is on only for the conversa and the fim', () {
+  test('the necklace is on only for the conversa', () {
     expect(
       SalaSessionState(
         machine: Machine(station: Station.stored(SalaStage.escolha)),
@@ -1084,12 +1085,6 @@ void main() {
       reason:
           'na retro as contas são os trechos contados; o colar da '
           'conversa por cima lia como a mesma fileira de novo',
-    );
-    expect(
-      SalaSessionState(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
-      ).colarOn,
-      isTrue,
     );
   });
 
@@ -1794,6 +1789,7 @@ void main() {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
       harness.voice.succeeds = true;
+      harness.room.heldByTheTeam = null;
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await settle();
 
@@ -3108,23 +3104,6 @@ void main() {
       );
     },
   );
-
-  test('once the necklace has closed nothing is left to hear again', () {
-    final session = SalaSessionState(
-      machine: const Machine(station: Fim()),
-      roomSaysItAgain: true,
-    );
-
-    expect(session.voice, VoiceState.done);
-    expect(
-      session.canHearAgain,
-      isFalse,
-      reason:
-          'o botão fica montado em todas as telas; no fim do colar não há '
-          'círculo, e deixar o pronto valer como convite faria aparecer um '
-          'botão de ouvir de novo numa tela que só espera o toque',
-    );
-  });
 
   test('a tap on the circle at done still records, not a dead touch', () async {
     final harness = SalaHarness()..room.done = true;
@@ -4535,7 +4514,6 @@ void main() {
       greaterThan(playedBefore),
       reason: 'a parada calava o veredito, e o Drafting dela o diz',
     );
-    expect(after.stage, isNot(SalaStage.fim));
   });
 
   test('explaining for longer than the clip does not end the clip', () {

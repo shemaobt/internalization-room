@@ -421,6 +421,8 @@ void main() {
       'the closed session', () async {
     final harness = SalaHarness();
     final container = await _naPassagem(harness);
+    final fechada = _estado(container).sessionId;
+    harness.room.heldByTheTeam = (_, _) async => fechada;
     harness.room.holdNextAskForAPerson();
     await _aPassagemFechaNoPedidoDePessoa(harness, container);
     _sala(container).leaveThePassage();

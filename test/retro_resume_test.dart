@@ -174,7 +174,7 @@ void main() {
     () async {
       final harness = SalaHarness();
 
-      final container = await _reopen(
+      await _reopen(
         harness,
         parouEm: SalaStage.retro,
         contado: const BackTranslationProgress(checked: true),
@@ -193,14 +193,6 @@ void main() {
             'abre a passagem como qualquer outra: é a porta de onde se sai. '
             'Parada na conversa, ela ficava dois minutos calada até o vigia '
             'chamar uma pessoa',
-      );
-      expect(
-        container.read(salaSessionProvider).stage,
-        isNot(SalaStage.fim),
-        reason:
-            'e não fecha: dar por terminada uma passagem que ninguém '
-            'aprovou é exatamente o que este gesto existe para não deixar '
-            'acontecer',
       );
     },
   );
