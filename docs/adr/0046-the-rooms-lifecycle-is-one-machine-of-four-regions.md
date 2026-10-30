@@ -219,7 +219,8 @@ them goes one more of the Listening ledger's reports with nothing to report, sen
 checked telling is picked back up. No Station opens or resumes differently.
 
 Extended by name (ENG-2109, 2026-10-30), same end date: `btPartesOuvidasAqui`, the parts this
-tablet played whole since the passage was opened, as the Listening ledger counts them within the
-750 ms slack, which the check's «terminei» and the line under it read beside the room's count.
+tablet played whole since the telling began, as the Listening ledger counts them within her
+slack of 750 ms or half the part, which the check's «terminei» and the line under it read beside
+the room's count.
 It sits on `SalaSessionState` beside the other `bt` fields and moves with them. No Station opens
 or resumes differently.
