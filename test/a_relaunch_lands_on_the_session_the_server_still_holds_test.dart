@@ -473,7 +473,7 @@ void main() {
     expect(await tablet.harness.currentSession.endOf(session), isNotNull);
     tablet.notifier.leaveThePassage();
     for (var refusal = 0; refusal < 2; refusal++) {
-      tablet.harness.room.failStateOnceWith = const Refused('RECUSADA');
+      tablet.harness.room.failCreateOnceWith = const Refused('RECUSADA');
       await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
       await settle();
       tablet.notifier.leaveThePassage();
@@ -675,11 +675,11 @@ void main() {
         final tablet = _Tablet(harness, container);
         await tablet.notifier.openTheRoom();
         await _theChoiceShowsItsWheel(tablet);
-        harness.room.holdNextState();
+        harness.room.holdNextCreate();
         await enterThePassage(tablet.notifier, () => tablet.state, 'P01');
         await waitFor(
-          'the session to open',
-          () => tablet.state.sessionId == _held,
+          'the room to be asked',
+          () => harness.room.calls.contains('createSession'),
         );
         await settle();
 
@@ -693,8 +693,9 @@ void main() {
               'o ponto laranja abria a casa com a leitura da sala ainda no ar, '
               'e a leitura era abandonada',
         );
-        harness.room.finishHeldState();
+        harness.room.finishHeldCreate();
         await waitFor('the read to land', () => !tablet.state.awaitingTheGuide);
+        expect(tablet.state.sessionId, _held);
         expect(tablet.state.endOfThePassage, isTrue);
         expect(tablet.state.orangeDotLook, OrangeDotLook.bright);
       });

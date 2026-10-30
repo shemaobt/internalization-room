@@ -463,20 +463,27 @@ void main() {
       );
     });
 
-    test('a resume the room refuses or no longer holds goes calmly back to the '
-        'passage menu', () {
+    test('a resume the room refuses goes calmly back to the passage menu', () {
       final resume = _notATurn(
         door: Door.resume,
         rule: RefusalRule.keepsTheResume,
       );
       for (final result in [
         RoomRefused(RefusalCode.unnamed(500)),
-        const RoomSessionGone(),
         const RoomNetworkFailed(),
         const RoomFoundNothing(),
       ]) {
         _decides(result, resume, const TheResumeFailed(generation: 4));
       }
+    });
+
+    test('a resume whose session the room no longer holds lets that session '
+        'go', () {
+      _decides(
+        const RoomSessionGone(),
+        _notATurn(door: Door.resume, rule: RefusalRule.keepsTheResume),
+        const TheSessionIsGone(generation: 4),
+      );
     });
 
     test('a scene rehearsal refusal the server names keeps the screen\'s own '

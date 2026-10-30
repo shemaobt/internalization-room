@@ -200,7 +200,9 @@ void main() {
 
         _landsOnTheConversation(room);
         expect(
-          harness.room.calls.where((call) => call == 'fetchState'),
+          harness.room.calls.where(
+            (call) => call == 'fetchState' || call == 'createSession',
+          ),
           hasLength(1),
         );
       },
