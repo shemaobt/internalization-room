@@ -4048,7 +4048,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The Ensaio Final plan, «pensando…» while the room is read.
-  void _openThePlan(String sessionId) {
+  void _openThePlan(String sessionId, {bool grainHeard = false}) {
     const plan = Ensaio(step: EnsaioStep.plan);
     _plansOpened++;
     _leaveTheStepFor(plan);
@@ -4067,7 +4067,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
     );
     unawaited(_countUnsent());
-    _handOff(_readThePlan(sessionId));
+    _handOff(_readThePlan(sessionId, grainHeard: grainHeard));
   }
 
   /// The plan stands only over a passage the room says has scenes and whose every take
@@ -4077,11 +4077,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// fails or has not answered within [planReadWait], a passage with no scenes and
   /// rehearsals only in the other language's session ask the grain while none is in
   /// force, and open that grain's recording home otherwise; a read that fails or runs out
-  /// with the room's listing unread asks the grain whatever is in force (ADR 0134).
-  Future<void> _readThePlan(String sessionId) async {
+  /// with the room's listing unread asks the grain whatever is in force, unless the room
+  /// has just named the grain, from the choice's whole home (ADR 0134).
+  Future<void> _readThePlan(String sessionId, {bool grainHeard = false}) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
-    var listingRead = false;
+    var listingRead = grainHeard;
+    final Future<RoomAnswer<List<Scene>>> scenesAsked = known == null
+        ? _room.scenesOf(sessionId)
+        : Future.value(Answered(known));
     final reads = (
       _takes.pending(),
       _room.takesListingOf(sessionId).then((listing) {
@@ -4097,7 +4101,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         return listing;
       }),
       _room.sceneRehearsalsOf(sessionId),
-      known == null ? _room.scenesOf(sessionId) : Future.value(Answered(known)),
+      scenesAsked,
     ).wait;
     (
       List<PendingTake>,
@@ -4113,7 +4117,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers.remove('planRead')?.cancel();
     final read = answered;
     if (read == null) {
-      return _theGrainOrItsHome(sessionId, unread: !listingRead);
+      return _theGrainOrItsHome(
+        sessionId,
+        scenes: scenesAsked,
+        unread: !listingRead,
+      );
     }
     final (outbox, takes, rehearsals, scenes) = read;
     for (final answer in [takes, rehearsals, scenes]) {
@@ -4143,7 +4151,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
               rows.isEmpty &&
               rehearsalsElsewhere(listed, sessionId):
         state = state.copyWith(rehearsalsElsewhere: true);
-        _theGrainOrItsHome(sessionId, listed: guardadas, elsewhere: true);
+        _theGrainOrItsHome(
+          sessionId,
+          scenes: scenesAsked,
+          listed: guardadas,
+          elsewhere: true,
+        );
       case (
             Answered(value: TakesListing(takes: final guardadas)),
             Answered(value: final listed),
@@ -4178,12 +4191,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           scenesOfThePassage: passage,
         );
       default:
-        _theGrainOrItsHome(sessionId, unread: !listingRead);
+        _theGrainOrItsHome(
+          sessionId,
+          scenes: scenesAsked,
+          unread: !listingRead,
+        );
     }
   }
 
   void _theGrainOrItsHome(
     String sessionId, {
+    required Future<RoomAnswer<List<Scene>>> scenes,
     List<TakeView>? listed,
     bool elsewhere = false,
     bool unread = false,
@@ -4192,6 +4210,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));
+    if (state.scenesOfThePassage != null) return;
+    final generation = _generation;
+    unawaited(
+      scenes.then((answer) {
+        if (answer case Answered(
+          :final value,
+        ) when value.isNotEmpty && !_abandoned(generation)) {
+          state = state.copyWith(scenesOfThePassage: value);
+        }
+      }),
+    );
   }
 
   /// «A passagem inteira» or «Cena por cena» on the grain choice.
@@ -4855,8 +4884,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_left(generation, life) || state.station != const Ensaio()) return;
     switch ((answer, state.scenes)) {
       case (Answered(:final value), ScenesHad(:final scenes)):
+        final chosen = state.ensaioFinalPlan is GrainAsked;
         final read = PlanRead(rehearsals: value, scenes: scenes);
         state = state.copyWith(ensaioFinalPlan: read);
+        if (chosen &&
+            state.recordsTheWhole &&
+            state.partes.isEmpty &&
+            state.ensaio == EnsaioStatus.idle &&
+            planHoldsARehearsal(read, sessionId)) {
+          return _openThePlan(sessionId, grainHeard: true);
+        }
         await _theSwapsLeftBehind(sessionId, read, generation, life);
       case (final SessionGone gone, _):
         _decideAt(gone, door: Door.sceneRehearsal);
@@ -5754,7 +5791,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         .firstOrNull;
     final herLineStands = stillArmed != null && asked.notUnderstood;
     final floor = rehearsal.pausaFloor(stillArmed);
-    if (armed != null && stillArmed == null) _silenceTheRoom();
+    if ((armed != null && stillArmed == null) ||
+        (step == SceneStep.placesUnknown &&
+            _theSceneTakeThatSounds(state.machine) != null)) {
+      _silenceTheRoom();
+    }
     state = state.copyWith(
       scene: SceneScreen(
         step: step,
