@@ -1659,9 +1659,13 @@ const _watch = ArmTheWatch();
       ),
       _ => (machine, const []),
     },
-  TheWayBackTaken(:final left) => _takeTheWayBack(machine, left),
+  TheWayBackTaken(:final left) => _takeTheWayBack(
+    machine.copyWith(clearWaiting: true),
+    left,
+  ),
   TheLeftPassageReturns(:final session, :final warned) => (
     machine.copyWith(
+      clearWaiting: true,
       session: session,
       halt: warned ? const Warning() : const NoHalt(),
     ),

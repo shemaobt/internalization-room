@@ -10,7 +10,9 @@ Amended by ENG-1997 (2026-10-30): the third, fourth and last bullets of the Deci
 her app (`app/page.tsx:786`, `:980-981`), a Panorama left once its line was said waits under
 the Choice too, and a failed open returns to it in silence, as the chevron does. The machine,
 not the notifier, holds what waits: a failed resume, a pill the room refuses and an open that
-brings no session return to it, and only with nothing waiting rest on the Choice. The passage
+brings no session return to it, and only with nothing waiting rest on the Choice. One exception
+stays: an open the room answers with a session the tablet already let go starts the room
+over on the Choice, letting go of what waited. The passage
 left keeps its kept retellings' audio while it waits, so one replays offline once it is laid
 back; the audio goes when the passage is let go: another passage opens, or the room lets its
 session go.

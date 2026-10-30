@@ -558,10 +558,31 @@ void main() {
       expect(effects, isNot(contains(const RefuseThePassage())));
       expect(machine.waiting, isNull);
     }
-    final (_, effects) = reduce(
-      const Machine(station: Canvas(), generation: 4),
-      const TheResumeFailed(),
-    );
-    expect(effects, contains(const OpenTheChoice()));
+    for (final (failed, toTheChoice) in const <(MachineEvent, Effect)>[
+      (TheResumeFailed(), OpenTheChoice()),
+      (ThePassageCannotOpen(), RefuseThePassage()),
+      (TheOpenBroughtNoSession(), RestOnTheChoice()),
+    ]) {
+      final (_, effects) = reduce(
+        const Machine(station: Canvas(), generation: 4),
+        failed,
+      );
+      expect(effects, contains(toTheChoice));
+    }
+  });
+
+  test('What waits goes when the room lets its session go, and when the team '
+      'takes the way back to it', () {
+    const left = LeftEntry(book: 'Ruth', pericope: 'P01', session: 's1');
+    final waiting = const Machine(generation: 4).copyWith(waiting: left);
+
+    for (final gone in const <MachineEvent>[
+      TheSessionLetGo('s1'),
+      TheWayBackTaken(left),
+      TheLeftPassageReturns('s1'),
+    ]) {
+      expect(reduce(waiting, gone).$1.waiting, isNull);
+    }
+    expect(reduce(waiting, const TheSessionLetGo('s2')).$1.waiting, left);
   });
 }

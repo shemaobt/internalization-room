@@ -2371,10 +2371,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _theOpenBroughtNoSession) {
       return _dispatch(const TheOpenBroughtNoSession());
     }
+    if (held == null || state.machine.waiting != null) return;
     if (state.passageLeft != null) {
       state = state.copyWith(clearPassageLeft: true);
     }
-    if (held != null && held != state.sessionId) _forgetTheKeptRetellings(held);
+    if (held != state.sessionId) _forgetTheKeptRetellings(held);
   }
 
   bool get _theOpenBroughtNoSession => switch (state.station) {
@@ -2453,6 +2454,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
       case final RoomFailure failure:
         _decideTheFailure(failure);
+        if (!_abandoned(generation) && !state.needsPerson) {
+          _dispatch(const TheOpenBroughtNoSession());
+        }
     }
   }
 
@@ -2597,7 +2601,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (sessionId != null && state.passageLeft?.session == sessionId) {
       state = state.copyWith(clearPassageLeft: true);
-      _forgetTheKeptRetellings(sessionId);
     }
     unawaited(
       _mindingThePlace(
