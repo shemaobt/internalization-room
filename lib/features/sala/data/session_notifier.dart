@@ -1146,9 +1146,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             ouvida.unheardTakeIds != null &&
             ordem > (_oQueASalaDisse?.ordem ?? 0)) {
       _oQueASalaDisse = (sessionId: sessionId, ordem: ordem, ouvida: ouvida);
-      state = state.copyWith(btNaoOuvidas: ouvida.unheardTakeIds);
       if (sessionId == state.sessionId) {
-        state = state.copyWith(btOuvidaInteira: ouvida.unheardTakeIds!.isEmpty);
+        state = state.copyWith(
+          btNaoOuvidas: ouvida.unheardTakeIds,
+          btOuvidaInteira: ouvida.unheardTakeIds!.isEmpty,
+        );
       }
     }
     return resposta;
