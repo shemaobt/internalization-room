@@ -4279,6 +4279,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         !(_onThePlan || state.recordsTheWhole)) {
       return;
     }
+    _relatarAEscuta();
     _handOff(_switchTheGrain(Grain.scene, reopens: true, then: _toItsHome));
   });
 

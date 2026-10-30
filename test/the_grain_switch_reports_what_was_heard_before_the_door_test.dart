@@ -83,6 +83,24 @@ Future<Sala> _numaCasaJuntada() => _reabertaNaCasa(
   ],
 );
 
+/// The whole-passage home: one whole take the room lists.
+Future<Sala> _naCasaDaPassagemInteira() => _reabertaNaCasa(
+  (pasta) => [
+    KeptTake(
+      scopeId: KeptScope.whole,
+      path: _arquivo(pasta, 'inteiro'),
+      takeId: 'gravacao-inteira',
+    ),
+  ],
+  const [
+    TakeView(
+      takeId: 'gravacao-inteira',
+      kind: 'ensaio',
+      scope: KeptScope.whole,
+    ),
+  ],
+);
+
 /// Row [cena] played to [ate] and paused there.
 Future<void> _ouvirAteOMeio(Sala it, int cena, Duration ate) async {
   it.sala.ouvirACena(cena);
@@ -143,4 +161,23 @@ void main() {
       await waitFor('a troca acabar', () => !it.estado.grainSwitching);
     },
   );
+
+  test('on the whole-passage home, the whole heard half-way reaches the room '
+      'before «Gravar cena por cena» calls the door', () async {
+    final it = await _naCasaDaPassagemInteira();
+    expect(it.estado.recordsTheWhole, isTrue);
+    it.harness.playback.length = const Duration(seconds: 12);
+    await _ouvirAteOMeio(it, 1, const Duration(seconds: 4));
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room.holdTheGrainSwitch();
+
+    it.sala.recordSceneByScene();
+
+    expect(it.harness.room.grainSwitches, hasLength(1));
+    expect(it.harness.room.listeningReports.skip(relatos), [
+      [_ouvida('gravacao-inteira', 0, 4000, 12000)],
+    ]);
+    it.harness.room.finishTheGrainSwitch();
+    await waitFor('a troca acabar', () => !it.estado.grainSwitching);
+  });
 }
