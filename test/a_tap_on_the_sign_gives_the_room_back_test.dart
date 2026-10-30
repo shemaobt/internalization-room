@@ -187,46 +187,44 @@ void main() {
     },
   );
 
-  test(
-    'a passage entered again after a tapped sign lands where they stopped',
-    () async {
-      final harness = SalaHarness();
-      final container = await _naPassagem(harness, 'P01');
-      addTearDown(container.dispose);
-      final notifier = container.read(salaSessionProvider.notifier);
-      SalaSessionState read() => container.read(salaSessionProvider);
+  test('a passage entered again after a tapped sign lands on its conversation '
+      'with the rehearsal recorded after it', () async {
+    final harness = SalaHarness();
+    final container = await _naPassagem(harness, 'P01');
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
 
-      await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
+    await _haltWith(harness, notifier, read, const Refused('UNAUTHORIZED'));
 
-      notifier.teamTapped();
-      await waitFor(
-        'o círculo voltar ao convite',
-        () => !read().needsPerson && read().voice == VoiceState.invite,
-      );
-      await settle();
+    notifier.teamTapped();
+    await waitFor(
+      'o círculo voltar ao convite',
+      () => !read().needsPerson && read().voice == VoiceState.invite,
+    );
+    await settle();
 
-      notifier.goEnsaio();
-      notifier.gravarACena(1);
-      notifier.gravarACena(1);
-      await settle();
-      notifier.takeKeep();
-      await settle();
+    notifier.goEnsaio();
+    notifier.gravarACena(1);
+    notifier.gravarACena(1);
+    await settle();
+    notifier.takeKeep();
+    await settle();
 
-      notifier.leaveThePassage();
-      await settle();
-      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-      await settle();
+    notifier.leaveThePassage();
+    await settle();
+    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await settle();
 
-      expect(
-        read().stage,
-        SalaStage.ensaio,
-        reason:
-            'o sinal tocado reabria a passagem sem nome, entao nada do '
-            'que a equipe gravou depois dela ficou anotado na passagem: voltar '
-            'punha a equipe na conversa de novo, com o ensaio perdido',
-      );
-    },
-  );
+    expect(
+      [read().stage, read().partes.length],
+      [SalaStage.conversa, 1],
+      reason:
+          'o sinal tocado reabria a passagem sem nome, entao nada do '
+          'que a equipe gravou depois dela ficou anotado na passagem: voltar '
+          'punha a equipe na conversa sem o ensaio que gravou',
+    );
+  });
 
   test(
     'a tap after the room answers opens the passage the team was already in',

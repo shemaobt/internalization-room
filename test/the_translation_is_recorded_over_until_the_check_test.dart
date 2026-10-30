@@ -347,6 +347,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.runAsync(() async {
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(
+        notifier,
+        () => container.read(salaSessionProvider),
+      );
       await waitFor(
         'a tradução retomada pôr a parte no ar',
         () => harness.playback.sounding,

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1964 (2026-10-30: no entry lands on the Rehearsal or the Back-translation)
 date: 2026-10-23
 amends: 0023
 ---
@@ -75,3 +75,14 @@ Choice. Her app shows the rows at once and streams a row's audio when it is play
 
 - A fetch failure on a Rehearsal resume no longer sends the team to the Choice.
 - A Back-translation resume no longer waits for its parts; only the refusal re-read does.
+
+## Amendment · 2026-10-30 (ENG-1964)
+
+**No entry lands on the Rehearsal or the Back-translation any more** (ADR 0141, amended by
+ENG-1964): a passage picked on the Choice lands on its conversation, as hers. The resume no
+longer lists the room's takes or brings parts down at entry, so no part is on its way when the
+team lands: the parts on their way, their dark rows and their fetch one at a time are left
+with no way in, and a follow-up slice of ENG-1964 removes their code. The recording home the
+orange dot opens lays the room's parts in under their rows as its listing answers (ADR 0141). The telling-back is
+opened from the home, and on entry it reads the frase that awaits from the room and brings back
+the sentence the tablet holds, as hers does on every entry.

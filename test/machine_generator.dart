@@ -292,7 +292,6 @@ String describeEvent(MachineEvent event) => switch (event) {
   TheRehearsalOpened() => 'TheRehearsalOpened',
   ThePlanOpened() => 'ThePlanOpened',
   TheBackTranslationOpened() => 'TheBackTranslationOpened',
-  TheBackTranslationResumed() => 'TheBackTranslationResumed',
   TheNecklaceClosed() => 'TheNecklaceClosed',
   TheRoomStartedOver() => 'TheRoomStartedOver',
   ThePanoramaChosen(:final id) => 'ThePanoramaChosen($id)',
@@ -439,7 +438,6 @@ enum EventKind {
   theRehearsalOpened,
   thePlanOpened,
   theBackTranslationOpened,
-  theBackTranslationResumed,
   theNecklaceClosed,
   theRoomStartedOver,
   thePanoramaChosen,
@@ -525,7 +523,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheRehearsalOpened() => EventKind.theRehearsalOpened,
   ThePlanOpened() => EventKind.thePlanOpened,
   TheBackTranslationOpened() => EventKind.theBackTranslationOpened,
-  TheBackTranslationResumed() => EventKind.theBackTranslationResumed,
   TheNecklaceClosed() => EventKind.theNecklaceClosed,
   TheRoomStartedOver() => EventKind.theRoomStartedOver,
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
@@ -610,7 +607,6 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theRehearsalOpened ||
   EventKind.thePlanOpened ||
   EventKind.theBackTranslationOpened ||
-  EventKind.theBackTranslationResumed ||
   EventKind.theNecklaceClosed ||
   EventKind.theRoomStartedOver ||
   EventKind.thePanoramaChosen ||
@@ -845,7 +841,6 @@ MachineEvent _draw(
   EventKind.theRehearsalOpened => const TheRehearsalOpened(),
   EventKind.thePlanOpened => const ThePlanOpened(),
   EventKind.theBackTranslationOpened => const TheBackTranslationOpened(),
-  EventKind.theBackTranslationResumed => const TheBackTranslationResumed(),
   EventKind.theNecklaceClosed => const TheNecklaceClosed(),
   EventKind.theRoomStartedOver => const TheRoomStartedOver(),
   EventKind.thePanoramaChosen => ThePanoramaChosen(

@@ -74,10 +74,6 @@ void main() {
         reason: 'e com o aviso já de pé, herdado da retomada',
       );
       expect(
-        find.text('A warning is asking someone to come watch'),
-        findsNothing,
-      );
-      expect(
         find.bySemanticsLabel('A warning is asking someone to come watch'),
         findsNothing,
         reason:

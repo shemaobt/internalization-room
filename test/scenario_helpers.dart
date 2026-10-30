@@ -419,6 +419,29 @@ Future<void> intoTheRecordingHome(
   );
 }
 
+/// From the conversation the launch landed on, through the orange dot, to the recording
+/// home with the room's parts laid in.
+Future<void> throughTheOrangeDot(
+  SalaSessionNotifier notifier,
+  SalaSessionState Function() read, {
+  Future<void> Function()? step,
+}) async {
+  await waitFor(
+    'a sala pousar na conversa',
+    () => read().station is Canvas && !read().awaitingTheGuide,
+    step: step,
+  );
+  notifier.openTheEnsaioFinal();
+  await waitFor(
+    'as partes da sala chegarem à casa',
+    () =>
+        read().station is Ensaio &&
+        read().partes.isNotEmpty &&
+        read().everyPartIsHere,
+    step: step,
+  );
+}
+
 /// From the conversation the launch landed on, through the recording home, into the
 /// telling-back.
 Future<void> intoTheBackTranslation(

@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -189,7 +190,8 @@ Future<(SalaHarness, ProviderContainer)> _atRest(
   return (harness, container);
 }
 
-/// A passage left at [stage] whose room holds [roomTakes].
+/// A passage left at [stage] whose room holds [roomTakes]; one left in the Rehearsal on a
+/// tablet that lost its files reaches the home by the orange dot.
 Future<(SalaHarness, ProviderContainer)> _reopened(
   WidgetTester tester, {
   required List<TakeView> roomTakes,
@@ -212,9 +214,7 @@ Future<(SalaHarness, ProviderContainer)> _reopened(
     language: lingua,
     takes: keptTakes,
   );
-  final pelaEscolha =
-      stage != SalaStage.ensaio ||
-      keptTakes.any((take) => !File(take.path).existsSync());
+  final pelaEscolha = stage != SalaStage.ensaio;
   if (pelaEscolha) {
     harness.emAberto.rows['Ruth/P01/$lingua'] = row;
   } else {
@@ -223,12 +223,27 @@ Future<(SalaHarness, ProviderContainer)> _reopened(
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
+  SalaSessionState read() => container.read(salaSessionProvider);
   if (!pelaEscolha) {
-    await intoTheRecordingHome(
-      notifier,
-      () => container.read(salaSessionProvider),
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
+    if (keptTakes.every((take) => File(take.path).existsSync())) {
+      await intoTheRecordingHome(
+        notifier,
+        read,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+    } else {
+      await waitFor(
+        'a sala pousar na conversa',
+        () => read().station is Canvas && !read().awaitingTheGuide,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      notifier.openTheEnsaioFinal();
+      await waitFor(
+        'as partes da sala chegarem à casa',
+        () => read().station == const Ensaio() && read().partsAway.isEmpty,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+    }
     await tester.pump(const Duration(seconds: 1));
     return (harness, container);
   }

@@ -27,6 +27,7 @@ import 'scenario_helpers.dart'
         enterThePanorama,
         holdTheSession,
         intoTheBackTranslation,
+        intoTheRecordingHome,
         settle,
         stateReads,
         withDiskThatAnswersAtOnce,
@@ -296,7 +297,7 @@ void main() {
     await settle();
 
     final state = container.read(salaSessionProvider);
-    expect(state.stage, SalaStage.ensaio);
+    expect(state.stage, SalaStage.conversa);
     expect(state.partes.single.path, gravada.path);
     expect(
       harness.room.calls,
@@ -350,11 +351,9 @@ void main() {
             'ensaio inteiro, e a retro era contada por cima do buraco',
       );
       expect(
-        state.partes,
-        isEmpty,
-        reason:
-            'a próxima parte era carimbada com o número da que sumiu, e '
-            'duas gravações diferentes chegavam ao servidor com um rótulo só',
+        [for (final parte in state.partes) parte.path],
+        [partes[0].path, partes[2].path],
+        reason: 'a conversa pousa com as partes que o tablet ainda guarda',
       );
       expect(
         File(partes.first.path).existsSync(),
@@ -390,10 +389,10 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(
       state.stage,
-      SalaStage.ensaio,
+      SalaStage.conversa,
       reason:
-          'a equipe que volta na semana seguinte encontra a passagem na '
-          'estação em que a deixou, não na conversa',
+          'a equipe que volta na semana seguinte pousa na conversa da '
+          'passagem, como num relançamento',
     );
     expect(
       state.partes.single.path,
@@ -450,6 +449,10 @@ void main() {
       await notifier.abrirEscolha();
       await settle();
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await intoTheBackTranslation(
+        notifier,
+        () => container.read(salaSessionProvider),
+      );
       await waitFor(
         'a sessão anterior estar de pé com o que ela contou',
         () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
@@ -629,6 +632,10 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+    await intoTheBackTranslation(
+      notifier,
+      () => container.read(salaSessionProvider),
+    );
     await waitFor(
       'a passagem anterior estar de pé com o que ela contou',
       () => container.read(salaSessionProvider).btFimDasPartesMs.isNotEmpty,
@@ -4796,7 +4803,10 @@ void main() {
     await notifier.abrirEscolha();
     await settle();
     await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    await settle();
+    await intoTheRecordingHome(
+      notifier,
+      () => container.read(salaSessionProvider),
+    );
 
     notifier.gravarACena(2);
     notifier.gravarACena(2);
