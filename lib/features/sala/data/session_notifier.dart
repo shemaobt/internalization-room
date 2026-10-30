@@ -7387,6 +7387,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void takeKeep() => _gesture(() => _takeKeep());
 
   void _takeKeep() {
+    if (state.joining != null) return;
     _silenceTheRoom();
     final path = _pendingTakePath;
     _pendingTakePath = null;

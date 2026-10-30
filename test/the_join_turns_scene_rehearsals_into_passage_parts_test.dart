@@ -1761,4 +1761,61 @@ void main() {
     closeTheRoom(it.container);
     semantics.dispose();
   });
+
+  testWidgets('a keep asked while a join runs keeps nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.seed();
+    for (final n in [1, 2, 3]) {
+      await it.heldOnTheTablet(n);
+    }
+    await it.toTheRecordingHome();
+    final notifier = it.container.read(salaSessionProvider.notifier);
+    notifier.leaveTheRecording();
+    await it.settle();
+    await it.openThePlan();
+    notifier.gravarACena(1);
+    await it.until(
+      'a gravação da cena 1 começar',
+      () =>
+          it.container.read(salaSessionProvider).ensaio ==
+          EnsaioStatus.recording,
+    );
+    notifier.gravarACena(1);
+    await it.until(
+      'a gravação da cena 1 terminar',
+      () =>
+          it.container.read(salaSessionProvider).ensaio ==
+          EnsaioStatus.recorded,
+    );
+    it.holdTheTake('parte-1');
+    notifier.joinTheScenes();
+    await it.until(
+      'a junta da cena 1 chegar à porta',
+      () =>
+          it.theHeldTakeArrived &&
+          it.container.read(salaSessionProvider).joining == 1,
+    );
+
+    notifier.takeKeep();
+    await it.settle();
+
+    expect(
+      it.container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.recorded,
+      reason:
+          'o guardar no meio da junta levava a tomada, e a parte da mão entrava '
+          'na fila por cima da parte que a sala estava juntando',
+    );
+    final entries = (await tester.runAsync(it.harness.takes.entries))!;
+    expect([
+      for (final row in entries)
+        if (row.origin == null) row.scope,
+    ], isEmpty);
+
+    it.room.finishHeldTake();
+    await _theJoinEnds(it);
+    closeTheRoom(it.container);
+    semantics.dispose();
+  });
 }
