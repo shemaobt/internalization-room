@@ -10499,6 +10499,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     if (guardada == null || state.sessionId != sessionId) return;
     if (oferecidas != null && !oferecidas.contains(guardada.scope)) {
+      _fraseNaFila = null;
+      state = state.copyWith(clearBtFraseGuardada: true);
       return _takes.withdraw(guardada);
     }
     if (!state.btTrechos.any((trecho) => trecho.segmentId == guardada.scope)) {

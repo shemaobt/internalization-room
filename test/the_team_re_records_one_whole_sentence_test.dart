@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
@@ -1594,6 +1595,119 @@ void main() {
       reason:
           'deixar a frase guardada de um trecho que saiu da lista apagava '
           'também a frase que aguarda',
+    );
+    closeTheRoom(container);
+  });
+
+  Future<(ProviderContainer, PendingTake)> comAFraseGuardadaDeVolta(
+    WidgetTester tester,
+    SalaHarness harness,
+  ) async {
+    final pasta = Directory.systemTemp.createTempSync('sala-1964-guardada');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    final guardada = await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: 'trecho-3',
+    );
+    final container = await _voltaATraducao(tester, harness);
+    await waitFor(
+      'a frase guardada voltar',
+      () => container.read(salaSessionProvider).btFraseGuardada == 'trecho-3',
+      step: () => _passo(tester),
+    );
+    return (container, guardada);
+  }
+
+  Future<void> deNovoNaTraducao(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await waitFor(
+      'a casa abrir',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+    notifier.startRetro();
+    await waitFor(
+      'a tradução abrir',
+      () => container.read(salaSessionProvider).stage == SalaStage.retro,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+  }
+
+  final semOTrecho3 = [
+    for (final trecho in _daSala)
+      if (trecho.segmentId != 'trecho-3') trecho,
+  ];
+  final oTrecho3 = _daSala.firstWhere(
+    (trecho) => trecho.segmentId == 'trecho-3',
+  );
+
+  testWidgets('a held sentence the room no longer offers is let go on '
+      'entering, and its line goes with it, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final (container, _) = await comAFraseGuardadaDeVolta(tester, harness);
+    harness.room.retroSoFar = BackTranslationProgress(
+      segments: semOTrecho3,
+      stale: [oTrecho3],
+    );
+
+    await deNovoNaTraducao(tester, container);
+    await waitFor(
+      'a frase superada sair da fila',
+      () async => await harness.takes.sentenceHeldIn('sessao-antiga') == null,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    expect(
+      container.read(salaSessionProvider).btFraseGuardada,
+      isNull,
+      reason:
+          'a frase largada do tablet ficava acesa em tentar de novo sobre '
+          'uma cópia apagada',
+    );
+    expect(
+      _naLista('não deu para guardar a frase — tentar de novo'),
+      findsNothing,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a held sentence over a frase recorded again that awaits its '
+      'translation is kept on entering: the team decides, as hers', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final (container, guardada) = await comAFraseGuardadaDeVolta(
+      tester,
+      harness,
+    );
+    harness.room.retroSoFar = BackTranslationProgress(
+      segments: semOTrecho3,
+      stale: [oTrecho3],
+      awaitingSegmentId: 'trecho-3',
+    );
+
+    await deNovoNaTraducao(tester, container);
+    await waitFor(
+      'a leitura da entrada dizer que o trecho 3 aguarda',
+      () => container.read(salaSessionProvider).btFraseQueAguarda == 'trecho-3',
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      (await harness.takes.sentenceHeldIn('sessao-antiga'))?.id,
+      guardada.id,
+      reason: 'a frase guardada sobre a frase que aguarda era largada',
     );
     closeTheRoom(container);
   });
