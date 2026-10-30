@@ -4193,6 +4193,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return _openTheRecordingHome(sessionId, listed: listed);
     }
     state = state.copyWith(ensaioFinalPlan: GrainAsked(elsewhere: elsewhere));
+    if (state.scenesOfThePassage != null) return;
+    final generation = _generation;
+    unawaited(
+      _room.scenesOf(sessionId).then((answer) {
+        if (answer case Answered(
+          :final value,
+        ) when value.isNotEmpty && !_abandoned(generation)) {
+          state = state.copyWith(scenesOfThePassage: value);
+        }
+      }),
+    );
   }
 
   /// «A passagem inteira» or «Cena por cena» on the grain choice.

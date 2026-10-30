@@ -157,11 +157,13 @@ Future<(SalaHarness, ProviderContainer)> _atRest(
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
   List<SceneRehearsalRecord> Function(String session)? seed,
+  void Function(SalaHarness harness)? before,
 }) async {
   final harness = SalaHarness(lingua: lingua, filaEmMemoria: true)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
     ..room.passageScenes = scenes;
+  before?.call(harness);
   final container = await pumpSala(tester, harness);
   addTearDown(() => closeTheRoom(container));
   final notifier = container.read(salaSessionProvider.notifier);
@@ -498,6 +500,39 @@ void main() {
       );
       expect(find.text(_how), findsNothing);
       harness.room.finishHeldTakesList();
+      await _settles(tester);
+    },
+  );
+
+  testWidgets(
+    '«Cena por cena» counts the passage\'s scenes on a choice that stood before '
+    'they were read, not «0 partes»',
+    (tester) async {
+      final (harness, _) = await _atRest(
+        tester,
+        seed: (session) => [_rehearsal(session)],
+        before: (harness) =>
+            harness.room.failScenesWith = const NetworkFailed('sem rede'),
+      );
+      harness.room
+        ..failScenesWith = null
+        ..holdNextSceneList();
+
+      await _tapTheDot(tester);
+      await tester.pump(const Duration(milliseconds: 5900));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text(_how), findsOneWidget);
+      expect(
+        find.text('3 partes'),
+        findsOneWidget,
+        reason:
+            'a escolha só contava as cenas que o plano tinha guardado, e dizia '
+            '«0 partes» quando a leitura não chegava',
+      );
+      expect(find.text('0 partes'), findsNothing);
+      harness.room.finishHeldSceneList();
       await _settles(tester);
     },
   );
