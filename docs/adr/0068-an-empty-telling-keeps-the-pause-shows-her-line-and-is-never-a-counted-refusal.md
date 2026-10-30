@@ -1,10 +1,16 @@
 ---
-status: accepted, amended by 0101, 0146
+status: accepted, amended by 0101, 0146, ENG-1925
 date: 2026-10-07
 amends: 0053 (the policy gains a row and an event that never counts), 0046 (in part: a wordless stretch is answered by her line shown, not the inaudible line)
 ---
 
 # An empty telling keeps the pause, shows her line, and is never a counted refusal
+
+Amended by ENG-1925 (2026-10-30): «an empty telling never calls a person» holds for the
+tellings only. A spoken turn on the Conversation or a Panorama that the room refuses as
+`WORDLESS_TELLING` is a refused turn like any other (ADR 0093) and raises the person sign, as
+hers does (`app/page.tsx:625`); it ends the voice's wait. The Retro, the scene rehearsals and
+every telling door are unchanged.
 
 This amends ADRs 0053 and 0046 without editing their decisions; it adds "amended by 0068"
 to their status lines. The Definer settled the rule on 7 October (ENG-1450), the app half of
