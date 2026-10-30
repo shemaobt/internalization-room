@@ -10817,6 +10817,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btSoOuvir: false,
     );
     _watchBusyState();
+    void theCheckFailed(RoomFailure failure) {
+      if (failure case NetworkFailed() || Refused()) {
+        state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
+        _decideAt(failure, door: Door.verdict);
+        state = state.copyWith(btPhase: pressedFrom);
+        return;
+      }
+      state = state.copyWith(btPhase: pressedFrom);
+      _decideTheFailure(failure);
+    }
+
     final BackTranslationVerdict verdict;
     final asked = await _room.finishBackTranslation(
       sessionId,
@@ -10828,15 +10839,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case Answered(value: final answer):
         verdict = answer;
       case final RoomFailure failure:
-        if (failure case NetworkFailed() || Refused()) {
-          state = state.copyWith(btRecusa: CheckRefusal.checkUnavailable);
-          _decideAt(failure, door: Door.verdict);
-          state = state.copyWith(btPhase: pressedFrom);
-          return;
-        }
-        state = state.copyWith(btPhase: pressedFrom);
-        _decideTheFailure(failure);
-        return;
+        return theCheckFailed(failure);
     }
     if (verdict.refusal
         case CheckRefusal.nothingTranslated || CheckRefusal.checkUnavailable) {
@@ -10866,31 +10869,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         () => _abandoned(generation),
       );
     }
+    if (verdict.refusal == null &&
+        verdict.audioUrl.isEmpty &&
+        verdict.fixedLine.isEmpty) {
+      return _theVerdictDidNotSound(pressedFrom);
+    }
+    final line = SpokenLine(
+      url: verdict.audioUrl,
+      fixedLine: verdict.fixedLine,
+      checkAt: verdict.checkAt,
+    );
+    var arrived = false;
     try {
-      final spoke = await _sayTheReply(
-        SpokenLine(
-          url: verdict.audioUrl,
-          fixedLine: verdict.fixedLine,
-          checkAt: verdict.checkAt,
-        ),
-        remember: !verdict.usedFailSafe,
-      );
+      final Said spoke;
+      try {
+        spoke = await _loadTheReply(
+          line,
+          generation,
+          asked: false,
+          remember: !verdict.usedFailSafe,
+          loaded: () => arrived = true,
+        );
+      } on RoomFailure catch (failure) {
+        if (_abandoned(generation)) return;
+        return theCheckFailed(failure);
+      }
       if (_abandoned(generation)) return;
       if (verdict.unheardTakeIds.isNotEmpty &&
           verdict.refusal == CheckRefusal.partUnheard) {
         _esperarQueFalteOuvir(sessionId, generation);
         return;
       }
-      // It returns, as all five of its siblings do: when the halt fires, the lines below
-      // would overwrite the call for a person with the closing screen.
+      // It returns, as all five of its siblings do: the lines below would close the
+      // passage on a verdict the team never heard.
       //
       // Leaving `thinking` is not decoration. The five siblings never speak from inside
       // it, so the invitation they hand back is already a gesture; this one does, and
       // `thinking` takes no tap and holds the finish button down — the team would be left
       // watching "um instante" with nothing to touch.
       if (!spoke.heard) {
-        state = state.copyWith(btPhase: pressedFrom);
-        return _registerUnplayableTurn();
+        if (arrived && !verdict.usedFailSafe) {
+          state = state.copyWith(lastSpoken: line);
+        }
+        return _theVerdictDidNotSound(pressedFrom);
       }
 
       if (verdict.checked) {
@@ -10940,6 +10961,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (_abandoned(generation)) return;
       _decideTheFailure(failure);
     }
+  }
+
+  void _theVerdictDidNotSound(BtPhase pressedFrom) {
+    state = state.copyWith(
+      btPhase: pressedFrom,
+      awaitingTheGuide: false,
+      btRecusa: CheckRefusal.checkUnavailable,
+    );
   }
 
   /// The team makes what it recorded its final draft.
