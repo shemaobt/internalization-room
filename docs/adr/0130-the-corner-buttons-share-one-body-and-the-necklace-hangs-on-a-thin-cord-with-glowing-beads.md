@@ -16,9 +16,8 @@ its own bullet.
 Amended by ENG-1994 (2026-10-29): the bead material is superseded, her frozen app 18fa7c4
 (`app/globals.css`) winning over this ADR. A bead at rest is `areia` at .55; a filled one is
 `verde-claro` at .92, with no gradient and no glow. The last filled bead, the growing edge,
-scales 1.1, and a bead just filled scales 1.2 for the 1.3 s it settles. The row's 9 % is
-measured from the canvas box the overlay is laid in, not from the screen. The cord and the
-bead sizes below stand.
+scales 1.1, and a bead just filled scales 1.2 for the 1.3 s it settles. Nothing of this ADR's
+necklace stands: ADR 0149 already replaced the cord and the 16 px beads with her 9 px row.
 
 This amends ADR 0062's "faint at rest" without editing it; it adds "amended by 0130" to its
 status line. Settled on the ticket (ENG-1536), from Henok's prototype choice of 9 October
@@ -36,8 +35,8 @@ was heavy and its beads, lit or not, looked the same weight.
   offered but not live, it draws at 0.2 and takes no touch.
 - **The hand keeps its own body.** It is a primary control with states (note mode, a reply
   waiting) that the light disc does not have.
-- **The necklace's cord is 1.5 px in `line`, its beads are 16 px** (the glow of a lit bead
-  is superseded above). At the Closing the beads stay as they hung.
+- **The necklace's cord is 1.5 px in `line`, its beads are 16 px, and a lit bead glows.**
+  Superseded by ADR 0149 (cord and sizes) and ENG-1994 (bead material).
 
 ## Consequences
 
