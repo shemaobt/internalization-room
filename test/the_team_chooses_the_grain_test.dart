@@ -240,7 +240,7 @@ Future<(SalaHarness, ProviderContainer)> _reopened(
       notifier.openTheEnsaioFinal();
       await waitFor(
         'as partes da sala chegarem à casa',
-        () => read().station == const Ensaio() && read().partsAway.isEmpty,
+        () => read().station == const Ensaio(),
         step: () => letTheRehearsalReachTheRoom(tester),
       );
     }

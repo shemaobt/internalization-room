@@ -642,9 +642,6 @@ class SalaSessionState {
   /// Whether a switch of the grain is in the air.
   final bool grainSwitching;
 
-  /// The current parts the room holds that this tablet does not yet, by take id.
-  final Map<String, PartAway> partsAway;
-
   const SalaSessionState({
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
@@ -753,7 +750,6 @@ class SalaSessionState {
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
-    this.partsAway = const {},
   });
 
   bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
@@ -818,16 +814,10 @@ class SalaSessionState {
       naRoda != null &&
       naRoda!.every((passagem) => passagem.isPanorama);
 
-  /// The advance disc lights: every Scene has its Part, every Part is on the tablet and
-  /// none waits in the Outbox, with nothing recorded and waiting.
+  /// The advance disc lights: every Scene has its Part and none waits in the Outbox,
+  /// with nothing recorded and waiting.
   bool get ensaioDone =>
-      ensaio == EnsaioStatus.idle &&
-      everySceneHasItsPart &&
-      everyPartIsHere &&
-      everyPartIsSent;
-
-  /// Whether no Part on its way is still to come down.
-  bool get everyPartIsHere => partsAway.isEmpty;
+      ensaio == EnsaioStatus.idle && everySceneHasItsPart && everyPartIsSent;
 
   bool get everyPartIsSent => !partes.any(_waitsToGoUp);
 
@@ -987,10 +977,6 @@ class SalaSessionState {
               : unsentParts[number] ?? _unsentByTheNewestKeptTake(number),
           inTheAir: partInTheAir(number),
           saved: saved.contains(scopeOfRow(number)),
-          away: switch (partIndexOf(number)) {
-            final index? => partsAway[partes[index].takeId],
-            null => null,
-          },
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           playing: _numberAt(playing) == number,
         ),
@@ -1536,7 +1522,6 @@ class SalaSessionState {
 
   bool get canListenToThePendingStretch =>
       _btNaVez &&
-      everyPartIsHere &&
       !wordlessTelling &&
       (btClipRodando ||
           btContaEscolhida != null ||
@@ -1633,15 +1618,11 @@ class SalaSessionState {
   static int _byNumber(KeptTake take) => KeptScope.numberOf(take.scopeId) ?? 0;
 
   bool get canOuvirTudo =>
-      partes.isNotEmpty &&
-      ensaio == EnsaioStatus.idle &&
-      everyPartIsHere &&
-      !needsPerson;
+      partes.isNotEmpty && ensaio == EnsaioStatus.idle && !needsPerson;
 
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
-      ensaio != EnsaioStatus.recording &&
-      everyPartIsHere;
+      ensaio != EnsaioStatus.recording;
 
   Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
     final Trecho trecho
@@ -1679,8 +1660,7 @@ class SalaSessionState {
       !needsPerson &&
       trecho.parte >= 0 &&
       trecho.parte < partes.length &&
-      partes[trecho.parte].isWav &&
-      aParteDoTrechoEstaAqui(trecho);
+      partes[trecho.parte].isWav;
 
   bool get overAnApprovedDraft => btRascunhoAprovado != null;
 
@@ -1707,7 +1687,6 @@ class SalaSessionState {
   bool get canListenAtConferida =>
       btPhase == BtPhase.conferida &&
       partes.isNotEmpty &&
-      everyPartIsHere &&
       aBackTranslationGestureActs;
 
   /// Whether a gesture on the Back-translation acts: never while an approval or an open of
@@ -1779,16 +1758,6 @@ class SalaSessionState {
         GuideSpeaking() => true,
         _ => btPhase == BtPhase.playing || btPhase == BtPhase.conferida,
       };
-
-  /// Whether the part the stretch [trecho] sits on is on the tablet.
-  bool aParteDoTrechoEstaAqui(Trecho trecho) => aParteDoTrecho(trecho) == null;
-
-  /// The part the stretch [trecho] sits on while it is not on the tablet.
-  KeptTake? aParteDoTrecho(Trecho trecho) => switch (trecho.parte) {
-    final at when at >= 0 && at < partes.length =>
-      partsAway.containsKey(partes[at].takeId) ? partes[at] : null,
-    _ => null,
-  };
 
   bool get canRetellAFrase =>
       stage == SalaStage.retro &&
@@ -1969,7 +1938,6 @@ class SalaSessionState {
     ({int cena, bool cannotEnter})? bringBackFailed,
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
-    Map<String, PartAway>? partsAway,
   }) {
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
@@ -2127,7 +2095,6 @@ class SalaSessionState {
           ? null
           : (bringBackFailed ?? this.bringBackFailed),
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
-      partsAway: partsAway ?? this.partsAway,
     );
   }
 }
@@ -2145,7 +2112,6 @@ class SceneRow {
   final UnsentPart? unsent;
   final TakeInTheAir? inTheAir;
   final bool saved;
-  final PartAway? away;
   final bool recording;
 
   /// The part in the air, playing or held.
@@ -2159,7 +2125,6 @@ class SceneRow {
     required this.unsent,
     required this.inTheAir,
     required this.saved,
-    required this.away,
     required this.recording,
     required this.playing,
   });
