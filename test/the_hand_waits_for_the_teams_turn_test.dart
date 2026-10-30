@@ -31,12 +31,11 @@ const _panorama = Passagem(
   kind: PassagemKind.panorama,
 );
 
-bool _reachable(Element hand) {
+bool _reachableBy(Element hand, bool Function(Widget) stops) {
   var reached = false;
   void visit(Element element) {
     final widget = element.widget;
-    if (widget is ExcludeSemantics && widget.excluding) return;
-    if (widget is IgnorePointer && widget.ignoring) return;
+    if (stops(widget)) return;
     if (widget is Semantics && (widget.properties.button ?? false)) {
       reached = true;
     }
@@ -46,6 +45,16 @@ bool _reachable(Element hand) {
   hand.visitChildElements(visit);
   return reached;
 }
+
+bool _reachable(Element hand) =>
+    _reachableBy(
+      hand,
+      (widget) => widget is IgnorePointer && widget.ignoring,
+    ) ||
+    _reachableBy(
+      hand,
+      (widget) => widget is ExcludeSemantics && widget.excluding,
+    );
 
 final _hand = find.byElementPredicate(
   (element) => element.widget is HandButton && _reachable(element),
