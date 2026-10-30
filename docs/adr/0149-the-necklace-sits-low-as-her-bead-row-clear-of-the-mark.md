@@ -1,10 +1,12 @@
 ---
-status: accepted, amended by ENG-1994 (2026-10-29: the bead material is hers, and the row's 9% is measured from the canvas box)
+status: accepted, amended by ENG-1994 (2026-10-29: the bead material is hers, and the row's 9% is measured from the canvas box), amended by ENG-1970
 date: 2026-10-28
 amends: 0130
 ---
 
 # The necklace sits low as her bead row, clear of the mark
+
+Amended by ENG-1970 (2026-10-30): there is no Closing; the necklace sits as set here on the conversation, finished or not.
 
 This amends ADR 0130's cord without editing it; it adds "amended by 0149" to its status
 line. The work is ENG-1961.

@@ -1822,8 +1822,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return ladder[step < ladder.length ? step : ladder.length - 1];
   }
 
-  void beginAgain() => _gesture(() => _handOff(_startOver()));
-
   void teamTapped() => _gesture(() {
     if (state.needsPerson) _dispatch(const TeamTapped());
   });
@@ -11579,25 +11577,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _rememberWhereTheyAre(const Ensaio());
   }
 
-  Future<void> _startOver() {
-    _clearAll();
-    _forgetThePassage();
-    state = SalaSessionState(
-      machine: _gesturesOnTheirWay.withTheOutboxOf(state.machine),
-    );
-    _arriveAt(const TheRoomStartedOver());
-    return abrirEscolha();
-  }
-
   /// Everything a passage leaves behind that the next one must not inherit.
   ///
   /// Mostly counters and latches with no home in the state object, so nothing about them
   /// is reset by rebuilding it; the cursor, the cut, the stretch being told again and the
   /// pending translation live in the state and are let go here too, the pending file with
-  /// them. `leaveThePassage` reset none of them and `_startOver` reset most: the stretch
-  /// being told again — armed when the team asks to tell one again and let go only by a
-  /// telling that lands — made the very first stretch of the next back translation upload
-  /// as a correction of a stretch that does not exist.
+  /// them. The stretch being told again — armed when the team asks to tell one again and
+  /// let go only by a telling that lands — would make the very first stretch of the next
+  /// back translation upload as a correction of a stretch that does not exist.
   void _forgetThePassage() {
     _relatarAEscuta();
     state = state.copyWith(btSoOuvir: false);

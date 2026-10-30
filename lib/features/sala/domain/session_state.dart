@@ -17,16 +17,7 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage {
-  panorama,
-  escolha,
-  conversa,
-  ensaio,
-  retro,
-  fim,
-  cena,
-  checagem,
-}
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, cena, checagem }
 
 enum OrangeDotLook { gone, faint, bright }
 
@@ -754,7 +745,7 @@ class SalaSessionState {
     this.grainSwitching = false,
   });
 
-  bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
+  bool get colarOn => stage == SalaStage.conversa;
 
   bool get entriesOpen =>
       stage == SalaStage.escolha &&
@@ -1029,7 +1020,6 @@ class SalaSessionState {
       !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
-      stage != SalaStage.fim &&
       stage != SalaStage.checagem &&
       !sceneRehearsalIsOpen;
 
@@ -1277,7 +1267,6 @@ class SalaSessionState {
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||
-        stage == SalaStage.fim ||
         (stage == SalaStage.retro && btPhase == BtPhase.conferida)) {
       return VoiceState.done;
     }
