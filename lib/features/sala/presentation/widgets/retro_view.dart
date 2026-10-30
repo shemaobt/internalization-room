@@ -270,7 +270,7 @@ class RetroView extends ConsumerWidget {
                 language,
                 notifier.recordTheWholePassage,
                 open: session.wholeSwitchActsOnTheCheck,
-                onFocusLeft: () => notifier.accessibilityFocusLeft('whole'),
+                onFocusLeft: notifier.accessibilityFocusLeft,
               ),
             ],
             const SizedBox(height: 48),

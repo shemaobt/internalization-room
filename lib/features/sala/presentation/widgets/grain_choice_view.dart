@@ -205,7 +205,7 @@ GrainChange wholeAtOnce(
   String language,
   VoidCallback onTap, {
   bool? open,
-  VoidCallback? onFocusLeft,
+  void Function(String control)? onFocusLeft,
 }) => _armed(
   session,
   'whole',
@@ -224,7 +224,7 @@ GrainChange backToJoin(
   SalaSessionState session,
   String language,
   VoidCallback onTap, {
-  VoidCallback? onFocusLeft,
+  void Function(String control)? onFocusLeft,
 }) => _armed(
   session,
   'backToJoin',
@@ -242,7 +242,7 @@ GrainChange _armed(
   required VoidCallback onTap,
   bool? open,
   bool needs = false,
-  VoidCallback? onFocusLeft,
+  void Function(String control)? onFocusLeft,
 }) {
   final arm = session.armedTap;
   final mine = arm?.control == control;
@@ -253,7 +253,7 @@ GrainChange _armed(
         (open ?? !session.nothingStartsNow) &&
         !(mine && arm?.phase == BtRecomeco.armado),
     onTap: onTap,
-    onFocusLeft: onFocusLeft,
+    onFocusLeft: onFocusLeft == null ? null : () => onFocusLeft(control),
   );
 }
 
@@ -275,7 +275,7 @@ class GrainControls extends ConsumerWidget {
               session,
               language,
               notifier.recordTheWholePassage,
-              onFocusLeft: () => notifier.accessibilityFocusLeft('whole'),
+              onFocusLeft: notifier.accessibilityFocusLeft,
             )
           else
             GrainChange(
@@ -294,7 +294,7 @@ class GrainControls extends ConsumerWidget {
               session,
               language,
               notifier.joinTheScenesAgain,
-              onFocusLeft: () => notifier.accessibilityFocusLeft('backToJoin'),
+              onFocusLeft: notifier.accessibilityFocusLeft,
             ),
         ],
       ],

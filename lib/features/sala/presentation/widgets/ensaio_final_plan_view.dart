@@ -220,7 +220,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                 session,
                 language,
                 notifier.recordTheWholePassage,
-                onFocusLeft: () => notifier.accessibilityFocusLeft('whole'),
+                onFocusLeft: notifier.accessibilityFocusLeft,
               ),
               TextButton(
                 onPressed: idle && !session.grainSwitching
