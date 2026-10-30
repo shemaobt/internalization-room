@@ -1235,6 +1235,102 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a frase the room told back without a name offers no '
+      '«regravar», so no sentence is recorded that could not be kept', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true)
+      ..room.chunksAnswerWithNoName = true;
+    final container = await quatroFrasesEmWav(tester, harness);
+    final semNome = [
+      for (final trecho in container.read(salaSessionProvider).btTrechos)
+        if (trecho.segmentId == null) trecho.frase,
+    ];
+    expect(semNome, isNotEmpty, reason: 'o cenário precisa de frases sem nome');
+
+    expect(
+      [
+        for (final linha
+            in tester.widget<FraseList>(find.byType(FraseList)).rows)
+          if (linha.regravar != null && semNome.contains(linha.n)) linha.n,
+      ],
+      isEmpty,
+      reason:
+          'a frase sem nome oferecia regravar e a gravação era apagada ao '
+          'fechar o microfone',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a sentence held on a stretch the room reads with no length '
+      'still goes up at the tap of its «tentar de novo»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    await gravarAFrase(tester, harness, 3);
+    final segura = harness.room.holdTheSentence = Completer<void>();
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    final semExtensao = BackTranslationProgress(
+      segments: [
+        for (final (antes, trecho) in harness.room.segments.indexed)
+          SegmentView(
+            segmentId: trecho.segmentId,
+            takeId: trecho.takeId,
+            startsMs: trecho.startsMs,
+            endsMs: trecho.segmentId == 'trecho-3'
+                ? trecho.startsMs
+                : trecho.endsMs,
+            told: trecho.told,
+            frase: antes + 1,
+          ),
+      ],
+    );
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..sentenceAnswersFirst.add(const Refused('DRAFT_APPROVED'))
+      ..retroSoFar = semExtensao;
+    segura.complete();
+    await waitFor(
+      'a sala ler o trecho da frase guardada sem extensão',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.segmentId == 'trecho-3')
+              .single
+              .to ==
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.segmentId == 'trecho-3')
+              .single
+              .from,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    const falhou = 'não deu para guardar a frase — tentar de novo';
+    const armado = 'toquem de novo: isto abre de novo o rascunho aprovado';
+    expect(linhasCom(tester, falhou), [3]);
+    await tocar(tester, falhou);
+    await tester.pump(const Duration(seconds: 2));
+    await tocar(tester, armado);
+    await waitFor(
+      'a frase subir de novo',
+      () => harness.room.sentencesSent.length == 2,
+      step: () => _passo(tester),
+    );
+
+    expect(
+      harness.room.sentencesSent.last.segmentId,
+      'trecho-3',
+      reason:
+          'o toque lia a sala, não achava o trecho e guardava a frase de '
+          'novo, sem nunca enviar',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a sentence laid in is announced in her words and plays in its '
       'place on the new take, with a second and a half around it', (
     tester,

@@ -10098,13 +10098,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     final nome = guardada.scope;
     final generation = _waitOnTheGeneration;
-    var frase = state.trechoChamado(nome)?.frase;
+    var frase = _aFraseChamada(nome)?.frase;
     if (frase == null) {
       await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation)) return;
-      frase = state.trechoChamado(nome)?.frase;
+      frase = _aFraseChamada(nome)?.frase;
     }
-    if (frase == null) return _guardarAFrase(nome);
+    if (frase == null) return _esquecerAFrase();
     state = state.copyWith(
       btRegravacao: RegravacaoDaFrase(
         frase,
@@ -10392,6 +10392,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Trecho? _aFrase(int frase) =>
       state.btTrechos.where((trecho) => trecho.frase == frase).firstOrNull;
+
+  Trecho? _aFraseChamada(String nome) =>
+      state.btTrechos.where((trecho) => trecho.segmentId == nome).firstOrNull;
 
   void ouvirAFraseGravada() => _gesture(() {
     final path = state.btRegravacao?.path;

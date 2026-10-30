@@ -1667,6 +1667,7 @@ class SalaSessionState {
       !btSoOuvir &&
       aBackTranslationGestureActs &&
       trecho.frase != null &&
+      trecho.segmentId != null &&
       btFraseTraduzidaDeNovo == null &&
       btRegravacao?.passo != PassoDaRegravacao.enviando &&
       btFraseDevida == null &&
