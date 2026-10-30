@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
@@ -8,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'fakes.dart';
+import 'machine_generator.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         cabeca,
@@ -112,6 +115,46 @@ void main() {
         );
 
         expect(effects, const [ArmTheCeiling()]);
+      }
+    });
+
+    test('a part that fails on every other Station tells nothing', () {
+      for (final station in _everyOtherStation) {
+        final (_, effects) = reduce(
+          Machine(station: station, channel: const PartPlaying(_part)),
+          PlayerFailed(_part.source, sound: _part),
+        );
+
+        expect(effects, isNot(contains(const TellThePlayFailed())));
+      }
+    });
+
+    test('in every sequence a sound that fails tells the screen only on the '
+        'Back-translation', () {
+      for (var seed = 0; seed < 50; seed++) {
+        final random = Random(seed);
+        var machine = const Machine(station: Retro());
+        var world = const World();
+        for (var step = 0; step < 40; step++) {
+          if (machine.channel case Playing(:final sound)) {
+            final (_, effects) = reduce(
+              machine,
+              PlayerFailed(sound.source, sound: sound),
+            );
+            expect(
+              effects.contains(const TellThePlayFailed()),
+              machine.station is Retro &&
+                  !(sound is StretchSound && sound.telling),
+              reason:
+                  'seed $seed, step $step: ${describeMachine(machine)} | '
+                  '${effects.map(describeEffect).join(', ')}',
+            );
+          }
+          final event = drawAnEvent(world, random);
+          final (next, drawn) = reduce(machine, event);
+          world = world.after(event, drawn);
+          machine = next;
+        }
       }
     });
   });
