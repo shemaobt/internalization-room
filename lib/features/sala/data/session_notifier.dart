@@ -3672,7 +3672,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           regravados: told.stale,
         ),
       );
-      unawaited(_lembrarDaFraseGuardada(sessionId));
+      unawaited(
+        _lembrarDaFraseGuardada(sessionId, oferecidas: _oferecidas(told)),
+      );
     }
     void toTheFloor() {
       if (told.checked) {
@@ -8295,16 +8297,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
     final sessionId = state.sessionId;
+    Set<String>? oferecidas;
     if ((juntada || conferida) && sessionId != null) {
       final falha = await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
-      if (falha == null) conferida = state.btChecked;
+      if (falha == null) {
+        conferida = state.btChecked;
+        oferecidas = {
+          for (final trecho in state.btTrechos) ?trecho.segmentId,
+          ?state.btFraseQueAguarda,
+        };
+      }
     } else if (entrando && sessionId != null) {
-      await _readWhatAwaits(sessionId);
+      oferecidas = await _readWhatAwaits(sessionId);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
     if (entrando && sessionId != null) {
-      unawaited(_lembrarDaFraseGuardada(sessionId));
+      unawaited(_lembrarDaFraseGuardada(sessionId, oferecidas: oferecidas));
     }
     bool deixou() => _abandoned(generation) || _endedSince(life);
     final ouvida = await _oQueASalaOuviu(generation);
@@ -10454,7 +10463,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// The frase that awaits its translation, as the room reads it on entering the
   /// telling-back.
-  Future<void> _readWhatAwaits(String sessionId) async {
+  /// The frases the read still offers, or null when it failed.
+  Future<Set<String>?> _readWhatAwaits(String sessionId) async {
     final sent = ++_readsSent;
     if (await _room.fetchState(sessionId) case Answered(
       value: final lida,
@@ -10464,17 +10474,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         btFraseQueAguarda: aguardando,
         clearBtFraseQueAguarda: aguardando == null,
       );
+      return _oferecidas(lida.backTranslation);
     }
+    return null;
   }
 
-  Future<void> _lembrarDaFraseGuardada(String sessionId) async {
+  /// The frases [told] still offers a held sentence: every fresh one, and the stale one
+  /// that awaits its translation.
+  static Set<String> _oferecidas(BackTranslationProgress told) => {
+    for (final segment in told.segments) segment.segmentId,
+    ?told.awaitingSegmentId,
+  };
+
+  /// The sentence held on the tablet, back on its frase. It is let go only when the
+  /// room's read no longer offers its frase; a read that failed, [oferecidas] null, lets
+  /// go of nothing (her heldSuperseded).
+  Future<void> _lembrarDaFraseGuardada(
+    String sessionId, {
+    required Set<String>? oferecidas,
+  }) async {
     final guardada = await _takes.sentenceHeldIn(
       sessionId,
       passage: _thePassage,
     );
     if (guardada == null || state.sessionId != sessionId) return;
-    if (!state.btTrechos.any((trecho) => trecho.segmentId == guardada.scope)) {
+    if (oferecidas != null && !oferecidas.contains(guardada.scope)) {
       return _takes.withdraw(guardada);
+    }
+    if (!state.btTrechos.any((trecho) => trecho.segmentId == guardada.scope)) {
+      return;
     }
     _fraseNaFila = guardada;
     state = state.copyWith(btFraseGuardada: guardada.scope);

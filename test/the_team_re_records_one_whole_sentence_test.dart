@@ -1598,6 +1598,46 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('entering the telling-back on a read that fails lets go of no '
+      'held sentence, as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _voltaATraducao(tester, harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    final pasta = Directory.systemTemp.createTempSync('sala-1964-lida');
+    addTearDown(() => pasta.deleteSync(recursive: true));
+    await harness.takes.enqueue(
+      File('${pasta.path}/frase.wav')
+        ..writeAsBytesSync(aSpokenWav(length: const Duration(seconds: 2))),
+      sessionId: 'sessao-antiga',
+      kind: 'frase',
+      scope: 'trecho-fora-da-memoria',
+    );
+    notifier.goEnsaio();
+    await waitFor(
+      'a casa abrir',
+      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
+      step: () => _passo(tester),
+    );
+    harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+    notifier.startRetro();
+    await waitFor(
+      'a leitura da entrada falhar',
+      () => harness.room.failStateOnceWith == null,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+    await _passo(tester);
+
+    expect(
+      await harness.takes.sentenceHeldIn('sessao-antiga'),
+      isNotNull,
+      reason:
+          'a leitura que falhou largava a frase guardada, julgada contra os '
+          'trechos em memória',
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a relaunch with a frase awaiting and another take unheard plays '
       'the listen first, not the frase', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
