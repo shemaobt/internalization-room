@@ -479,6 +479,21 @@ void main() {
     expect(effects, isEmpty);
   });
 
+  test('the way back from the Scene rehearsal carries the turn in flight and '
+      'its look to the Canvas', () {
+    for (final sending in [
+      _at(const SceneRehearsal()).copyWith(inFlight: _aGivenUpTurn),
+      _lookingAt(_at(const SceneRehearsal())),
+    ]) {
+      final (machine, _) = reduce(sending, const TheSceneRehearsalLeft());
+
+      expect(machine.station, isA<Canvas>());
+      expect(machine.generation, _generation);
+      expect(machine.inFlight, sending.inFlight);
+      expect(machine.look, sending.look);
+    }
+  });
+
   test('the sign held on the scene screen shows when the team is back on the '
       'Canvas', () {
     final (held, heldEffects) = reduce(

@@ -1642,9 +1642,15 @@ const _watch = ArmTheWatch();
 (Machine, List<Effect>) _reachTheStation(Machine machine, StationEvent event) {
   final next = machine.station.answer(event);
   if (next == machine.station) return (machine, const []);
-  final arrived = moveTheGeneration(
-    machine,
-  ).copyWith(station: next, wordlessTelling: false, letTheWaitingHaltGo: true);
+  final carriesTheSceneTurn =
+      event is TheSceneRehearsalLeft &&
+      (machine.inFlight != null || machine.look != null);
+  final arrived = (carriesTheSceneTurn ? machine : moveTheGeneration(machine))
+      .copyWith(
+        station: next,
+        wordlessTelling: false,
+        letTheWaitingHaltGo: true,
+      );
   if (machine.aHaltWaitsForTheCanvas case final waiting? when next is Canvas) {
     return _theHalt(arrived, waiting);
   }
