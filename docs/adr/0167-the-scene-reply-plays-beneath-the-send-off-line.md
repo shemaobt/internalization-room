@@ -6,7 +6,7 @@ amends: 0101 (in part: where the reply plays), 0165 (in part: the send-off line 
 
 # The scene reply plays beneath the send-off line
 
-This amends ADR 0101 without editing its decision; it adds "amended by 0166" to its status
+This amends ADR 0101 without editing its decision; it adds "amended by 0167" to its status
 line. The Definer settled it on the ticket (ENG-1907) on 29 October, and her frozen app wins:
 the reply is voiced while «foi para a voz» flashes, and the screen closes 1.4 s later
 (`page.tsx:711-720`).
