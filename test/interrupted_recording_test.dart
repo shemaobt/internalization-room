@@ -18,6 +18,7 @@ class RecorderSpy extends RecordPlatform {
   bool wavSupported = true;
   bool encoderCheckFails = false;
   bool recordingAgain = false;
+  final List<String> calls = [];
   final StreamController<RecordState> states =
       StreamController<RecordState>.broadcast();
 
@@ -35,6 +36,7 @@ class RecorderSpy extends RecordPlatform {
     required String path,
   }) async {
     if (refusesToOpen) throw const FileSystemException('disco cheio');
+    calls.add('start');
     openedWith = config;
     openedPath = path;
   }
@@ -50,6 +52,7 @@ class RecorderSpy extends RecordPlatform {
 
   bool aStopEndsTheRecording = false;
   void Function()? whenAsked;
+  Completer<void>? holdsTheAnswer;
 
   @override
   Future<bool> isRecording(String recorderId) async {
@@ -57,11 +60,13 @@ class RecorderSpy extends RecordPlatform {
     final slipIn = whenAsked;
     whenAsked = null;
     slipIn?.call();
+    if (holdsTheAnswer case final held?) await held.future;
     return answer;
   }
 
   @override
   Future<String?> stop(String recorderId) async {
+    calls.add('stop');
     if (aStopEndsTheRecording) recordingAgain = false;
     return openedPath;
   }
@@ -443,6 +448,39 @@ void main() {
     );
 
     expect(after.existsSync(), isFalse);
+  });
+
+  test('a start asked right after a discard opens the new take only once the '
+      'discard has stopped the old one', () async {
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+    await recording.start('conversa_1');
+    microphone
+      ..recordingAgain = true
+      ..aStopEndsTheRecording = true;
+    final dead = File(microphone.openedPath!)..createSync(recursive: true);
+    final asked = microphone.holdsTheAnswer = Completer<void>();
+
+    final discarding = recording.discard();
+    final starting = recording.start('conversa_2');
+    await pumpEventQueue(times: 200);
+    asked.complete();
+    await discarding;
+    await starting;
+    await pumpEventQueue();
+
+    expect(
+      microphone.calls,
+      ['start', 'stop', 'start'],
+      reason:
+          'a nova vez chegava ao gravador entre a pergunta do discard e a sua '
+          'parada, e a parada caía sobre a vez nova em vez da morta',
+    );
+    expect(
+      dead.existsSync(),
+      isFalse,
+      reason: 'o discard apagou a vez nova e deixou a morta no disco',
+    );
   });
 
   test('a discard stops and deletes the recording that is open', () async {

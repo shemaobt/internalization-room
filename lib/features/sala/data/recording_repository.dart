@@ -54,7 +54,9 @@ class RecordingRepository {
   Future<Capture> start(
     String fileName, {
     MicOwner owner = MicOwner.conversation,
-  }) async {
+  }) => _inTurn(() => _start(fileName, owner: owner));
+
+  Future<Capture> _start(String fileName, {required MicOwner owner}) async {
     if (await hasPermission() == false) return Capture.denied;
     final roomFilters =
         owner != MicOwner.rehearsal &&
