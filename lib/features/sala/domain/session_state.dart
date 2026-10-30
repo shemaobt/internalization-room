@@ -1355,12 +1355,15 @@ class SalaSessionState {
           !needsPerson &&
           (_aPassageWaits || naRoda != null));
 
-  /// The way back to a passage held answers the finger always; to any other entry, only
+  /// The way back to a passage held answers the finger always, except while a pill's open
+  /// is in flight: that open is adopted when it answers (ADR 0143); to any other entry, only
   /// while the Wheel is quiet. From any Step of the scene rehearsal it answers with its
   /// microphone open and «terminei» in the air included.
   bool get theWayBackIsLive => sceneRehearsalIsOpen
       ? !scene.wentToTheVoice
-      : theWayBackIsOffered && (_aPassageWaits || voice == VoiceState.invite);
+      : theWayBackIsOffered &&
+            openingEntry == null &&
+            (_aPassageWaits || voice == VoiceState.invite);
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or the person sign stands

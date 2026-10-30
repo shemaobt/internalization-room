@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1997
+status: accepted, amended by ENG-1997 and ENG-2112
 date: 2026-10-28
 amends: 0137 (in part: a failed open with a passage left lays that passage back instead of resting on the Choice)
 ---
@@ -16,6 +16,11 @@ over on the Choice, letting go of what waited. The passage
 left keeps its kept retellings' audio while it waits, so one replays offline once it is laid
 back; the audio goes when the passage is let go: another passage opens, or the room lets its
 session go.
+
+Amended by ENG-2112 (2026-10-30): while a pill's open is in flight the chevron does not answer,
+so the open is adopted when it answers (hers: `app/page.tsx:786-793`), never dropped for the
+passage left. An `Error` thrown by the room's call is a failed call like any other: it frees the
+flight and raises no person sign.
 
 This amends ADR 0137 without editing its decision: it adds "amended by 0143" to its status
 line. Her app is the bar: the session stays in memory under her picker (`app/page.tsx:407`),

@@ -1788,6 +1788,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return await send();
     } on FileSystemException catch (error) {
       return NetworkFailed('$error');
+    } on Error catch (error, stack) {
+      debugPrint('$error\n$stack');
+      return NetworkFailed('$error');
     }
   }
 

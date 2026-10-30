@@ -587,6 +587,52 @@ void main() {
     expect(reduce(waiting, const TheSessionLetGo('s2')).$1.waiting, left);
   });
 
+  test(
+    'the chevron tapped while a pill\'s open is in flight still lands on '
+    'the passage that opened, as hers adopts what the open answers',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+      harness.room.holdNextCreate();
+
+      tablet.notifier.openTheEntry(p02);
+      await waitFor('the open to be in flight', () => harness.room.createHeld);
+      await tablet.notifier.returnToTheLeftEntry();
+      harness.room.finishHeldCreate();
+      await waitFor(
+        'P02 to open',
+        () => read().pericope == 'P02' && read().voice == VoiceState.invite,
+      );
+
+      expect(read().station, isA<Canvas>());
+      expect(read().sessionId, isNot(tablet.p01));
+      expect(read().sessionId, harness.room.sessionIds.last);
+    },
+  );
+
+  test('an Error thrown in the open raises no person sign and frees the '
+      'flight', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    harness.room.throwOn['openSession'] = StateError('the player broke');
+
+    tablet.notifier.openTheEntry(p02);
+    await waitFor(
+      'the open to be given up',
+      () => harness.room.calls.contains('openSession'),
+    );
+    await settle();
+    await settle();
+
+    expect(read().needsPerson, isFalse);
+    expect(read().machine.inFlight, isNull);
+    expect(read().openingEntry, isNull);
+  });
+
   group('the way back from the Choice', () {
     const held = LeftEntry(pericope: 'P01', book: 'Ruth', session: 's1');
     const noSession = LeftEntry(pericope: 'P01', book: 'Ruth');
