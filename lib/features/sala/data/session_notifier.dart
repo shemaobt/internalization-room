@@ -3341,27 +3341,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final listing = await _room.takesOf(sessionId);
     if (_endedSince(life) || state.sessionId != sessionId) return;
     if (listing case Answered(value: final guardadas)) {
-      _takeTheNamesTheRoomLists(guardadas);
+      await _takeTheNamesTheRoomLists(guardadas, life);
     }
   }
 
-  void _takeTheNamesTheRoomLists(List<TakeView> guardadas) {
+  Future<void> _takeTheNamesTheRoomLists(
+    List<TakeView> guardadas,
+    int? life,
+  ) async {
     final correntes = _correntes(guardadas);
-    final named = <KeptTake>[];
-    var adopted = false;
+    final names = <String, String>{};
     for (final take in state.keptTakes) {
       final corrente = _namelessOffTheOutbox(take)
           ? correntes[KeptScope.numberOf(take.scopeId)]
           : null;
-      if (corrente != null && (corrente.pass ?? 1) == take.pass) {
-        named.add(take.withTakeId(corrente.takeId));
-        adopted = true;
-      } else {
-        named.add(take);
+      if (corrente == null || (corrente.pass ?? 1) != take.pass) continue;
+      final fingerprint = await _takes.fingerprintOf(take.path);
+      if (_endedSince(life)) return;
+      if (fingerprint != null && fingerprint == corrente.sha256) {
+        names[take.path] = corrente.takeId;
       }
     }
-    if (!adopted) return;
-    state = state.copyWith(keptTakes: named);
+    if (names.isEmpty) return;
+    state = state.copyWith(
+      keptTakes: [
+        for (final take in state.keptTakes)
+          if (names[take.path] case final id? when take.takeId == null)
+            take.withTakeId(id)
+          else
+            take,
+      ],
+    );
     _theNamesWereAdopted();
   }
 
@@ -5509,7 +5519,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (guardadas == null) return;
     if (_abandoned(generation)) return;
-    _takeTheNamesTheRoomLists(guardadas);
+    await _takeTheNamesTheRoomLists(guardadas, _thisLife);
+    if (_abandoned(generation)) return;
     final held = state.partNumbers;
     final standing = _theRowsStanding;
     final altas = _passadasMaisAltas(guardadas);

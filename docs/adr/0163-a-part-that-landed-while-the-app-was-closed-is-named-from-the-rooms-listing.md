@@ -26,15 +26,18 @@ sent it.
 ## Decision
 
 **A kept part with no take id and no Outbox row waiting for it takes the take id the room's
-listing holds as current at its number and pass, on the next listing read, and every
-adoption writes the Resume point at once.** The resume reads the listing for this when a
-kept part is nameless off the Outbox, after landing, and the recording home's lay-in names
-such a part over the listing it has already read. The tablet's own file stays the part;
-nothing is fetched. A part the Outbox still holds is left alone: its name is its own landing,
-as ADR 0025 says, and a take another tablet sent at its number is never borrowed. The Resume
-point is written under the station the row already says, never under where the team stands,
-so a relaunch straight into a passage, which lands on the conversa, keeps the row on the
-rehearsal.
+listing holds as current at its number and pass when that take's sha256 is the kept file's
+own, on the next listing read, and every adoption writes the Resume point at once.** The
+listing carries each take's sha256, which the Outbox announced when the recording went up,
+so the recording is keyed by its bytes, as her part is the server's clip. The resume reads
+the listing for this when a kept part is nameless off the Outbox, after landing, and the
+recording home's lay-in names such a part over the listing it has already read. The tablet's
+own file stays the part; nothing is fetched. A part the Outbox still holds is left alone: its
+name is its own landing, as ADR 0025 says. A take another tablet sent at the same number and
+pass has other bytes and is never borrowed, whichever landed last; a listing with no sha256
+names nothing. The Resume point is written under the station the row already says, never
+under where the team stands, so a relaunch straight into a passage, which lands on the
+conversa, keeps the row on the rehearsal.
 
 ADR 0154's last rule now reads: a part whose upload has not landed keeps the check closed; a
 part that landed without this tablet learning its name is named from the listing and counts

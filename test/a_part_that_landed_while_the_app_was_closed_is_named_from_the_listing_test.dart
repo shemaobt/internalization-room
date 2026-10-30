@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -15,6 +16,8 @@ import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio;
 import 'scenario_helpers.dart' show relaunch, settle, umaParteInteira;
 
 final _parte3 = KeptScope.parte(3);
+const _bytesDaParte = [1, 2, 3];
+final _shaDaParte = crypto.sha256.convert(_bytesDaParte).toString();
 
 Future<(SalaHarness, ProviderContainer)>
 _aParte3QueChegouComOAppFechado() async {
@@ -80,7 +83,7 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
             scopeId: KeptScope.parte(parte),
             path: (File(
               '${home.path}/p$parte.m4a',
-            )..writeAsBytesSync([1, 2, 3])).path,
+            )..writeAsBytesSync(_bytesDaParte)).path,
             takeId: parte == 3 ? null : 'antiga-$parte',
           ),
       ],
@@ -94,6 +97,7 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
         scope: KeptScope.parte(parte),
         ordinal: parte,
         pass: parte == 3 ? passNaSala : 1,
+        sha256: parte == 3 ? _shaDaParte : null,
       ),
   ]);
   harness.room.failTakesWith = const NetworkFailed('sem rede');
@@ -278,6 +282,32 @@ void main() {
           'a parte guardada no passe 1 tomava o nome da gravação do passe 3 '
           'que outro tablet subiu, e os trechos contados sobre ela iam para '
           'a gravação errada',
+    );
+    expect(harness.room.clipsFetched, isEmpty);
+  });
+
+  test("a landed part never takes the name of another tablet's take at its "
+      'number and pass that arrived after it', () async {
+    final (before, first) = await _aParte3QueChegouLongeDaPassagem();
+    before.room.takes.add(
+      TakeView(
+        takeId: 'de-outro-tablet',
+        kind: partTakeKind,
+        scope: _parte3,
+        ordinal: 3,
+        pass: 1,
+      ),
+    );
+    final (harness, container) = await relaunch(before, first);
+    await _voltarAoEnsaio(container);
+    await settle(const Duration(seconds: 1));
+
+    expect(
+      container.read(salaSessionProvider).partes[2].takeId,
+      isNull,
+      reason:
+          'a parte que chegou à sala tomava o nome da gravação de outro '
+          'tablet, no mesmo número e passe, só por ela ter chegado depois',
     );
     expect(harness.room.clipsFetched, isEmpty);
   });
