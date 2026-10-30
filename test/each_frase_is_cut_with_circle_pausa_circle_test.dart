@@ -2256,4 +2256,39 @@ void main() {
       await settle();
     },
   );
+
+  test(
+    'the room\'s list landing while the team\'s translation sounds leaves it '
+    'sounding, as hers',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      room.harness.room
+        ..sendRefusalsFirst.add(RefusalCode.unnamed(422))
+        ..holdNextSceneList();
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'a sala descansar',
+        () => !room.state.theSceneIsSending && !room.state.scene.waiting,
+      );
+      room.sala.hearTheFraseTranslation('f1');
+      await waitFor(
+        'a tradução da frase tocar',
+        () => room.harness.playback.played.any(
+          (path) => path.endsWith('cena-ensaio-da-cena-1-frase-f1.wav'),
+        ),
+      );
+
+      room.harness.room.finishHeldSceneList();
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        room.state.channel,
+        isA<PartPlaying>(),
+        reason: 'a lista que chegava calava a tradução de vocês que soava',
+      );
+      expect(room.harness.playback.played, hasLength(1));
+    },
+  );
 }
