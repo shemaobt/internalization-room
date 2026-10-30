@@ -42,7 +42,7 @@ Future<void> _backInTheSession(Sala it, String session) async {
 
 void main() {
   test(
-    'the lines warmed when the team goes back into an English session are warmed in English',
+    'the lines warmed when the team goes back into an English session are warmed in the room language',
     () async {
       final (it, english) =
           await _anEnglishSessionReachedAgainAfterPtWasTapped();
@@ -51,7 +51,7 @@ void main() {
       await _backInTheSession(it, english);
 
       expect(it.harness.voice.readied, isNotEmpty);
-      expect(it.harness.voice.readied.map((it) => it.$2), everyElement('en'));
+      expect(it.harness.voice.readied.map((it) => it.$2), everyElement('pt'));
     },
   );
 
@@ -98,7 +98,7 @@ void main() {
   );
 
   test(
-    'the approval line is spoken in the language the session was opened in, whatever the room language became',
+    'the approval line is spoken in the room language, whatever language the session was opened in',
     () async {
       final it = await umEnsaioDeTresPartesContadoInteiro();
       await pedirOVeredito(it);
@@ -117,10 +117,10 @@ void main() {
       await it.sala.aprovarRascunhoFinal();
       await settle();
 
-      expect(it.harness.voice.fixedLines, contains((approvedLine, 'pt')));
+      expect(it.harness.voice.fixedLines, contains((approvedLine, 'en')));
       expect(
         it.harness.voice.fixedLines,
-        isNot(contains((approvedLine, 'en'))),
+        isNot(contains((approvedLine, 'pt'))),
       );
     },
   );
@@ -171,7 +171,7 @@ void main() {
   );
 
   test(
-    'The Panorama\'s language is the one the room speaks at the Panorama',
+    'the acknowledgement plays in the room language after a Panorama is reached again, whatever language it was opened in',
     () async {
       final harness = SalaHarness(lingua: null)
         ..room.passages = const [
@@ -213,7 +213,7 @@ void main() {
         () => it.harness.voice.fixedLines.isNotEmpty,
       );
 
-      expect(it.harness.voice.fixedLines.first.$2, 'en');
+      expect(it.harness.voice.fixedLines.first.$2, 'pt');
     },
   );
 }
