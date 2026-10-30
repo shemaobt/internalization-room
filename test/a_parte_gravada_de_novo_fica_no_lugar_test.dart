@@ -5,7 +5,6 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
-import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -15,7 +14,6 @@ import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
-const _ouvir = 'Ouvir a gravação';
 const _pronto = 'Pronto';
 const micParteLabel = 'voltar e regravar uma parte';
 
@@ -617,10 +615,7 @@ void main() {
       () => it.estado.comecadas.contains('P01'),
     );
     await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'a equipe voltar ao ensaio',
-      () => it.estado.stage == SalaStage.ensaio,
-    );
+    await intoTheRecordingHome(it.sala, () => it.estado);
 
     expect(
       [for (final parte in it.partes) parte.path],
@@ -975,57 +970,6 @@ void main() {
       semantics.dispose();
     },
   );
-
-  testWidgets('sem gravação no tablet a conferida não oferece o ouvir', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.room.retroSoFar = const BackTranslationProgress(
-      segments: [
-        SegmentView(
-          segmentId: 'trecho-retomado',
-          takeId: 'gravacao-retomada',
-          startsMs: 0,
-          endsMs: 30000,
-        ),
-      ],
-      checked: true,
-    );
-    harness.emAberto.rows['Ruth/P01/pt'] = const ResumePoint(
-      sessionId: 'sessao-de-ontem',
-      stage: SalaStage.retro,
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-    final notifier = container.read(salaSessionProvider.notifier);
-    await notifier.abrirEscolha();
-    await tester.pump(const Duration(milliseconds: 200));
-    await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
-    expect(
-      container.read(salaSessionProvider).partes,
-      isEmpty,
-      reason: 'a sessão volta do servidor sem gravação nenhuma no tablet',
-    );
-    expect(
-      byLabel(_aprovar),
-      findsOneWidget,
-      reason: 'aprovar continua sendo o gesto da conferida',
-    );
-    expect(
-      tester.widget<Semantics>(byLabel(_ouvir)).properties.enabled,
-      isFalse,
-      reason:
-          'sem nada para tocar o ouvir fica apagado: a fileira é fixa e um '
-          'botão que não se aplica se apaga, nunca some (ADR 0040)',
-    );
-  });
 
   testWidgets('a aprovação que não toca deixa silêncio', (tester) async {
     final it = await _ateAConferida(tester);

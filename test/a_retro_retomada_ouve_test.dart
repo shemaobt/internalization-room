@@ -9,7 +9,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart'
+    show intoTheBackTranslation, intoTheRecordingHome, settle;
 
 const _traduzidos = BackTranslationProgress(
   segments: [
@@ -22,7 +23,8 @@ const _traduzidos = BackTranslationProgress(
   ],
 );
 
-/// A tablet closed part-way through a passage and opened again on it.
+/// A tablet closed part-way through a passage, opened again on it, and walked from its
+/// conversation back to the station it stood on.
 Future<ProviderContainer> _reopensInto(
   SalaHarness harness,
   SalaStage parouEm, {
@@ -50,6 +52,12 @@ Future<ProviderContainer> _reopensInto(
   await notifier.abrirEscolha();
   await settle();
   await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+  SalaSessionState read() => container.read(salaSessionProvider);
+  if (parouEm == SalaStage.retro) {
+    await intoTheBackTranslation(notifier, read);
+  } else {
+    await intoTheRecordingHome(notifier, read);
+  }
   await settle();
   return container;
 }

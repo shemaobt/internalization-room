@@ -292,7 +292,7 @@ void main() {
 
   test(
     'a stored Rehearsal whose session read fell with the network goes back to '
-    'the Choice, and opened again lands on the Rehearsal',
+    'the Choice, and opened again lands on its conversation',
     () async {
       final home = Directory.systemTemp.createTempSync('sala-ensaio-lembrado');
       addTearDown(() => home.deleteSync(recursive: true));
@@ -319,7 +319,7 @@ void main() {
         () => stateReads(harness) == 2,
       );
       await settle();
-      expect(read().stage, SalaStage.ensaio);
+      expect(read().stage, SalaStage.conversa);
       expect(read().sessionId, _rememberedSession);
     },
   );

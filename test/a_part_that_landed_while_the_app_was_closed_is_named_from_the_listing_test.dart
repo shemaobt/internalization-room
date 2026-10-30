@@ -13,7 +13,8 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'a_parte_da_volta_ganha_nome_test.dart' show gravarSemEsperarNome;
 import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio;
-import 'scenario_helpers.dart' show relaunch, settle, umaParteInteira;
+import 'scenario_helpers.dart'
+    show intoTheRecordingHome, relaunch, settle, umaParteInteira;
 
 final _parte3 = KeptScope.parte(3);
 const _bytesDaParte = [1, 2, 3];
@@ -30,8 +31,10 @@ Future<void> _voltarAoEnsaio(ProviderContainer container) async {
   await notifier.abrirEscolha();
   await settle();
   await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
-  expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+  await intoTheRecordingHome(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
 }
 
 String _oNomeQueASalaDeu(SalaHarness harness) =>
