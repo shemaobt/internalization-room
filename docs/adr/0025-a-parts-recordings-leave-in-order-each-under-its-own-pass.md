@@ -2,6 +2,8 @@
 
 Amended by 0087 (2026-10-16): a confirmed recording leaves the Outbox, and a row refused for good holds no one behind it, even within the pass that refused it.
 
+Amended by 0163 (2026-10-29): a part the Outbox no longer holds also learns its name from the room's listing, on the next listing read, and every name adopted is saved at once.
+
 ## Context
 
 ADR 0020 let a team record a **Part** again in its own place, and said what it left
