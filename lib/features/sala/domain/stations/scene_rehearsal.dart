@@ -17,7 +17,7 @@ final class SceneRehearsal extends Station {
     ThePlanOpened() => this,
     TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalLeft() => const Canvas(),
-    TheSceneRehearsalOpened() || TheNecklaceClosed() => this,
+    TheSceneRehearsalOpened() => this,
     TheExternalCheckOpened() ||
     TheExternalCheckLeft() ||
     TheRecordingLeft() => this,

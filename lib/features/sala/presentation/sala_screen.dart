@@ -8,7 +8,6 @@ import '../data/mic_permission.dart';
 import '../data/screen_awake.dart';
 import '../data/session_notifier.dart';
 import '../data/store_build_gate.dart';
-import '../domain/facilitator_script.dart';
 import '../domain/session_state.dart';
 import '../dev/dev_skip_bar.dart';
 import 'widgets/checagem_externa_view.dart';
@@ -215,30 +214,11 @@ class _SalaScreenState extends ConsumerState<SalaScreen>
         return const EnsaioView();
       case SalaStage.retro:
         return const RetroView();
-      case SalaStage.fim:
-        return const _FimView();
       case SalaStage.cena:
         return const SceneRehearsalView();
       case SalaStage.checagem:
         return const ChecagemExternaView();
     }
-  }
-}
-
-class _FimView extends ConsumerWidget {
-  const _FimView();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Semantics(
-      button: true,
-      label: roomLabelFor('beginAgain', ref.watch(roomLanguageProvider)),
-      child: GestureDetector(
-        onTap: ref.read(salaSessionProvider.notifier).beginAgain,
-        behavior: HitTestBehavior.opaque,
-        child: const SizedBox.expand(),
-      ),
-    );
   }
 }
 
