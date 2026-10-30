@@ -3016,6 +3016,22 @@ void main() {
     });
   });
 
+  test(
+    'a withdraw nobody awaits is on disk once the Outbox is drained',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      final row = await keep(queue, 'nova', 'sessao-1');
+
+      unawaited(queue.withdraw(row));
+      await queue.drained().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {},
+      );
+
+      expect(await queueOn(FakeRoom()).entries(), isEmpty);
+    },
+  );
+
   test('a read of an Outbox whose folder does not exist returns empty and '
       'leaves no folder', () async {
     final queue = queueOn(FakeRoom());

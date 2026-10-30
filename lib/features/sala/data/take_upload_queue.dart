@@ -971,16 +971,6 @@ class TakeUploadQueue {
     stop.complete();
   }
 
-  /// Send the rows a tap of this life made due, each with the rest of its part and after
-  /// them every take no row can show, since no tap of its own can reach it; and every row
-  /// a caller that only asked while this call was already running would otherwise miss.
-  ///
-  /// A second `flush()` called while the first is still talking to the room used to
-  /// return at once, on the strength of the first one's own sweep — but a row enqueued
-  /// after that sweep already started is not in it, and the caller who just enqueued it
-  /// read the empty answer as "the room has this" and never asked again. It now waits on
-  /// the flush already running and, if anything was asked for while it waited, that flush
-  /// takes one more pass before either caller is told it is done.
   Future<void> drained() async {
     while (true) {
       final writes = _writes;
@@ -995,6 +985,16 @@ class TakeUploadQueue {
     }
   }
 
+  /// Send the rows a tap of this life made due, each with the rest of its part and after
+  /// them every take no row can show, since no tap of its own can reach it; and every row
+  /// a caller that only asked while this call was already running would otherwise miss.
+  ///
+  /// A second `flush()` called while the first is still talking to the room used to
+  /// return at once, on the strength of the first one's own sweep — but a row enqueued
+  /// after that sweep already started is not in it, and the caller who just enqueued it
+  /// read the empty answer as "the room has this" and never asked again. It now waits on
+  /// the flush already running and, if anything was asked for while it waited, that flush
+  /// takes one more pass before either caller is told it is done.
   Future<int> flush() {
     final running = _flushInFlight;
     if (running != null) {
