@@ -493,6 +493,41 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'a second tap on the $screen while the recorder has not answered opens '
+      'no second take and stops nothing',
+      (tester) async {
+        final room = await enter(tester);
+        room.harness.recorder.holdNextStart();
+        await room.theTeamOpensItsTake();
+        await room.beat();
+        final heldStart = room.harness.sounds.lastIndexOf('recorder:start');
+
+        room.tap();
+        await room.beat(300);
+        expect(
+          room.harness.recorder.starts,
+          hasLength(1),
+          reason:
+              'o segundo toque descartava o microfone que ainda esperava o '
+              'gravador e abria outro',
+        );
+        expect(
+          room.harness.sounds.sublist(heldStart + 1),
+          isNot(contains('recorder:discard')),
+          reason: 'o toque na espera descartou a vez que o gravador ia abrir',
+        );
+
+        room.harness.recorder.finishStart();
+        await room.beat(300);
+        expect(
+          room.circleListens,
+          isTrue,
+          reason: 'o toque na espera fechou a vez antes de o gravador começar',
+        );
+      },
+    );
   }
 
   testWidgets(

@@ -2154,6 +2154,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.panoramaSaid) {
       switch (state.circleVoice) {
         case VoiceState.invite:
+          if (_recordingStarting) return;
           if (state.channel is Microphone) _dispatch(const MicDiscarded());
           _startListening('panorama_${_stamp()}');
         case VoiceState.listening:
