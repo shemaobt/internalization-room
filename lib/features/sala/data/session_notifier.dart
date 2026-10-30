@@ -531,6 +531,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   String get _lingua => ref.read(roomLanguageProvider);
 
+  String get _inTheRoomsLanguage => _lingua;
+
+  String _languageOf(String fixedLine) => isTheTabletsOwnLine(fixedLine)
+      ? _inTheRoomsLanguage
+      : _inTheSessionsLanguage;
+
   String get _inTheSessionsLanguage => switch (state.station) {
     Menu() => _lingua,
     Panorama() => state.machine.panorama?.language ?? _lingua,
@@ -1231,7 +1237,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     return fixedLine.isEmpty
         ? _voice.ready(url)
-        : _voice.readyFixedLine(fixedLine, _inTheSessionsLanguage);
+        : _voice.readyFixedLine(fixedLine, _languageOf(fixedLine));
   }
 
   /// Say a reply, loading it once more when the machine asks after a failed load
@@ -1318,7 +1324,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!await loadAgain.future || _abandoned(generation)) return false;
     await (line.fixedLine.isEmpty
         ? _voice.forget(line.url)
-        : _voice.forgetFixedLine(line.fixedLine, _inTheSessionsLanguage));
+        : _voice.forgetFixedLine(line.fixedLine, _languageOf(line.fixedLine)));
     return !_abandoned(generation);
   }
 
@@ -1342,7 +1348,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       url: fixedLine.isEmpty ? url : null,
       fixedLine: fixedLine.isEmpty
           ? null
-          : (name: fixedLine, language: _inTheSessionsLanguage),
+          : (name: fixedLine, language: _languageOf(fixedLine)),
       onSoundStart: onSoundStart,
     );
     if ((said, checkAt, session) case (
@@ -3799,7 +3805,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
     await _sayALine(
       LineKind.guide,
-      fixedLine: (name: sentenceAwaitingLine, language: _inTheSessionsLanguage),
+      fixedLine: (name: sentenceAwaitingLine, language: _inTheRoomsLanguage),
     );
     if (_abandoned(generation)) return;
     _levarAoTrechoNaoTraduzido(aguardando, emVolta: emVolta);
@@ -4024,7 +4030,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       unheardLine,
       approvedLine,
     ]) {
-      unawaited(_voice.readyFixedLine(line, _inTheSessionsLanguage));
+      unawaited(_voice.readyFixedLine(line, _inTheRoomsLanguage));
     }
   }
 
@@ -4034,7 +4040,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(
       _sayALine(
         LineKind.acknowledgement,
-        fixedLine: (name: line, language: _inTheSessionsLanguage),
+        fixedLine: (name: line, language: _inTheRoomsLanguage),
       ),
     );
   }
@@ -8479,7 +8485,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       await _sayALine(
         LineKind.guide,
-        fixedLine: (name: linha, language: _inTheSessionsLanguage),
+        fixedLine: (name: linha, language: _languageOf(linha)),
       );
     } on RoomFailure catch (failure) {
       _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
@@ -9447,7 +9453,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       said = await _sayTheLine(
         LineKind.guide,
-        fixedLine: (name: line, language: _inTheSessionsLanguage),
+        fixedLine: (name: line, language: _inTheRoomsLanguage),
       );
     } on RoomFailure catch (failure) {
       _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
@@ -9580,7 +9586,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     try {
       await _sayALine(
         LineKind.guide,
-        fixedLine: (name: listenerThanksLine, language: _inTheSessionsLanguage),
+        fixedLine: (name: listenerThanksLine, language: _inTheRoomsLanguage),
       );
     } on RoomFailure catch (failure) {
       _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
@@ -9707,7 +9713,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         try {
           await _sayALine(
             LineKind.guide,
-            fixedLine: (name: tellLine, language: _inTheSessionsLanguage),
+            fixedLine: (name: tellLine, language: _inTheRoomsLanguage),
           );
         } on RoomFailure catch (failure) {
           _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
@@ -10258,7 +10264,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (primeira) {
       await _sayALine(
         LineKind.guide,
-        fixedLine: (name: sentenceListenLine, language: _inTheSessionsLanguage),
+        fixedLine: (name: sentenceListenLine, language: _inTheRoomsLanguage),
       );
     }
     if (largada()) return;
@@ -10280,7 +10286,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (primeira) {
       await _sayALine(
         LineKind.guide,
-        fixedLine: (name: sentenceRecordLine, language: _inTheSessionsLanguage),
+        fixedLine: (name: sentenceRecordLine, language: _inTheRoomsLanguage),
       );
     }
     if (largada()) return;
@@ -10467,7 +10473,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _aFraseNovaNoLugar(String nome, int generation) async {
     await _sayALine(
       LineKind.guide,
-      fixedLine: (name: sentenceInPlaceLine, language: _inTheSessionsLanguage),
+      fixedLine: (name: sentenceInPlaceLine, language: _inTheRoomsLanguage),
     );
     if (_abandoned(generation)) return;
     final trecho = _armarOTrecho(state.trechoChamado(nome));
@@ -11259,7 +11265,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (!fromTheHome &&
             !await _sayALine(
               LineKind.approved,
-              fixedLine: (name: approvedLine, language: _inTheSessionsLanguage),
+              fixedLine: (name: approvedLine, language: _inTheRoomsLanguage),
             )) {
           _registerUnplayableTurn();
         }

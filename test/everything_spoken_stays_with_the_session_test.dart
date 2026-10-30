@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -40,9 +41,25 @@ Future<void> _backInTheSession(Sala it, String session) async {
   await settle();
 }
 
+Future<Sala> _aPortugueseRehearsalReachedAgainInEnglish() async {
+  final it = await umEnsaioDeTresPartesContadoInteiro();
+  await pedirOVeredito(it);
+  final portuguese = it.estado.sessionId!;
+  it.sala.leaveThePassage();
+  await waitFor('the way back', () => it.estado.theWayBackIsLive);
+  it.sala.chooseTheLanguage('en');
+  await settle();
+  await _backInTheSession(it, portuguese);
+  await theClipOpens(it.harness);
+  it.harness.playback.finishPlayback();
+  await waitFor('the clip to end', () => it.estado.btClipEnded);
+  await pedirOVeredito(it);
+  return it;
+}
+
 void main() {
   test(
-    'the lines warmed when the team goes back into an English session are warmed in English',
+    'the lines warmed when the team goes back into an English session are warmed in the room language',
     () async {
       final (it, english) =
           await _anEnglishSessionReachedAgainAfterPtWasTapped();
@@ -51,7 +68,7 @@ void main() {
       await _backInTheSession(it, english);
 
       expect(it.harness.voice.readied, isNotEmpty);
-      expect(it.harness.voice.readied.map((it) => it.$2), everyElement('en'));
+      expect(it.harness.voice.readied.map((it) => it.$2), everyElement('pt'));
     },
   );
 
@@ -98,30 +115,66 @@ void main() {
   );
 
   test(
-    'the approval line is spoken in the language the session was opened in, whatever the room language became',
+    'the approval line is spoken in the room language, whatever language the session was opened in',
     () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      await pedirOVeredito(it);
-      final portuguese = it.estado.sessionId!;
-      it.sala.leaveThePassage();
-      await waitFor('the way back', () => it.estado.theWayBackIsLive);
-      it.sala.chooseTheLanguage('en');
-      await settle();
-      await _backInTheSession(it, portuguese);
-      await theClipOpens(it.harness);
-      it.harness.playback.finishPlayback();
-      await waitFor('the clip to end', () => it.estado.btClipEnded);
-      await pedirOVeredito(it);
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
       it.harness.voice.fixedLines.clear();
 
       await it.sala.aprovarRascunhoFinal();
       await settle();
 
-      expect(it.harness.voice.fixedLines, contains((approvedLine, 'pt')));
+      expect(it.harness.voice.fixedLines, contains((approvedLine, 'en')));
       expect(
         it.harness.voice.fixedLines,
-        isNot(contains((approvedLine, 'en'))),
+        isNot(contains((approvedLine, 'pt'))),
       );
+    },
+  );
+
+  test(
+    'the line the room names when a part is still unheard plays in the room language',
+    () async {
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.partUnheard
+        ..verdictFixedLine = 'P2'
+        ..verdictUnheardTakeIds = [it.estado.partes.first.takeId!];
+      it.harness.voice.fixedLines.clear();
+
+      await pedirOVeredito(it);
+
+      expect(it.harness.voice.fixedLines, contains(('P2', 'en')));
+    },
+  );
+
+  test(
+    'the line the room names when a told frase awaits plays in the room language',
+    () async {
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.fraseAwaiting
+        ..verdictFixedLine = 'N5'
+        ..verdictUntoldSegmentId = 'trecho-1';
+      it.harness.voice.fixedLines.clear();
+
+      await pedirOVeredito(it);
+
+      expect(it.harness.voice.fixedLines, contains(('N5', 'en')));
+    },
+  );
+
+  test(
+    'the line the room names when a stretch is untranslated plays in the room language',
+    () async {
+      final it = await _aPortugueseRehearsalReachedAgainInEnglish();
+      it.harness.room
+        ..verdictRefusal = CheckRefusal.stretchUntranslated
+        ..verdictFixedLine = 'N2';
+      it.harness.voice.fixedLines.clear();
+
+      await pedirOVeredito(it);
+
+      expect(it.harness.voice.fixedLines, contains(('N2', 'en')));
     },
   );
 
@@ -171,7 +224,55 @@ void main() {
   );
 
   test(
-    'The Panorama\'s language is the one the room speaks at the Panorama',
+    'a fixed line the server names in a Panorama plays in the language the Panorama was opened in',
+    () async {
+      final harness = SalaHarness(lingua: null)
+        ..room.fixedLine = 'D1'
+        ..room.passages = const [
+          Passagem(
+            pericope: 'panorama',
+            audioUrl: '/voice/panorama',
+            kind: PassagemKind.panorama,
+          ),
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ];
+      final container = harness.container();
+      addTearDown(container.dispose);
+      final it = Sala(harness, container);
+      it.sala.chooseTheLanguage('en');
+      await settle();
+      await enterThePanorama(it.sala, () => it.estado);
+      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
+      await settle();
+      it.sala.leaveThePassage();
+      await waitFor('the way back', () => it.estado.theWayBackIsLive);
+      it.sala.chooseTheLanguage('pt');
+      await settle();
+      await it.sala.returnToTheLeftEntry();
+      await waitFor(
+        'the Panorama to be back',
+        () =>
+            it.estado.stage == SalaStage.panorama &&
+            it.estado.panoramaSaid &&
+            it.estado.voice == VoiceState.invite,
+      );
+      await settle();
+      it.harness.voice.fixedLines.clear();
+
+      it.sala.panoramaTap();
+      await settle();
+      it.sala.panoramaTap();
+      await waitFor(
+        'her line for the turn',
+        () => it.harness.voice.fixedLines.any((line) => line.$1 == 'D1'),
+      );
+
+      expect(it.harness.voice.fixedLines, contains(('D1', 'en')));
+    },
+  );
+
+  test(
+    'the acknowledgement plays in the room language after a Panorama is reached again, whatever language it was opened in',
     () async {
       final harness = SalaHarness(lingua: null)
         ..room.passages = const [
@@ -213,7 +314,7 @@ void main() {
         () => it.harness.voice.fixedLines.isNotEmpty,
       );
 
-      expect(it.harness.voice.fixedLines.first.$2, 'en');
+      expect(it.harness.voice.fixedLines.first.$2, 'pt');
     },
   );
 }
