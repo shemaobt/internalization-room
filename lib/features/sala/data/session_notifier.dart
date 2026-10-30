@@ -4035,7 +4035,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           );
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
-        if (state.recordsTheWhole && !planHoldsARehearsal(read, sessionId)) {
+        if (state.grainInForce == Grain.whole &&
+            !planHoldsARehearsal(read, sessionId)) {
           return _openTheRecordingHome(sessionId, listed: guardadas);
         }
         state = state.copyWith(
