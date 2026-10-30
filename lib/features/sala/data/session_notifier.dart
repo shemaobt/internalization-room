@@ -2204,7 +2204,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _resumeFailures.clear();
     _openTurnId = null;
     _openingOwed = false;
-    state = state.copyWith(awaitingTheGuide: false, panoramaSaid: true);
+    state = state.copyWith(
+      awaitingTheGuide: false,
+      panoramaSaid: true,
+      peerCue: played == Said.said ? turn.peerCue : null,
+    );
   }
 
   void panoramaTap() => _gesture(() => _panoramaTap());
