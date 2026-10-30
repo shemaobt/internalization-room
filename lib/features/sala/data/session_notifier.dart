@@ -3968,7 +3968,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// rehearsals only in the other language's session ask the grain while none is in
   /// force, and open that grain's recording home otherwise; a read that fails or runs out
   /// with the room's listing unread asks the grain whatever is in force, unless the room
-  /// has just named the grain, from the choice's whole home (ADR 0134).
+  /// has just named the grain: on the choice, in a listing that answered after it stood,
+  /// or from the choice's whole home (ADR 0134).
   Future<void> _readThePlan(String sessionId, {bool grainHeard = false}) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
@@ -4140,7 +4141,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// a read still in the air from before never decides over it.
   void _toTheGrainsHome(Grain grain, String sessionId) => switch (grain) {
     Grain.whole => _openTheRecordingHome(sessionId),
-    Grain.scene => _openThePlan(sessionId),
+    Grain.scene => _openThePlan(sessionId, grainHeard: true),
   };
 
   bool get _aGrainControlActs =>
