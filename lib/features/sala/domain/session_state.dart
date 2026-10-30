@@ -1930,6 +1930,7 @@ class SalaSessionState {
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Grain? grainInForce,
+    bool clearGrainInForce = false,
     bool? grainSwitching,
     List<int>? toBringBack,
     int? bringingBack,
@@ -2084,7 +2085,9 @@ class SalaSessionState {
       hearNewScene: hearNewScene ?? this.hearNewScene,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
-      grainInForce: grainInForce ?? this.grainInForce,
+      grainInForce: clearGrainInForce
+          ? null
+          : (grainInForce ?? this.grainInForce),
       grainSwitching: grainSwitching ?? this.grainSwitching,
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack

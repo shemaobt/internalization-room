@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home); amended by ENG-2103 (2026-10-30: a remembered grain is let go when the room's listing names none)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -173,3 +173,16 @@ the whole after the choice stood takes the same way. A plan read that follows co
 as named, so a listing that does not answer there opens the whole home, never the choice again.
 The empty whole home over a rehearsal is still reached from the plan by «gravar a passagem
 inteira de uma vez», her `aside` (ensaioFinal.ts:68-71), and stays.
+
+## Amendment · 2026-10-30 (ENG-2103)
+
+Her frozen app is the rule (João, 2026-10-26). Hers keeps no grain on the tablet: her screen
+is chosen from the draft's grain on every read (`todaysScreen`, ensaioFinal.ts:43 at 18fa7c4),
+and a draft with no grain shows the choice. **The grain in force is the listing's `grain`
+alone where the dot chooses its screen:** the grain written in the Resume point stands only
+until the plan read hears the room, and a listing that answers there and names no grain lets
+it go, so her three cases show the choice and the plan's whole-passage arm (ADR 0117, amended
+by ENG-2103) reads no remembered grain. A listing that does not answer still asks the grain
+whatever is remembered (ENG-1862), and a grain the room names is still the tablet's. The grain
+read off the current parts still orders the rows, the row of the whole and the home's one row
+(ENG-2078); it decides no screen.

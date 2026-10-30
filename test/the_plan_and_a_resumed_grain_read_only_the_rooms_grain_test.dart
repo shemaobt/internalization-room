@@ -87,4 +87,43 @@ void main() {
       expect(state.ensaioFinalPlan, isA<PlanRead>());
     },
   );
+
+  test(
+    'a grain remembered on the tablet is let go when the room names none, and the choice shows',
+    () async {
+      final container = await _theDotTappedOnAReopenedPassage(
+        scenes: const [],
+        remembered: Grain.whole,
+      );
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.station,
+        isA<Ensaio>().having((it) => it.step, 'step', EnsaioStep.plan),
+        reason:
+            'o grão lembrado no ponto de retomada abria a casa da passagem inteira com a '
+            'listagem da sala lida e sem grão nenhum; a dela mostra a escolha',
+      );
+      expect(state.ensaioFinalPlan, isA<GrainAsked>());
+      expect(state.grainInForce, isNull);
+    },
+  );
+
+  test(
+    'a whole remembered on the tablet over a passage with scenes opens the plan while the room names no grain',
+    () async {
+      final container = await _theDotTappedOnAReopenedPassage(
+        scenes: _oneScene,
+        remembered: Grain.whole,
+      );
+      final state = container.read(salaSessionProvider);
+      expect(
+        state.station,
+        isA<Ensaio>().having((it) => it.step, 'step', EnsaioStep.plan),
+        reason:
+            'o inteiro lembrado no ponto de retomada chegava ao braço do plano como o grão '
+            'em vigor e abria a casa da passagem inteira; sem grão na sala a dela abre o plano',
+      );
+      expect(state.ensaioFinalPlan, isA<PlanRead>());
+    },
+  );
 }

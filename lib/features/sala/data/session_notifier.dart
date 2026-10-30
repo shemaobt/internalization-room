@@ -3944,6 +3944,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (listing case Answered(:final value) when !_abandoned(generation)) {
           listingRead = true;
           _theRoomsGrainHeard(value);
+          if (value.grain == null) {
+            state = state.copyWith(clearGrainInForce: true);
+          }
           if (value.grain case final grain?
               when state.ensaioFinalPlan is GrainAsked &&
                   !state.grainSwitching) {
