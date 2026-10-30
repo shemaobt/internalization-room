@@ -772,7 +772,8 @@ class FakePlayback implements PlaybackRepository {
   Duration _abertaEm = Duration.zero;
 
   @override
-  Duration? get playingLength => _aberto ? length : null;
+  Duration? get playingLength =>
+      !_aberto || length == null ? null : _fimDoClipe ?? length;
 
   bool get open => _aberto && !_abrindo;
 
@@ -784,7 +785,6 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     playedFrom.add(from);
     sounds.add('playback:play');
-    _fimDoClipe = null;
     return _soundUntilItStops(from);
   }
 
@@ -793,10 +793,9 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
     sounds.add('playback:play');
-    _fimDoClipe = to - from;
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
-    return _soundUntilItStops(Duration.zero);
+    return _soundUntilItStops(Duration.zero, fim: to - from);
   }
 
   @override
@@ -855,7 +854,7 @@ class FakePlayback implements PlaybackRepository {
   // just_audio only completes the future of `play` when the sound stops: at the end
   // of the clip, on a pause or on a stop. A double that returns at once hides
   // everything hung off that future.
-  Future<void> _soundUntilItStops(Duration from) {
+  Future<void> _soundUntilItStops(Duration from, {Duration? fim}) {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
@@ -879,6 +878,7 @@ class FakePlayback implements PlaybackRepository {
       if (geracao != _opens) return;
       _abrindo = false;
       at = _abertaEm = from;
+      _fimDoClipe = fim;
       _aberto = paradas == stops;
       // Announced either way, held or stopped: the listening ceiling and the measure of
       // the part in the air both hang off this, and a clip that never announces itself
