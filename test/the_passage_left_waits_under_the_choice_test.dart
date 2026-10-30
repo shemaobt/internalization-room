@@ -612,6 +612,32 @@ void main() {
     },
   );
 
+  test(
+    'a new life born while a pill\'s open is held after the chevron does not '
+    'open that pill by itself',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+      harness.room.holdNextCreate();
+
+      tablet.notifier.openTheEntry(p02);
+      await waitFor('the open to be in flight', () => harness.room.createHeld);
+      await tablet.notifier.returnToTheLeftEntry();
+      tablet.container.invalidate(salaSessionProvider);
+      read();
+      harness.room.finishHeldCreate();
+      await settle();
+      await settle();
+
+      expect(harness.room.pericopesAsked.where((asked) => asked == 'P02'), [
+        'P02',
+      ]);
+      expect(read().pericope, isNot('P02'));
+    },
+  );
+
   test('a pill tapped while an earlier open is still in flight does nothing, '
       'and the earlier open lands, as hers keeps one open at a time', () async {
     final tablet = await _onTheChoiceFromP01();

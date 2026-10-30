@@ -2423,7 +2423,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       generation = _generation;
       await opening;
-    } while (flight.adopt && !_gone);
+    } while (flight.adopt && identical(_flight, flight));
     if (identical(_flight, flight)) _flight = null;
     if (state.openingEntry != null) {
       state = state.copyWith(clearOpeningEntry: true);
@@ -2505,11 +2505,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final sent = ++_readsSent;
     final found = await _room.createSession(pericope: id, language: _lingua);
-    if (_abandoned(generation)) {
-      flight.adopt = flight.wayBack && found is Answered;
-      return;
-    }
     switch (found) {
+      case Answered() when _abandoned(generation):
+        flight.adopt = flight.wayBack;
+      case _ when _abandoned(generation):
+        return;
       case Answered(value: final session):
         _applyTheSessionRead(session, sent);
         _holdThePanorama(session.sessionId, id, _lingua);
