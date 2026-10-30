@@ -212,6 +212,43 @@ void main() {
       expect(inTheFolder(), ['fila.json']);
     });
 
+    test('a withdrawn copy the disk will not delete does not stop the rows '
+        'behind it', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final behind = await keep(queue, 'inteira', 'sessao-1');
+      queue.tapped(row.id);
+      queue.tapped(behind.id);
+      final outside = Zone.current;
+      final flushed = IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          return path == row.path ? _ACopyTheDiskWillNotDelete(real) : real;
+        },
+      );
+      await room.untilTakeHeld();
+      expect(await queue.withdrawEvenInTheAir(row), isTrue);
+      room.finishHeldTake();
+      await flushed;
+
+      expect(
+        room.takesKept,
+        ['ensaio/parte-2', 'ensaio/inteira'],
+        reason:
+            'a cópia que o disco recusava apagar saía do catch do envio, e a '
+            'fila parava antes da linha seguinte',
+      );
+    });
+
     test('the open sweep leaves the link, the resume point and the current '
         'session in their folder', () async {
       final folder = Directory('${home.path}/guardadas')..createSync();
@@ -234,6 +271,41 @@ void main() {
         'vinculo.json',
       ]);
     });
+
+    test(
+      'the open sweep goes on past a copy the disk will not delete',
+      () async {
+        final folder = Directory('${home.path}/guardadas')..createSync();
+        final orphans = [
+          for (final n in [1, 2, 3])
+            '${folder.path}/ensaio-parte-$n-176173000000000$n-0.m4a',
+        ];
+        for (final orphan in orphans) {
+          File(orphan).writeAsStringSync('a equipe contou a passagem');
+        }
+        var refusals = 0;
+        final outside = Zone.current;
+        await IOOverrides.runZoned(
+          queueOn(FakeRoom()).sweepTheCopiesLeftBehind,
+          createFile: (path) {
+            final real = outside.run(() => File(path));
+            if (!orphans.contains(path)) return real;
+            return _ACopyTheDiskWillNotDelete(
+              real,
+              whenRefused: () => refusals++,
+            );
+          },
+        );
+
+        expect(
+          refusals,
+          3,
+          reason:
+              'a primeira cópia que o disco recusava apagar parava a varredura, '
+              'e as órfãs atrás dela ficavam na pasta',
+        );
+      },
+    );
 
     test(
       'a take being kept while the Outbox opens keeps its copy and its row',
@@ -3158,6 +3230,49 @@ class _ATakeWhoseCopyIsHeld implements File {
     copied.complete();
     await release.future;
     return made;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ACopyTheDiskWillNotDelete implements File {
+  final File _real;
+  final void Function() whenRefused;
+
+  _ACopyTheDiskWillNotDelete(this._real, {this.whenRefused = _nothing});
+
+  static void _nothing() {}
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  Future<int> length() => _real.length();
+
+  @override
+  int lengthSync() => _real.lengthSync();
+
+  @override
+  Uint8List readAsBytesSync() => _real.readAsBytesSync();
+
+  @override
+  Future<Uint8List> readAsBytes() => _real.readAsBytes();
+
+  @override
+  Stream<List<int>> openRead([int? start, int? end]) =>
+      _real.openRead(start, end);
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) {
+    whenRefused();
+    return Future.error(const FileSystemException('o disco recusou'));
   }
 
   @override
