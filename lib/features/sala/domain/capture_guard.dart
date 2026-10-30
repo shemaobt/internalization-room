@@ -16,4 +16,6 @@ class CaptureGuard {
 
   bool accepts({required Duration duration, required int bytes}) =>
       duration >= minDuration && bytes >= minBytes;
+
+  bool acceptsAQuestion({required int bytes}) => bytes >= minBytes;
 }
