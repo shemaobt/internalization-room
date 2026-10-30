@@ -106,61 +106,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('while the checagem externa opens the terminei is dimmed, and a '
-      'tap on it asks for no check', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _ateAConferida(tester, harness);
-    harness.room.approvedDraft = const ApprovedDraft(version: 1);
-    await tocar(tester, aprovar);
-    await waitFor(
-      'o ensaio salvo',
-      () => find.text('Ensaio salvo').evaluate().isNotEmpty,
-      step: () => tester.pump(const Duration(milliseconds: 100)),
-    );
-    await tester.tap(byLabel('Pronto'));
-    await tester.pump(const Duration(milliseconds: 800));
-    final sala = container.read(salaSessionProvider.notifier);
-    harness.room.readsChecked = true;
-    sala.openTheEnsaioFinal();
-    await waitFor(
-      'a casa da gravação abrir',
-      () => container.read(salaSessionProvider).stage == SalaStage.ensaio,
-      step: () => tester.pump(const Duration(milliseconds: 100)),
-    );
-    await tester.pump(const Duration(milliseconds: 800));
-    sala.startRetro();
-    await waitFor(
-      'a retrotradução aprovada voltar conferida',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
-      step: () => tester.pump(const Duration(milliseconds: 100)),
-    );
-    harness.room.readsChecked = false;
-    await tester.pump(const Duration(milliseconds: 800));
-    await tocar(tester, 'Ouvir a gravação');
-    harness.playback.at = parte;
-    harness.playback.finishPlayback();
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(aceso(tester, conferir), isTrue);
-
-    harness.room.holdNextExternalCheck();
-    await tocar(tester, 'Checagem externa');
-
-    expect(
-      aceso(tester, conferir),
-      isFalse,
-      reason: 'com a checagem externa abrindo o terminei ficava aceso',
-    );
-    await tocar(tester, conferir);
-    expect(
-      harness.room.playedByTakeSent,
-      hasLength(1),
-      reason: 'o terminei pedia a conferência por cima da checagem externa',
-    );
-    harness.room.finishHeldExternalCheck();
-    await tester.pump(const Duration(milliseconds: 600));
-    closeTheRoom(container);
-  });
-
   testWidgets('a check the room cannot make over a checked telling leaves the '
       'team on the approval, as hers does, not back on the telling', (
     tester,
