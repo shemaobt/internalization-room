@@ -11,7 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart'
-    show holdTheSession, intoTheBackTranslation, settle;
+    show holdTheSession, intoTheBackTranslation, intoTheRecordingHome, settle;
 
 /// A tablet reopening straight into a kept part, with one take already on disk.
 /// Copied from `a_halt_in_the_middle_of_a_capture_leaves_the_microphone_open_test.dart`:
@@ -20,9 +20,8 @@ import 'scenario_helpers.dart'
 /// rehearsal the resume itself lands in.
 Future<ProviderContainer> _reopensInto(
   SalaHarness harness,
-  SalaStage stage, {
-  bool pelaEscolha = true,
-}) async {
+  SalaStage stage,
+) async {
   final gravada = File(
     '${Directory.systemTemp.createTempSync('sala-982').path}/p1.m4a',
   )..writeAsBytesSync([1, 2, 3]);
@@ -38,26 +37,17 @@ Future<ProviderContainer> _reopensInto(
       ),
     ],
   );
-  if (pelaEscolha) {
-    harness.emAberto.rows['Ruth/P01/pt'] = row;
-  } else {
-    await holdTheSession(harness, row);
-  }
+  await holdTheSession(harness, row);
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  if (!pelaEscolha) {
-    await notifier.openTheRoom();
-    await intoTheBackTranslation(
-      notifier,
-      () => container.read(salaSessionProvider),
-    );
-    return container;
-  }
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
+  await notifier.openTheRoom();
+  await (stage == SalaStage.retro
+      ? intoTheBackTranslation
+      : intoTheRecordingHome)(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   return container;
 }
 
@@ -68,15 +58,12 @@ Future<(ProviderContainer, SalaSessionNotifier, SalaSessionState Function())>
 _capturingWithAWarningArmed(SalaHarness harness) async {
   harness.room.serverStatus = 'needs_person';
   harness.room.serverHalt = HaltKind.warning;
-  final container = await _reopensInto(
-    harness,
-    SalaStage.retro,
-    pelaEscolha: false,
-  );
+  final container = await _reopensInto(harness, SalaStage.retro);
   final notifier = container.read(salaSessionProvider.notifier);
   SalaSessionState read() => container.read(salaSessionProvider);
 
   await waitFor('o aviso chegar', () => read().warning);
+  await waitFor('a parte tocar', () => read().btPhase == BtPhase.playing);
   harness.playback.at = const Duration(seconds: 2);
   notifier.retroTap();
   notifier.retroTap();

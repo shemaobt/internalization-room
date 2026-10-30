@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/main.dart';
 
@@ -52,16 +53,29 @@ void main() {
         () => container.read(salaSessionProvider),
         step: () => letTheRehearsalReachTheRoom(tester),
       );
+      await waitFor(
+        'a casa ser desenhada com o aviso de pé',
+        () =>
+            container.read(salaSessionProvider).warning &&
+            find.byType(EnsaioView).evaluate().isNotEmpty,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      await tester.pump();
 
       expect(
         container.read(salaSessionProvider).stage,
         SalaStage.ensaio,
         reason: 'o caso precisa reabrir dentro do Ensaio',
       );
+      expect(find.byType(EnsaioView), findsOneWidget);
       expect(
         container.read(salaSessionProvider).warning,
         isTrue,
         reason: 'e com o aviso já de pé, herdado da retomada',
+      );
+      expect(
+        find.text('A warning is asking someone to come watch'),
+        findsNothing,
       );
       expect(
         find.bySemanticsLabel('A warning is asking someone to come watch'),
