@@ -9,7 +9,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show intoTheRecordingHome, settle;
 
 void main() {
   test('a row that still marks a part to record again reopens on the plain '
@@ -39,6 +39,7 @@ void main() {
     await sala.abrirEscolha();
     await settle();
     unawaited(sala.goConversa(book: 'Ruth', pericope: 'P01'));
+    await intoTheRecordingHome(sala, () => container.read(salaSessionProvider));
 
     await waitFor('a equipe voltar à casa do ensaio com as duas cenas', () {
       final estado = container.read(salaSessionProvider);

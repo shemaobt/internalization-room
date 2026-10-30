@@ -6,13 +6,15 @@ import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
 
 void main() {
   test(
-    'a resume that lands in the back-translation still counts what is unsent',
+    'a resume of a back-translation row that lands on the conversation still '
+    'counts what is unsent',
     () async {
       final harness = SalaHarness(filaEmMemoria: true);
       final fila = harness.takes as FakeTakeQueue;
@@ -57,8 +59,8 @@ void main() {
       fila.holdTheNextReading();
       await notifier.goConversa(book: 'Ruth', pericope: 'P01');
       await waitFor(
-        'a retomada pousar na retro com a contagem ainda presa',
-        () => read().stage == SalaStage.retro && fila.readingHeld,
+        'a retomada pousar na conversa com a contagem ainda presa',
+        () => read().station is Canvas && fila.readingHeld,
       );
       fila.releaseTheHeldReading();
       await settle();
@@ -68,7 +70,7 @@ void main() {
         1,
         reason:
             'a gravação que ainda não subiu continua na fila; pousar na '
-            'retro não pode apagar a contagem que a equipe vê',
+            'conversa não pode apagar a contagem que a equipe vê',
       );
     },
   );

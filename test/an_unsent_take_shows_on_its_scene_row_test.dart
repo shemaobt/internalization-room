@@ -22,7 +22,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, offTheRows, relaunch, settle;
+import 'scenario_helpers.dart'
+    show byLabel, intoTheRecordingHome, offTheRows, relaunch, settle;
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -317,6 +318,14 @@ Future<void> _retomarComAParte1(
   await tester.runAsync(
     () => notifier.goConversa(book: 'Ruth', pericope: 'P01'),
   );
+  await waitFor(
+    'a sala pousar na conversa',
+    () =>
+        container.read(salaSessionProvider).station is Canvas &&
+        !container.read(salaSessionProvider).awaitingTheGuide,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  notifier.openTheEnsaioFinal();
   for (var i = 0; i < 10; i++) {
     await tester.pump(const Duration(seconds: 1));
   }
@@ -757,6 +766,7 @@ void main() {
         await casa.sala.abrirEscolha();
         await settle();
         await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+        await intoTheRecordingHome(casa.sala, () => casa.estado);
         await waitFor(
           'a sala voltar à casa do ensaio',
           () =>
@@ -985,6 +995,7 @@ void main() {
           await casa.sala.abrirEscolha();
           await settle();
           await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+          await intoTheRecordingHome(casa.sala, () => casa.estado);
           await waitFor(
             'a sala voltar à casa do ensaio',
             () =>
@@ -1087,6 +1098,7 @@ void main() {
         casa.sala.leaveThePassage();
         await settle();
         await casa.sala.goConversa(book: 'Ruth', pericope: 'P01');
+        await intoTheRecordingHome(casa.sala, () => casa.estado);
         await waitFor(
           'a sala voltar à casa do ensaio',
           () =>
