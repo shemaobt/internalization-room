@@ -6,6 +6,11 @@ amends: 0108 (in part: a way in from the Choice rests on the Choice, not at the 
 
 # An open from the Choice that brings no session rests on the Choice, with the way back kept
 
+Amended by ENG-1979 (2026-10-30): the third bullet of the Decision. «A thrown error still raises the sign (ADR 0093)» no longer
+holds for the Opening: a thrown error while it is voiced is handled like a refusal, as hers is
+(`app/page.tsx:756-758`). The team rests on the canvas at the invite, with no sign and nothing
+said, and the error goes to the operator's log.
+
 This amends ADR 0108 and ADR 0062 without editing their decisions: it adds "amended by 0137"
 to their status lines. Her app is the bar (`app/page.tsx:786`, `choosePassage`): an open that
 answers no session leaves her menu where it was, and a re-tap of the same reference asks again;
@@ -25,6 +30,5 @@ the Panorama goes through the same open (`:980-981`).
   ours waits for the team's tap on the chevron until ENG-1939 keeps the passage left in memory
   under the Choice.
 - **A failure once the session is held is unchanged.** The Opening that fails rests in its
-  session, as hers rests in hers (`app/page.tsx:746-757`). A thrown error while the Opening is
-  voiced is handled the same way (`:756-758`): the team rests on the canvas at the invite, with no
-  sign and nothing said (ENG-1979); the error goes to the operator's log.
+  session, as hers rests in hers (`app/page.tsx:746-757`); a thrown error still raises the sign
+  (ADR 0093).

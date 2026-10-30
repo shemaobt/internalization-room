@@ -344,6 +344,63 @@ void main() {
     );
 
     test(
+      'a Panorama pill whose opening threw rests on the Panorama with no sign and nothing said',
+      () async {
+        final harness = SalaHarness()..room.passages = const [_aPanorama];
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        SalaSessionState read() => container.read(salaSessionProvider);
+        await notifier.abrirEscolha();
+        await theChoiceOffersAPassage(container);
+        harness.voice.readyThrows = StateError('x');
+
+        notifier.openTheEntry(
+          read().naRoda!.firstWhere((entry) => entry.isPanorama),
+        );
+        await settle();
+
+        expect(read().station, isA<Panorama>());
+        expect(read().needsPerson, isFalse);
+        expect(read().awaitingTheGuide, isFalse);
+        expect(harness.voice.played, isEmpty);
+      },
+    );
+
+    test(
+      'an Error in an Opening the team has left is logged once and raises no sign',
+      () async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = print);
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        harness.voice
+          ..holdNextFetch()
+          ..readyThrows = StateError('a left opening');
+        unawaited(notifier.goConversa(book: 'Ruth'));
+        await waitFor(
+          'a abertura pedir a sua fala',
+          () => harness.voice.fetched.isNotEmpty,
+        );
+
+        notifier.leaveThePassage();
+        await settle();
+        harness.voice.finishHeldFetch();
+        await settle(const Duration(milliseconds: 300));
+
+        expect(container.read(salaSessionProvider).needsPerson, isFalse);
+        expect(
+          logged.where((line) => line.contains('a left opening')),
+          hasLength(1),
+        );
+      },
+    );
+
+    test(
       'a gesture awaited directly whose body throws a StateError shows the sign and the await does not throw',
       () async {
         final harness = SalaHarness();
