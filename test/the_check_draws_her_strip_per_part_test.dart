@@ -21,7 +21,7 @@ import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, entrarNaTraducao, parte, passaDoCursor, tocar, tocarNoCirculo;
+    show cabeca, entrarNaTraducao, passaDoCursor, tocar, tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         entrarComAFala,
@@ -1107,56 +1107,6 @@ void main() {
           'anterior, antes de qualquer parte tocar de novo',
     );
     harness.room.finishHeldListening();
-    closeTheRoom(container);
-  });
-
-  testWidgets('a part whose upload has not landed carries her dot, since the '
-      'room has not heard it and the team is sent to hear it', (tester) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    harness.room
-      ..listeningUnheardTakeIds = const []
-      ..holdNextTake(KeptScope.parte(2));
-    harness.playback
-      ..measured = parte
-      ..length = parte;
-    final container = harness.container();
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SalaApp()),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
-    final sala = container.read(salaSessionProvider.notifier);
-    await sala.goConversa(book: 'Ruth');
-    await tester.pump(const Duration(milliseconds: 200));
-    sala.goEnsaio();
-    await tester.pump(const Duration(milliseconds: 100));
-    for (var gravada = 0; gravada < 2; gravada++) {
-      sala.gravarACena(gravada + 1);
-      sala.gravarACena(gravada + 1);
-      await tester.pump(const Duration(milliseconds: 100));
-      sala.takeKeep();
-      if (gravada == 0) {
-        await theRoomNamesTheParts(tester, container, parts: 1);
-      }
-    }
-    await waitFor(
-      'a parte 2 ficar guardada, ainda subindo',
-      () => container.read(salaSessionProvider).partes.length == 2,
-      step: () => letTheRehearsalReachTheRoom(tester),
-    );
-    sala.startRetro();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).partes[1].takeId, isNull);
-    expect(
-      _rotulos(tester),
-      ['parte 1', 'parte 2 ·'],
-      reason:
-          'a parte que ainda subia era a que a sala mandava ouvir, e a '
-          'fileira dela não dizia que faltava ouvi-la',
-    );
-    harness.room.finishHeldTake();
     closeTheRoom(container);
   });
 }

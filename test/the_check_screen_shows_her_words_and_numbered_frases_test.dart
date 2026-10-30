@@ -396,6 +396,10 @@ Future<ProviderContainer> _aParteUmRegravada(
         .every((trecho) => trecho.parte != 0),
     step: () => _passo(tester),
   );
+  await untilTheAdvanceDiscLights(
+    container.read(salaSessionProvider.notifier),
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   container.read(salaSessionProvider.notifier).startRetro();
   await waitFor(
     'a volta à tradução',

@@ -225,6 +225,48 @@ ButtonMood _oDisco(WidgetTester tester) => tester
     )
     .mood;
 
+ButtonMood _aMadeira(WidgetTester tester) => tester
+    .widget<RoundActionButton>(
+      find.ancestor(
+        of: offTheRows(_ouvir),
+        matching: find.byType(RoundActionButton),
+      ),
+    )
+    .mood;
+
+/// Scenes 1 to 3 kept and landed, and scene 4 kept with the Outbox's count after its
+/// copy held and its upload held at the room's door.
+Future<(_Casa, ({Completer<void> asking, Completer<void> answer}))>
+_aQuartaGuardadaComAContaPresa(WidgetTester tester) async {
+  late QueueHeldOnTheNextTally fila;
+  final casa = await _naCasa(
+    tester,
+    harness: SalaHarness(
+      lingua: 'pt',
+      takesOverride: (room, home, recordings) => fila = QueueHeldOnTheNextTally(
+        room: room,
+        home: () async => home,
+        recordings: recordings,
+      ),
+    ),
+  );
+  for (final n in [1, 2, 3]) {
+    await casa.guardar(n);
+  }
+  await casa.gravar(4);
+  final contagem = fila.holdTheNextTally();
+  casa.room.holdNextTake('parte-4');
+  await casa.emTempoReal(() async {
+    casa.sala.takeKeep();
+    await waitFor(
+      'a contagem da cena 4 começar',
+      () => contagem.asking.isCompleted,
+      limit: const Duration(seconds: 5),
+    );
+  });
+  return (casa, contagem);
+}
+
 Future<_Casa> _comAQuartaNaFila(WidgetTester tester) async {
   final casa = await _naCasa(tester);
   for (final n in [1, 2, 3]) {
@@ -1297,33 +1339,7 @@ void main() {
     'a keep the Outbox has taken but not yet counted keeps the advance disc '
     'dark',
     (tester) async {
-      late QueueHeldOnTheNextTally fila;
-      final casa = await _naCasa(
-        tester,
-        harness: SalaHarness(
-          lingua: 'pt',
-          takesOverride: (room, home, recordings) =>
-              fila = QueueHeldOnTheNextTally(
-                room: room,
-                home: () async => home,
-                recordings: recordings,
-              ),
-        ),
-      );
-      for (final n in [1, 2, 3]) {
-        await casa.guardar(n);
-      }
-      await casa.gravar(4);
-      final contagem = fila.holdTheNextTally();
-      casa.room.holdNextTake('parte-4');
-      await casa.emTempoReal(() async {
-        casa.sala.takeKeep();
-        await waitFor(
-          'a contagem da cena 4 começar',
-          () => contagem.asking.isCompleted,
-          limit: const Duration(seconds: 5),
-        );
-      });
+      final (casa, contagem) = await _aQuartaGuardadaComAContaPresa(tester);
 
       expect(_oDisco(tester), ButtonMood.dimmed, reason: 'a cena 4 sem conta');
       casa.sala.startRetro();
@@ -1407,6 +1423,51 @@ void main() {
         'a sala guardar a cena 2',
         () => casa.naSala.contains('ensaio/parte-2'),
       );
+    },
+  );
+  testWidgets(
+    'the wood play stays dark from the keep tap until the room holds the part',
+    (tester) async {
+      final (casa, contagem) = await _aQuartaGuardadaComAContaPresa(tester);
+
+      expect(
+        _aMadeira(tester),
+        ButtonMood.dimmed,
+        reason: 'guardando a cena 4',
+      );
+
+      await casa.emTempoReal(() async {
+        contagem.answer.complete();
+        await waitFor(
+          'a cena 4 subir',
+          () => casa.estado.sceneRows[3].inTheAir != null,
+        );
+        await settle();
+      });
+      expect(_aMadeira(tester), ButtonMood.dimmed, reason: 'a cena 4 no ar');
+
+      await casa.emTempoReal(() async {
+        casa.room.finishHeldTake();
+        await waitFor(
+          'a cena 4 chegar à sala',
+          () => casa.naSala.contains('ensaio/parte-4') && casa.enviada(4),
+          limit: const Duration(seconds: 30),
+        );
+        await settle();
+      });
+      expect(_aMadeira(tester), ButtonMood.lit);
+    },
+  );
+
+  testWidgets(
+    'a part failed in the Outbox leaves the wood play lit and «Ouvir tudo» '
+    'hidden',
+    (tester) async {
+      final casa = await _comAQuartaNaFila(tester);
+      await casa.emTempoReal(settle);
+
+      expect(_aMadeira(tester), ButtonMood.lit);
+      expect(find.text('Ouvir tudo'), findsNothing);
     },
   );
 }

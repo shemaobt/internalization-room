@@ -18,7 +18,6 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -399,15 +398,6 @@ Future<ProviderContainer> _retomarNoEnsaio(
   );
   return container;
 }
-
-ButtonMood _oPlayDeMadeira(WidgetTester tester) => tester
-    .widget<RoundActionButton>(
-      find.ancestor(
-        of: offTheRows(_ouvir),
-        matching: find.byType(RoundActionButton),
-      ),
-    )
-    .mood;
 
 bool _ouvirTudo() => find.text('Ouvir tudo').evaluate().isNotEmpty;
 
@@ -1732,22 +1722,6 @@ void main() {
       expect(_discoAceso(tester), isTrue);
       await _tocar(tester, inTheHome(_irParaATraducao));
       expect(_estado(container).stage, SalaStage.retro);
-      closeTheRoom(container);
-    },
-  );
-
-  testWidgets(
-    'the wood play stays dark from the keep tap until the room holds the part',
-    (tester) async {
-      final (harness, container) = await _aQuartaGuardadaDevagar(tester);
-
-      expect(_oPlayDeMadeira(tester), ButtonMood.dimmed);
-
-      await _aQuartaChegaAPorta(tester, harness);
-      expect(_oPlayDeMadeira(tester), ButtonMood.dimmed);
-
-      await _aQuartaChegaASala(tester, harness, container);
-      expect(_oPlayDeMadeira(tester), ButtonMood.lit);
       closeTheRoom(container);
     },
   );

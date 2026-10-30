@@ -1611,7 +1611,8 @@ class SalaSessionState {
   bool get canPlayTheRehearsal =>
       (partes.isNotEmpty || ensaio == EnsaioStatus.recorded) &&
       ensaio != EnsaioStatus.recording &&
-      everyPartIsSent;
+      !partes.any((take) => machine.beingKept(sessionId, take.scopeId)) &&
+      _theTakeInTheAirOf(partTakeKind) == null;
 
   Trecho? get btFraseTraduzidaDeNovo => switch (btTrechoTraduzidoDeNovo) {
     final Trecho trecho

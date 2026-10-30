@@ -7619,19 +7619,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         row.id,
     };
     var joined = false;
+    final sentByTheTap = <PendingTake>[];
     for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
       if (state.rowOf(scope) != cena) continue;
       for (final row in rows) {
         if (row.id != sent &&
             (tapped.contains(row.id) || row.refusal == null)) {
           joined = joined || row.origin != null;
-          if (sessionId != null &&
-              tapped.contains(row.id) &&
-              !_endedSince(life)) {
-            _dispatch(
-              TheTapSent((session: sessionId, scope: row.scope), row.id),
-            );
-          }
+          if (tapped.contains(row.id)) sentByTheTap.add(row);
           await queue.dueAgain(row.id, intoTheSession: sessionId);
         }
       }
@@ -7639,6 +7634,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _countUnsentIn(life);
     await queue.flush();
     await _countUnsentIn(life);
+    for (final row in sentByTheTap) {
+      final landed = await queue.takeIdOf(row.id);
+      if (_endedSince(life)) return;
+      if (landed != null && sessionId != null) {
+        _dispatch(TheTapSent((session: sessionId, scope: row.scope), row.id));
+      }
+    }
     await _adoptTheNames(queue, life);
     if (_endedSince(life)) return;
     if (joined) _readTheRehearsalsAtHome();

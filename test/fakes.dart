@@ -4443,6 +4443,26 @@ class FakeTakeQueue implements TakeUploadQueue {
 /// and a pumped clock never advances that. The room answers with the name it gave the
 /// recording across the same stretch of time, and a told-back stretch cannot name a
 /// recording the room has not answered for yet.
+/// Until the advance disc lights: every scene has its part and the room holds every one.
+Future<void> untilTheAdvanceDiscLights(
+  SalaSessionNotifier sala, {
+  Future<void> Function()? step,
+}) => waitFor(
+  'o disco de avanço acender',
+  () => sala.state.ensaioDone,
+  step: step,
+);
+
+/// Until the wood play lights: no part is still going up to the room.
+Future<void> untilTheWoodPlayLights(
+  SalaSessionNotifier sala, {
+  Future<void> Function()? step,
+}) => waitFor(
+  'o play de madeira acender',
+  () => sala.state.canPlayTheRehearsal,
+  step: step,
+);
+
 Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 150)),
