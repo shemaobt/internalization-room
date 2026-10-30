@@ -27,7 +27,7 @@ import 'package:internalization_room/main.dart';
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
@@ -72,12 +72,17 @@ void _juntadas(Sala it) {
   }
 }
 
-Future<void> _reabrir(Sala it) async {
+Future<void> _reabrir(Sala it, {bool pelaEscolha = true}) async {
   it.container.dispose();
   it.container = it.harness.container();
   addTearDown(it.container.dispose);
-  await it.sala.abrirEscolha();
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  if (pelaEscolha) {
+    await it.sala.abrirEscolha();
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+    return;
+  }
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
 }
 
 /// A Joined recording of three parts on the recording home: nothing told back, nothing
@@ -85,7 +90,7 @@ Future<void> _reabrir(Sala it) async {
 Future<Sala> _juntadaNaCasa({SalaHarness? numaSala}) async {
   final it = await umEnsaioGravado(partesDoEnsaio, numaSala: numaSala);
   _juntadas(it);
-  await _reabrir(it);
+  await _reabrir(it, pelaEscolha: false);
   await waitFor(
     'a casa voltar com as três partes juntadas',
     () =>

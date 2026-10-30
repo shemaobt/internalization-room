@@ -8,6 +8,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'scenario_helpers.dart' show intoTheRecordingHome;
 
 Map<String, Object?> _ouvida(String takeId, int de, int ate, int quanto) => {
   'take_id': takeId,
@@ -235,14 +236,8 @@ void main() {
       it.container.dispose();
       it.container = it.harness.container();
       addTearDown(it.container.dispose);
-      await it.sala.abrirEscolha();
-      await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
-      await waitFor(
-        'a retomada cair na tradução',
-        () => it.estado.stage == SalaStage.retro,
-      );
-      it.sala.goEnsaio();
-      await waitFor('o ensaio abrir', () => it.estado.station is Ensaio);
+      await it.sala.openTheRoom();
+      await intoTheRecordingHome(it.sala, () => it.estado);
       final tocadas = it.harness.playback.played.length;
 
       it.sala.ouvirACena(1);
