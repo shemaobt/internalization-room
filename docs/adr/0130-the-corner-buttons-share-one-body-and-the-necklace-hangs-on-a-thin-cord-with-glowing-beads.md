@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0149, amended by ENG-1972 (2026-10-28: the one body of the corner buttons is superseded; every way back is her bare chevron)
+status: accepted, amended by 0149, amended by ENG-1972 (2026-10-28: the one body of the corner buttons is superseded; every way back is her bare chevron), amended by ENG-1994 (2026-10-29: the necklace's bead material is hers)
 date: 2026-10-22
 amends: 0062
 ---
@@ -12,6 +12,13 @@ bare chevron, `M15 5l-7 7 7 7` at stroke 1.6 in verde-claro, as her `.draft-clos
 passage's and the rehearsal sheet's take it once ENG-1844 and ENG-1959 land). The bullet that
 gave the three a 44 px disc is gone; its last sentence, the chevron's inert 0.2, stays as
 its own bullet.
+
+Amended by ENG-1994 (2026-10-29): the bead material is superseded, her frozen app 18fa7c4
+(`app/globals.css`) winning over this ADR. A bead at rest is `areia` at .55; a filled one is
+`verde-claro` at .92, with no gradient and no glow. The last filled bead, the growing edge,
+scales 1.1, and a bead just filled scales 1.2 for the 1.3 s it settles. The row's 9 % is
+measured from the canvas box the overlay is laid in, not from the screen. The cord and the
+bead sizes below stand.
 
 This amends ADR 0062's "faint at rest" without editing it; it adds "amended by 0130" to its
 status line. Settled on the ticket (ENG-1536), from Henok's prototype choice of 9 October
@@ -29,9 +36,8 @@ was heavy and its beads, lit or not, looked the same weight.
   offered but not live, it draws at 0.2 and takes no touch.
 - **The hand keeps its own body.** It is a primary control with states (note mode, a reply
   waiting) that the light disc does not have.
-- **The necklace's cord is 1.5 px in `line`, its beads are 16 px, and a lit bead glows** with
-  a 3 px ring of `wood` at 25 % outside its matte shadow. At the Closing the beads stay as
-  they hung.
+- **The necklace's cord is 1.5 px in `line`, its beads are 16 px** (the glow of a lit bead
+  is superseded above). At the Closing the beads stay as they hung.
 
 ## Consequences
 
