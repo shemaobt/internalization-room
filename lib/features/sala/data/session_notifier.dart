@@ -377,8 +377,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// the room lost waits for before it leaves the Rehearsal.
   late bool _aLeituraDecidiu;
 
-  /// The station this opening last wrote in the Resume point, so the parts coming down
-  /// never write back a station the team has left.
+  /// The station the Resume point says, read at the landing or last written here, so the
+  /// parts coming down and a name adopted never write back a station the team has left.
   late Station? _aLinhaDiz;
 
   /// When and in what language the session now open was created, so a row rewritten by
@@ -7783,10 +7783,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// Take back the names the room gave the rehearsal recordings this tablet made.
   ///
-  /// A told-back stretch is a slice of one recording and says which, and this is the only
-  /// moment those names are said for recordings this tablet made. A rehearsal whose files
-  /// are not here any more is fetched back from the room, and those parts arrive already
-  /// named by it, so there is nothing to adopt for them.
+  /// A told-back stretch is a slice of one recording and says which, and this is where
+  /// those names are said for recordings this tablet made while the Outbox still knows
+  /// them; a part the Outbox no longer holds takes its name from the room's listing. A
+  /// rehearsal whose files are not here any more is fetched back from the room, and those
+  /// parts arrive already named by it, so there is nothing to adopt for them.
   ///
   /// Every flush, not only the one the keep ran: a recording the room refused, or one
   /// held behind an earlier recording of its own part, lands later, and a part still
