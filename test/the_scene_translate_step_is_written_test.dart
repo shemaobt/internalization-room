@@ -1419,6 +1419,56 @@ void main() {
   );
 
   testWidgets(
+    'a frase of a sent scene rehearsal that never says it ended is closed at its own end, with her clock and the strip at the take\'s time',
+    (tester) async {
+      final (harness, container) = await _inListenMode(
+        tester,
+        rehearsals: [
+          _rehearsal(
+            sentAt: '2026-10-27T10:00:00+00:00',
+            frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+          ),
+        ],
+      );
+      harness.playback.length = const Duration(seconds: 10);
+      const paused =
+          'pausado — toque no círculo para marcar onde a frase acaba — 0:08 / 0:10';
+
+      await tester.tap(byLabel('frase 2'));
+      await pumpUntil(
+        tester,
+        () => switch (container.read(salaSessionProvider).channel) {
+          PartPlaying(:final opened) => opened,
+          _ => false,
+        },
+      );
+      expect(harness.playback.ranges.last, '4000-8000');
+      harness.playback.at = const Duration(seconds: 4);
+      for (var second = 0; second < 15; second++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+
+      expect(
+        container.read(salaSessionProvider).channel,
+        isNot(isA<PartPlaying>()),
+        reason:
+            'o teto da escuta da frase 2 era armado com os 10 s do arquivo, '
+            'não com os 4 s do trecho, e a frase seguia no ar',
+      );
+      expect(
+        find.text(paused),
+        findsOneWidget,
+        reason: 'a frase fechada pelo teto não dizia onde o take parou',
+      );
+      expect(
+        _playhead(tester),
+        closeTo(233.6, 0.01),
+        reason: 'o marcador não ficava no fim da frase 2, contado no take',
+      );
+    },
+  );
+
+  testWidgets(
     'a frase of a sent scene rehearsal still opening shows her clock at the frase\'s start, not the clip before it added on',
     (tester) async {
       final (harness, container) = await _inListenMode(
