@@ -1431,7 +1431,7 @@ class TakeUploadQueue {
   Future<void> _deleteTheCopy(PendingTake entry) async {
     try {
       await File(entry.path).delete();
-    } on PathNotFoundException {
+    } on FileSystemException {
       return;
     }
   }

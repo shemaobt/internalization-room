@@ -212,6 +212,43 @@ void main() {
       expect(inTheFolder(), ['fila.json']);
     });
 
+    test('a withdrawn copy the disk will not delete does not stop the rows '
+        'behind it', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final behind = await keep(queue, 'inteira', 'sessao-1');
+      queue.tapped(row.id);
+      queue.tapped(behind.id);
+      final outside = Zone.current;
+      final flushed = IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          return path == row.path ? _ACopyTheDiskWillNotDelete(real) : real;
+        },
+      );
+      await room.untilTakeHeld();
+      expect(await queue.withdrawEvenInTheAir(row), isTrue);
+      room.finishHeldTake();
+      await flushed;
+
+      expect(
+        room.takesKept,
+        ['ensaio/parte-2', 'ensaio/inteira'],
+        reason:
+            'a cópia que o disco recusava apagar saía do catch do envio, e a '
+            'fila parava antes da linha seguinte',
+      );
+    });
+
     test('the open sweep leaves the link, the resume point and the current '
         'session in their folder', () async {
       final folder = Directory('${home.path}/guardadas')..createSync();
@@ -3138,6 +3175,44 @@ class _ATakeWhoseCopyIsHeld implements File {
     await release.future;
     return made;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ACopyTheDiskWillNotDelete implements File {
+  final File _real;
+
+  _ACopyTheDiskWillNotDelete(this._real);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  Future<int> length() => _real.length();
+
+  @override
+  int lengthSync() => _real.lengthSync();
+
+  @override
+  Uint8List readAsBytesSync() => _real.readAsBytesSync();
+
+  @override
+  Future<Uint8List> readAsBytes() => _real.readAsBytes();
+
+  @override
+  Stream<List<int>> openRead([int? start, int? end]) =>
+      _real.openRead(start, end);
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) =>
+      Future.error(const FileSystemException('o disco recusou'));
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
