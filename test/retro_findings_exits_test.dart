@@ -133,7 +133,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     final estado = container.read(salaSessionProvider);
-    expect(estado.btRegravacao?.frase, 1);
+    expect(estado.btRegravacao?.segmentId, 'trecho-1');
     expect(estado.stage, SalaStage.retro);
   });
 
