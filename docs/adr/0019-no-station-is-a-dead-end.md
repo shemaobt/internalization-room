@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0107, amended by ENG-1899 (2026-10-30: the Choice's way out)
+status: accepted, amended by 0107, amended by ENG-1899 (2026-10-30: the Choice's way out), amended by ENG-1970 (the Closing is gone)
 ---
 
 # No station of the room is a dead end
@@ -35,3 +35,6 @@ the notifier (`abrirEscolha`, which reads the Wheel again), not through anything
 touches on the Choice. João accepted on the ticket that removing the circle removes its
 retry, because her Choice has none. The table of exits keeps the Choice's exit on a listed
 Wheel, the tap on an entry.
+
+Amended by ENG-1970 (2026-10-30): the Closing no longer exists; a finished passage stays on its
+conversation canvas, which has its own way out.
