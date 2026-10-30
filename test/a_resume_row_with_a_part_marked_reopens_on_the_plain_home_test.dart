@@ -10,12 +10,12 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show intoTheRecordingHome, settle;
+import 'support/temp.dart';
 
 void main() {
   test('a row that still marks a part to record again reopens on the plain '
       'home, with no part marked', () async {
-    final casa = Directory.systemTemp.createTempSync('sala-2035-marcada');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-2035-marcada');
     for (final n in [1, 2]) {
       File('${casa.path}/p$n.m4a').writeAsBytesSync([1, 2, 3]);
     }

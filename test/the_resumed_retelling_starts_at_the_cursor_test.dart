@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show intoTheBackTranslation, settle;
+import 'support/temp.dart';
 
 /// A tablet opened again on a passage the team was part-way through telling back.
 ///
@@ -21,8 +22,7 @@ Future<ProviderContainer> _retomar(
   required List<SegmentView> traduzido,
   int partes = 1,
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-retro-no-cursor');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-retro-no-cursor');
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,

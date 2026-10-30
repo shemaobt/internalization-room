@@ -16,6 +16,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 const _hearAgain = 'Ouvir de novo';
 
@@ -321,10 +322,8 @@ void main() {
     Future<(SalaHarness, SalaSessionNotifier, SalaSessionState Function())>
     onTheBackTranslation() async {
       final harness = SalaHarness();
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-1356').path}/p1.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-1356').path}/p1.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       await holdTheSession(
         harness,
         ResumePoint(

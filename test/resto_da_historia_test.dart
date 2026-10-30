@@ -13,6 +13,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const continuarOEnsaio = 'Continuar o ensaio';
 const irParaARetro = 'Traduzir a gravação';
@@ -46,8 +47,7 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
   required List<int> traduzidasAte,
   Set<String> porTraduzir = const {},
 }) async {
-  final home = Directory.systemTemp.createTempSync('sala-resto-da-historia');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-resto-da-historia');
   final gravadas = [
     for (var parte = 1; parte <= traduzidasAte.length; parte++)
       KeptTake(

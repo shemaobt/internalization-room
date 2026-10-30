@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -18,16 +19,16 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
+import 'support/temp.dart';
 
 void main() {
   late Directory home;
   late FakeRecorder recorder;
 
   setUp(() {
-    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    home = aTempDir('fila-tomadas');
     recorder = FakeRecorder();
   });
-  tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
 
@@ -72,9 +73,7 @@ void main() {
 
   /// The tablet comes back from a backup under a container prefix it has never had.
   void theContainerIsRenamed() {
-    final restored = Directory.systemTemp.createTempSync(
-      'fila-tomadas-restaurada',
-    );
+    final restored = aTempDir('fila-tomadas-restaurada');
     Directory(
       '${home.path}/guardadas',
     ).renameSync('${restored.path}/guardadas');
@@ -3016,6 +3015,55 @@ void main() {
       expect(sent, 0);
     });
   });
+
+  test('a read of an Outbox whose folder does not exist returns empty and '
+      'leaves no folder', () async {
+    final queue = queueOn(FakeRoom());
+
+    final read = [
+      ...await queue.entries(),
+      ...await queue.pending(),
+      ...await queue.waiting(),
+    ];
+
+    expect(read, isEmpty);
+    expect(Directory('${home.path}/guardadas').existsSync(), isFalse);
+  });
+
+  test(
+    'an enqueue still copying when the container is disposed lands its row '
+    'once the Outbox is drained, and the deleted folder is not made again',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      final container = ProviderContainer(
+        overrides: [takeUploadQueueProvider.overrideWithValue(queue)],
+      );
+      final gravada = File('${aTempDir('sala-gravacao').path}/nova.m4a')
+        ..writeAsStringSync('a equipe contou a passagem');
+      final take = _ATakeWhoseCopyIsHeld(gravada);
+
+      final keeping = container
+          .read(takeUploadQueueProvider)
+          .enqueue(
+            take,
+            sessionId: 'sessao-1',
+            kind: 'ensaio',
+            scope: 'inteira',
+          );
+      await take.copied.future;
+      container.dispose();
+      final drained = queue.drained();
+      take.release.complete();
+      await drained.timeout(const Duration(seconds: 5), onTimeout: () {});
+
+      final landed = await queueOn(FakeRoom()).entries();
+      home.deleteSync(recursive: true);
+      final row = await keeping;
+
+      expect([for (final entry in landed) entry.id], [row.id]);
+      expect(home.existsSync(), isFalse);
+    },
+  );
 }
 
 final class _Plain extends IOOverrides {}

@@ -13,6 +13,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'session_notifier_test.dart' show inConversa;
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 /// A tablet reopening straight into an unchecked telling-back, with one part already
 /// named. Copied from `the_desk_lifts_the_halt_test.dart` and
@@ -21,10 +22,8 @@ import 'scenario_helpers.dart';
 Future<(ProviderContainer, String)> _reopensIntoRetro(
   SalaHarness harness,
 ) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1136').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final gravada = File('${aTempDir('sala-1136').path}/p1.m4a')
+    ..writeAsBytesSync([1, 2, 3]);
   final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,

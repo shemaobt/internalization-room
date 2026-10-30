@@ -39,7 +39,7 @@ void _aTakeTheNetworkLoses(
   SalaHarness? harness,
 }) {
   fakeAsync((clock) {
-    final sala = harness ?? SalaHarness();
+    final sala = (harness ?? SalaHarness())..onAFakeClock();
     ProviderContainer? container;
     unawaited(inConversa(sala).then((opened) => container = opened));
     clock.elapse(const Duration(seconds: 1));
@@ -65,7 +65,7 @@ void _anOpeningTheNetworkLoses(
   SalaHarness? harness,
 }) {
   fakeAsync((clock) {
-    final sala = harness ?? SalaHarness();
+    final sala = (harness ?? SalaHarness())..onAFakeClock();
     final container = sala.container();
     addTearDown(container.dispose);
     final it = _Room(sala, container);

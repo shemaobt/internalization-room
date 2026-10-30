@@ -7,6 +7,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show BindingBase;
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -54,6 +56,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+
+import 'support/temp.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
 /// passes in silence surfaces as an unrelated error several lines later.
@@ -371,18 +375,6 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> dispose() async {}
 }
 
-Directory aTempHome(String prefix) {
-  final home = Directory.systemTemp.createTempSync(prefix);
-  try {
-    addTearDown(() {
-      if (home.existsSync()) home.deleteSync(recursive: true);
-    });
-  } on StateError {
-    return home;
-  }
-  return home;
-}
-
 class FakeRecorder implements RecordingRepository {
   /// The same ordered log the players write to: the microphone opening on a silent room
   /// is an order between two doubles, not a pair of counters.
@@ -392,7 +384,7 @@ class FakeRecorder implements RecordingRepository {
 
   final StreamController<bool> _interruptions =
       StreamController<bool>.broadcast();
-  final Directory home = aTempHome('sala-gravacoes');
+  final Directory home = aTempDir('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
   bool returnsEmpty = false;
@@ -598,6 +590,13 @@ class FakeRecorder implements RecordingRepository {
   void holdNextLookup() => _holdTheNextLookup = true;
 
   void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
+  void letGoOfEverythingHeld() {
+    for (final held in [..._holdingStarts, ..._heldLookups]) {
+      if (!held.isCompleted) held.complete();
+    }
+    finishStop();
+  }
 
   @override
   Future<String?> heldAs(String fileName) async {
@@ -3081,6 +3080,20 @@ class FakeRoom implements RoomRepository {
     holdTakeScope = null;
   }
 
+  void letGoOfEverythingHeld() {
+    finishHeldTake();
+    finishHeldKeep();
+    releaseTheLabel();
+    for (final held in [
+      ?_heldListing,
+      ..._heldTakesLists,
+      ..._heldSceneLists,
+      ..._heldScenes,
+    ]) {
+      if (!held.isCompleted) held.complete();
+    }
+  }
+
   Duration? takeLandsAfter;
 
   Duration? takeLandsInRealTime;
@@ -4227,6 +4240,9 @@ class FakeTakeQueue implements TakeUploadQueue {
       : entry.sessionId == sessionId;
 
   @override
+  Future<void> drained() async {}
+
+  @override
   Future<int> flush() async {
     var sent = 0;
     for (final id in [for (final entry in rows) entry.id]) {
@@ -4497,7 +4513,7 @@ class SalaHarness {
   final List<String> sounds = [];
   late final FakeVoice voice = FakeVoice(sounds: sounds);
   final FacilitatorVoiceService? voiceService;
-  late final FakeRecorder recorder = FakeRecorder(sounds: sounds);
+  late final FakeRecorder recorder;
   late final FakePlayback playback = FakePlayback(sounds: sounds);
   final FakeInbox inbox;
   final FakeRoom room;
@@ -4576,12 +4592,37 @@ class SalaHarness {
   }) : room = room ?? FakeRoom(),
        roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
        look = look ?? FakeLookLedger(),
-       takesHome =
-           takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
+       takesHome = takesHome ?? aTempDir('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs) {
     this.room.heldByTheTeam = _theRowsSession;
+    recorder = FakeRecorder(sounds: sounds);
+    _onAFakeClock = _aWidgetTestClockIsRunning();
+    addTearDown(_letGo);
+  }
+
+  void onAFakeClock() => _onAFakeClock = true;
+
+  final List<ProviderContainer> _containers = [];
+
+  late bool _onAFakeClock;
+
+  static bool _aWidgetTestClockIsRunning() =>
+      BindingBase.debugBindingType() != null &&
+      switch (WidgetsBinding.instance) {
+        final TestWidgetsFlutterBinding binding => binding.inTest,
+        _ => false,
+      };
+
+  Future<void> _letGo() async {
+    for (final container in _containers) {
+      container.dispose();
+    }
+    room.letGoOfEverythingHeld();
+    recorder.letGoOfEverythingHeld();
+    if (_onAFakeClock) return;
+    await takes.drained();
   }
 
   Future<String?> _theRowsSession(String? pericope, String language) async {
@@ -4635,7 +4676,8 @@ class SalaHarness {
   Directory? _lifeOver;
 
   void endTheLifeOnTheDisk() =>
-      _lifeOver = Directory.systemTemp.createTempSync('sala-vida-encerrada');
+      _lifeOver = Directory(p.join(takesHome.path, 'vida-encerrada'))
+        ..createSync();
 
   List<Duration> takeSpacing = const [];
 
@@ -4675,7 +4717,12 @@ class SalaHarness {
       roomInboxWatchProvider.overrideWithValue(every),
   ];
 
-  ProviderContainer container() => ProviderContainer(overrides: overrides);
+  ProviderContainer container() {
+    final container = ProviderContainer(overrides: overrides);
+    _onAFakeClock |= _aWidgetTestClockIsRunning();
+    _containers.add(container);
+    return container;
+  }
 
   Completer<void>? _envelopeHeld;
 

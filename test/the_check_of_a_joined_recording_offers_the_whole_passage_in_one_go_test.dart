@@ -20,6 +20,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show byLabel, holdTheSession, intoTheBackTranslation, voiceOverTap;
+import 'support/temp.dart';
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -61,8 +62,7 @@ Future<ProviderContainer> _naConferencia(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1876');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1876');
   await holdTheSession(
     harness,
     ResumePoint(

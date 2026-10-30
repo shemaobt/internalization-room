@@ -29,6 +29,7 @@ import 'scenario_helpers.dart'
         intoTheBackTranslation,
         offTheRows,
         thePersonSign;
+import 'support/temp.dart';
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -235,7 +236,7 @@ Future<void> _toTheConversation(_Home it) async {
 }
 
 SalaHarness _aHarness(String lingua, List<Scene> scenes) {
-  final home = Directory.systemTemp.createTempSync('sala-1405-traz');
+  final home = aTempDir('sala-1405-traz');
   return SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
@@ -297,8 +298,7 @@ Future<_Home> _inTheBackTranslation(
 }) async {
   const sessionId = 'sessao-antiga';
   final harness = _aHarness('pt', _threeScenes);
-  final folder = Directory.systemTemp.createTempSync('sala-1405-retro');
-  addTearDown(() => folder.deleteSync(recursive: true));
+  final folder = aTempDir('sala-1405-retro');
   if (heldSentence != null) {
     await tester.runAsync(
       () => harness.takes.enqueue(

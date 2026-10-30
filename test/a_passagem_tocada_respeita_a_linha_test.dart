@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show enterThePassage, settle;
+import 'support/temp.dart';
 
 /// The passage the team taps on the Choice.
 const _passagem = 'P02';
@@ -58,8 +59,7 @@ void _aLinhaDeixada(
   bool noTablet = true,
   String? lingua,
 }) {
-  final casa = Directory.systemTemp.createTempSync('sala-porta-da-sala');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-porta-da-sala');
   final takes = <KeptTake>[];
   for (var n = 1; n <= 3; n++) {
     final caminho = '${casa.path}/p$n.m4a';

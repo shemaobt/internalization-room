@@ -17,12 +17,12 @@ import 'scenario_helpers.dart'
     show holdTheSession, intoTheBackTranslation, settle;
 import 'session_notifier_test.dart' show inConversa;
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
   SalaHarness harness,
 ) async {
-  final home = Directory.systemTemp.createTempSync('sala-1172');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-1172');
   final p1 = File('${home.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
   final p2 = File('${home.path}/p2.m4a')..writeAsBytesSync([4, 5, 6]);
   harness.playback.lengths[p1.path] = const Duration(seconds: 10);

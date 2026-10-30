@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 Future<Sala> _onTheConversationOfAnEndedPassage() async {
   final harness = SalaHarness()..room.done = true;
@@ -180,8 +181,7 @@ void main() {
         ),
       )
       ..takeAudio['gravacao-1'] = Uint8List.fromList([7, 7, 7, 7]);
-    final home = Directory.systemTemp.createTempSync('sala-aprovada');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-aprovada');
     harness.emAberto.rows['Ruth/P01/$testLanguage'] = ResumePoint(
       sessionId: 'sessao-aprovada',
       stage: SalaStage.retro,
