@@ -328,7 +328,7 @@ Future<_Home> _inTheBackTranslation(
   if (fromTheChoice) {
     harness.emAberto.rows['Ruth/P01/pt'] = row;
   } else {
-    await holdTheSession(harness, row, language: 'pt');
+    await holdTheSession(harness, row);
   }
   harness.room.retroSoFar = BackTranslationProgress(
     segments: [

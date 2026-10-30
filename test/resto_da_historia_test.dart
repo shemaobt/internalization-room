@@ -58,10 +58,8 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
         takeId: 'antiga-$parte',
       ),
   ];
-  await harness.emAberto.remember(
-    'Ruth',
-    'P01',
-    'pt',
+  await holdTheSession(
+    harness,
     ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,
@@ -84,11 +82,11 @@ Future<ProviderContainer> aRetomadaNoEnsaio(
   final container = harness.container();
   addTearDown(container.dispose);
   final notifier = container.read(salaSessionProvider.notifier);
-  await notifier.abrirEscolha();
-  await settle();
-  await notifier.goConversa(book: 'Ruth', pericope: 'P01');
-  await settle();
-  expect(container.read(salaSessionProvider).stage, SalaStage.ensaio);
+  await notifier.openTheRoom();
+  await intoTheRecordingHome(
+    notifier,
+    () => container.read(salaSessionProvider),
+  );
   return container;
 }
 
