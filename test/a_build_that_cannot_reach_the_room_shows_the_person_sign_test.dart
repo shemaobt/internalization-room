@@ -314,6 +314,18 @@ void main() {
         );
         expect(read().sessionId, p01);
         expect(harness.room.calls.skip(asked), ['createSession']);
+        expect(read().machine.inFlight, isNull);
+
+        harness.room.throwOn.remove('createSession');
+        notifier.leaveThePassage();
+        await waitFor('the Choice again', () => read().entriesOpen);
+        notifier.openTheEntry(
+          read().naRoda!.firstWhere((entry) => entry.pericope == 'P02'),
+        );
+        await waitFor(
+          'P02 to open on the second tap',
+          () => read().pericope == 'P02' && read().voice == VoiceState.invite,
+        );
       },
     );
 
