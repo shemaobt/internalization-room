@@ -109,6 +109,121 @@ void main() {
     });
   });
 
+  test('a tap on the conversation while its stop is still in flight stops '
+      'nothing again, and the take goes to the room once', () async {
+    await _onAClock((later) async {
+      final room = await _inConversa(SalaHarness(captureGuard: _herGuard));
+      final turns = room.harness.room.turnsSent;
+
+      await room.tap();
+      later(const Duration(milliseconds: 800));
+      room.harness.recorder.holdNextStop();
+      await room.tap();
+      later(const Duration(milliseconds: 100));
+      await room.tap();
+      expect(room.state.voice, VoiceState.listening);
+
+      room.harness.recorder.finishStop();
+      await waitFor(
+        'a vez chegar à sala',
+        () => room.harness.room.turnsSent > turns,
+      );
+      await settle();
+
+      expect(
+        room.harness.sounds.where((sound) => sound == 'recorder:stop'),
+        hasLength(1),
+        reason:
+            'o segundo toque, com a parada ainda em curso, pedia ao gravador '
+            'uma segunda parada',
+      );
+      expect(
+        room.harness.room.turnsSent,
+        turns + 1,
+        reason: 'a mesma vez subia duas vezes',
+      );
+      expect(room.harness.recorder.starts, hasLength(1));
+    });
+  });
+
+  test('a tap on the Panorama while its stop is still in flight stops nothing '
+      'again either, and the take goes to the room once', () async {
+    await _onAClock((later) async {
+      final room = await _onThePanorama(SalaHarness(captureGuard: _herGuard));
+      final turns = room.harness.room.turnsSent;
+
+      await room.tap();
+      later(const Duration(milliseconds: 800));
+      room.harness.recorder.holdNextStop();
+      await room.tap();
+      later(const Duration(milliseconds: 100));
+      await room.tap();
+      expect(room.state.voice, VoiceState.listening);
+
+      room.harness.recorder.finishStop();
+      await waitFor(
+        'a vez do Panorama chegar à sala',
+        () => room.harness.room.turnsSent > turns,
+      );
+      await settle();
+
+      expect(
+        room.harness.sounds.where((sound) => sound == 'recorder:stop'),
+        hasLength(1),
+        reason:
+            'no Panorama o segundo toque, com a parada ainda em curso, pedia '
+            'ao gravador uma segunda parada',
+      );
+      expect(
+        room.harness.room.turnsSent,
+        turns + 1,
+        reason: 'a mesma vez do Panorama subia duas vezes',
+      );
+      expect(room.harness.recorder.starts, hasLength(1));
+    });
+  });
+
+  test('a tap on the circle while the raised hand\'s question is still being '
+      'stopped stops nothing again, and the question goes out alone', () async {
+    await _onAClock((later) async {
+      final room = await _inConversa(SalaHarness(captureGuard: _herGuard));
+      final turns = room.harness.room.turnsSent;
+      room.notifier.handTap();
+      await settle();
+      expect(room.state.noteMode, isTrue);
+
+      await room.tap();
+      later(const Duration(milliseconds: 800));
+      room.harness.recorder.holdNextStop();
+      await room.tap();
+      expect(room.state.noteMode, isFalse);
+      later(const Duration(milliseconds: 100));
+      await room.tap();
+
+      room.harness.recorder.finishStop();
+      await waitFor(
+        'a pergunta chegar à mesa',
+        () => room.harness.inbox.questionsSent.isNotEmpty,
+      );
+      await settle();
+
+      expect(
+        room.harness.sounds.where((sound) => sound == 'recorder:stop'),
+        hasLength(1),
+        reason:
+            'o toque com a pergunta ainda sendo parada pedia ao gravador uma '
+            'segunda parada, a do círculo',
+      );
+      expect(room.harness.inbox.questionsSent, hasLength(1));
+      expect(
+        room.harness.room.turnsSent,
+        turns,
+        reason: 'o áudio da pergunta subia também como uma vez da conversa',
+      );
+      expect(room.harness.recorder.starts, hasLength(1));
+    });
+  });
+
   test('a double tap on the Panorama keeps the take going and sends nothing, '
       'as on the conversation', () async {
     await _onAClock((later) async {
@@ -194,8 +309,8 @@ void main() {
     });
   });
 
-  test('a question whose recorder answered late still counts from the tap, '
-      'so the hand does not throw away what the team asked', () async {
+  test('a question whose recorder answered late is sent whatever it '
+      'measured: the hand holds a question to no window', () async {
     await _onAClock((later) async {
       final room = await _inConversa(SalaHarness(captureGuard: _herGuard));
       room.notifier.handTap();
@@ -218,8 +333,8 @@ void main() {
         room.harness.inbox.questionsSent,
         hasLength(1),
         reason:
-            'a pergunta passou a contar do gravador, e a mão, que não ignora '
-            'o segundo toque, apagava uma pergunta de verdade',
+            'a mão apagava uma pergunta de verdade por ela durar menos de '
+            '0,7 s, contada do gravador ou do toque',
       );
     });
   });

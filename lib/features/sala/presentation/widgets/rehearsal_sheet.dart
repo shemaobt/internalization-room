@@ -7,6 +7,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
 import 'listen_glyph.dart';
+import 'scene_question.dart';
 import 'way_back_chevron.dart';
 
 const _rem = 16.0;
@@ -55,6 +56,7 @@ class RehearsalSheet extends ConsumerWidget {
     final onRecordAgain = this.onRecordAgain;
     final screen = MediaQuery.sizeOf(context);
     final inset = MediaQuery.viewPaddingOf(context).top;
+    final scene = recordingHomeLabelFor('scene', language, n: number);
 
     final sheet = Padding(
       padding: EdgeInsets.fromLTRB(
@@ -65,22 +67,35 @@ class RehearsalSheet extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          Text(
-            recordingHomeLabelFor('scene', language, n: number),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.verde,
-              fontSize: 1.5 * _rem,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.verdeClaro,
-              fontSize: 0.95 * _rem,
-              fontWeight: FontWeight.w400,
+          FocusOnArrival(
+            wanted: true,
+            child: Semantics(
+              header: true,
+              label: '$scene — $title',
+              child: ExcludeSemantics(
+                child: Column(
+                  children: [
+                    Text(
+                      scene,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.verde,
+                        fontSize: 1.5 * _rem,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.verdeClaro,
+                        fontSize: 0.95 * _rem,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 1.1 * _rem),
@@ -310,6 +325,7 @@ class _SheetLine extends StatelessWidget {
                   Semantics(
                     button: true,
                     enabled: usable,
+                    toggled: armed,
                     label: '$useLabel — $line',
                     onTap: usable ? onUse : null,
                     excludeSemantics: true,

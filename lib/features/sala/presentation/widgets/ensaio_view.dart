@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -188,11 +189,16 @@ class EnsaioView extends ConsumerWidget {
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
                   ],
-                  if (session.btAviso == BtAviso.checagemFalhou &&
-                      session.stage == SalaStage.ensaio) ...[
+                  if (session.btAviso case final aviso?
+                      when (aviso == BtAviso.checagemFalhou ||
+                              aviso == BtAviso.checagemNaoAbre) &&
+                          session.stage == SalaStage.ensaio) ...[
                     const SizedBox(height: 12),
                     Text(
-                      retroLabelFor('externalCheckFailed', language),
+                      retroLabelFor(switch (aviso) {
+                        BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
+                        _ => 'externalCheckFailed',
+                      }, language),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
@@ -511,7 +517,18 @@ class _SceneRowView extends StatelessWidget {
       null => null,
     };
     final said = switch (row.unsent) {
-      _ when recording => _said(words('recording'), colors),
+      _ when recording => switch (session.recorderStartedAt) {
+        final since? => Loop(
+          period: const Duration(seconds: 1),
+          reducible: false,
+          builder: (context, _) => _said(
+            '${words('recording')} · '
+            '${minutesAndSecondsOf(clock.now().difference(since))}',
+            colors,
+          ),
+        ),
+        null => _said(words('recording'), colors),
+      },
       _ when inTheAir != null => Row(
         children: [
           _said(words('sending'), colors),
