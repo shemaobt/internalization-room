@@ -130,4 +130,69 @@ void main() {
           'que veio depois',
     );
   });
+
+  test('the unheard parts of a passage the team left, answered late, never '
+      'dot the passage opened next', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    final deixada = it.estado.sessionId!;
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[0].takeId!]
+      ..holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    it.harness.room.listeningUnheardTakeIds = const [];
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => it.estado.stage == SalaStage.escolha && it.estado.naRoda != null,
+    );
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+    await waitFor(
+      'a outra passagem abrir',
+      () => it.estado.sessionId != null && it.estado.sessionId != deixada,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btNaoOuvidas,
+      isEmpty,
+      reason:
+          'a resposta atrasada da passagem deixada marcava como não ouvidas '
+          'as partes da passagem aberta depois',
+    );
+  });
+
+  test('the unheard parts of a passage the team left, answered late on the '
+      'Choice, are not kept', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[0].takeId!]
+      ..holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => it.estado.stage == SalaStage.escolha && it.estado.naRoda != null,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btNaoOuvidas,
+      isEmpty,
+      reason:
+          'a resposta atrasada da passagem deixada guardava partes por ouvir '
+          'numa Escolha sem passagem',
+    );
+  });
 }
