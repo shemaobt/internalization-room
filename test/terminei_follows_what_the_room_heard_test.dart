@@ -8,30 +8,7 @@ import 'um_ensaio_de_tres_partes.dart';
 
 Future<Sala> _ouvidaInteiraPelaSala() async {
   final it = await umEnsaioDeTresPartesGravado();
-  it.harness.room.listeningUnheardTakeIds = [
-    for (final parte in it.partes) parte.takeId!,
-  ];
-  it.sala.startRetro();
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await waitFor(
-      'a parte ${onde + 1} entrar no ar',
-      () =>
-          it.harness.playback.played.isNotEmpty &&
-          it.harness.playback.played.last == it.partes[onde].path &&
-          it.harness.playback.sounding,
-    );
-    if (onde == partesDoEnsaio.length - 1) {
-      it.harness.room.listeningUnheardTakeIds = const [];
-    }
-    await ouvirAteOFim(it, partesDoEnsaio[onde]);
-  }
-  await waitFor(
-    'a primeira escuta acabar e a primeira parte voltar ao ar',
-    () =>
-        !it.estado.btSoOuvir &&
-        it.estado.btPhase == BtPhase.playing &&
-        it.harness.playback.sounding,
-  );
+  await ouvidaInteiraPelaSala(it);
   return it;
 }
 

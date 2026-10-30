@@ -16,30 +16,7 @@ Future<Sala> _umaPausaMovidaComTudoOuvido() async {
         gaps: [(_s(3.0), _s(3.4)), (_s(6.0), _s(6.4))],
       ),
   );
-  it.harness.room.listeningUnheardTakeIds = [
-    for (final parte in it.partes) parte.takeId!,
-  ];
-  it.sala.startRetro();
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await waitFor(
-      'a parte ${onde + 1} entrar no ar',
-      () =>
-          it.harness.playback.played.isNotEmpty &&
-          it.harness.playback.played.last == it.partes[onde].path &&
-          it.harness.playback.sounding,
-    );
-    if (onde == partesDoEnsaio.length - 1) {
-      it.harness.room.listeningUnheardTakeIds = const [];
-    }
-    await ouvirAteOFim(it, partesDoEnsaio[onde]);
-  }
-  await waitFor(
-    'a primeira escuta acabar e a primeira parte voltar ao ar',
-    () =>
-        !it.estado.btSoOuvir &&
-        it.estado.btPhase == BtPhase.playing &&
-        it.harness.playback.sounding,
-  );
+  await ouvidaInteiraPelaSala(it);
   await traduzirUmTrecho(it, _s(4.2));
   await waitFor(
     'a equipe voltar ao círculo',
