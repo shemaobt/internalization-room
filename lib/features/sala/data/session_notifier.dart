@@ -6287,6 +6287,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final shown = state.scene;
     final waiting = shown.asWaiting;
+    _theTranslationAsked = null;
     state = state.copyWith(scene: waiting);
     return _sendTheSceneFrase(frase, shown, waiting, generation);
   }
@@ -6539,7 +6540,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       shown.rehearsal!.rehearsalId,
       shown.translatingAgain!,
     );
-    _silenceTheRoom();
+    if (_theTranslationAsked == null) _silenceTheRoom();
     _theRefusalLineGoes();
     state = state.copyWith(
       scene: shown.nothingAskedAgain.copyWith(clearPausa: true),
@@ -6620,6 +6621,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final unseen = state.sceneTranslationsUnseen[told?.rehearsalId];
     if (sessionId == null || told == null || unseen == null) return true;
     final waiting = shown.asWaiting;
+    _theTranslationAsked = null;
     state = state.copyWith(scene: waiting);
     final generation = _waitOnTheGeneration;
     final listed = await _room.sceneRehearsalsOf(sessionId);
@@ -6706,19 +6708,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
     state = state.copyWith(scene: asked);
     _theTranslationAsked = asked;
-    _handOff(_hearTheFrase(shown.rehearsal!, frase, shown, asked));
+    _handOff(_hearTheFrase(shown.rehearsal!, frase, asked));
   }
 
   Future<void> _hearTheFrase(
     SceneRehearsalRecord rehearsal,
     SceneFrase frase,
-    SceneScreen shown,
     SceneScreen waiting,
   ) async {
     final generation = _waitOnTheGeneration;
     bool movedOn() =>
-        _theSceneMovedOn(waiting, generation) ||
-        !identical(_theTranslationAsked, waiting);
+        _abandoned(generation) || !identical(_theTranslationAsked, waiting);
     final path = await _fetchASceneClip(
       'cena-${rehearsal.rehearsalId}-frase-${frase.fraseId}',
       RoomRepository.sceneFraseAudioUrl(
@@ -6731,7 +6731,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       failed: (_) {},
     );
     if (movedOn()) return;
-    state = state.copyWith(scene: shown);
     if (path != null) _play(PartSound(0, path));
   }
 
