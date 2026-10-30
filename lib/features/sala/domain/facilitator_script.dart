@@ -72,6 +72,7 @@ String handLabelFor(String state, String language) =>
     handLabels[state]![language] ?? handLabels[state]![floorLanguage]!;
 
 const roomLabels = {
+  'thinking': {'pt': 'pensando…', 'en': 'thinking…'},
   'hearAgain': {'pt': 'Ouvir de novo', 'en': 'Hear that again'},
   'leavePassage': {
     'pt': 'Escolher outra passagem',

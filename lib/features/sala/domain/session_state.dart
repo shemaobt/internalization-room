@@ -1271,6 +1271,9 @@ class SalaSessionState {
     _ => voice,
   };
 
+  bool get writesTheThinkingNote =>
+      circleVoice == VoiceState.thinking && halt is! Blocking;
+
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||

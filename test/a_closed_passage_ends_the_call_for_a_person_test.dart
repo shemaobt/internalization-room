@@ -113,6 +113,30 @@ Future<bool> _aTomadaFicou(SalaHarness harness, PendingTake linha) async =>
 
 void main() {
   test(
+    'a wordless telling refused on the Conversation shows the sign, ends the voice\'s wait, and rests once the sign is cleared',
+    () async {
+      final harness = SalaHarness();
+      final container = await _naPassagemSemEspera(harness);
+      harness.room.failTurnsWith = const Refused('WORDLESS_TELLING');
+      _sala(container).conversaTap();
+      await waitFor(
+        'o microfone abrir na conversa',
+        () => _estado(container).voice == VoiceState.listening,
+      );
+      _sala(container).conversaTap();
+      await waitFor('o sinal da pessoa', () => _estado(container).needsPerson);
+
+      expect(_estado(container).awaitingTheGuide, isFalse);
+
+      _sala(container).teamTapped();
+      await settle();
+
+      expect(_estado(container).needsPerson, isFalse);
+      expect(_estado(container).voice, VoiceState.invite);
+    },
+  );
+
+  test(
     'a passage closed on the call for a person is asked once and never again',
     () async {
       final harness = SalaHarness(retryBackoff: const [_oneStepOfTheLadder]);
