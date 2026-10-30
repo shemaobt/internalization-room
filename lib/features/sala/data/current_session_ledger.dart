@@ -120,6 +120,7 @@ class CurrentSessionLedger {
             'last_fixed_line': line.fixedLine,
           },
           if (session.teamSpokeLast) 'team_spoke_last': true,
+          if (session.panorama) 'panorama': true,
         }),
       );
     });
@@ -144,6 +145,7 @@ class CurrentSessionLedger {
                 fixedLine: json['last_fixed_line']! as String,
               ),
         teamSpokeLast: json['team_spoke_last'] == true,
+        panorama: json['panorama'] == true,
       );
     } on Object {
       return null;
