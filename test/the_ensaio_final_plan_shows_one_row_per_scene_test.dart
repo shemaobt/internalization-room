@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_final_plan_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
@@ -20,7 +21,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, relaunch, thePersonSign;
+import 'scenario_helpers.dart'
+    show byLabel, relaunch, thePersonSign, voiceOverFocusLeaves;
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _recordEnsaioEn = 'Record your rehearsal';
@@ -36,6 +38,8 @@ const _partial = 'tradução incompleta';
 const _swap = 'trocar o ensaio desta cena';
 const _join = 'juntar as cenas e ouvir';
 const _how = 'Como vocês querem gravar?';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
+const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
 const _sceneByScenePick = 'Cena por cena';
 const _elsewhere =
     'Os ensaios desta passagem foram gravados com o aplicativo na outra '
@@ -280,6 +284,46 @@ Future<ProviderContainer> _relaunchOnTheConversation(
 }
 
 void main() {
+  testWidgets(
+    'on the plan over an approved draft, VoiceOver focus leaving the armed '
+    'whole switch reads «gravar a passagem inteira de uma vez» again, and the '
+    'next tap only arms',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _seeded(tester, _oneEach);
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _relaunchOnTheConversation(tester, harness, container);
+      await _openThePlan(tester);
+      expect(find.text(_planLine), findsOneWidget);
+      await tester.ensureVisible(find.text(_wholeAtOnce));
+      await tester.tap(find.text(_wholeAtOnce));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text(_reopenArmed), findsOneWidget);
+
+      voiceOverFocusLeaves(tester, byLabel(_reopenArmed));
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_wholeAtOnce),
+        findsOneWidget,
+        reason: 'no plano o botão seguia armado depois que o foco saiu dele',
+      );
+      expect(find.text(_reopenArmed), findsNothing);
+
+      await tester.tap(find.text(_wholeAtOnce));
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_reopenArmed), findsOneWidget);
+      expect(
+        harness.room.grainSwitches,
+        isEmpty,
+        reason: 'o toque seguinte trocava o grão em vez de só armar',
+      );
+      await tester.pump(const Duration(seconds: 8));
+      semantics.dispose();
+    },
+  );
+
   group('1. three scenes with one sent rehearsal each', () {
     testWidgets('show three rows with their facts and play', (tester) async {
       final semantics = tester.ensureSemantics();

@@ -1078,6 +1078,41 @@ void main() {
     await tester.pump(_theArmLapses);
   });
 
+  testWidgets(
+    'on the recording home, VoiceOver focus leaving the armed whole switch '
+    'reads «gravar a passagem inteira de uma vez» again, and the next tap only '
+    'arms',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _onTheJoinedHome(tester);
+      await _tap(tester, _wholeAtOnce);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text(_wholeArmed), findsOneWidget);
+
+      voiceOverFocusLeaves(tester, byLabel(_wholeArmed));
+      await _settles(tester);
+
+      expect(
+        find.text(_wholeAtOnce),
+        findsOneWidget,
+        reason: 'na casa o botão seguia armado depois que o foco saiu dele',
+      );
+      expect(find.text(_wholeArmed), findsNothing);
+
+      await _tap(tester, _wholeAtOnce);
+      await _settles(tester);
+
+      expect(find.text(_wholeArmed), findsOneWidget);
+      expect(
+        harness.room.grainSwitches,
+        isEmpty,
+        reason: 'o toque seguinte trocava o grão em vez de só armar',
+      );
+      await tester.pump(_theArmLapses);
+      semantics.dispose();
+    },
+  );
+
   testWidgets('8. a second tap after 8 s does nothing: the arm lapsed', (
     tester,
   ) async {
