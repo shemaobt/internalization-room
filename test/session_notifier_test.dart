@@ -30,6 +30,13 @@ import 'scenario_helpers.dart'
         withDiskThatAnswersAtOnce,
         traduzirOApontadoDeNovo;
 
+bool aPortaDaRetroAcendeu(ProviderContainer container) {
+  final state = container.read(salaSessionProvider);
+  return state.partes.isNotEmpty &&
+      state.partes.every((parte) => parte.takeId != null) &&
+      state.ensaioDone;
+}
+
 Future<void> _intoFindings(
   SalaHarness harness,
   SalaSessionNotifier notifier,
@@ -91,7 +98,7 @@ Future<void> _intoConferida(
   notifier.takeKeep();
   await waitFor(
     'a porta da retro acender',
-    () => container.read(salaSessionProvider).ensaioDone,
+    () => aPortaDaRetroAcendeu(container),
   );
   notifier.startRetro();
   await theClipOpens(harness);
@@ -5976,7 +5983,7 @@ void main() {
   ) async {
     await waitFor(
       'a porta da retro acender',
-      () => container.read(salaSessionProvider).ensaioDone,
+      () => aPortaDaRetroAcendeu(container),
     );
     container.read(salaSessionProvider.notifier).startRetro();
     await theClipOpens(harness);
