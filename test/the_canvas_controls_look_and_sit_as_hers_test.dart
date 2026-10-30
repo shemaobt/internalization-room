@@ -168,6 +168,41 @@ Finder _dotIn(String label) => find.descendant(
 );
 
 void main() {
+  test(
+    'her replay arrow is her two strokes: M5 9a7 7 0 1 1-1 3.5, M5 4.5V9h4.5',
+    () {
+      final strokes = ReplayArcPainter.path
+          .computeMetrics()
+          .map(
+            (metric) => (
+              metric.getTangentForOffset(0)!.position,
+              metric.getTangentForOffset(metric.length)!.position,
+              metric.length,
+            ),
+          )
+          .toList();
+
+      expect(strokes, hasLength(2));
+      final (arcFrom, arcTo, arcLength) = strokes[0];
+      expect(arcFrom, const Offset(5, 9));
+      expect(arcTo.dx, closeTo(4, 0.001));
+      expect(arcTo.dy, closeTo(12.5, 0.001));
+      expect(arcLength, closeTo(40.1, 0.5));
+      final ring = ReplayArcPainter.path.computeMetrics().first;
+      const center = Offset(11, 12.607);
+      for (var at = 0.0; at <= ring.length; at += ring.length / 12) {
+        expect(
+          (ring.getTangentForOffset(at)!.position - center).distance,
+          closeTo(7, 0.15),
+        );
+      }
+      final (cornerFrom, cornerTo, cornerLength) = strokes[1];
+      expect(cornerFrom, const Offset(5, 4.5));
+      expect(cornerTo, const Offset(9.5, 9));
+      expect(cornerLength, closeTo(9, 0.001));
+    },
+  );
+
   for (final (look, telha) in [
     ('light', const Color(0xFFBE4A01)),
     ('dark', const Color(0xFFD6612A)),
