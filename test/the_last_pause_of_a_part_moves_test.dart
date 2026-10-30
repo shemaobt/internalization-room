@@ -18,7 +18,12 @@ import 'package:internalization_room/main.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show byLabel, stateReads, traduzirOApontadoDeNovo;
+    show
+        byLabel,
+        holdTheSession,
+        intoTheBackTranslation,
+        stateReads,
+        traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show aceso, entrarNaTraducao, parte, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -134,7 +139,7 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
       frase: 2,
     ),
   ];
-  harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
+  final row = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: SalaStage.retro,
     takes: [
@@ -147,6 +152,11 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
       ),
     ],
   );
+  if (aguarda) {
+    harness.emAberto.rows['Ruth/P01/pt'] = row;
+  } else {
+    await holdTheSession(harness, row);
+  }
   harness.room
     ..segments.addAll(daSala)
     ..takes.add(
@@ -166,11 +176,19 @@ Future<ProviderContainer> _voltaComAFraseQueAguarda(
     UncontrolledProviderScope(container: container, child: const SalaApp()),
   );
   await _passo(tester);
-  unawaited(
-    container
-        .read(salaSessionProvider.notifier)
-        .goConversa(book: 'Ruth', pericope: 'P01'),
-  );
+  if (aguarda) {
+    unawaited(
+      container
+          .read(salaSessionProvider.notifier)
+          .goConversa(book: 'Ruth', pericope: 'P01'),
+    );
+  } else {
+    await intoTheBackTranslation(
+      container.read(salaSessionProvider.notifier),
+      () => container.read(salaSessionProvider),
+      step: () => letTheRehearsalReachTheRoom(tester),
+    );
+  }
   await waitFor(
     aguarda
         ? 'a frase 2 voltar esperando a tradução'
