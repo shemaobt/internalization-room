@@ -1125,6 +1125,42 @@ void main() {
       },
     );
 
+    test('an answer with nothing to play calls a person on the conversation, '
+        'as hers', () async {
+      final room = await leftWhileItSends();
+      room.harness.room.answersTurnsWithoutAReply = true;
+
+      room.harness.room.finishHeldTurn();
+      await waitFor('o sinal da pessoa', () => room.state.needsPerson);
+
+      expect(room.state.stage, SalaStage.conversa);
+      expect(room.state.halt, isA<Blocking>());
+      expect(room.state.voice, VoiceState.invite);
+      expect(room.repliedOnTheCanvas, isFalse);
+    });
+
+    test('a tap during the send-off line leaves the reply to play', () async {
+      final room = await _atRest([_unsentWithFrases()]);
+      await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+      room.harness.room.fixedLine = 'A1';
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'a linha de despedida',
+        () => room.state.scene.wentToTheVoice,
+      );
+
+      room.sala.leaveTheSceneRehearsal();
+      await waitFor(
+        'a linha A tocar',
+        () =>
+            room.harness.voice.fixedLines
+                    .where((said) => said.$1 == 'A1')
+                    .length ==
+                1 &&
+            room.state.voice == VoiceState.invite,
+      );
+    });
+
     test('the screen does not open again until the send lands, and then reads '
         'it enviado with no terminei', () async {
       final room = await leftWhileItSends();

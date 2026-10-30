@@ -1493,8 +1493,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       arrivedAtTheChoice: machine.station is Menu ? null : false,
       scene: leavesTheScene ? const SceneScreen() : null,
       sceneRehearsals: leavesTheScene ? const [] : null,
-      clearSceneTurn:
-          leavesTheScene && machine.inFlight == null && machine.look == null,
+      clearSceneTurn: leavesTheScene && !machine.holdsATurn,
       clearSceneStoppedAt: leavesTheScene,
       clearArmedTap: machine.generation != before.generation,
       clearBtRecusa: machine.generation != before.generation,
@@ -7009,7 +7008,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void _leaveTheSceneRehearsal() {
     if (!state.theWayBackIsLive) return;
-    if (state.theSceneIsSending) {
+    if (state.machine.holdsATurn) {
       return _arriveAt(const TheSceneRehearsalLeft());
     }
     _closeTheSceneRehearsal();

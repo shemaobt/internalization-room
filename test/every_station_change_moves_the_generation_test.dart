@@ -25,10 +25,7 @@ final _everyStationChangeMovesTheGenerationByOne = Invariant<Machine>(
   'carries the scene turn (ADR 0165)',
   (before, event, after, effects, world) {
     if (after.station == before.station) return null;
-    if (event is TheSceneRehearsalLeft &&
-        (before.inFlight != null || before.look != null)) {
-      return null;
-    }
+    if (event is TheSceneRehearsalLeft && before.holdsATurn) return null;
     _changes++;
     if (after.generation == before.generation + 1) return null;
     return '${describeEvent(event)} moved the Station from '
