@@ -615,7 +615,9 @@ class RetroView extends ConsumerWidget {
   BtFindingKind? _achadoNoTrecho(String? segmentId, SalaSessionState session) {
     if (segmentId == null) return null;
     for (final finding in session.btFindings) {
-      if (finding.segmentId == segmentId) return finding.kind;
+      if (finding.segmentId == segmentId && finding.kind != null) {
+        return finding.kind;
+      }
     }
     return null;
   }
