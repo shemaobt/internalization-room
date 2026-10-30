@@ -3,7 +3,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
-import 'scenario_helpers.dart' show settle;
+import 'scenario_helpers.dart' show intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _ateOndeASegundaFoiContada = Duration(seconds: 4);
@@ -43,8 +43,8 @@ Future<void> _irAoEnsaioEVoltar(Sala it) async {
 Future<void> _umaVidaNovaNaCasa(Sala it) async {
   it.container.invalidate(salaSessionProvider);
   it.container.read(salaSessionProvider);
-  await it.sala.abrirEscolha();
-  await it.sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
   await waitFor(
     'a mesma sessão voltar à casa',
     () => it.estado.stage == SalaStage.ensaio && it.partes.length == 3,
