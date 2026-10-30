@@ -1113,7 +1113,8 @@ class SalaSessionState {
       sceneFrasesHeld.contains(scene.rehearsal?.rehearsalId);
 
   bool get theSceneIsSending =>
-      sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
+      sceneRehearsalIsOpen &&
+      (awaitingTheGuide || machine.inFlight != null || scene.wentToTheVoice);
 
   bool get redMicrophoneIsShown =>
       (voice == VoiceState.invite || voice == VoiceState.done) &&
@@ -1342,20 +1343,24 @@ class SalaSessionState {
 
   bool get needsPerson => halt is Blocking;
 
-  /// The Choice offers the way back to the entry left, once the Wheel is read; the scene
-  /// rehearsal's screen always offers the way back to the Conversation.
+  bool get _aPassageWaits => leftEntry != null && machine.waiting != null;
+
+  /// The Choice offers the way back to a passage held at once; to an entry left with no
+  /// session, once the Wheel is read. The scene rehearsal's screen always offers the way
+  /// back to the Conversation. The person sign hides it.
   bool get theWayBackIsOffered =>
       sceneRehearsalIsOpen ||
       (stage == SalaStage.escolha &&
           leftEntry != null &&
-          naRoda != null &&
-          !needsPerson);
+          !needsPerson &&
+          (_aPassageWaits || naRoda != null));
 
-  /// The way back answers the finger only while the Wheel is quiet, and from any Step of
-  /// the scene rehearsal, its microphone open and «terminei» in the air included.
+  /// The way back to a passage held answers the finger always; to any other entry, only
+  /// while the Wheel is quiet. From any Step of the scene rehearsal it answers with its
+  /// microphone open and «terminei» in the air included.
   bool get theWayBackIsLive => sceneRehearsalIsOpen
       ? !scene.wentToTheVoice
-      : theWayBackIsOffered && voice == VoiceState.invite;
+      : theWayBackIsOffered && (_aPassageWaits || voice == VoiceState.invite);
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or the person sign stands
@@ -1666,8 +1671,7 @@ class SalaSessionState {
   bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
-  /// Warning mark, with its listeners and the Checagem externa: only while nothing of this
-  /// session waits in the Outbox (ADR 0106, 0150).
+  /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
           btPhase == BtPhase.conferida &&

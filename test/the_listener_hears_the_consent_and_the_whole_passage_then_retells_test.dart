@@ -10,7 +10,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaConferida;
+    show aprovadaNaCasa;
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, isHeard, thePersonSign;
 
@@ -84,7 +84,7 @@ Future<ProviderContainer> _naChecagem(
   SalaHarness harness, {
   List<String> partes = _partes,
 }) async {
-  final container = await aprovadaNaConferida(tester, harness);
+  final container = await aprovadaNaCasa(tester, harness);
   harness.room.checkTakes = partes;
   for (final take in [..._partes, 't9']) {
     harness.room.takeAudio[take] = _audioDe(take);
@@ -525,7 +525,7 @@ void main() {
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
-    final container = await aprovadaNaConferida(
+    final container = await aprovadaNaCasa(
       tester,
       harness,
       caminho: (
