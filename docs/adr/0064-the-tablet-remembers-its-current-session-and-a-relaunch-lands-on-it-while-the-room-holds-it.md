@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0091, amended by 0106, amended by 0141, amended by 0164, amended by ENG-1970
+status: accepted, amended by 0091, amended by 0106, amended by 0141, amended by 0164, amended by ENG-1970, amended by ENG-1897
 date: 2026-10-07
 amends: 0061 (in part: the room starts on the Choice), 0051 (in part: what a gone session takes from the tablet)
 ---
@@ -7,6 +7,12 @@ amends: 0061 (in part: the room starts on the Choice), 0051 (in part: what a gon
 # The tablet remembers its current session and a relaunch lands on it while the room holds it
 
 Amended by ENG-1970 (2026-10-30): there is no Closing; a passage that finishes stays on its conversation, and a stored fim row lands there.
+
+Amended by ENG-1897 (2026-10-30): the Panorama writes it. As in her app (`app/page.tsx:789`),
+every session id is stored, the Panorama's included: entering a Panorama holds its session as
+the Current session, flagged as a Panorama's, and a relaunch lands on that Panorama canvas,
+silent, with «ouvir de novo». Leaving it for a passage replaces it as any entry does; leaving
+to the Choice lets it go.
 
 This amends ADRs 0061 and 0051 without editing them; it adds "amended by 0064" to their
 status lines. The Definer settled it on the ticket (ENG-1281) on 6 and 7 October: a

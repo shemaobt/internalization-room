@@ -170,6 +170,9 @@ class CurrentSession {
   /// Whether the conversation ends on a turn of the team's, which hers offers no replay for.
   final bool teamSpokeLast;
 
+  /// Whether the session is a Panorama's: a relaunch lands on that Panorama (ADR 0064).
+  final bool panorama;
+
   const CurrentSession({
     required this.sessionId,
     required this.book,
@@ -177,6 +180,7 @@ class CurrentSession {
     required this.language,
     this.lastLine,
     this.teamSpokeLast = false,
+    this.panorama = false,
   });
 
   /// The end of the conversation: on [line], or, with none, on a turn of the team's, unless
@@ -189,5 +193,6 @@ class CurrentSession {
         language: language,
         lastLine: line,
         teamSpokeLast: known && line == null,
+        panorama: panorama,
       );
 }
