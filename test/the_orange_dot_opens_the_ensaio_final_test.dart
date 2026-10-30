@@ -528,6 +528,7 @@ TakeView _part(int n) => TakeView(
 Future<_Home> _reopenOverTheWholeSetAside(
   WidgetTester tester, {
   required List<KeptTake> Function(Directory guardadas) takes,
+  bool fromTheChoice = false,
 }) async {
   tester.view
     ..physicalSize = const Size(820, 1180)
@@ -547,9 +548,12 @@ Future<_Home> _reopenOverTheWholeSetAside(
     stage: SalaStage.ensaio,
     takes: held,
   );
-  final pelaEscolha = held.any(
-    (take) => take.scopeId != KeptScope.whole && !File(take.path).existsSync(),
-  );
+  final pelaEscolha =
+      fromTheChoice ||
+      held.any(
+        (take) =>
+            take.scopeId != KeptScope.whole && !File(take.path).existsSync(),
+      );
   if (pelaEscolha) {
     harness.emAberto.rows['Ruth/P01/pt'] = row;
   } else {
@@ -1565,10 +1569,12 @@ void main() {
               takeId: 'gravacao-inteira',
             ),
           ],
+          fromTheChoice: true,
         );
 
         expect(it.takeReads, 0, reason: 'a sala foi lida');
         expect(it.room.clipsFetched, isEmpty);
+        expect(it.read.wholeHeldByTheRoom, ['gravacao-inteira']);
         it.expectThreeRecordedRows();
       },
     );
