@@ -550,6 +550,34 @@ void main() {
     );
   });
 
+  testWidgets('a relaunch on the fake clock lets the old Outbox finish the '
+      'write it started there', (tester) async {
+    final harness = SalaHarness();
+    final row = (await tester.runAsync(
+      () => harness.takes.enqueue(
+        harness.recorder.aFile('parte-1'),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-1',
+        passNumber: 1,
+        chunkIndex: 1,
+      ),
+    ))!;
+    final container = harness.container();
+    unawaited(harness.takes.withdraw(row));
+
+    final (again, next) = await relaunch(harness, container, tester: tester);
+    addTearDown(next.dispose);
+
+    expect(
+      await tester.runAsync(again.takes.pending),
+      isEmpty,
+      reason:
+          'a escrita começada no relógio falso ficava parada, e a nova vida '
+          'abria antes dela',
+    );
+  });
+
   test('a failed take left fifteen minutes with the network back is still '
       'unsent, and no request leaves the tablet', () {
     fakeAsync((async) {

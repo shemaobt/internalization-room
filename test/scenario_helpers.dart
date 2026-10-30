@@ -276,18 +276,33 @@ Future<(SalaHarness, ProviderContainer)> relaunch(
   Duration? busyCeiling,
   Duration? lookAgain,
   bool filaEmMemoria = false,
+  WidgetTester? tester,
 }) async {
   container.dispose();
-  final stillWriting = Completer<bool>();
-  final giveUp = Timer(
-    const Duration(seconds: 30),
-    () => stillWriting.complete(true),
-  );
-  final frozen = await Future.any([
-    harness.takes.writingEnds().then((_) => false),
-    stillWriting.future,
-  ]);
-  giveUp.cancel();
+  final bool frozen;
+  if (tester == null) {
+    final stillWriting = Completer<bool>();
+    final giveUp = Timer(
+      const Duration(seconds: 30),
+      () => stillWriting.complete(true),
+    );
+    frozen = await Future.any([
+      harness.takes.writingEnds().then((_) => false),
+      stillWriting.future,
+    ]);
+    giveUp.cancel();
+  } else {
+    var stopped = false;
+    unawaited(harness.takes.writingEnds().then((_) => stopped = true));
+    final waited = Stopwatch()..start();
+    while (!stopped && waited.elapsed < const Duration(seconds: 30)) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 15)),
+      );
+      await tester.pump();
+    }
+    frozen = !stopped;
+  }
   expect(
     frozen,
     isFalse,

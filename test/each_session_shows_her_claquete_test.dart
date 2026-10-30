@@ -309,7 +309,12 @@ void main() {
       expect(_claquete, findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
-      final (_, next) = await relaunch(harness, container, filaEmMemoria: true);
+      final (_, next) = await relaunch(
+        harness,
+        container,
+        filaEmMemoria: true,
+        tester: tester,
+      );
       addTearDown(() => closeTheRoom(next));
       await tester.pumpWidget(
         UncontrolledProviderScope(container: next, child: const SalaApp()),
