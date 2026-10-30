@@ -167,11 +167,27 @@ Finder _dotIn(String label) => find.descendant(
   ),
 );
 
+class _PathCatcher implements Canvas {
+  final paths = <Path>[];
+
+  @override
+  void drawPath(Path path, Paint paint) => paths.add(path);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+Path _paintedArrow() {
+  final catcher = _PathCatcher();
+  const ReplayArcPainter(ink: Colors.black).paint(catcher, const Size(24, 24));
+  return catcher.paths.single;
+}
+
 void main() {
   test(
     'her replay arrow is her two strokes: M5 9a7 7 0 1 1-1 3.5, M5 4.5V9h4.5',
     () {
-      final strokes = ReplayArcPainter.path
+      final strokes = _paintedArrow()
           .computeMetrics()
           .map(
             (metric) => (
@@ -188,7 +204,7 @@ void main() {
       expect(arcTo.dx, closeTo(4, 0.001));
       expect(arcTo.dy, closeTo(12.5, 0.001));
       expect(arcLength, closeTo(40.1, 0.5));
-      final ring = ReplayArcPainter.path.computeMetrics().first;
+      final ring = _paintedArrow().computeMetrics().first;
       const center = Offset(11, 12.607);
       for (var at = 0.0; at <= ring.length; at += ring.length / 12) {
         expect(
@@ -200,6 +216,12 @@ void main() {
       expect(cornerFrom, const Offset(5, 4.5));
       expect(cornerTo, const Offset(9.5, 9));
       expect(cornerLength, closeTo(9, 0.001));
+      final corner = _paintedArrow().computeMetrics().last;
+      expect(
+        corner.getTangentForOffset(4.5)!.position,
+        const Offset(5, 9),
+        reason: 'o canto da ponta e 5,9, nao o espelhado',
+      );
     },
   );
 

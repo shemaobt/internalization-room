@@ -8,7 +8,7 @@ class ReplayArcPainter extends CustomPainter {
   static const _viewBox = 24.0;
   static const stroke = 1.4;
 
-  static final path = Path()
+  static final _path = Path()
     ..moveTo(5, 9)
     ..arcToPoint(
       const Offset(4, 12.5),
@@ -25,7 +25,7 @@ class ReplayArcPainter extends CustomPainter {
       ..save()
       ..scale(size.width / _viewBox, size.height / _viewBox)
       ..drawPath(
-        path,
+        _path,
         Paint()
           ..color = ink
           ..style = PaintingStyle.stroke
