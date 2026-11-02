@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
@@ -168,6 +169,28 @@ Finder _recomecoArmado() => find.byWidgetPredicate(
       ),
 );
 
+void _inHerOrder(WidgetTester tester, List<(String, Finder)> pieces) {
+  for (final (name, finder) in pieces) {
+    expect(finder, findsOneWidget, reason: '«$name» is drawn once');
+  }
+  for (var i = 1; i < pieces.length; i++) {
+    expect(
+      tester.getRect(pieces[i - 1].$2).bottom,
+      lessThanOrEqualTo(tester.getRect(pieces[i].$2).top + 0.01),
+      reason: '«${pieces[i - 1].$1}» stands above «${pieces[i].$1}»',
+    );
+  }
+}
+
+Finder _naCasa(String words) =>
+    find.descendant(of: find.byType(EnsaioView), matching: find.text(words));
+
+Future<void> _deVoltaACasa(WidgetTester tester, _Sala it) async {
+  it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+  it.container.read(salaSessionProvider.notifier).goEnsaio();
+  await _assentar(tester);
+}
+
 void main() {
   for (final caso in const [
     (codigo: 'playback_did_not_cover_the_clip', texto: _faltaOuvir),
@@ -242,6 +265,37 @@ void main() {
       },
     );
   }
+
+  testWidgets('once conferida, «$_traduzir» stands between «$_conferida» and '
+      '«$_aprovar»', (tester) async {
+    final it = await _ateAConferida(tester);
+    await _deVoltaACasa(tester, it);
+
+    _inHerOrder(tester, [
+      ('Ouvir tudo', _naCasa('Ouvir tudo')),
+      ('✓ traduzida e conferida', _naCasa(_conferida)),
+      ('Traduzir a gravação', inTheHome(_traduzir)),
+      ('Aprovar como rascunho final', inTheHome(_aprovar)),
+      ('the grain switch', inTheHome('Gravar a passagem inteira')),
+    ]);
+    closeTheRoom(it.container);
+  });
+
+  testWidgets('a refused approval\'s line stands under the approve button and '
+      'above the grain switch', (tester) async {
+    final it = await _ateAConferida(tester);
+    await _deVoltaACasa(tester, it);
+    it.harness.room.releaseBlockers = const ['playback_did_not_cover_the_clip'];
+
+    await _tocar(tester);
+
+    _inHerOrder(tester, [
+      ('Aprovar como rascunho final', inTheHome(_aprovar)),
+      ('the refusal', _naCasa(_faltaOuvir)),
+      ('the grain switch', inTheHome('Gravar a passagem inteira')),
+    ]);
+    closeTheRoom(it.container);
+  });
 
   testWidgets('the server cannot answer: «$_naoDeu»', (tester) async {
     final it = await _ateAConferida(tester);

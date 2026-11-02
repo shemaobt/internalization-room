@@ -270,6 +270,36 @@ void main() {
   );
 
   testWidgets(
+    'the whole passage\'s kept retelling stands under the wood play and above '
+    '«Ouvir tudo»',
+    (tester) async {
+      final (_, container) = await _naCasa(tester, [_inteira]);
+      for (var n = 1; n <= _cenas.length; n++) {
+        await _gravarEGuardar(tester, n);
+        await _aSalaNomear(tester, container, n);
+      }
+
+      final pecas = [
+        ('the wood play', offTheRows(_ouvir)),
+        ('the whole retelling', find.text(_aPassagemInteira)),
+        ('Ouvir tudo', find.text('Ouvir tudo')),
+        ('Traduzir a gravação', inTheHome('Traduzir a gravação')),
+      ];
+      for (final (nome, peca) in pecas) {
+        expect(peca, findsOneWidget, reason: '«$nome» is drawn once');
+      }
+      for (var i = 1; i < pecas.length; i++) {
+        expect(
+          tester.getRect(pecas[i - 1].$2).bottom,
+          lessThanOrEqualTo(tester.getRect(pecas[i].$2).top + 0.01),
+          reason: '«${pecas[i - 1].$1}» stands above «${pecas[i].$1}»',
+        );
+      }
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     'a scene-by-scene home with a whole-passage kept retelling shows «ouvir '
     'como vocês contaram a passagem inteira» under the rows, and its tap '
     'plays it',

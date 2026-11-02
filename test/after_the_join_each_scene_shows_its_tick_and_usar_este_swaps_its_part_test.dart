@@ -557,6 +557,34 @@ Future<_Room> _atRest(
 
 void main() {
   testWidgets(
+    'after a swap lands, «$_hearNew» stands under «Ouvir tudo» and above '
+    '«$_listenAndCheck»',
+    (tester) async {
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+      await it.swapIn(s2b);
+      await it.swapLands();
+
+      final pieces = [
+        ('Ouvir tudo', find.text('Ouvir tudo')),
+        ('the new scene to hear', find.text(_hearNew)),
+        ('the advance', byLabel(_listenAndCheck)),
+      ];
+      for (final (name, piece) in pieces) {
+        expect(piece, findsOneWidget, reason: '«$name» is drawn once');
+      }
+      for (var i = 1; i < pieces.length; i++) {
+        expect(
+          tester.getRect(pieces[i - 1].$2).bottom,
+          lessThanOrEqualTo(tester.getRect(pieces[i].$2).top + 0.01),
+          reason: '«${pieces[i - 1].$1}» stands above «${pieces[i].$1}»',
+        );
+      }
+    },
+  );
+
+  testWidgets(
     'after joining three scenes every row shows its tick, and the disc reads '
     '«ouvir e conferir o Ensaio Final»',
     (tester) async {
