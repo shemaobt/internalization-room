@@ -125,7 +125,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
               UnsentNotice(
                 session: session,
                 language: language,
-                onSend: notifier.enviarACena,
+                onSend: notifier.enviarDoAviso,
               ),
               if (session.sceneLine == SceneLine.diskFailed)
                 Semantics(

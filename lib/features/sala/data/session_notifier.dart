@@ -7638,6 +7638,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void enviarACena(int cena) => _gesture(() => _enviarACena(cena));
 
+  void enviarDoAviso(int cena) => _gesture(() {
+    if (state.phaseBusy) return;
+    _enviarACena(cena);
+  });
+
   void _enviarACena(int cena) {
     if (state.station is! Ensaio ||
         state.ensaio == EnsaioStatus.recording ||
