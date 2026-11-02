@@ -137,6 +137,23 @@ final class StretchSound extends Sound {
   int get hashCode => Object.hash(named, path, from, to, telling);
 }
 
+final class KeptRetellingSound extends Sound {
+  final String scope;
+
+  const KeptRetellingSound(String path, {required this.scope})
+    : super(path, Duration.zero, null);
+
+  @override
+  Source get source => Source.take(path);
+
+  @override
+  bool operator ==(Object other) =>
+      other is KeptRetellingSound && other.path == path && other.scope == scope;
+
+  @override
+  int get hashCode => Object.hash(path, scope);
+}
+
 sealed class Channel {
   const Channel();
 }
@@ -235,6 +252,32 @@ final class StretchPlaying extends Playing {
 
   @override
   int get hashCode => Object.hash(stretch, opened, held, Object.hashAll(next));
+}
+
+final class KeptRetellingPlaying extends Playing {
+  final KeptRetellingSound retelling;
+
+  const KeptRetellingPlaying(
+    this.retelling, {
+    super.opened,
+    super.next,
+    super.held,
+  });
+
+  @override
+  Sound get sound => retelling;
+
+  @override
+  bool operator ==(Object other) =>
+      other is KeptRetellingPlaying &&
+      other.retelling == retelling &&
+      other.opened == opened &&
+      other.held == held &&
+      listEquals(other.next, next);
+
+  @override
+  int get hashCode =>
+      Object.hash(retelling, opened, held, Object.hashAll(next));
 }
 
 final class Paused extends Channel {

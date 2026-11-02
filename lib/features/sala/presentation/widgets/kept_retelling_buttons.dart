@@ -10,7 +10,7 @@ class KeptRetellingButtons extends StatelessWidget {
   final List<KeptRetelling> parts;
   final String language;
   final bool away;
-  final void Function(int part) onTap;
+  final void Function(String scope) onTap;
 
   const KeptRetellingButtons({
     super.key,
@@ -47,14 +47,14 @@ class KeptRetellingButtons extends StatelessWidget {
                     Semantics(
                       button: true,
                       excludeSemantics: true,
-                      onTap: () => onTap(index + 1),
+                      onTap: () => onTap(parts[index].scope),
                       label: roomLabelFor(
                         'hearHowYouToldPart',
                         language,
                         n: index + 1,
                       ),
                       child: GestureDetector(
-                        onTap: () => onTap(index + 1),
+                        onTap: () => onTap(parts[index].scope),
                         behavior: HitTestBehavior.opaque,
                         child: Opacity(
                           opacity: 0.75,

@@ -700,6 +700,19 @@ final class PlayStretch extends Effect {
   int get hashCode => stretch.hashCode;
 }
 
+final class PlayKeptRetelling extends Effect {
+  final KeptRetellingSound retelling;
+
+  const PlayKeptRetelling(this.retelling);
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlayKeptRetelling && other.retelling == retelling;
+
+  @override
+  int get hashCode => retelling.hashCode;
+}
+
 final class OpenTheMic extends Effect {
   final MicOwner owner;
   final String take;
@@ -1306,7 +1319,9 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
-  PlayerFailed(sound: PartSound() || StretchSound(telling: false))
+  PlayerFailed(
+    sound: PartSound() || StretchSound(telling: false) || KeptRetellingSound(),
+  )
       when machine.station is Retro =>
     _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
@@ -2118,6 +2133,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
 Effect _play(Sound sound) => switch (sound) {
   final PartSound part => PlayPart(part),
   final StretchSound stretch => PlayStretch(stretch),
+  final KeptRetellingSound retelling => PlayKeptRetelling(retelling),
 };
 
 Playing _playing(
@@ -2134,6 +2150,12 @@ Playing _playing(
   ),
   final StretchSound stretch => StretchPlaying(
     stretch,
+    opened: opened,
+    next: next,
+    held: held,
+  ),
+  final KeptRetellingSound retelling => KeptRetellingPlaying(
+    retelling,
     opened: opened,
     next: next,
     held: held,
