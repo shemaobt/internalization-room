@@ -11582,8 +11582,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // list and nowhere else yet.
     final eram = state.btTrechos;
     final life = _thisLife;
+    final answer = await _room.takesOf(sessionId);
+    if (_endedSince(life) || state.sessionId != sessionId) return;
     final List<TakeView> guardadas;
-    switch (await _room.takesOf(sessionId)) {
+    switch (answer) {
       case Answered(value: final listadas):
         guardadas = listadas;
       case NetworkFailed():
@@ -11597,7 +11599,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         );
         return;
     }
-    if (_endedSince(life) || state.sessionId != sessionId) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId) &&
