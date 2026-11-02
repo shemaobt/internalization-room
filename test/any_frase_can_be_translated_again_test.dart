@@ -28,6 +28,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocarNoCirculo;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
+import 'support/temp.dart';
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -167,8 +168,7 @@ Future<ProviderContainer> _voltaAUmaTraducao(
   required bool conferida,
 }) async {
   _telaAlta(tester);
-  final pasta = Directory.systemTemp.createTempSync('sala-1220');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1220');
   final partes = [
     for (final n in [1, 2])
       KeptTake(
@@ -219,7 +219,8 @@ Future<ProviderContainer> _voltaAUmaTraducao(
     () =>
         container.read(salaSessionProvider).btTrechos.length == 2 &&
         container.read(salaSessionProvider).btPhase ==
-            (conferida ? BtPhase.conferida : BtPhase.playing),
+            (conferida ? BtPhase.conferida : BtPhase.playing) &&
+        (!conferida || container.read(salaSessionProvider).btVeredito),
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);

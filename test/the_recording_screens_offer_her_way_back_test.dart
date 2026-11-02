@@ -66,13 +66,13 @@ SceneRehearsalRecord _rehearsal(String sessionId) => SceneRehearsalRecord(
   verified: true,
 );
 
-Future<void> _settles(WidgetTester tester) async {
+Future<void> settles(WidgetTester tester) async {
   for (var vez = 0; vez < 10; vez++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
 
-Future<(SalaHarness, ProviderContainer)> _onTheConversation(
+Future<(SalaHarness, ProviderContainer)> onTheConversation(
   WidgetTester tester, {
   String lingua = 'pt',
   List<Scene> scenes = _threeScenes,
@@ -110,58 +110,67 @@ Future<(SalaHarness, ProviderContainer)> _onTheConversation(
   return (harness, container);
 }
 
-Future<(SalaHarness, ProviderContainer)> _onTheGrainChoice(
+Future<(SalaHarness, ProviderContainer)> onTheGrainChoice(
   WidgetTester tester, {
   String lingua = 'pt',
 }) async {
-  final (harness, container) = await _onTheConversation(
+  final (harness, container) = await onTheConversation(
     tester,
     lingua: lingua,
     scenes: const [],
   );
   await tester.tap(_dot);
-  await _settles(tester);
+  await settles(tester);
   return (harness, container);
 }
 
-Future<(SalaHarness, ProviderContainer)> _onTheHome(WidgetTester tester) async {
-  final (harness, container) = await _onTheGrainChoice(tester);
+Future<(SalaHarness, ProviderContainer)> onTheHome(WidgetTester tester) async {
+  final (harness, container) = await onTheGrainChoice(tester);
   await tester.tap(find.text(_whole));
-  await _settles(tester);
+  await settles(tester);
   return (harness, container);
 }
 
-Future<(SalaHarness, ProviderContainer)> _onTheFirstListen(
+Future<(SalaHarness, ProviderContainer)> onTheFirstListen(
   WidgetTester tester, {
   String lingua = 'pt',
+  bool unheard = true,
+  void Function(SalaHarness harness)? beforeItOpens,
 }) async {
-  final (harness, container) = await _onTheGrainChoice(tester, lingua: lingua);
+  final (harness, container) = await onTheGrainChoice(tester, lingua: lingua);
   final notifier = container.read(salaSessionProvider.notifier);
   notifier.chooseTheGrain(Grain.whole);
-  await _settles(tester);
+  await settles(tester);
   notifier.gravarACena(1);
-  await _settles(tester);
+  await settles(tester);
   notifier.gravarACena(1);
-  await _settles(tester);
+  await settles(tester);
   notifier.takeKeep();
-  await _settles(tester);
-  harness.room.listeningUnheardTakeIds = [
-    for (final parte in container.read(salaSessionProvider).partes)
-      ?parte.takeId,
-  ];
+  await settles(tester);
+  await untilTheAdvanceDiscLights(
+    notifier,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  if (unheard) {
+    harness.room.listeningUnheardTakeIds = [
+      for (final parte in container.read(salaSessionProvider).partes)
+        ?parte.takeId,
+    ];
+  }
+  beforeItOpens?.call(harness);
   notifier.startRetro();
-  await _settles(tester);
-  await _settles(tester);
+  await settles(tester);
+  await settles(tester);
   return (harness, container);
 }
 
 Future<(SalaHarness, ProviderContainer)> _onThePlan(WidgetTester tester) async {
-  final (harness, container) = await _onTheConversation(
+  final (harness, container) = await onTheConversation(
     tester,
     withARehearsal: true,
   );
   await tester.tap(_dot);
-  await _settles(tester);
+  await settles(tester);
   return (harness, container);
 }
 
@@ -170,7 +179,7 @@ void main() {
     'the grain choice offers the way back to the passage, not the way to '
     'another passage',
     (tester) async {
-      await _onTheGrainChoice(tester);
+      await onTheGrainChoice(tester);
 
       expect(find.text(_how), findsOneWidget);
       expect(byLabel(_backToPassage), findsOneWidget);
@@ -199,7 +208,7 @@ void main() {
     'the recording home offers the way back to the passage, not the way to '
     'another passage',
     (tester) async {
-      await _onTheHome(tester);
+      await onTheHome(tester);
 
       expect(find.text(_homeLine), findsOneWidget);
       expect(byLabel(_backToPassage), findsOneWidget);
@@ -211,7 +220,7 @@ void main() {
     'in English the grain choice says her way back, «Back to the current '
     'passage»',
     (tester) async {
-      await _onTheGrainChoice(tester, lingua: 'en');
+      await onTheGrainChoice(tester, lingua: 'en');
 
       expect(byLabel(_backToPassageEn), findsOneWidget);
       expect(byLabel(_chooseAnotherEn), findsNothing);
@@ -222,11 +231,11 @@ void main() {
     'the way back from the recording home returns to the conversation of the '
     'same passage, where the way to another passage stands',
     (tester) async {
-      final (_, container) = await _onTheHome(tester);
+      final (_, container) = await onTheHome(tester);
       final session = container.read(salaSessionProvider).sessionId;
 
       await tester.tap(byLabel(_backToPassage));
-      await _settles(tester);
+      await settles(tester);
 
       expect(
         container.read(salaSessionProvider).stage,
@@ -247,7 +256,7 @@ void main() {
       final session = container.read(salaSessionProvider).sessionId;
 
       await tester.tap(byLabel(_backToPassage));
-      await _settles(tester);
+      await settles(tester);
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       expect(container.read(salaSessionProvider).sessionId, session);
@@ -258,7 +267,7 @@ void main() {
     'the plan\'s «pensando…» already offers the way back, and a plan read '
     'that lands after the tap leaves the team on the conversation',
     (tester) async {
-      final (harness, container) = await _onTheConversation(
+      final (harness, container) = await onTheConversation(
         tester,
         roomTakes: const [
           TakeView(
@@ -281,9 +290,9 @@ void main() {
       );
 
       await tester.tap(byLabel(_backToPassage));
-      await _settles(tester);
+      await settles(tester);
       harness.room.finishHeldSceneList();
-      await _settles(tester);
+      await settles(tester);
       await tester.pump(const Duration(seconds: 7));
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
@@ -295,19 +304,19 @@ void main() {
     'a take recorded on the home and not kept is thrown away on the way back '
     'to the conversation',
     (tester) async {
-      final (harness, container) = await _onTheHome(tester);
+      final (harness, container) = await onTheHome(tester);
       await tester.tap(
         find.descendant(of: byLabel(_whole), matching: byLabel('Gravar')),
       );
-      await _settles(tester);
+      await settles(tester);
       await tester.tap(
         find.descendant(of: byLabel(_whole), matching: byLabel('Parar')),
       );
-      await _settles(tester);
+      await settles(tester);
       expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recorded);
 
       await tester.tap(byLabel(_backToPassage));
-      await _settles(tester);
+      await settles(tester);
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       expect(
@@ -327,24 +336,28 @@ void main() {
     'a kept part playing on the home falls silent on the way back to the '
     'conversation',
     (tester) async {
-      final (harness, container) = await _onTheHome(tester);
+      final (harness, container) = await onTheHome(tester);
       final notifier = container.read(salaSessionProvider.notifier);
       await tester.tap(
         find.descendant(of: byLabel(_whole), matching: byLabel('Gravar')),
       );
-      await _settles(tester);
+      await settles(tester);
       await tester.tap(
         find.descendant(of: byLabel(_whole), matching: byLabel('Parar')),
       );
-      await _settles(tester);
+      await settles(tester);
       notifier.takeKeep();
-      await _settles(tester);
+      await settles(tester);
+      await untilTheWoodPlayLights(
+        notifier,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
       notifier.playTheRehearsal();
-      await _settles(tester);
+      await settles(tester);
       expect(harness.playback.sounding, isTrue);
 
       await tester.tap(byLabel(_backToPassage));
-      await _settles(tester);
+      await settles(tester);
 
       expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
       expect(
@@ -357,7 +370,7 @@ void main() {
 
   testWidgets('the back-translation\'s first listen offers the way back to the '
       'recording, not the way to another passage', (tester) async {
-    final (_, container) = await _onTheFirstListen(tester);
+    final (_, container) = await onTheFirstListen(tester);
 
     expect(container.read(salaSessionProvider).stage, SalaStage.retro);
     expect(container.read(salaSessionProvider).btSoOuvir, isTrue);
@@ -373,7 +386,7 @@ void main() {
   testWidgets(
     'in English the back-translation says her way back, «Back to recording»',
     (tester) async {
-      await _onTheFirstListen(tester, lingua: 'en');
+      await onTheFirstListen(tester, lingua: 'en');
 
       expect(byLabel(_backToRecordingEn), findsOneWidget);
       expect(byLabel(_chooseAnotherEn), findsNothing);
@@ -384,11 +397,11 @@ void main() {
     'the way back from the back-translation returns to the recording home, '
     'not to the choice of passages',
     (tester) async {
-      final (harness, container) = await _onTheFirstListen(tester);
+      final (harness, container) = await onTheFirstListen(tester);
       final session = container.read(salaSessionProvider).sessionId;
 
       await tester.tap(byLabel(_backToRecording));
-      await _settles(tester);
+      await settles(tester);
 
       expect(
         container.read(salaSessionProvider).station,
@@ -405,23 +418,27 @@ void main() {
     'the back-translation\'s checked screen offers the way back to the '
     'recording, not the way to another passage',
     (tester) async {
-      final (harness, container) = await _onTheGrainChoice(tester);
+      final (harness, container) = await onTheGrainChoice(tester);
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.chooseTheGrain(Grain.whole);
-      await _settles(tester);
+      await settles(tester);
       notifier.gravarACena(1);
-      await _settles(tester);
+      await settles(tester);
       notifier.gravarACena(1);
-      await _settles(tester);
+      await settles(tester);
       notifier.takeKeep();
-      await _settles(tester);
+      await settles(tester);
+      await untilTheAdvanceDiscLights(
+        notifier,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
       notifier.startRetro();
-      await _settles(tester);
+      await settles(tester);
       harness.playback.finishPlayback();
-      await _settles(tester);
+      await settles(tester);
       harness.room.verdictChecked = true;
       await notifier.finishBackTranslation();
-      await _settles(tester);
+      await settles(tester);
 
       expect(container.read(salaSessionProvider).btPhase, BtPhase.conferida);
       expect(

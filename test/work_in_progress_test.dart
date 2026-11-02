@@ -9,12 +9,13 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 
+import 'support/temp.dart';
+
 void main() {
   test(
     'a resume point with several parts survives the disk in order',
     () async {
-      final home = Directory.systemTemp.createTempSync('sala-em-curso');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-em-curso');
       final gravacoes = Directory('${home.path}/recordings')
         ..createSync(recursive: true);
       final ledger = WorkInProgress(
@@ -57,8 +58,7 @@ void main() {
   );
 
   test('each take carries which of its part\'s recordings it is', () async {
-    final home = Directory.systemTemp.createTempSync('sala-em-curso-passada');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-em-curso-passada');
     final gravacoes = Directory('${home.path}/recordings')
       ..createSync(recursive: true);
     final ledger = WorkInProgress(
@@ -95,10 +95,7 @@ void main() {
   test(
     'a row written before the pass was kept per take reads every take as the first',
     () async {
-      final home = Directory.systemTemp.createTempSync(
-        'sala-em-curso-passada-antiga',
-      );
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-em-curso-passada-antiga');
       final gravacoes = Directory('${home.path}/recordings')
         ..createSync(recursive: true);
       Directory('${home.path}/guardadas').createSync(recursive: true);
@@ -128,8 +125,7 @@ void main() {
   test(
     'a legacy row without a scope reads back as the whole passage',
     () async {
-      final home = Directory.systemTemp.createTempSync('sala-em-curso-legado');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-em-curso-legado');
       final gravacoes = Directory('${home.path}/recordings')
         ..createSync(recursive: true);
       final ledger = WorkInProgress(
@@ -156,10 +152,7 @@ void main() {
   );
 
   test('a row written by the shipped app still finds its audio', () async {
-    final home = Directory.systemTemp.createTempSync(
-      'sala-em-curso-formato-antigo',
-    );
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-em-curso-formato-antigo');
     final gravacoes = Directory('${home.path}/recordings')
       ..createSync(recursive: true);
     Directory('${home.path}/guardadas').createSync(recursive: true);
@@ -237,6 +230,35 @@ void main() {
     expect(antiga.grain, isNull);
   });
 
+  test('a resume point keeps the offer to hear the new scene through '
+      'toJson/fromJson, and a row without it offers nothing', () async {
+    const linha = ResumePoint(
+      sessionId: 'sessao-1',
+      stage: SalaStage.ensaio,
+      hearNewScene: true,
+    );
+    const semEla = '{"session_id":"sessao-1","stage":"ensaio","takes":[]}';
+
+    final volta = ResumePoint.fromJson(linha.toJson(), folder: '/gravacoes')!;
+    final antiga = ResumePoint.fromJson(
+      jsonDecode(semEla) as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+    final home = aTempDir('sala-em-curso-oferta');
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
+    await ledger.remember('Ruth', 'P03', 'pt', linha);
+    final doDisco = await ledger.of('Ruth', 'P03', 'pt');
+
+    expect(volta.hearNewScene, isTrue);
+    expect(antiga.hearNewScene, isFalse);
+    expect(doDisco!.hearNewScene, isTrue);
+  });
+
   test('a row written with or without the part being recorded again reopens '
       'alike, with no part marked', () {
     const semAMarca =
@@ -300,8 +322,7 @@ void main() {
 
   test('forgetting a session leaves the place of another session in that '
       'passage', () async {
-    final home = Directory.systemTemp.createTempSync('sala-em-curso-outra');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-em-curso-outra');
     final ledger = WorkInProgress(
       home: () async => home,
       recordings: () async => home,
@@ -332,13 +353,12 @@ void main() {
     File file() => File('${home.path}/guardadas/em_curso.json');
 
     setUp(() {
-      home = Directory.systemTemp.createTempSync('sala-em-curso-lingua');
+      home = aTempDir('sala-em-curso-lingua');
       ledger = WorkInProgress(
         home: () async => home,
         recordings: () async => home,
       );
     });
-    tearDown(() => home.deleteSync(recursive: true));
 
     test('one passage keeps a Portuguese and an English place', () async {
       await ledger.remember(

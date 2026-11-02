@@ -27,6 +27,7 @@ import 'the_back_translation_is_told_by_beads_test.dart' show tocarNoCirculo;
 import 'um_ensaio_de_tres_partes.dart' show Sala;
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show cabeca, gravarATraducao, parte;
+import 'support/temp.dart';
 
 const _cenasEmPortugues = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -180,8 +181,7 @@ Future<Sala> _naCasaSemAsGravacoes({
   required List<TakeView> naSala,
   required List<SegmentView> contados,
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-1406-inteiro');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1406-inteiro');
   final harness = SalaHarness()
     ..playback.measured = const Duration(seconds: 10);
   await holdTheSession(
@@ -285,8 +285,7 @@ Future<Sala> _reabrirComOInteiro({
   required bool comACena1,
   List<BtFinding> achados = const [_achadoNoInteiro],
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-1406-achado');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1406-achado');
   final harness = SalaHarness()
     ..playback.measured = const Duration(seconds: 10);
   final row = ResumePoint(
@@ -343,8 +342,7 @@ Future<ProviderContainer> _retomarNoEnsaio(
   void Function(SalaHarness)? antes,
 }) async {
   _umIpadEmPe(tester);
-  final casa = Directory.systemTemp.createTempSync('sala-1406-retomada');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-1406-retomada');
   harness ??= SalaHarness(filaEmMemoria: true);
   harness
     ..room.passageScenes = cenas
@@ -397,6 +395,58 @@ Future<ProviderContainer> _retomarNoEnsaio(
     reason: 'o caso precisa reabrir na casa do Ensaio',
   );
   return container;
+}
+
+bool _ouvirTudo() => find.text('Ouvir tudo').evaluate().isNotEmpty;
+
+/// Scenes 1 to 3 kept and named by the room, and scene 4 recorded and kept with its copy
+/// onto the tablet held and its upload held at the room's door.
+Future<(SalaHarness, ProviderContainer)> _aQuartaGuardadaDevagar(
+  WidgetTester tester,
+) async {
+  final harness = SalaHarness(filaEmMemoria: true);
+  final container = await _naCasaDoEnsaio(tester, harness: harness);
+  for (final n in [1, 2, 3]) {
+    await _gravarNaLinha(tester, n);
+  }
+  await theRoomNamesTheParts(tester, container, parts: 3);
+  (harness.takes as FakeTakeQueue).holdNextKeep();
+  harness.room.holdNextTake(KeptScope.parte(4));
+  await _gravarNaLinha(tester, 4);
+  return (harness, container);
+}
+
+Future<void> _aQuartaChegaAPorta(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  (harness.takes as FakeTakeQueue).finishHeldKeep();
+  await waitFor(
+    'a cena 4 chegar à porta da sala',
+    () => harness.room.takeHeld,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+}
+
+Future<void> _aQuartaChegaASala(
+  WidgetTester tester,
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  harness.room.finishHeldTake();
+  await theRoomNamesTheParts(tester, container, parts: 4);
+  await letTheRehearsalReachTheRoom(tester);
+}
+
+Future<void> _oToqueNoDiscoFicaNaCasa(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await _tocar(tester, inTheHome(_irParaATraducao));
+  expect(_estado(container).stage, SalaStage.ensaio);
+  container.read(salaSessionProvider.notifier).startRetro();
+  await tester.pump(const Duration(milliseconds: 200));
+  expect(_estado(container).stage, SalaStage.ensaio);
 }
 
 void main() {
@@ -688,8 +738,7 @@ void main() {
   test(
     'a Resume point written with a joined part reads its origin back',
     () async {
-      final casa = Directory.systemTemp.createTempSync('sala-1406-linha');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-linha');
       WorkInProgress noDisco() =>
           WorkInProgress(home: () async => casa, recordings: () async => casa);
 
@@ -1049,8 +1098,7 @@ void main() {
     'a passage left in its translation with scenes still missing their part, '
     'picked on the Choice, lands on its conversation at rest',
     () async {
-      final casa = Directory.systemTemp.createTempSync('sala-1406-na-traducao');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-na-traducao');
       final harness = SalaHarness()
         ..room.passageScenes = _cenasEmPortugues
         ..room.retroSoFar = const BackTranslationProgress(
@@ -1101,8 +1149,7 @@ void main() {
     'a whole rehearsal the room holds with no number, laid in by the orange dot '
     'on a passage left in its telling-back, plays there',
     () async {
-      final casa = Directory.systemTemp.createTempSync('sala-1406-inteiro');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1406-inteiro');
       final harness = SalaHarness()
         ..playback.measured = const Duration(seconds: 10);
       await holdTheSession(
@@ -1424,8 +1471,7 @@ void main() {
     'home, and its tap leads to the scene rows',
     (tester) async {
       _umIpadEmPe(tester);
-      final casa = Directory.systemTemp.createTempSync('sala-1766-achado');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-1766-achado');
       final harness = SalaHarness(filaEmMemoria: true)
         ..playback.measured = const Duration(seconds: 10);
       final inteiro = File('${casa.path}/inteiro.m4a')
@@ -1625,6 +1671,172 @@ void main() {
       );
       (harness.takes as FakeTakeQueue).finishHeldKeep();
       await letTheRehearsalReachTheRoom(tester);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('«Ouvir tudo» shows only once the room holds every part', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _naCasaDoEnsaio(tester, harness: harness);
+    for (final n in [1, 2, 3]) {
+      await _gravarNaLinha(tester, n);
+    }
+    await theRoomNamesTheParts(tester, container, parts: 3);
+    expect(_ouvirTudo(), isFalse, reason: 'a cena 4 ainda não tem parte');
+
+    (harness.takes as FakeTakeQueue).holdNextKeep();
+    harness.room.holdNextTake(KeptScope.parte(4));
+    await _gravarNaLinha(tester, 4);
+    expect(_ouvirTudo(), isFalse, reason: 'a cena 4 ainda está sendo guardada');
+
+    await _aQuartaChegaAPorta(tester, harness);
+    expect(_ouvirTudo(), isFalse, reason: 'a cena 4 ainda está subindo');
+
+    await _aQuartaChegaASala(tester, harness, container);
+    expect(_ouvirTudo(), isTrue);
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'from the keep tap until the room holds the part the advance disc stays '
+    'dark and its tap stays on the recording home',
+    (tester) async {
+      final (harness, container) = await _aQuartaGuardadaDevagar(tester);
+
+      expect(_discoAceso(tester), isFalse, reason: 'guardando a cena 4');
+      await _oToqueNoDiscoFicaNaCasa(tester, container);
+
+      await _aQuartaChegaAPorta(tester, harness);
+      expect(_discoAceso(tester), isFalse, reason: 'a cena 4 subindo');
+      await _oToqueNoDiscoFicaNaCasa(tester, container);
+
+      await _aQuartaChegaASala(tester, harness, container);
+      expect(_discoAceso(tester), isTrue);
+      await _tocar(tester, inTheHome(_irParaATraducao));
+      expect(_estado(container).stage, SalaStage.retro);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a keep whose count fell on a station change keeps the advance disc dark '
+    'on the way back to the home',
+    (tester) async {
+      final (harness, container) = await _aQuartaGuardadaDevagar(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+
+      final fila = harness.takes as FakeTakeQueue;
+      notifier.leaveTheRecording();
+      await letTheRehearsalReachTheRoom(tester);
+      fila
+        ..holdTheNextReading()
+        ..finishHeldKeep();
+      await waitFor(
+        'a contagem da cena 4 olhar a fila',
+        () => fila.readingHeld,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      fila.holdTheNextReading();
+      notifier.goEnsaio();
+      await waitFor(
+        'a contagem da chegada à casa olhar a fila',
+        () => fila.readingsHeld >= 2,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+
+      expect(_estado(container).stage, SalaStage.ensaio);
+      expect(_discoAceso(tester), isFalse, reason: 'a cena 4 ainda conta');
+      await _oToqueNoDiscoFicaNaCasa(tester, container);
+
+      fila.releaseTheOldestReading();
+      await letTheRehearsalReachTheRoom(tester);
+      expect(
+        _discoAceso(tester),
+        isFalse,
+        reason: 'a conta da cena 4 caiu com a troca de estação',
+      );
+      await _oToqueNoDiscoFicaNaCasa(tester, container);
+
+      fila.releaseTheHeldReading();
+      await waitFor(
+        'a cena 4 chegar à porta da sala',
+        () => harness.room.takeHeld,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+
+      expect(_estado(container).stage, SalaStage.ensaio);
+      expect(_discoAceso(tester), isFalse, reason: 'a cena 4 ainda sobe');
+      await _oToqueNoDiscoFicaNaCasa(tester, container);
+
+      await _aQuartaChegaASala(tester, harness, container);
+      await waitFor(
+        'o disco acender com a cena 4 na sala',
+        () => _discoAceso(tester),
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      await _tocar(tester, inTheHome(_irParaATraducao));
+      expect(_estado(container).stage, SalaStage.retro);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a keep whose session goes while it is being kept leaves no part being kept',
+    (tester) async {
+      final (harness, container) = await _aQuartaGuardadaDevagar(tester);
+      final sessao = _estado(container).sessionId!;
+      harness.room.forgetTheSession(sessao);
+
+      container.read(salaSessionProvider.notifier).goEnsaio();
+      await waitFor(
+        'a sala largar a sessão',
+        () => _estado(container).sessionId != sessao,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      (harness.takes as FakeTakeQueue).finishHeldKeep();
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(_estado(container).machine.keeping, isEmpty);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
+    'a keep whose count fails lights the advance disc again and leaves no part '
+    'being kept',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _naCasaDoEnsaio(tester, harness: harness);
+      for (final n in [1, 2, 3]) {
+        await _gravarNaLinha(tester, n);
+      }
+      await theRoomNamesTheParts(tester, container, parts: 3);
+      final notifier = container.read(salaSessionProvider.notifier);
+      final fila = harness.takes as FakeTakeQueue;
+      final falhas = <Object>[];
+      notifier
+        ..gravarACena(4)
+        ..gravarACena(4);
+      await waitFor(
+        'a cena 4 esperar o visto',
+        () => _estado(container).ensaio == EnsaioStatus.recorded,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+
+      fila.failsTheNextReading = true;
+      runZonedGuarded(notifier.takeKeep, (falha, _) => falhas.add(falha));
+      await waitFor(
+        'a contagem da cena 4 falhar',
+        () => falhas.isNotEmpty,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(falhas.single, isA<FileSystemException>());
+      expect(_estado(container).machine.keeping, isEmpty);
+      expect(_discoAceso(tester), isTrue);
       closeTheRoom(container);
     },
   );

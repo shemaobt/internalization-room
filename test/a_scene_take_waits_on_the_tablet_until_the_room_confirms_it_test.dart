@@ -17,6 +17,7 @@ import 'package:internalization_room/main.dart';
 import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, enterThePassage, relaunch, settle;
+import 'support/temp.dart';
 
 const _saving = 'guardando o ensaio da cena…';
 const _saveFailed = 'não deu para guardar o ensaio da cena — gravem de novo';
@@ -73,6 +74,57 @@ Future<void> _theNextSessionOfThePassage(SceneRoom room, String gone) async {
   await theScreenOpens(room);
   await _notKept(room);
 }
+
+const _brief = Duration(seconds: 5);
+const _parts = ['parte-1', 'parte-2', 'parte-3'];
+
+Future<void> _threeSlowPartsBehind(SceneRoom room) async {
+  final takes = room.harness.takes;
+  for (final scope in _parts) {
+    final row = await takes.enqueue(
+      room.harness.recorder.aFile(scope),
+      sessionId: room.state.sessionId,
+      kind: partTakeKind,
+      scope: scope,
+    );
+    takes.tapped(row.id);
+  }
+  room.harness.room.holdNextTake('parte-1');
+  addTearDown(room.harness.room.finishHeldTake);
+}
+
+Future<void> _aPartIsAtTheRoom(SceneRoom room) => waitFor(
+  'a primeira parte chegar à sala',
+  () => room.harness.room.takeHeld,
+  limit: _brief,
+);
+
+Future<void> _thePartsKeepGoing(SceneRoom room) async {
+  room.harness.room.finishHeldTake();
+  await waitFor(
+    'as partes saírem do tablet',
+    () async => (await room.harness.takes.entries()).every(
+      (row) => row.kind != partTakeKind,
+    ),
+    limit: _brief,
+  );
+  expect(
+    room.harness.room.takesAsked,
+    containsAll([for (final scope in _parts) '$partTakeKind/$scope']),
+  );
+}
+
+Future<void> _translateOpensAtOnce(SceneRoom room) => waitFor(
+  'o ensaio abrir na tradução',
+  () => room.state.scene.step == SceneStep.translate,
+  limit: _brief,
+);
+
+Future<void> _notKeptAtOnce(SceneRoom room) => waitFor(
+  'o ensaio ficar esperando',
+  () => room.state.scene.keep is NotKept,
+  limit: _brief,
+);
 
 Future<void> _pumpTheRoom(WidgetTester tester, SceneRoom room) async {
   await tester.pumpWidget(
@@ -137,6 +189,200 @@ void main() {
       );
     },
   );
+
+  test(
+    'a scene take kept with three slow parts behind it on the same pass opens '
+    'on translate as soon as the room confirms it, and the parts keep going',
+    () async {
+      final room = await atRest();
+      await theScreenOpens(room);
+      await _threeSlowPartsBehind(room);
+
+      await _recordAScene(room);
+      await _aPartIsAtTheRoom(room);
+      await _translateOpensAtOnce(room);
+
+      expect(room.harness.room.takeHeld, isTrue);
+      expect(room.state.scene.keep, isNot(isA<Keeping>()));
+      await _thePartsKeepGoing(room);
+    },
+  );
+
+  testWidgets(
+    'a scene take that fails shows her save-failed words with «falhou — toque '
+    'para tentar de novo» at its own failure, while the parts behind it are '
+    'still going up',
+    (tester) async {
+      late SceneRoom room;
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        await _threeSlowPartsBehind(room);
+        room.harness.room.failSceneWith = _offline;
+        await _recordAScene(room);
+        await _aPartIsAtTheRoom(room);
+        await _notKeptAtOnce(room);
+      });
+      await _pumpTheRoom(tester, room);
+
+      expect(room.harness.room.takeHeld, isTrue);
+      expect(find.text(_saveFailed), findsOneWidget);
+      expect(find.text(_retry), findsOneWidget);
+      expect(byLabel(_saving), findsNothing);
+      await tester.runAsync(() => _thePartsKeepGoing(room));
+    },
+  );
+
+  testWidgets(
+    'a scene take too large for the room shows her too-large words at once, '
+    'while the parts behind it are still going up',
+    (tester) async {
+      late SceneRoom room;
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        await _threeSlowPartsBehind(room);
+        await _recordAScene(room, take: Uint8List(25 * 1024 * 1024 + 1));
+        await _aPartIsAtTheRoom(room);
+        await _notKeptAtOnce(room);
+      });
+      await _pumpTheRoom(tester, room);
+
+      expect(room.harness.room.takeHeld, isTrue);
+      expect(room.asked('keepSceneRehearsal'), 0);
+      expect(find.text(_tooLarge), findsOneWidget);
+      expect(find.text(_retry), findsOneWidget);
+      await tester.runAsync(() => _thePartsKeepGoing(room));
+    },
+  );
+
+  test(
+    'while its own scene take is still at the room the screen stays on '
+    '«guardando o ensaio da cena…», even with parts waiting behind it',
+    () async {
+      final room = await atRest();
+      await theScreenOpens(room);
+      await _threeSlowPartsBehind(room);
+      room.harness.room.holdNextKeepBeforeTheRoomActs();
+      addTearDown(room.harness.room.finishHeldKeep);
+
+      await _recordAScene(room);
+      await waitFor(
+        'o take chegar à sala',
+        () => room.asked('keepSceneRehearsal') > 0,
+        limit: _brief,
+      );
+      await settle();
+
+      expect(room.state.scene.keep, isA<Keeping>());
+      expect(room.state.scene.step, SceneStep.record);
+      expect(
+        room.harness.room.takesAsked.where(
+          (asked) => asked.startsWith('$partTakeKind/'),
+        ),
+        isEmpty,
+      );
+
+      room.harness.room.finishHeldKeep();
+      await _aPartIsAtTheRoom(room);
+      await _translateOpensAtOnce(room);
+
+      expect(room.harness.room.takeHeld, isTrue);
+      await _thePartsKeepGoing(room);
+    },
+  );
+
+  test('a second scene take kept while the first still waits goes up after it, '
+      'and its screen waits until the first has landed', () async {
+    final room = await atRest();
+    await theScreenOpens(room);
+    room.harness.room.failSceneWith = _offline;
+    final first = await _recordAScene(room, take: _aTake(1));
+    await _notKept(room);
+    await settle();
+    room.harness.room
+      ..failSceneWith = null
+      ..holdNextKeep();
+    addTearDown(room.harness.room.finishHeldKeep);
+    final asked = room.asked('keepSceneRehearsal');
+
+    final second = await _recordAScene(room, take: _aTake(2));
+    await waitFor(
+      'o primeiro take chegar à sala',
+      () => room.asked('keepSceneRehearsal') > asked,
+      limit: _brief,
+    );
+    await settle();
+
+    expect(room.state.scene.keep, isA<Keeping>());
+    expect(room.harness.room.sceneTakesSent, [first]);
+
+    room.harness.room.finishHeldKeep();
+    await _translateOpensAtOnce(room);
+
+    expect(room.harness.room.sceneTakesSent, [first, second]);
+    expect(
+      room.state.scene.rehearsal?.rehearsalId,
+      room.harness.room.sceneRehearsals.last.rehearsalId,
+    );
+  });
+
+  testWidgets(
+    'a second scene take held behind a first that fails again on the same '
+    'pass shows her save-failed words at once, while the parts behind it are '
+    'still going up',
+    (tester) async {
+      late SceneRoom room;
+      late int askedOfTheFirst;
+      await tester.runAsync(() async {
+        room = await atRest();
+        await theScreenOpens(room);
+        room.harness.room.failSceneWith = _offline;
+        await _recordAScene(room, take: _aTake(1));
+        await _notKept(room);
+        await settle();
+        askedOfTheFirst = room.asked('keepSceneRehearsal');
+        await _threeSlowPartsBehind(room);
+
+        await _recordAScene(room, take: _aTake(2));
+        await _aPartIsAtTheRoom(room);
+        await _notKeptAtOnce(room);
+      });
+      await _pumpTheRoom(tester, room);
+
+      expect(room.harness.room.takeHeld, isTrue);
+      expect(find.text(_saveFailed), findsOneWidget);
+      expect(find.text(_retry), findsOneWidget);
+      expect(
+        room.asked('keepSceneRehearsal'),
+        2 * askedOfTheFirst,
+        reason: 'só o primeiro vai à sala; o segundo espera atrás dele',
+      );
+      await tester.runAsync(() => _thePartsKeepGoing(room));
+    },
+  );
+
+  test('a retry tapped while the parts behind the failed scene take are still '
+      'going up waits for them, then the take goes up', () async {
+    final room = await atRest();
+    await theScreenOpens(room);
+    await _threeSlowPartsBehind(room);
+    room.harness.room.failSceneWith = _offline;
+    final recorded = await _recordAScene(room);
+    await _aPartIsAtTheRoom(room);
+    await _notKeptAtOnce(room);
+
+    room.harness.room.failSceneWith = null;
+    await _theRetry(room);
+
+    expect(room.state.scene.keep, isA<Keeping>());
+    expect(room.harness.room.sceneTakesSent, isEmpty);
+
+    await _thePartsKeepGoing(room);
+    await _translateOpensAtOnce(room);
+
+    expect(room.harness.room.sceneTakesSent.single, recorded);
+  });
 
   test(
     'after the network returns, one tap sends the same take with the same '
@@ -253,8 +499,7 @@ void main() {
 
   test('the tablet closed before the room confirmed a take: on reopening, the '
       'take is still waiting to be sent', () async {
-    final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-sessao-atual');
     final harness = SalaHarness(
       currentSession: LedgerThatReadsLate(home: () async => home),
     );
@@ -337,8 +582,7 @@ void main() {
   );
 
   test('a scene take is never deleted by the app', () async {
-    final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-sessao-atual');
     final harness = SalaHarness(
       currentSession: LedgerThatReadsLate(home: () async => home),
     );

@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_final_plan_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/main.dart';
 
@@ -161,6 +162,12 @@ ListenGlyph _glyphOn(WidgetTester tester, Finder control) =>
 
 Tristate _pressedAt(WidgetTester tester, Finder control) =>
     tester.getSemantics(control).getSemanticsData().flagsCollection.isSelected;
+
+bool _sceneByScenePressable(WidgetTester tester) =>
+    tester
+        .widget<TextButton>(find.widgetWithText(TextButton, _sceneByScene))
+        .onPressed !=
+    null;
 
 Tristate _enabledAt(WidgetTester tester, String label) => tester
     .getSemantics(byLabel(label))
@@ -1533,4 +1540,114 @@ void main() {
           'rx 1, na caixa de 24 (EnsaioFinalPlan.tsx:25)',
     );
   });
+
+  group('while a take records on the plan\'s room', () {
+    Future<ProviderContainer> planWithATake(
+      WidgetTester tester,
+      List<SceneRehearsalRecord> Function(String session) seed,
+    ) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      harness.room
+        ..passages = const [_thePassage]
+        ..nextMoment = _midConversation
+        ..passageScenes = _threeScenes;
+      final container = ProviderContainer(
+        overrides: [
+          ...harness.overrides,
+          salaSessionProvider.overrideWith(_PlanWithATake.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const SalaApp()),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      addTearDown(() => closeTheRoom(container));
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.abrirEscolha();
+      await tester.pump(const Duration(milliseconds: 300));
+      unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).voice == VoiceState.invite,
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      harness.room.sceneRehearsals.addAll(
+        seed(container.read(salaSessionProvider).sessionId!),
+      );
+      await _openThePlan(tester);
+      return container;
+    }
+
+    testWidgets('«Gravar cena por cena» rests', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final container = await planWithATake(tester, _oneEach);
+      expect(_sceneByScenePressable(tester), isTrue);
+
+      (container.read(salaSessionProvider.notifier) as _PlanWithATake)
+          .aTakeRecords();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_sceneByScenePressable(tester), isFalse);
+      semantics.dispose();
+    });
+
+    testWidgets('the card\'s play is drawn disabled', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final container = await planWithATake(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S1'),
+          _rehearsal(s, n: 4, scene: null),
+        ],
+      );
+      final play = find.byWidgetPredicate(
+        (widget) =>
+            widget is RoundActionButton &&
+            widget.semanticLabel.startsWith('Ouvir — '),
+      );
+      ButtonMood moodOfTheLast() =>
+          tester.widget<RoundActionButton>(play.last).mood;
+      expect(moodOfTheLast(), ButtonMood.lit);
+
+      (container.read(salaSessionProvider.notifier) as _PlanWithATake)
+          .aTakeRecords();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(moodOfTheLast(), ButtonMood.dimmed);
+      semantics.dispose();
+    });
+
+    testWidgets('the sheet\'s play is drawn disabled', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final container = await planWithATake(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S2', sentAt: _sentAt('10:00')),
+          _rehearsal(s, n: 2, scene: 'S2', sentAt: _sentAt('10:05')),
+        ],
+      );
+      await _tapSwapOn(tester, 2);
+      final play = find.byWidgetPredicate(
+        (widget) =>
+            widget is RoundActionButton &&
+            (widget.semanticLabel.startsWith('Ouvir — ')),
+      );
+      expect(tester.widget<RoundActionButton>(play.first).mood, ButtonMood.lit);
+
+      (container.read(salaSessionProvider.notifier) as _PlanWithATake)
+          .aTakeRecords();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        tester.widget<RoundActionButton>(play.first).mood,
+        ButtonMood.dimmed,
+      );
+      semantics.dispose();
+    });
+  });
+}
+
+class _PlanWithATake extends SalaSessionNotifier {
+  void aTakeRecords() => state = state.copyWith(ensaio: EnsaioStatus.recording);
 }

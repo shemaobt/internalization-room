@@ -40,6 +40,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         parte,
         tocar,
         tocarNoCirculo;
+import 'support/temp.dart';
 
 const _quatroFrases = [
   SegmentView(
@@ -218,8 +219,7 @@ Future<ProviderContainer> _voltaATraducao(
   bool comACena1 = false,
 }) async {
   _telaAlta(tester);
-  final pasta = Directory.systemTemp.createTempSync('sala-1205');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1205');
   final partes = [
     if (inteira)
       KeptTake(
@@ -395,6 +395,10 @@ Future<ProviderContainer> _aParteUmRegravada(
         .btTrechos
         .every((trecho) => trecho.parte != 0),
     step: () => _passo(tester),
+  );
+  await untilTheAdvanceDiscLights(
+    container.read(salaSessionProvider.notifier),
+    step: () => letTheRehearsalReachTheRoom(tester),
   );
   container.read(salaSessionProvider.notifier).startRetro();
   await waitFor(
@@ -1506,7 +1510,9 @@ void main() {
     );
     await waitFor(
       'a conferência limpa chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     final terceira = harness.room.chunkFiles[2];
@@ -1878,7 +1884,9 @@ void main() {
     );
     await waitFor(
       'a conferência limpa chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
 
@@ -2939,7 +2947,9 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'a conferência limpa chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);

@@ -11,6 +11,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/kept_take.dart';
 import '../../domain/machine.dart' show TheKeep;
 import '../../domain/scene_rehearsal.dart';
+import '../../domain/session_snapshot.dart';
 import '../../domain/session_state.dart';
 import '../../domain/station.dart';
 import 'approve_button.dart';
@@ -115,6 +116,7 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                                 notifier.openTheHomeSheet(row.number),
                             onRecord: () => notifier.gravarACena(row.number),
                             onListen: () => notifier.ouvirACena(row.number),
+                            onRetelling: notifier.playKeptRetelling,
                             onSend: () => notifier.enviarACena(row.number),
                             onStop: notifier.stopTheSend,
                             onBringBack: () =>
@@ -130,6 +132,8 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                       ],
                     ),
                   ),
+                  if (session.wholeRetellingUnderTheRows case final whole?)
+                    _wholeRetelling(session, notifier, whole, language),
                   if (session.btChecked) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -289,6 +293,32 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
     return SafeArea(bottom: false, child: scrolling);
   }
 
+  Widget _wholeRetelling(
+    SalaSessionState session,
+    SalaSessionNotifier notifier,
+    KeptRetelling whole,
+    String language,
+  ) {
+    final words = recordingHomeLabelFor('hearWholeTelling', language);
+    final play = session.keptRetellingsRest
+        ? null
+        : () => notifier.playKeptRetelling(whole.scope);
+    return Semantics(
+      button: true,
+      enabled: play != null,
+      label: words,
+      onTap: play,
+      excludeSemantics: true,
+      child: TextButton(
+        onPressed: play,
+        child: Text(
+          words,
+          style: TextStyle(color: SalaColors.of(context).telha, fontSize: 15),
+        ),
+      ),
+    );
+  }
+
   Widget _homeSheet(
     SalaSessionState session,
     SalaSessionNotifier notifier,
@@ -307,6 +337,7 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
       inUseId: home.inUse,
       language: language,
       busy: session.homeBusy,
+      backRests: session.swapping != null,
       offersToUse: (rehearsal) => offersToSwapIn(home, rehearsal),
       answerOf: (rehearsal) => switch (session.swapLine) {
         (:final rehearsalId, :final cannotEnter)
@@ -358,6 +389,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onSheet;
   final VoidCallback onRecord;
   final VoidCallback onListen;
+  final void Function(String scope) onRetelling;
   final VoidCallback onSend;
   final void Function(TheKeep keep) onStop;
   final VoidCallback onBringBack;
@@ -372,6 +404,7 @@ class _SceneRowView extends StatelessWidget {
     required this.onSheet,
     required this.onRecord,
     required this.onListen,
+    required this.onRetelling,
     required this.onSend,
     required this.onStop,
     required this.onBringBack,
@@ -471,6 +504,21 @@ class _SceneRowView extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (_retelling() case final retelling?) ...[
+                  _control(
+                    'hearHowYouToldAria',
+                    const Icon(
+                      LucideIcons.radio,
+                      size: 18,
+                      color: ShemaBrand.branco,
+                    ),
+                    () => onRetelling(retelling.scope),
+                    session.keptRetellingsRest
+                        ? ButtonMood.dimmed
+                        : ButtonMood.lit,
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 if (row.beyondTheScenes)
                   const SizedBox.shrink()
                 else if (recording)
@@ -523,6 +571,13 @@ class _SceneRowView extends StatelessWidget {
       ),
     );
   }
+
+  KeptRetelling? _retelling() =>
+      row.recording && session.ensaio == EnsaioStatus.recording ||
+          row.inTheAir != null ||
+          row.unsent != null
+      ? null
+      : row.retelling;
 
   String? _mark() {
     final parte = session.partIndexOf(row.number);
@@ -694,14 +749,14 @@ class _SceneRowView extends StatelessWidget {
   }
 
   Widget? _bringBackFailed(SalaColors colors) {
-    final failed = session.bringBackFailed;
-    if (failed == null || failed.cena != row.number) return null;
+    final cannotEnter = session.bringBackFailed[row.number];
+    if (cannotEnter == null) return null;
     return Padding(
       padding: const EdgeInsets.only(left: 32, top: 4),
       child: Semantics(
         liveRegion: true,
         child: Text(
-          failed.cannotEnter
+          cannotEnter
               ? ensaioFinalPlanLabelFor('cannotEnter', language)
               : recordingHomeLabelFor('bringBackFailed', language),
           style: TextStyle(color: colors.telha, fontSize: 15),

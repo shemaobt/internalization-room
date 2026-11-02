@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -29,6 +28,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
 const _soOuvirEn =
@@ -223,6 +223,8 @@ Future<void> _ate(WidgetTester tester, Future<void> Function() passo) async {
 const _joinLabel = 'juntar as cenas e ouvir';
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
+const _backToJoin = 'Ensaio Final: juntar os ensaios das cenas';
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -298,7 +300,7 @@ Future<(SalaHarness, ProviderContainer)> _naConversaComTresCenas(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1408-junta');
+  final home = aTempDir('sala-1408-junta');
   final harness = SalaHarness(takesHome: home)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = const Moment(
@@ -408,6 +410,93 @@ void main() {
     semantics.dispose();
     closeTheRoom(container);
   });
+
+  testWidgets(
+    '«Ensaio Final: juntar os ensaios das cenas» opens the First listen with N0 '
+    'and every part once every scene got its part',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, container) = await _naConversaComTresCenas(tester);
+      SalaSessionState estado() => container.read(salaSessionProvider);
+      final sessionId = estado().sessionId!;
+      for (final n in [1, 2, 3]) {
+        harness.room.sceneRehearsals.add(_rehearsal(sessionId, n));
+        harness.room.sceneAudioOf['$sessionId-ensaio-$n'] = _bytesOf(n);
+      }
+      harness.room.listeningUnheardTakeIds = [
+        for (final n in [1, 2, 3]) 'gravacao-$n',
+      ];
+      await tester.tap(_dot);
+      await _until(
+        tester,
+        'o plano abrir',
+        () => find.text(_planLine).evaluate().isNotEmpty,
+      );
+      await _settle(tester);
+      await tester.ensureVisible(byLabel(_wholeAtOnce));
+      await tester.pump();
+      await tester.tap(byLabel(_wholeAtOnce));
+      await _until(
+        tester,
+        'a casa da passagem inteira oferecer a volta à junta',
+        () => find.text(_backToJoin).evaluate().isNotEmpty,
+      );
+      await _settle(tester);
+      final linhas = harness.voice.fixedLines.length;
+      final tocadas = harness.playback.played.length;
+      final desde = harness.playback.playedFrom.length;
+
+      await tester.ensureVisible(byLabel(_backToJoin));
+      await tester.pump();
+      await tester.tap(byLabel(_backToJoin));
+      await _until(
+        tester,
+        'o primeiro ouvir abrir sem «juntar as cenas e ouvir»',
+        () => find.text(_soOuvir).evaluate().isNotEmpty,
+      );
+      await _until(
+        tester,
+        'a primeira parte entrar no ar sem toque',
+        () => harness.playback.played.length > tocadas,
+      );
+
+      await _beat(tester, const Duration(seconds: 1));
+      expect(_oTitulo(_ensaioFinal), findsOneWidget);
+      expect(find.text(_soOuvir), findsOneWidget);
+      expect(harness.voice.fixedLines.skip(linhas), [('N0', 'pt')]);
+      final depois = harness.sounds.toList();
+      expect(
+        depois.lastIndexOf('voice:fixed'),
+        lessThan(depois.lastIndexOf('playback:play')),
+        reason: 'a fala dela vem antes do som da primeira parte',
+      );
+      for (var onde = 0; onde < 3; onde++) {
+        await _until(
+          tester,
+          'a parte ${onde + 1} no ar',
+          () =>
+              harness.playback.played.length == tocadas + onde + 1 &&
+              harness.playback.sounding,
+        );
+        await tester.runAsync(() => theClipOpens(harness));
+        harness.playback
+          ..length = const Duration(seconds: 6)
+          ..at = const Duration(seconds: 6)
+          ..finishPlayback();
+        await _beat(tester);
+      }
+      expect(harness.playback.played.skip(tocadas), [
+        for (final parte in estado().partes) parte.path,
+      ]);
+      expect(harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
+      semantics.dispose();
+      closeTheRoom(container);
+    },
+  );
 
   testWidgets(
     'a join that stops on a row does not start the first listen, in a room that '
@@ -991,7 +1080,7 @@ void main() {
       await _ouvirAte(it, desde: 2);
       await waitFor(
         'a conferência limpa',
-        () => it.estado.btPhase == BtPhase.conferida,
+        () => it.estado.btPhase == BtPhase.conferida && it.estado.btVeredito,
       );
       it.sala.goEnsaio();
       await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
@@ -1018,6 +1107,7 @@ void main() {
         () =>
             it.estado.stage == SalaStage.retro &&
             it.estado.btPhase == BtPhase.conferida &&
+            it.estado.btVeredito &&
             !it.estado.awaitingTheGuide,
       );
       await settle();
@@ -1086,7 +1176,7 @@ void main() {
     await _ouvirAte(it, desde: 2);
     await waitFor(
       'a primeira conferência',
-      () => it.estado.btPhase == BtPhase.conferida,
+      () => it.estado.btPhase == BtPhase.conferida && it.estado.btVeredito,
     );
     it.sala.recomecarATraducao();
     await settle(const Duration(milliseconds: 700));

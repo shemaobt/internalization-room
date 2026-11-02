@@ -196,7 +196,7 @@ void main() {
 
       expect(_ground(tester), SalaColors.dark.paper);
 
-      await tester.tap(byLabel('Claro'));
+      await tester.tap(byLabel('Light'));
       await _theThemeFinishes(tester);
 
       expect(_ground(tester), SalaColors.light.paper);
@@ -234,14 +234,14 @@ void main() {
     await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
 
     expect(_ground(tester), SalaColors.light.paper);
-    expect(_selected(tester, 'Claro'), isTrue);
-    expect(_selected(tester, 'Escuro'), isFalse);
+    expect(_selected(tester, 'Light'), isTrue);
+    expect(_selected(tester, 'Dark'), isFalse);
   });
 
   choiceTest('dark keeps the warm ground', (tester) async {
     await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
 
-    await tester.tap(byLabel('Escuro'));
+    await tester.tap(byLabel('Dark'));
     await _theThemeFinishes(tester);
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
@@ -260,18 +260,58 @@ void main() {
       final container = await _openTheChoice(tester, harness);
 
       expect(find.text('PT'), findsOneWidget);
-      expect(byLabel('Claro'), findsOneWidget);
+      expect(byLabel('Light'), findsOneWidget);
 
       await _enter(tester, container, 'P01');
 
       expect(find.text('PT'), findsNothing);
       expect(find.text('EN'), findsNothing);
+      expect(byLabel('Light'), findsNothing);
+      expect(byLabel('Dark'), findsNothing);
+    },
+  );
+
+  List<String> membersOf(WidgetTester tester, String group) {
+    final names = <String>[];
+    tester.getSemantics(byLabel(group)).visitChildren((child) {
+      names.add(child.label);
+      return true;
+    });
+    return names;
+  }
+
+  choiceTest(
+    'in a Portuguese room the sun and the moon are named «Light» and «Dark», as hers',
+    (tester) async {
+      await _openTheChoice(
+        tester,
+        SalaHarness(filaEmMemoria: true, lingua: null),
+      );
+
+      expect(byLabel('Light'), findsOneWidget);
+      expect(byLabel('Dark'), findsOneWidget);
       expect(byLabel('Claro'), findsNothing);
       expect(byLabel('Escuro'), findsNothing);
     },
   );
 
-  choiceTest('the sun and the moon are named in the Room language', (
+  choiceTest(
+    'after «EN» is tapped the sun and the moon are still named «Light» and «Dark»',
+    (tester) async {
+      await _openTheChoice(
+        tester,
+        SalaHarness(filaEmMemoria: true, lingua: null),
+      );
+
+      await tester.tap(find.text('EN'));
+      await _catchUp(tester);
+
+      expect(byLabel('Light'), findsOneWidget);
+      expect(byLabel('Dark'), findsOneWidget);
+    },
+  );
+
+  choiceTest('the sun and the moon sit in a group VoiceOver names «Display»', (
     tester,
   ) async {
     await _openTheChoice(
@@ -279,14 +319,48 @@ void main() {
       SalaHarness(filaEmMemoria: true, lingua: null),
     );
 
-    expect(byLabel('Claro'), findsOneWidget);
-    expect(byLabel('Escuro'), findsOneWidget);
+    expect(membersOf(tester, 'Display'), ['Light', 'Dark']);
+  });
 
-    await tester.tap(find.text('EN'));
-    await _catchUp(tester);
+  choiceTest('the language codes sit in a group VoiceOver names «Language»', (
+    tester,
+  ) async {
+    await _openTheChoice(
+      tester,
+      SalaHarness(filaEmMemoria: true, lingua: null),
+    );
 
-    expect(byLabel('Light'), findsOneWidget);
-    expect(byLabel('Dark'), findsOneWidget);
+    expect(membersOf(tester, 'Language'), ['PT', 'EN']);
+  });
+
+  choiceTest(
+    'in an English room the groups are still named «Display» and «Language»',
+    (tester) async {
+      await _openTheChoice(
+        tester,
+        SalaHarness(filaEmMemoria: true, lingua: null),
+      );
+      await tester.tap(find.text('EN'));
+      await _catchUp(tester);
+
+      expect(membersOf(tester, 'Display'), ['Light', 'Dark']);
+      expect(membersOf(tester, 'Language'), ['PT', 'EN']);
+    },
+  );
+
+  choiceTest('inside its group each control still says which is chosen', (
+    tester,
+  ) async {
+    deviceIs(tester, brightness: Brightness.light);
+    await _openTheChoice(
+      tester,
+      SalaHarness(filaEmMemoria: true, lingua: null),
+    );
+
+    expect(_selected(tester, 'Light'), isTrue);
+    expect(_selected(tester, 'Dark'), isFalse);
+    expect(_selected(tester, 'PT'), isTrue);
+    expect(_selected(tester, 'EN'), isFalse);
   });
 
   choiceTest(
@@ -325,7 +399,7 @@ void main() {
     deviceIs(tester, brightness: Brightness.dark);
     await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
 
-    await tester.tap(byLabel('Claro'));
+    await tester.tap(byLabel('Light'));
     await _theThemeFinishes(tester);
 
     expect(_statusBarGlyphs(tester), Brightness.dark);
@@ -337,7 +411,7 @@ void main() {
     deviceIs(tester, brightness: Brightness.light);
     await _openTheChoice(tester, SalaHarness(filaEmMemoria: true));
 
-    await tester.tap(byLabel('Escuro'));
+    await tester.tap(byLabel('Dark'));
     await _theThemeFinishes(tester);
 
     expect(_statusBarGlyphs(tester), Brightness.light);
