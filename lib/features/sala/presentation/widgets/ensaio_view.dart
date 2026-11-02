@@ -92,13 +92,13 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
-            if (session.rehearsalsElsewhere && session.partes.isEmpty)
-              _Aviso(recordingHomeLabelFor('elsewhere', language)),
             UnsentNotice(
               session: session,
               language: language,
               onSend: notifier.enviarDoAviso,
             ),
+            if (session.rehearsalsElsewhere && session.partes.isEmpty)
+              _Aviso(recordingHomeLabelFor('elsewhere', language)),
             if (session.btFraseDevida != null)
               _Aviso(sceneRehearsalLabelFor('spliceFail', language)),
             const SizedBox(height: 20),
@@ -136,27 +136,6 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                       ],
                     ),
                   ),
-                  if (session.wholeRetellingUnderTheRows case final whole?)
-                    _wholeRetelling(session, notifier, whole, language),
-                  if (session.btChecked) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      '✓ ${retroLabelFor('translated', language)}',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.ink, fontSize: 17),
-                    ),
-                  ],
-                  if (session.hearNewScene) ...[
-                    const SizedBox(height: 12),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        ensaioFinalPlanLabelFor('hearNewScene', language),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.telha, fontSize: 15),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 24),
                   Row(
                     mainAxisSize: MainAxisSize.min,
@@ -200,6 +179,72 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                       ),
                     ],
                   ),
+                  if (session.wholeRetellingUnderTheRows case final whole?)
+                    _wholeRetelling(session, notifier, whole, language),
+                ],
+              ),
+            ),
+            if (session.canOuvirTudo)
+              Semantics(
+                button: true,
+                label: recordingHomeLabelFor('listenAllAria', language),
+                onTap: notifier.ouvirTudo,
+                excludeSemantics: true,
+                child: TextButton(
+                  onPressed: notifier.ouvirTudo,
+                  child: Text(
+                    recordingHomeLabelFor('listenAll', language),
+                    style: TextStyle(color: colors.telha, fontSize: 15),
+                  ),
+                ),
+              ),
+            IgnorePointer(
+              ignoring: frozen,
+              child: Column(
+                children: [
+                  if (session.btChecked) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '✓ ${retroLabelFor('translated', language)}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.ink, fontSize: 17),
+                    ),
+                  ],
+                  if (session.hearNewScene) ...[
+                    const SizedBox(height: 12),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        ensaioFinalPlanLabelFor('hearNewScene', language),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.telha, fontSize: 15),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  _AdvanceButton(
+                    words: recordingHomeLabelFor(
+                      session.joined ? 'listenAndCheck' : 'translate',
+                      language,
+                    ),
+                    live: session.ensaioDone && !frozen,
+                    onTap: notifier.startRetro,
+                  ),
+                ],
+              ),
+            ),
+            if (session.someScenesWaitForTheirPart) ...[
+              const SizedBox(height: 12),
+              Text(
+                recordingHomeLabelFor('needsAll', language),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.telha, fontSize: 15),
+              ),
+            ],
+            IgnorePointer(
+              ignoring: frozen,
+              child: Column(
+                children: [
                   if (session.approveOffered) ...[
                     const SizedBox(height: 12),
                     ApproveButton(
@@ -208,6 +253,20 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                           session.canApprove &&
                           !frozen,
                     ),
+                  ],
+                  if (session.approvedOnTheHome case final aprovado?) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      retroLabelFor(
+                        'approvedDraft',
+                        language,
+                        n: aprovado.version,
+                      ),
+                      style: TextStyle(color: colors.ink, fontSize: 17),
+                    ),
+                    ListenersLine(aprovado.listeners),
+                    const SizedBox(height: 12),
+                    const ExternalCheckButton(),
                   ],
                   if (session.btRecusa case final recusa?
                       when session.stage == SalaStage.ensaio) ...[
@@ -236,54 +295,9 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
                   ],
-                  if (session.approvedOnTheHome case final aprovado?) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      retroLabelFor(
-                        'approvedDraft',
-                        language,
-                        n: aprovado.version,
-                      ),
-                      style: TextStyle(color: colors.ink, fontSize: 17),
-                    ),
-                    ListenersLine(aprovado.listeners),
-                    const SizedBox(height: 12),
-                    const ExternalCheckButton(),
-                  ],
-                  const SizedBox(height: 24),
-                  _AdvanceButton(
-                    words: recordingHomeLabelFor(
-                      session.joined ? 'listenAndCheck' : 'translate',
-                      language,
-                    ),
-                    live: session.ensaioDone && !frozen,
-                    onTap: notifier.startRetro,
-                  ),
                 ],
               ),
             ),
-            if (session.someScenesWaitForTheirPart) ...[
-              const SizedBox(height: 12),
-              Text(
-                recordingHomeLabelFor('needsAll', language),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.telha, fontSize: 15),
-              ),
-            ],
-            if (session.canOuvirTudo)
-              Semantics(
-                button: true,
-                label: recordingHomeLabelFor('listenAllAria', language),
-                onTap: notifier.ouvirTudo,
-                excludeSemantics: true,
-                child: TextButton(
-                  onPressed: notifier.ouvirTudo,
-                  child: Text(
-                    recordingHomeLabelFor('listenAll', language),
-                    style: TextStyle(color: colors.telha, fontSize: 15),
-                  ),
-                ),
-              ),
             const SizedBox(height: 16),
             const GrainControls(),
             const SizedBox(height: 32),
@@ -330,6 +344,10 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     bool armed(SceneRehearsalRecord rehearsal) =>
         session.armedTap?.control == swapControl(plan.scene.sceneId, rehearsal);
+    final sceneCount = switch (session.ensaioFinalPlan) {
+      PlanRead(:final scenes) => scenes.length,
+      _ => plan.number,
+    };
     return RehearsalSheet(
       number: plan.number,
       title: plan.scene.title,
@@ -346,9 +364,19 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
           said(cannotEnter ? 'cannotEnter' : 'joinRetry'),
         _ => null,
       },
-      useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
-          ? retroLabelFor('reopenArmed', language)
-          : said('useThis'),
+      useLabelOf: (rehearsal) => switch (rehearsal.rehearsalId) {
+        final id when id == session.swapping => ensaioFinalPlanLabelFor(
+          'joining',
+          language,
+          i: plan.number,
+          k: sceneCount,
+        ),
+        _ when armed(rehearsal) && session.overAnApprovedDraft => retroLabelFor(
+          'reopenArmed',
+          language,
+        ),
+        _ => said('useThis'),
+      },
       armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
@@ -440,10 +468,7 @@ class _SceneRowView extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: [
-        named,
-        if (playing) recordingHomeLabelFor('playing', language),
-      ].join(', '),
+      label: named,
       value: row.part == null ? null : ['✓', ?mark].join(' '),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),

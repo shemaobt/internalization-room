@@ -33,7 +33,6 @@ const _gravar = 'Gravar';
 const _parar = 'Parar';
 const _gravarDeNovo = 'Gravar de novo';
 const _ouvir = 'Ouvir';
-const _tocando = 'tocando';
 const _enviarAGravacao = 'Enviar a gravação';
 const _irParaATraducao = 'Traduzir a gravação';
 const _voltarERegravar = 'voltar e regravar uma parte';
@@ -74,6 +73,17 @@ Finder _linha(int n) => find.descendant(
         widget is Semantics &&
         (widget.properties.label ?? '').startsWith(
           'Cena $n — ${_cenas[n - 1].title}',
+        ),
+  ),
+);
+
+Finder _linhaEn(int n) => find.descendant(
+  of: find.byType(EnsaioView),
+  matching: find.byWidgetPredicate(
+    (widget) =>
+        widget is Semantics &&
+        (widget.properties.label ?? '').startsWith(
+          'Scene $n — ${_cenas[n - 1].title}',
         ),
   ),
 );
@@ -296,6 +306,130 @@ void main() {
     expect(harness.recorder.captures, antes + 1);
   });
 
+  testWidgets(
+    'while scene 2\'s part plays from its row, VoiceOver reads the row as '
+    '«Cena 2 — <title>» then «✓», with no «tocando»',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = _umaSala();
+      final container = await _naCasaDoEnsaio(tester, harness);
+      for (var n = 1; n <= 3; n++) {
+        await _gravarNaLinha(tester, container, n, partes: n);
+      }
+
+      await _tocar(tester, _naLinha(2, _ouvir));
+
+      final no = tester.getSemantics(_linha(2));
+      expect(no.label, 'Cena 2 — ${_cenas[1].title}');
+      expect(no.value, '✓');
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              (widget.properties.label ?? '').contains('tocando'),
+        ),
+        findsNothing,
+      );
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while the wood play plays every part in turn, no row\'s VoiceOver name '
+    'says «tocando»',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = _umaSala();
+      final container = await _naCasaDoEnsaio(tester, harness);
+      for (var n = 1; n <= 3; n++) {
+        await _gravarNaLinha(tester, container, n, partes: n);
+      }
+
+      await _tocar(tester, offTheRows(_ouvir));
+      for (var n = 1; n <= 3; n++) {
+        expect(
+          tester.getSemantics(_linha(n)).label,
+          'Cena $n — ${_cenas[n - 1].title}',
+        );
+        harness.playback.finishPlayback();
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a row with no take is read as «Cena 1 — <title>» with no «✓»', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _naCasaDoEnsaio(tester, _umaSala());
+
+    final row = tester.widget<Semantics>(_linha(1)).properties;
+    expect(row.label, 'Cena 1 — ${_cenas[0].title}');
+    expect(row.value, isNull);
+    expect(tester.getSemantics(_linha(1)).value, isEmpty);
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'the row\'s listen control is still read «Ouvir» while it plays, and '
+    '«Listen» in an English room',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = _umaSala();
+      final container = await _naCasaDoEnsaio(tester, harness);
+      for (var n = 1; n <= 3; n++) {
+        await _gravarNaLinha(tester, container, n, partes: n);
+      }
+      await _tocar(tester, _naLinha(2, _ouvir));
+      expect(_naLinha(2, _ouvir), findsOne);
+      harness.playback.finishPlayback();
+      await tester.pump(const Duration(milliseconds: 200));
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('in an English room the row reads «Scene 2 — <title>» and its '
+      'listen control «Listen»', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(
+      filaEmMemoria: true,
+      takesHome: aTempDir('sala-1865'),
+      lingua: 'en',
+    )..room.passageScenes = _cenas;
+    final container = await _naCasaDoEnsaio(tester, harness);
+    for (var n = 1; n <= 3; n++) {
+      await _tocar(
+        tester,
+        find.descendant(of: _linhaEn(n), matching: byLabel('Record')),
+      );
+      await _tocar(
+        tester,
+        find.descendant(of: _linhaEn(n), matching: byLabel('Stop')),
+      );
+      await _tocar(tester, offTheRows('Send the recording'));
+      await letTheRehearsalReachTheRoom(tester);
+      await theRoomNamesTheParts(tester, container, parts: n);
+    }
+    await _tocar(
+      tester,
+      find.descendant(of: _linhaEn(2), matching: byLabel('Listen')),
+    );
+
+    final no = tester.getSemantics(_linhaEn(2));
+    expect(no.label, 'Scene 2 — ${_cenas[1].title}');
+    expect(no.value, '✓');
+    expect(
+      find.descendant(of: _linhaEn(2), matching: byLabel('Listen')),
+      findsOne,
+    );
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 200));
+    semantics.dispose();
+  });
+
   testWidgets('no Scene row is drawn selected while a part plays', (
     tester,
   ) async {
@@ -312,7 +446,7 @@ void main() {
         findsNothing,
         reason: 'a parte $n soa, e nenhuma linha se acende',
       );
-      expect(byLabel('Cena $n — ${_cenas[n - 1].title}, $_tocando'), findsOne);
+      expect(byLabel('Cena $n — ${_cenas[n - 1].title}'), findsOne);
       expect(
         find.descendant(
           of: _linha(n),
@@ -326,7 +460,7 @@ void main() {
 
     await _tocar(tester, _naLinha(2, _ouvir));
     expect(_linhaSelecionada, findsNothing);
-    expect(byLabel('Cena 2 — ${_cenas[1].title}, $_tocando'), findsOne);
+    expect(byLabel('Cena 2 — ${_cenas[1].title}'), findsOne);
     expect(
       find.descendant(of: _linha(2), matching: find.byIcon(LucideIcons.pause)),
       findsOneWidget,
