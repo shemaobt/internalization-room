@@ -13,7 +13,14 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, entrarNaTraducao, ouvir, parte, passaDoCursor, pausado, tocar;
+    show
+        aceso,
+        entrarNaTraducao,
+        parte,
+        passaDoCursor,
+        pausado,
+        tocar,
+        tocarOuPausar;
 
 const antes = 'um pouco antes';
 const ouvirAPausa = 'ouvir a pausa';
@@ -64,9 +71,6 @@ Future<void> tocarOCirculo(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-String rotuloDoCirculo(WidgetTester tester) =>
-    tester.widget<FacilitatorCircle>(circulo()).semanticLabel;
-
 Future<void> traduzirEConfirmar(WidgetTester tester) async {
   await tocarOCirculo(tester);
   await tocarOCirculo(tester);
@@ -92,7 +96,7 @@ Future<void> aDicaEOsTresControles(
   await pausarAos(tester, harness, s(4.2));
   final semantics = tester.ensureSemantics();
 
-  expect(rotuloDoCirculo(tester), aDica);
+  expect(find.textContaining(aDica), findsWidgets);
   for (final controle in controles) {
     expect(aceso(tester, controle), isTrue, reason: controle);
     expect(
@@ -192,7 +196,7 @@ void main() {
     expect(harness.playback.ranges.last, '1700-3200');
 
     await tocar(tester, antes);
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
 
     expect(
       harness.playback.playedFrom.last,
@@ -231,7 +235,7 @@ void main() {
     await pausarAos(tester, harness, s(4));
 
     expect(pausa(container), s(4));
-    expect(rotuloDoCirculo(tester), dicaNoToque);
+    expect(find.textContaining(dicaNoToque), findsWidgets);
     for (final controle in [antes, ouvirAPausa, depois]) {
       expect(
         byLabel(controle),
@@ -250,7 +254,7 @@ void main() {
     await pausarAos(tester, harness, s(4));
 
     expect(pausa(container), s(4));
-    expect(rotuloDoCirculo(tester), hintAtTheTap);
+    expect(find.textContaining(hintAtTheTap), findsWidgets);
     for (final controle in [earlier, hearThePause, later]) {
       expect(
         byLabel(controle),
@@ -321,7 +325,7 @@ void main() {
         reason: 'como no dela, o toque pausa a gravação mesmo sem frase',
       );
       expect(harness.playback.sounding, isFalse);
-      expect(rotuloDoCirculo(tester), pausado);
+      expect(find.textContaining(pausado), findsWidgets);
 
       await tocarOCirculo(tester);
       await tocarOCirculo(tester);

@@ -3,16 +3,14 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 
 import 'fakes.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show contarAteOFimDaParte, tocarNoCirculo;
+    show contarAteOFimDaParte, tocarNoCirculo, tocarOuPausar;
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show
         cabeca,
         entrarNaTraducao,
         gravarATraducao,
-        ouvir,
         ouvirUmTrechoContado,
         parte,
-        pausar,
         tocar;
 
 void main() {
@@ -29,14 +27,14 @@ void main() {
       final segunda = container.read(salaSessionProvider).partes[1].path;
       expect(container.read(salaSessionProvider).btParte, 1);
       harness.playback.at = const Duration(seconds: 3);
-      await tocar(tester, pausar);
+      await tocar(tester, tocarOuPausar);
 
       final sala = container.read(salaSessionProvider.notifier);
       sala.state = sala.state.copyWith(btOuvidoMs: 0);
       await ouvirUmTrechoContado(tester, container, 0);
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await tocar(tester, ouvir);
+      await tocar(tester, tocarOuPausar);
 
       expect(harness.playback.played.last, segunda);
       expect(
@@ -60,7 +58,7 @@ void main() {
       await tocarNoCirculo(tester);
       await gravarATraducao(tester, harness);
       harness.playback.at = const Duration(seconds: 7);
-      await tocar(tester, pausar);
+      await tocar(tester, tocarOuPausar);
       final primeira = container.read(salaSessionProvider).partes.first.path;
 
       final sala = container.read(salaSessionProvider.notifier);
@@ -68,7 +66,7 @@ void main() {
       await ouvirUmTrechoContado(tester, container, 0);
       harness.playback.finishPlayback();
       await tester.pump(const Duration(milliseconds: 300));
-      await tocar(tester, ouvir);
+      await tocar(tester, tocarOuPausar);
 
       expect(harness.playback.played.last, primeira);
       expect(

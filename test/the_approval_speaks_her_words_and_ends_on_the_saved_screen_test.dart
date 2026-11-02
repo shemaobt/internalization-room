@@ -19,7 +19,7 @@ import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
-const _ouvir = 'Ouvir a gravação';
+const _tocarOuPausar = 'Tocar ou pausar a gravação';
 const _traduzir = 'Traduzir a gravação';
 
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
@@ -338,7 +338,7 @@ void main() {
       expect(find.text(_aprovado(1)), findsOneWidget);
       expect(byLabel(_pronto), findsOneWidget);
       expect(byLabel(_aprovar), findsNothing);
-      expect(byLabel(_ouvir), findsNothing);
+      expect(byLabel(_tocarOuPausar), findsNothing);
       expect(find.text(_traduzir), findsNothing);
 
       final falasAntesDoPronto = it.harness.voice.fixedLines.length;
@@ -676,7 +676,7 @@ void main() {
       await _tocar(tester);
       final tocadas = it.harness.playback.playedFrom.length;
 
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(it.harness.playback.playedFrom, hasLength(tocadas));
@@ -774,7 +774,7 @@ void main() {
       it.harness.voice.holdNextLine();
       await _tocar(tester);
 
-      expect(_humor(tester, _ouvir), ButtonMood.dimmed);
+      expect(_humor(tester, _tocarOuPausar), ButtonMood.dimmed);
       expect(
         tester
             .getSemantics(byLabel(_recomecar))
@@ -858,7 +858,7 @@ void main() {
       await _saiEVoltaAConferida(tester, it);
 
       final tocadas = it.harness.playback.playedFrom.length;
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
       expect(it.harness.playback.playedFrom, hasLength(tocadas + 1));
 
@@ -912,7 +912,7 @@ void main() {
     final it = await _ateAConferida(tester);
 
     expect(
-      tester.getCenter(byLabel(_ouvir)).dx,
+      tester.getCenter(byLabel(_tocarOuPausar)).dx,
       400,
       reason: 'o espaço do botão que saiu empurrava o ouvir para a esquerda',
     );

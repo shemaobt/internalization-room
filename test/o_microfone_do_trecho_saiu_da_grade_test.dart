@@ -6,6 +6,7 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'a_pergunta_da_grade.dart' show pumpToPergunta;
@@ -123,7 +124,12 @@ void main() {
 
     container.read(salaSessionProvider.notifier).retroTap();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(byLabel('Tocar ao terminar'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(RetroView),
+        matching: find.byType(FacilitatorCircle),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 300));
     await letTheRehearsalReachTheRoom(tester);
     await tester.pump(const Duration(milliseconds: 600));

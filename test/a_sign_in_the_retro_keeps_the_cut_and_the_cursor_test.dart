@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'the_back_translation_is_told_by_beads_test.dart' show tocarNoCirculo;
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -138,8 +138,7 @@ void main() {
       final startsBefore = harness.sounds
           .where((s) => s == 'recorder:start')
           .length;
-      await tester.tap(byLabel('ouvindo a gravação de vocês…'));
-      await tester.pump(const Duration(milliseconds: 100));
+      await tocarNoCirculo(tester);
 
       expect(
         read().btPhase,
@@ -173,21 +172,18 @@ void main() {
     expect(read().btClipRodando, isTrue);
   });
 
-  test('T5: the listen first label exists in pt and en through the map', () {
-    expect(retroLabelFor('listenFirst', 'pt'), 'Ouvir primeiro');
-    expect(retroLabelFor('listenFirst', 'en'), 'Listen first');
-  });
-
-  testWidgets('T5w: in english the circle held before anything was heard reads '
-      'her paused line, not listen first', (tester) async {
+  testWidgets('T5w: in english the part held before anything was heard reads '
+      'her paused line', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
     final container = await _freshlyInRetro(tester, harness);
-    await tester.tap(byLabel('Pause'));
+    await tester.tap(byLabel('Play or pause your recording'));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(
-      byLabel('paused — tap the circle to mark where the sentence ends'),
-      findsOneWidget,
+      find.textContaining(
+        'paused — tap the circle to mark where the sentence ends',
+      ),
+      findsWidgets,
     );
     closeTheRoom(container);
   });

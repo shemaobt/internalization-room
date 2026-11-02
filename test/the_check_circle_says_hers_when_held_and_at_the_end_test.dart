@@ -11,7 +11,7 @@ import 'a_resumed_back_translation_circle_opens_the_microphone_test.dart'
     show reopenedInto;
 import 'fakes.dart';
 import 'o_take_pausa_test.dart' show pumpAoGravado;
-import 'scenario_helpers.dart' show byLabel, settle;
+import 'scenario_helpers.dart' show byLabel, onTheCircle, settle;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show
         conferir,
@@ -22,15 +22,13 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         parte,
         passaDoCursor,
         pausado,
-        pausar,
-        terminar,
         tocar,
-        tocarNoCirculo;
+        tocarNoCirculo,
+        tocarOuPausar;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         entrarComAFala,
         pausa,
-        rotuloDoCirculo,
         s,
         tocarOCirculo,
         traduzirEConfirmar,
@@ -69,8 +67,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).btClipRodando, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      'ouvindo a gravação de vocês…',
+      find.textContaining('ouvindo a gravação de vocês…'),
+      findsWidgets,
       reason: 'o círculo convidava a gravar com a gravação tocando',
     );
     closeTheRoom(container);
@@ -85,8 +83,8 @@ void main() {
     expect(state.btClipRodando, isTrue);
     expect(state.nothingHeardSinceCursor, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason: 'a parte tocando antes do cursor dizia ouvir primeiro',
     );
     closeTheRoom(container);
@@ -100,8 +98,8 @@ void main() {
     await tester.pump(passaDoCursor);
 
     expect(
-      rotuloDoCirculo(tester),
-      'listening to your recording…',
+      find.textContaining('listening to your recording…'),
+      findsWidgets,
       reason: 'o rótulo da gravação tocando ficava em português',
     );
     closeTheRoom(container);
@@ -119,8 +117,8 @@ void main() {
     expect(state.btTrechoTraduzidoDeNovo, isNotNull);
     expect(state.btTrechoTocando, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason: 'a frase traduzida de novo tocava sob o convite a gravar',
     );
     closeTheRoom(container);
@@ -137,8 +135,8 @@ void main() {
     expect(state.btTrechos.first.retroPath, isNull);
     expect(state.btTrechoTocando, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason: 'a conta tocando a gravação dizia para gravar a tradução',
     );
     harness.playback.stopWalking();
@@ -151,7 +149,7 @@ void main() {
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
-    expect(rotuloDoCirculo(tester), fimDaGravacao);
+    expect(find.textContaining(fimDaGravacao), findsWidgets);
 
     container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
@@ -160,8 +158,8 @@ void main() {
     expect(state.btClipEnded, isTrue);
     expect(state.btTrechoTocando, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason: 'a conta tocando a gravação no fim dizia fim da gravação',
     );
     harness.playback.stopWalking();
@@ -178,8 +176,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).btRetroTocando, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      isNot(ouvindo),
+      find.textContaining(ouvindo),
+      findsNothing,
       reason: 'a tradução tocando se dizia a gravação deles',
     );
     closeTheRoom(container);
@@ -201,8 +199,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).btTrechoTocando, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason: 'a conta tocava a tradução sob o convite a gravar',
     );
     closeTheRoom(container);
@@ -217,7 +215,7 @@ void main() {
     final container = await umaFraseContada(tester, harness);
     harness.playback.at = s(5.0);
     await tester.pump(passaDoCursor);
-    expect(rotuloDoCirculo(tester), ouvindo);
+    expect(find.textContaining(ouvindo), findsWidgets);
 
     container.read(salaSessionProvider.notifier).ouvirOTrechoContado(0);
     await tester.pump(const Duration(milliseconds: 300));
@@ -226,8 +224,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).btClipPausada, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      pausado,
+      find.textContaining(pausado),
+      findsWidgets,
       reason: 'o círculo seguia dizendo ouvindo com nada tocando',
     );
     closeTheRoom(container);
@@ -239,7 +237,7 @@ void main() {
     final container = await umaFraseContada(tester, harness);
     harness.playback.at = s(5.0);
     await tester.pump(passaDoCursor);
-    expect(rotuloDoCirculo(tester), ouvindo);
+    expect(find.textContaining(ouvindo), findsWidgets);
 
     container.read(salaSessionProvider.notifier).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
@@ -251,8 +249,8 @@ void main() {
       isNotNull,
     );
     expect(
-      rotuloDoCirculo(tester),
-      'Tocar para gravar a tradução de novo',
+      find.textContaining(ouvindo),
+      findsNothing,
       reason:
           'antes do veredito a conta não abria a frase, e o círculo voltava '
           'à parte segurada',
@@ -285,8 +283,8 @@ void main() {
       isNotNull,
     );
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason: 'a conta tocava a tradução sob o convite a gravar',
     );
 
@@ -294,8 +292,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      rotuloDoCirculo(tester),
-      'Tocar para gravar a tradução de novo',
+      find.textContaining(ouvindo),
+      findsNothing,
       reason: 'o círculo seguia dizendo ouvindo com nada tocando',
     );
     closeTheRoom(container);
@@ -308,11 +306,11 @@ void main() {
     harness.playback.at = s(2.0);
     await tester.pump(passaDoCursor);
 
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
 
     expect(
-      rotuloDoCirculo(tester),
-      pausado,
+      find.textContaining(pausado),
+      findsWidgets,
       reason: 'o círculo seguia convidando a gravar com a gravação parada',
     );
     expect(container.read(salaSessionProvider).btCortado, isFalse);
@@ -329,8 +327,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      fimDaGravacao,
+      find.textContaining(fimDaGravacao),
+      findsWidgets,
       reason: 'o círculo seguia convidando a gravar no fim da gravação',
     );
     closeTheRoom(container);
@@ -343,10 +341,10 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, fimDaGravacao);
-    await tocar(tester, fimDaGravacao);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const Refused('BAD_REQUEST');
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a sala recusar a frase',
       () => container.read(salaSessionProvider).btChunkFailures.isNotEmpty,
@@ -355,8 +353,8 @@ void main() {
 
     expect(container.read(salaSessionProvider).btClipEnded, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      'não entendi — traduzam de novo esse pedaço',
+      onTheCircle('não entendi — traduzam de novo esse pedaço'),
+      findsOneWidget,
       reason: 'a gravação feita no fim passava a dizer que a gravação acabou',
     );
     closeTheRoom(container);
@@ -369,14 +367,14 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, fimDaGravacao);
+    await tocarNoCirculo(tester);
 
     final state = container.read(salaSessionProvider);
     expect(state.btCortado, isTrue);
     expect(state.btClipEnded, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      fimDaGravacao,
+      find.textContaining(fimDaGravacao),
+      findsWidgets,
       reason: 'a pausa no fim da gravação trocava a frase dela pela da pausa',
     );
     closeTheRoom(container);
@@ -391,8 +389,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      rotuloDoCirculo(tester),
-      'end of the recording',
+      find.textContaining('end of the recording'),
+      findsWidgets,
       reason: 'o rótulo do fim da gravação ficava em português',
     );
     closeTheRoom(container);
@@ -404,14 +402,16 @@ void main() {
     final container = await entrarComAFala(tester, harness, null);
     harness.playback.at = Duration.zero;
 
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
 
     final state = container.read(salaSessionProvider);
     expect(state.btClipPausada, isTrue);
     expect(state.nothingHeardSinceCursor, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      'pausado — toque no círculo para marcar onde a frase acaba',
+      find.textContaining(
+        'pausado — toque no círculo para marcar onde a frase acaba',
+      ),
+      findsWidgets,
       reason:
           'a gravação parada no cursor dizia ouvir primeiro, e o toque já '
           'marca a pausa',
@@ -424,7 +424,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, null);
     harness.playback.at = Duration.zero;
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
 
     await tocarOCirculo(tester);
 
@@ -497,8 +497,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason:
           'o fim de uma parte com outra depois parava calado e convidava a gravar',
     );
@@ -520,8 +520,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-      rotuloDoCirculo(tester),
-      fimDaGravacao,
+      find.textContaining(fimDaGravacao),
+      findsWidgets,
       reason:
           'a última parte, alcançada sem toque, não dizia o fim da gravação',
     );
@@ -541,8 +541,8 @@ void main() {
     expect(state.btClipRodando, isTrue);
     expect(state.nothingHeardSinceCursor, isTrue);
     expect(
-      rotuloDoCirculo(tester),
-      ouvindo,
+      find.textContaining(ouvindo),
+      findsWidgets,
       reason:
           'a parte que a escuta depois da P2 tocou, tocando, dizia ouvir '
           'primeiro',

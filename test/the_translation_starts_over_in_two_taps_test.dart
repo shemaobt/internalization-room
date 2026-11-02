@@ -25,9 +25,9 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
-        ouvir,
         tocar,
-        tocarNoCirculo;
+        tocarNoCirculo,
+        tocarOuPausar;
 import 'session_notifier_test.dart'
     show inConversaWithoutPausing, tellTwoStretches;
 import 'support/temp.dart';
@@ -463,7 +463,7 @@ void main() {
       expect(find.text(_naoDeu), findsOneWidget);
       final tocadas = harness.playback.played.length;
 
-      await tocar(tester, ouvir);
+      await tocar(tester, tocarOuPausar);
       await waitFor(
         'a gravação tocar',
         () =>
@@ -550,10 +550,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 7);
     await tester.pump(const Duration(seconds: 1));
     await tocarNoCirculo(tester);
-    await tocar(
-      tester,
-      'a pausa ficou no toque — toquem no círculo para traduzir',
-    );
+    await tocarNoCirculo(tester);
     await waitFor(
       'o microfone abrir',
       () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
@@ -865,7 +862,7 @@ void main() {
         () => container.read(salaSessionProvider).btAviso != null,
         step: () => _passo(tester),
       );
-      await tocar(tester, ouvir);
+      await tocar(tester, tocarOuPausar);
       harness.playback.at = const Duration(seconds: 7);
       await tester.pump(const Duration(seconds: 1));
       await tocarNoCirculo(tester);

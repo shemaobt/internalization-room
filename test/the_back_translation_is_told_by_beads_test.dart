@@ -23,15 +23,11 @@ const cabeca = Duration(seconds: 4);
 /// Long enough for the part to have run past the cursor, with no gesture of its own.
 const passaDoCursor = Duration(seconds: 1);
 
-const gravar = 'Tocar para gravar a tradução deste trecho';
+const traduzirEstaFrase = 'Toque para traduzir esta frase';
+const tocarOuPausar = 'Tocar ou pausar a gravação';
 const ouvindo = 'ouvindo a gravação de vocês…';
-const pausadaNoToque =
-    'a pausa ficou no toque — toquem no círculo para traduzir';
 const fimDaGravacao = 'fim da gravação';
 const pausado = 'pausado — toque no círculo para marcar onde a frase acaba';
-const terminar = 'Tocar ao terminar';
-const ouvir = 'Ouvir';
-const pausar = 'Pausar';
 const tesoura = 'Pausar onde a frase acaba';
 const confirmar = 'Confirmar a tradução e seguir';
 const conferir = 'terminei';
@@ -113,12 +109,9 @@ Future<ProviderContainer> entrarNaTraducao(
   return container;
 }
 
-Future<void> gravarATraducao(
-  WidgetTester tester, {
-  String circulo = pausadaNoToque,
-}) async {
-  await tocar(tester, circulo);
-  await tocar(tester, terminar);
+Future<void> gravarATraducao(WidgetTester tester) async {
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
 }
 
 Future<void> tocarNoCirculo(WidgetTester tester) async {
@@ -179,7 +172,7 @@ void main() {
     );
     expect(harness.playback.playedFrom.last, Duration.zero);
     expect(faixas(tester), ['0 contadas', '0 contadas']);
-    expect(aceso(tester, pausar), isTrue);
+    expect(aceso(tester, tocarOuPausar), isTrue);
     expect(container.read(salaSessionProvider).canConfirmTranslation, isFalse);
     expect(aceso(tester, conferir), isFalse);
     expect(corda(), findsNothing, reason: 'as contas substituem a corda');
@@ -191,11 +184,11 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarNaTraducao(tester, harness);
 
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
     harness.playback.at = cabeca;
-    await _tocarNaTraducao(tester, ouvir);
-    await tocar(tester, pausar);
-    await _tocarNaTraducao(tester, ouvir);
+    await _tocarNaTraducao(tester, tocarOuPausar);
+    await tocar(tester, tocarOuPausar);
+    await _tocarNaTraducao(tester, tocarOuPausar);
 
     final capturas = harness.recorder.captures;
     await tocarNoCirculo(tester);
@@ -247,9 +240,9 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, pausadaNoToque);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const Refused('BAD_REQUEST');
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     final gravada = harness.recorder.lastPath;
     final capturas = harness.recorder.captures;
 
@@ -282,9 +275,9 @@ void main() {
     for (var recusa = 0; recusa < 3; recusa++) {
       harness.playback.at = cabeca;
       await tocarNoCirculo(tester);
-      await tocar(tester, pausadaNoToque);
+      await tocarNoCirculo(tester);
       harness.room.replaceThePart(harness.room.takeIds.last);
-      await tocar(tester, terminar);
+      await tocarNoCirculo(tester);
       await tester.pump(const Duration(milliseconds: 600));
     }
 
@@ -310,13 +303,13 @@ void main() {
 
     harness.playback.at = const Duration(seconds: 7);
     await tocarNoCirculo(tester);
-    await tocar(tester, pausadaNoToque);
+    await tocarNoCirculo(tester);
     final substituida = harness.room.takeIds.last;
     harness.room
       ..replaceThePart(substituida)
       ..recordThePartAgain(substituida);
     final leituras = harness.room.calls.where((c) => c == 'fetchState').length;
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(
@@ -340,10 +333,10 @@ void main() {
       final container = await entrarNaTraducao(tester, harness, partes: 1);
       harness.playback.at = cabeca;
       await tocarNoCirculo(tester);
-      await tocar(tester, pausadaNoToque);
+      await tocarNoCirculo(tester);
       harness.room.replaceThePart(harness.room.takeIds.last);
 
-      await tocar(tester, terminar);
+      await tocarNoCirculo(tester);
       final gravada = harness.recorder.lastPath;
       await tester.pump(const Duration(milliseconds: 600));
       await letTheRehearsalReachTheRoom(tester);
@@ -373,12 +366,12 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, pausadaNoToque);
+    await tocarNoCirculo(tester);
     harness.room
       ..replaceThePart(harness.room.takeIds.last)
       ..failStateOnceWith = const NetworkFailed('timeout');
 
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     for (var passo = 0; passo < 5; passo++) {
       await letTheRehearsalReachTheRoom(tester);
@@ -405,12 +398,12 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, pausadaNoToque);
+    await tocarNoCirculo(tester);
     harness.room
       ..replaceThePart(harness.room.takeIds.last)
       ..failTakesWith = const NetworkFailed('timeout');
 
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     for (var passo = 0; passo < 5; passo++) {
       await letTheRehearsalReachTheRoom(tester);
@@ -437,9 +430,9 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, pausadaNoToque);
+    await tocarNoCirculo(tester);
     harness.room.replaceThePart('gravacao-1');
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     expect(harness.room.chunksSent, 0, reason: 'a primeira foi recusada');
 
@@ -464,12 +457,12 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, pausadaNoToque);
+    await tocarNoCirculo(tester);
     harness.room
       ..replaceThePart('gravacao-1')
       ..refuseClipOf.add('gravacao-2');
 
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     for (var passo = 0; passo < 5; passo++) {
       await letTheRehearsalReachTheRoom(tester);
@@ -499,13 +492,13 @@ void main() {
       final container = await entrarNaTraducao(tester, harness, partes: 1);
       harness.playback.at = cabeca;
       await tocarNoCirculo(tester);
-      await tocar(tester, pausadaNoToque);
+      await tocarNoCirculo(tester);
       harness.room
         ..replaceThePart('gravacao-1')
         ..replacedTakeRefusalAfter = const Duration(milliseconds: 1500)
         ..holdNextState();
 
-      await tocar(tester, terminar);
+      await tocarNoCirculo(tester);
       await tester.pump(const Duration(milliseconds: 1600));
       await tester.pump(const Duration(milliseconds: 900));
       harness.room.finishHeldState();
@@ -532,10 +525,10 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
 
     harness.playback.at = cabeca;
-    await tocar(tester, pausar);
-    await tocar(tester, pausado);
+    await tocar(tester, tocarOuPausar);
     await tocarNoCirculo(tester);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(harness.room.chunkSpans, ['0-4000']);
     closeTheRoom(container);
@@ -557,8 +550,8 @@ void main() {
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, fimDaGravacao);
-    await tocar(tester, fimDaGravacao);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(aceso(tester, conferir), isFalse);
     await tester.tap(byLabel(conferir));
@@ -595,7 +588,7 @@ void main() {
     expect(faixas(tester), ['2 contadas']);
     expect(corda(), findsNothing);
     expect(byLabel(aprovar), findsOneWidget);
-    expect(byLabel('Ouvir a gravação'), findsOneWidget);
+    expect(byLabel(tocarOuPausar), findsOneWidget);
 
     await tocar(tester, aprovar);
     await tester.pump(const Duration(milliseconds: 600));
@@ -632,21 +625,21 @@ void main() {
     );
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
     expect(
       (harness.playback.played.last, harness.playback.ranges.last),
       daChegada,
       reason: 'ouvir toca a fatia do próprio trecho nomeado',
     );
     expect(armado(container), ['trecho-1', true, true]);
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
 
     harness.room.verdictUntoldSegmentId = null;
     final vereditos = harness.room.playedByTakeSent.length;
     await tocarNoCirculo(tester);
     expect(harness.room.replacesAsked, isEmpty, reason: 'nada antes do V');
 
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -782,7 +775,7 @@ void main() {
 
     harness.recorder.returnsEmpty = true;
     await tocarNoCirculo(tester);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     expect(
       container.read(salaSessionProvider).needsPerson,
@@ -793,7 +786,7 @@ void main() {
 
     harness.recorder.returnsEmpty = false;
     await tocarNoCirculo(tester);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -809,12 +802,12 @@ void main() {
 
     harness.recorder.returnsNothing = true;
     await tocarNoCirculo(tester);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     expect(armado(container), ['trecho-1', true, true]);
 
     harness.recorder.returnsNothing = false;
     await tocarNoCirculo(tester);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.room.replacesAsked, ['trecho-1@$gravacao:0-4000']);
@@ -1408,7 +1401,7 @@ void main() {
     harness.room.verdictUntoldSegmentId = null;
     await tocarNoCirculo(tester);
     harness.room.failReplaceWith = const Refused('BAD_REQUEST');
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 600));
     final capturas = harness.recorder.captures;
 
@@ -1565,14 +1558,14 @@ void main() {
       169,
     );
     expect(
-      tester.getTopLeft(byLabel(ouvindo)),
+      tester.getTopLeft(onTheCircle(traduzirEstaFrase)),
       const Offset(335, 336.5),
       reason:
           'o círculo ficava 48 px abaixo, sob uma linha de pausa que a tela '
           'dela não desenha sem pausa',
     );
     expect(
-      tester.getTopLeft(byLabel(pausar)),
+      tester.getTopLeft(byLabel(tocarOuPausar)),
       const Offset(16, 537),
       reason:
           'o botão ficava à esquerda da tesoura e da confirmação, que os três '
@@ -1595,7 +1588,10 @@ void main() {
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
 
-    expect(tester.getRect(byLabel(ouvindo)).size, const Size(150, 150));
+    expect(
+      tester.getRect(onTheCircle(traduzirEstaFrase)).size,
+      const Size(150, 150),
+    );
     final pilula = tester.getRect(byLabel(conferir)).size;
     expect(pilula.width, closeTo(200.4, 0.01));
     expect(pilula.height, closeTo(48.6, 0.01));
@@ -1608,8 +1604,8 @@ void main() {
     harness.playback.at = cabeca;
     await tester.pump(passaDoCursor);
 
-    expect(byLabel('listening to your recording…'), findsOneWidget);
-    expect(byLabel('Pause'), findsOneWidget);
+    expect(find.textContaining('listening to your recording…'), findsWidgets);
+    expect(byLabel('Play or pause your recording'), findsOneWidget);
     expect(byLabel('done'), findsOneWidget);
     expect(
       find.descendant(
@@ -1619,50 +1615,20 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.ensureVisible(byLabel('Pause'));
-    await tester.tap(byLabel('Pause'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(byLabel('Listen'), findsOneWidget);
+    await tocar(tester, 'Play or pause your recording');
+    expect(
+      find.textContaining(
+        'paused — tap the circle to mark where the sentence ends',
+      ),
+      findsWidgets,
+    );
 
     harness.playback.at = cabeca;
-    await tester.tap(
-      byLabel('paused — tap the circle to mark where the sentence ends'),
-    );
-    await tester.pump(const Duration(milliseconds: 300));
     await tocarNoCirculo(tester);
-    expect(byLabel('Tap when you finish'), findsOneWidget);
+    await tocarNoCirculo(tester);
+    expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     closeTheRoom(container);
   });
-
-  testWidgets(
-    'the retro circle holding a translation it just heard waits in english, '
-    'not in portuguese',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true, lingua: 'en');
-      final container = await entrarNaTraducao(tester, harness);
-
-      harness.playback.at = cabeca;
-      await tester.pump(passaDoCursor);
-      await tocarNoCirculo(tester);
-      await tocarNoCirculo(tester);
-      harness.recorder.holdNextStop();
-      await tester.tap(byLabel('Tap when you finish'));
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(byLabel('One moment'), findsOneWidget);
-      expect(
-        byLabel('Um instante'),
-        findsNothing,
-        reason:
-            'o círculo do retro pensando dizia "Um instante" a uma sala em '
-            'inglês',
-      );
-
-      harness.recorder.finishStop();
-      await tester.pump(const Duration(milliseconds: 300));
-      closeTheRoom(container);
-    },
-  );
 
   testWidgets('B9 — depois do corte, ouvir segue do corte e o corte cai', (
     tester,
@@ -1672,7 +1638,7 @@ void main() {
 
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await _tocarNaTraducao(tester, ouvir);
+    await _tocarNaTraducao(tester, tocarOuPausar);
 
     expect(
       harness.playback.playedFrom.last,

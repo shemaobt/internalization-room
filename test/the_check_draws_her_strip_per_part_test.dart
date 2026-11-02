@@ -22,7 +22,14 @@ import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
 import 'scenario_helpers.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, entrarNaTraducao, parte, passaDoCursor, tocar, tocarNoCirculo;
+    show
+        cabeca,
+        entrarNaTraducao,
+        parte,
+        passaDoCursor,
+        tocar,
+        tocarNoCirculo,
+        tocarOuPausar;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         entrarComAFala,
@@ -528,7 +535,7 @@ void main() {
     harness.playback.at = const Duration(seconds: 3);
     await tester.pump(passaDoCursor);
 
-    await tocar(tester, 'Pausar');
+    await tocar(tester, tocarOuPausar);
 
     expect(container.read(salaSessionProvider).channel, isA<Paused>());
     expect(
@@ -575,7 +582,7 @@ void main() {
     await pausarAos(tester, harness, s(4.2));
     await tocar(tester, ouvirAPausa);
 
-    await tocar(tester, 'Pausar');
+    await tocar(tester, tocarOuPausar);
 
     expect(
       container.read(salaSessionProvider).channel,

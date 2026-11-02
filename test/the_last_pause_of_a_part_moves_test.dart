@@ -25,16 +25,9 @@ import 'scenario_helpers.dart'
         stateReads,
         traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, entrarNaTraducao, parte, tocar;
+    show aceso, entrarNaTraducao, parte, pausado, tocar, tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
-    show
-        antes,
-        depois,
-        ouvirAPausa,
-        pausarAos,
-        rotuloDoCirculo,
-        s,
-        traduzirEConfirmar;
+    show antes, depois, ouvirAPausa, pausarAos, s, traduzirEConfirmar;
 import 'support/temp.dart';
 
 final _duasLacunas = aSpokenWav(gaps: [(s(3.0), s(3.4)), (s(6.0), s(6.4))]);
@@ -214,8 +207,8 @@ void main() {
         );
       }
       await tocar(tester, depois);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a frase voltar da sala',
         () => harness.room.replacesAsked.isNotEmpty,
@@ -266,8 +259,8 @@ void main() {
         );
       }
       await tocar(tester, depois);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a frase pousar com o fim novo',
         () =>
@@ -313,8 +306,8 @@ void main() {
         '3200-6600',
         reason: 'a frase tocava até o fim de antes e não até a pausa movida',
       );
-      await tocar(tester, 'ouvindo a gravação de vocês…');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a frase voltar da sala',
         () => harness.room.replacesAsked.isNotEmpty,
@@ -381,8 +374,8 @@ void main() {
               frase: one.frase,
             ),
         ]);
-      await tocar(tester, 'ouvindo a gravação de vocês…');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'as frases voltarem na gravação que este aparelho não tem',
         () =>
@@ -442,8 +435,8 @@ void main() {
               frase: one.frase,
             ),
         ]);
-      await tocar(tester, 'ouvindo a gravação de vocês…');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'as frases voltarem na gravação que este aparelho não tem',
         () =>
@@ -689,8 +682,8 @@ void main() {
       );
       await tocar(tester, _barra(2));
       await tocar(tester, depois);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a recusa chegar',
         () => container.read(salaSessionProvider).btAviso != null,
@@ -722,8 +715,8 @@ void main() {
         harness,
         'trecho-1',
       );
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a frase 1 pousar',
         () =>
@@ -911,8 +904,8 @@ void main() {
         final leituras = stateReads(harness);
 
         await tocar(tester, depois);
-        await tocar(tester, 'Tocar para gravar a tradução de novo');
-        await tocar(tester, 'Tocar ao terminar');
+        await tocarNoCirculo(tester);
+        await tocarNoCirculo(tester);
         await waitFor(
           'a mudança cair',
           () =>
@@ -959,8 +952,8 @@ void main() {
         ..failStateOnceWith = const NetworkFailed('sem rede');
 
       await tocar(tester, depois);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a mudança cair',
         () =>
@@ -986,8 +979,8 @@ void main() {
       );
       harness.room.failReplaceWith = const Refused('PAUSE_PAST_THE_END');
       await tocar(tester, depois);
-      await tocar(tester, 'Tocar para gravar a tradução de novo');
-      await tocar(tester, 'Tocar ao terminar');
+      await tocarNoCirculo(tester);
+      await tocarNoCirculo(tester);
       await waitFor(
         'a mudança cair',
         () => container.read(salaSessionProvider).btAviso != null,
@@ -1056,8 +1049,8 @@ void main() {
       expect(state.btTraducaoPendente, isNull);
       expect(state.btClipPausada, isTrue);
       expect(
-        rotuloDoCirculo(tester),
-        'Tocar para gravar a tradução deste trecho',
+        find.textContaining(pausado),
+        findsNothing,
         reason:
             'a frase traduzida de novo dizia pausado, que ela nunca mostra '
             'com uma frase sendo traduzida de novo',

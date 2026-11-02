@@ -26,8 +26,6 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         entrarNaTraducao,
         gravarATraducao,
         parte,
-        terminar,
-        tocar,
         tocarNoCirculo;
 
 const _enviando = 'enviando…';
@@ -503,7 +501,7 @@ void main() {
     );
     await pausarEAbrir(tester, harness);
 
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(_state(container).aStretchWaitsForItsPart, isTrue);
@@ -526,7 +524,7 @@ void main() {
       final container = await entrarNaTraducao(tester, harness, partes: 1);
       await pausarEAbrir(tester, harness);
       harness.room.chunkAnswersFirst.add(failure);
-      await tocar(tester, terminar);
+      await tocarNoCirculo(tester);
       final told = harness.recorder.lastPath!;
       await tester.pump(const Duration(milliseconds: 300));
       return (container, told);

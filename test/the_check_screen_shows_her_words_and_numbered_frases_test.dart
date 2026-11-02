@@ -15,7 +15,6 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/dashed_edge.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
@@ -28,6 +27,7 @@ import 'scenario_helpers.dart'
         holdTheSession,
         intoTheBackTranslation,
         intoTheRecordingHome,
+        onTheCircle,
         linhaDoEnsaio,
         traduzirOApontadoDeNovo;
 import 'the_back_translation_is_told_by_beads_test.dart'
@@ -36,7 +36,6 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         cabeca,
         contarAteOFimDaParte,
         entrarNaTraducao,
-        fimDaGravacao,
         parte,
         tocar,
         tocarNoCirculo;
@@ -338,8 +337,8 @@ Future<void> _traduzirAFraseApontadaDeNovo(
 ) async {
   traduzirOApontadoDeNovo(container);
   await _passo(tester);
-  await tocar(tester, 'ouvindo a gravação de vocês…');
-  await tocar(tester, 'Tocar ao terminar');
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
   await _passo(tester);
   await waitFor(
     'a frase traduzida de novo pousar',
@@ -1539,8 +1538,8 @@ void main() {
     harness.playback.finishPlayback();
     await _passo(tester);
 
-    await tocar(tester, fimDaGravacao);
-    await tocar(tester, fimDaGravacao);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     expect(
@@ -2099,8 +2098,8 @@ void main() {
       [container.read(salaSessionProvider).partes.first.path, '0-4000'],
       reason: 'a barra da frase regravada não tocava nada',
     );
-    await tocar(tester, 'ouvindo a gravação de vocês…');
-    await tocar(tester, 'Tocar ao terminar');
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase regravada traduzida de novo subir',
       () => harness.room.replacesAsked.isNotEmpty,
@@ -2134,8 +2133,8 @@ void main() {
     await _passo(tester);
 
     await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
-    await tocar(tester, 'ouvindo a gravação de vocês…');
-    await tocar(tester, 'Tocar ao terminar');
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase regravada traduzida de novo pousar',
       () => harness.room.replacesAsked.isNotEmpty,
@@ -2517,8 +2516,8 @@ void main() {
     await _passo(tester);
 
     await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
-    await tocar(tester, 'ouvindo a gravação de vocês…');
-    await tocar(tester, 'Tocar ao terminar');
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase regravada traduzida de novo subir',
       () => harness.room.replacesAsked.isNotEmpty,
@@ -2960,12 +2959,7 @@ void main() {
       reason:
           'a tela da checagem escrevia a linha que a dela só escreve na casa',
     );
-    expect(
-      tester
-          .widget<FacilitatorCircle>(find.byType(FacilitatorCircle))
-          .semanticLabel,
-      'traduzida e conferida',
-    );
+    expect(onTheCircle('Toque para traduzir esta frase'), findsOneWidget);
     closeTheRoom(container);
   });
 
