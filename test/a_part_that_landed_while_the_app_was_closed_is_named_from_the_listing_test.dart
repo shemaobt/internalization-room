@@ -112,6 +112,21 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
 }
 
 void main() {
+  test('a part that landed while the app was closed lights the retro door on '
+      'the relaunch, though the listing has not named it', () async {
+    final harness = SalaHarness();
+    final container = await _umaLinhaComAParte3SemNome(harness);
+    await settle();
+
+    expect(
+      container.read(salaSessionProvider).ensaioDone,
+      isTrue,
+      reason:
+          'a parte que já está na sala não deve nada: a porta não espera um '
+          'nome que só a próxima leitura da listagem traz',
+    );
+  });
+
   test('a name taken from the listing on a relaunch into the passage is '
       'written to the row at once, under the station the row said', () async {
     final before = SalaHarness();

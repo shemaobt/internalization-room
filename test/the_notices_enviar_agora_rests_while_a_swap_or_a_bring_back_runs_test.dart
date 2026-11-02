@@ -130,4 +130,30 @@ void main() {
       );
     },
   );
+
+  testWidgets('a lost take of an earlier visit is never offered «enviar agora»', (
+    tester,
+  ) async {
+    await _pumpTheNotice(
+      tester,
+      const SalaSessionState(
+        unsentParts: {
+          1: UnsentPart(fromAnEarlierVisit: true, length: _umaParte),
+          2: UnsentPart(
+            fromAnEarlierVisit: true,
+            failure: SendFailure.gone,
+            length: _umaParte,
+          ),
+        },
+      ),
+    );
+
+    expect(_sendNow, findsOneWidget);
+    expect(
+      find.textContaining('Cena 2'),
+      findsNothing,
+      reason:
+          'a gravação perdida era oferecida para enviar, e o toque não fazia nada',
+    );
+  });
 }

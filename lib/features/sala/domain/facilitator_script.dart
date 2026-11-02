@@ -819,11 +819,13 @@ String recordingHomeLabelFor(String key, String language, {int? n}) =>
 
 String? sendNowLabelFor(UnsentPart part, String name, String language) =>
     switch (part) {
-      UnsentPart(fromAnEarlierVisit: true, :final length) => [
-        name,
-        if (length != null) ' · ${minutesAndSecondsOf(length)}',
-        ' — ${recordingHomeLabelFor('sendNow', language)}',
-      ].join(),
+      UnsentPart(fromAnEarlierVisit: true, :final failure, :final length)
+          when failure != SendFailure.gone =>
+        [
+          name,
+          if (length != null) ' · ${minutesAndSecondsOf(length)}',
+          ' — ${recordingHomeLabelFor('sendNow', language)}',
+        ].join(),
       _ => null,
     };
 

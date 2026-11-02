@@ -6100,6 +6100,43 @@ void main() {
     },
   );
 
+  test('the door to the retro stays dark across the keep of a part the room '
+      'has not taken', () async {
+    final harness = SalaHarness();
+    final container = await inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await gravaEGuardaAParte(container, 1);
+    await gravaEGuardaAParte(container, 2);
+    await theRoomNamesBothParts(container);
+    harness.room.unreachableTake = 'ensaio/parte-3';
+    notifier.gravarACena(3);
+    notifier.gravarACena(3);
+    await waitFor(
+      'a tomada ser oferecida',
+      () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+    );
+    final lit = <bool>[];
+    container.listen(
+      salaSessionProvider,
+      (_, state) => lit.add(state.ensaioDone),
+    );
+
+    notifier.takeKeep();
+    await waitFor(
+      'a parte entrar na lista',
+      () => container.read(salaSessionProvider).partes.length == 3,
+    );
+    await settle();
+
+    expect(container.read(salaSessionProvider).everySceneHasItsPart, isTrue);
+    expect(
+      lit,
+      everyElement(isFalse),
+      reason: 'a porta acendia por um instante depois do guardar',
+    );
+  });
+
   test('a recording still running holds the door to the retro', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
