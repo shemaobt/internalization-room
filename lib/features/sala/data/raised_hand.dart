@@ -133,7 +133,9 @@ class RaisedHand {
     if (_state.aQuestionRecords) return cancelQuestion();
     if (_sendingAQuestion) return;
     if (!_state.atTheTeamsIdleTurn) return;
-    if (_state.playingReplyId != null || _state.channel is PartPlaying) {
+    if (_state.playingReplyId != null ||
+        _state.channel is PartPlaying ||
+        _state.channel is KeptRetellingPlaying) {
       host.silenceTheRoom();
     }
     if (_state.noteMode) {

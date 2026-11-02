@@ -754,6 +754,14 @@ const recordingHomeLabels = {
   'recordAgain': {'pt': 'Gravar de novo', 'en': 'Record again'},
   'stop': {'pt': 'Parar', 'en': 'Stop'},
   'playing': {'pt': 'tocando', 'en': 'playing'},
+  'hearHowYouToldAria': {
+    'pt': 'Ouvir como vocês contaram esta parte',
+    'en': 'Hear how you told this part',
+  },
+  'hearWholeTelling': {
+    'pt': 'ouvir como vocês contaram a passagem inteira',
+    'en': 'hear how you told the whole passage',
+  },
   'pending': {
     'pt': 'Uma gravação ainda está neste computador e não foi enviada.',
     'en': 'A recording is still on this computer and has not been sent.',

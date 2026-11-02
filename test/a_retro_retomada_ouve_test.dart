@@ -181,6 +181,7 @@ void main() {
     final state = container.read(salaSessionProvider);
     expect(state.btSoOuvir, isFalse);
     expect(state.btPhase, BtPhase.conferida);
+    expect(state.btVeredito, isTrue);
   });
 
   test('reopening into the rehearsal while the server says it needs a person '
