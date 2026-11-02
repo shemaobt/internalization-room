@@ -8791,6 +8791,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _holdClip();
       return;
     }
+    if (!conferida && state.thePauseStands) {
+      _seguirDaPausa();
+      return;
+    }
     if (state.btTrechoPausada || state.btRetroPausada) {
       _letTheClipRun();
       return;
@@ -9610,6 +9614,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canAdjustThePause) return;
     final parte = _parteNoAr;
     if (parte == null) return;
+    _tocarOMomentoAntesDaPausa(parte);
+  }
+
+  void _tocarOMomentoAntesDaPausa(KeptTake parte) {
     final segurada = _tirarAParteDoPlayer();
     _play(
       StretchSound(
@@ -9621,6 +9629,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       onFailed: _quietTheStretch,
       beneath: segurada,
     );
+  }
+
+  void _seguirDaPausa() {
+    final parte = _parteNoAr;
+    if (parte == null) return;
+    final pausa = _trechoEnd;
+    if (_oTamanhoDa(parte) case final tamanho?
+        when isAtTheEnd(pausa, tamanho)) {
+      _tocarOMomentoAntesDaPausa(parte);
+      return;
+    }
+    _tocarParteDaRetro(_parteTocando, noCursor: true, desde: pausa);
   }
 
   Duration get _cabeca {
@@ -10931,8 +10951,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (verdict.refusal == CheckRefusal.partUnheard) {
       state = state.copyWith(btRecusa: verdict.refusal, btOuvidaInteira: false);
     }
-    if (verdict.refusal == CheckRefusal.fraseAwaiting &&
-        verdict.fixedLine.isEmpty) {
+    if (verdict.refusal == CheckRefusal.fraseAwaiting) {
+      await _dizer(verdict.fixedLine.isEmpty ? null : verdict.fixedLine);
+      if (_abandoned(generation)) return;
       await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation) || state.needsPerson) return;
       if (verdict.untoldSegmentId case final aguardando?) {
