@@ -145,6 +145,10 @@ Future<(SalaHarness, ProviderContainer)> _onTheFirstListen(
   await _settles(tester);
   notifier.takeKeep();
   await _settles(tester);
+  await untilTheAdvanceDiscLights(
+    notifier,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
   harness.room.listeningUnheardTakeIds = [
     for (final parte in container.read(salaSessionProvider).partes)
       ?parte.takeId,
@@ -339,6 +343,10 @@ void main() {
       await _settles(tester);
       notifier.takeKeep();
       await _settles(tester);
+      await untilTheWoodPlayLights(
+        notifier,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
       notifier.playTheRehearsal();
       await _settles(tester);
       expect(harness.playback.sounding, isTrue);
@@ -415,6 +423,10 @@ void main() {
       await _settles(tester);
       notifier.takeKeep();
       await _settles(tester);
+      await untilTheAdvanceDiscLights(
+        notifier,
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
       notifier.startRetro();
       await _settles(tester);
       harness.playback.finishPlayback();
