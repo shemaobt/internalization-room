@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen), amended by ENG-1854 (2026-10-30: a list naming no part this tablet holds is N0), amended by ENG-2114 (2026-11-02: the same for a recording no join touched)
+status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen), amended by ENG-1854 (2026-10-30: a list naming no part this tablet holds is N0), amended by ENG-2114 (2026-11-02: a recording no join touched whose list names only another tablet's takes opens with P0 and the whole chain)
 date: 2026-10-23
 ---
 
