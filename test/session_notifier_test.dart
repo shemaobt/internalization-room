@@ -4345,7 +4345,7 @@ void main() {
     await settle();
     harness.room.failWith = null;
 
-    notifier.escolhaTap();
+    unawaited(notifier.abrirEscolha());
     await settle();
 
     expect(
@@ -4385,7 +4385,7 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
 
     harness.room.reachable = true;
-    notifier.escolhaTap();
+    unawaited(notifier.abrirEscolha());
     await settle(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).naRoda, hasLength(3));

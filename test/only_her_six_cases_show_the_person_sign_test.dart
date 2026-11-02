@@ -569,7 +569,7 @@ void main() {
             room.asked('servedBooks') == refusal &&
             !room.state.awaitingTheGuide,
       );
-      room.sala.escolhaTap();
+      unawaited(room.sala.abrirEscolha());
     }
     await waitFor('a terceira recusa', () => room.asked('servedBooks') == 3);
     await settle();
@@ -610,7 +610,7 @@ void main() {
     await settle();
     final reads = room.asked('servedBooks');
 
-    room.sala.escolhaTap();
+    unawaited(room.sala.abrirEscolha());
     await waitFor(
       'a roda ser lida de novo',
       () => room.asked('servedBooks') > reads,
@@ -947,7 +947,7 @@ void main() {
     expect(room.state.needsPerson, isFalse);
     room.theNetworkReturns();
 
-    room.sala.escolhaTap();
+    unawaited(room.sala.abrirEscolha());
 
     await waitFor('a roda aparecer', () => room.state.naRoda != null);
     expect(room.state.needsPerson, isFalse);
