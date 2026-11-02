@@ -6,7 +6,7 @@ amends: 0169
 
 # Play over a standing pause on the check drops it and goes on from it
 
-This amends ADR 0169 without editing its decision: it adds "amended by 0174" to its status
+This amends ADR 0169 without editing its decision: it adds "amended by 0175" to its status
 line. Her app is the bar, and it wins over our ADRs (João, 26 October). Settled on the ticket
 (ENG-2131).
 
