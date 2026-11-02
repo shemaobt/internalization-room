@@ -936,9 +936,6 @@ class SalaSessionState {
     return index < 0 ? null : index;
   }
 
-  bool get aTakeFromAnEarlierVisitWaits =>
-      sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
-
   /// The one row of the whole while the passage is recorded whole. Otherwise one row per
   /// Scene, in passage order, then one per part beyond the last scene with a take still to
   /// send, in the air, being kept or kept this visit; with a passage the room answered
