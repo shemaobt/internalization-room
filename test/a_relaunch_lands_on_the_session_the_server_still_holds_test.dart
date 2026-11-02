@@ -278,7 +278,7 @@ void main() {
                 !_theKeptOnThe(again).contains('kept-sessao-largada-S1-1.m4a'),
           );
 
-          again.notifier.playKeptRetelling(2);
+          again.notifier.playKeptRetelling('S2');
           await waitFor(
             'the kept telling to be played',
             () => again.harness.playback.played.isNotEmpty,

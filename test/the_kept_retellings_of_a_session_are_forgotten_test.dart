@@ -160,6 +160,27 @@ void main() {
     },
   );
 
+  test(
+    'a telling still being written is kept for its own session only',
+    () async {
+      final recordings = Directory('${documents.path}/recordings')
+        ..createSync(recursive: true);
+      for (final name in [
+        'kept-ab-S1-1.m4a.part',
+        'kept-ab-cd-S1-1.m4a.part',
+        'kept-zz-S1-1.m4a.part',
+      ]) {
+        File('${recordings.path}/$name').writeAsStringSync('áudio');
+      }
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      await recording.sweepTheKeptRetellingsOutside('ab');
+
+      expect(after(recordings), {'kept-ab-S1-1.m4a.part'});
+    },
+  );
+
   test('a file that vanished does not stop the sweep of the others', () async {
     final recordings = Directory('${documents.path}/recordings')
       ..createSync(recursive: true);
