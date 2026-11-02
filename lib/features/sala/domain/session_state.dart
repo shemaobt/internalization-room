@@ -623,7 +623,7 @@ class SalaSessionState {
   final Set<int> theRoomJoinedParts;
   final List<int> toBringBack;
   final int? bringingBack;
-  final ({int cena, bool cannotEnter})? bringBackFailed;
+  final Map<int, bool> bringBackFailed;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -744,7 +744,7 @@ class SalaSessionState {
     this.theRoomJoinedParts = const {},
     this.toBringBack = const [],
     this.bringingBack,
-    this.bringBackFailed,
+    this.bringBackFailed = const {},
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
@@ -2009,7 +2009,7 @@ class SalaSessionState {
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
-    ({int cena, bool cannotEnter})? bringBackFailed,
+    Map<int, bool>? bringBackFailed,
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
   }) {
@@ -2174,7 +2174,7 @@ class SalaSessionState {
           ? null
           : (bringingBack ?? this.bringingBack),
       bringBackFailed: clearBringBackFailed
-          ? null
+          ? const {}
           : (bringBackFailed ?? this.bringBackFailed),
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );
