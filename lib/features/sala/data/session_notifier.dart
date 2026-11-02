@@ -495,6 +495,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late List<Completer<MicOutcome>> _closings;
   late VoidCallback? _onPlaybackComplete;
   late VoidCallback? _onPlaybackFailed;
+  late int _newestSoundAsked;
   late SceneScreen? _theTranslationAsked;
 
   FacilitatorVoiceService get _voice => ref.read(facilitatorVoiceProvider);
@@ -631,6 +632,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _lengths = {};
     _newestCount = 0;
     _appliedCount = 0;
+    _newestSoundAsked = 0;
     _fraseNaFila = null;
     _regravacoes = 0;
     _regravouNestaVisita = false;
@@ -991,6 +993,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// recorder: those belong to [_clearAll], which leaves a passage rather than moving
   /// inside one.
   void _silenceTheRoom({bool holdTheClip = false}) {
+    _newestSoundAsked++;
     _quietTheRoom(holdTheClip: holdTheClip);
     _dispatch(GestureSilenced(keepingTheHold: holdTheClip));
     state = state.copyWith(clearContaEscolhida: true, clearPlanListening: true);
@@ -1028,6 +1031,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     VoidCallback? onFailed,
     Paused? beneath,
   }) {
+    _newestSoundAsked++;
     _onPlaybackComplete = onComplete;
     _onPlaybackFailed = onFailed;
     _dispatch(BeadTapped(sounds, beneath: beneath));
@@ -1347,7 +1351,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   Future<void> hearAgain() async {
     if (!state.canHearAgain) return;
-    if (state.channel is PartPlaying) _silenceTheRoom();
+    if (state.channel is PartPlaying || state.channel is KeptRetellingPlaying) {
+      _silenceTheRoom();
+    }
     final generation = _waitOnTheGeneration;
     final line = state.lastSpoken;
     final onTheTablet = line != null && await _isOnTheTablet(line);
@@ -5869,24 +5875,28 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
   }
 
-  void playKeptRetelling(int part) =>
-      _gesture(() => _handOff(_playKeptRetelling(part)));
+  void playKeptRetelling(String scope) =>
+      _gesture(() => _handOff(_playKeptRetelling(scope)));
 
-  Future<void> _playKeptRetelling(int part) async {
-    final take = state.partsToReplay.elementAtOrNull(part - 1);
+  Future<void> _playKeptRetelling(String scope) async {
+    final take = state.keptRetellingOf(scope);
     final sessionId = state.sessionId;
-    if (take == null || sessionId == null) return;
+    if (take == null || sessionId == null || state.keptRetellingsRest) return;
+    final asked = ++_newestSoundAsked;
     final generation = _waitOnTheGeneration;
     final path = await _keptRetellingOnTheTablet(
       'kept-$sessionId-${take.scope}-${take.turnNumber}',
       take.audioUrl,
       generation,
     );
-    if (path == null || _abandoned(generation) || state.keptRetellingsAreAway) {
+    if (path == null ||
+        _abandoned(generation) ||
+        asked != _newestSoundAsked ||
+        state.keptRetellingsRest) {
       return;
     }
     _silenceTheRoom();
-    _play(PartSound(0, path));
+    _play(KeptRetellingSound(path, scope: take.scope));
   }
 
   Future<String?> _keptRetellingOnTheTablet(
