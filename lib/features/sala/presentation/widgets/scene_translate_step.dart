@@ -319,7 +319,6 @@ class _HerLine extends StatelessWidget {
 String? _restartLineOf(SceneLine? line, String language) => switch (line) {
   SceneLine.restarted => sceneRehearsalLabelFor('restarted', language),
   SceneLine.restartFailed => retroLabelFor('restartFailed', language),
-  SceneLine.diskFailed => sceneRehearsalLabelFor('diskFailed', language),
   SceneLine.notSent => sceneRehearsalLabelFor('notSent', language),
   SceneLine.alreadySent => sceneRehearsalLabelFor('alreadySent', language),
   _ => null,
@@ -428,7 +427,6 @@ class SceneListenMode extends ConsumerWidget {
   final Channel channel;
   final String language;
   final bool sending;
-  final SceneLine? line;
   final Duration? stoppedAt;
 
   const SceneListenMode({
@@ -438,7 +436,6 @@ class SceneListenMode extends ConsumerWidget {
     required this.channel,
     required this.language,
     required this.sending,
-    required this.line,
     required this.stoppedAt,
   });
 
@@ -463,12 +460,7 @@ class SceneListenMode extends ConsumerWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SceneSub(
-            said('listen'),
-            heard: line == SceneLine.diskFailed
-                ? '${said('listen')} — ${said('diskFailed')}'
-                : null,
-          ),
+          child: SceneSub(said('listen')),
         ),
         const SizedBox(height: 12),
         _PlayRow(
@@ -751,14 +743,13 @@ class _ListedRow extends StatelessWidget {
 /// Her words written on the screen, read by VoiceOver as written.
 class _Written extends StatelessWidget {
   final String words;
-  final String? heard;
   final TextStyle style;
 
-  const _Written(this.words, {this.heard, required this.style});
+  const _Written(this.words, {required this.style});
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: heard ?? words,
+    label: words,
     child: ExcludeSemantics(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
@@ -786,9 +777,8 @@ double chOf(BuildContext context, TextStyle style) {
 
 class SceneSub extends StatelessWidget {
   final String words;
-  final String? heard;
 
-  const SceneSub(this.words, {super.key, this.heard});
+  const SceneSub(this.words, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -799,7 +789,7 @@ class SceneSub extends StatelessWidget {
     );
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
-      child: _Written(words, heard: heard, style: style),
+      child: _Written(words, style: style),
     );
   }
 }

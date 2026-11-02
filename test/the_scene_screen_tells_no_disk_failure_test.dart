@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
-import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -32,11 +30,23 @@ final _circleAtRest = byLabel('Gravar o ensaio da cena');
 final _circleRecording = byLabel(
   'gravem o ensaio da cena na língua materna; toquem para parar',
 );
-final _theDiskWord = find.byWidgetPredicate(
-  (widget) =>
-      widget is Semantics &&
-      (widget.properties.label?.contains(_diskWord) ?? false),
-);
+const _diskWordInEnglish =
+    'couldn\'t keep the scene rehearsal on this computer';
+
+Future<void> _expectNoDiskWord(
+  WidgetTester tester, {
+  String word = _diskWord,
+}) async {
+  final handle = tester.ensureSemantics();
+  await tester.pump();
+  expect(find.textContaining(word), findsNothing, reason: 'not written');
+  expect(
+    find.bySemanticsLabel(RegExp(RegExp.escape(word))),
+    findsNothing,
+    reason: 'not heard',
+  );
+  handle.dispose();
+}
 
 SceneRehearsalRecord _rehearsal({
   int n = 1,
@@ -224,8 +234,8 @@ Future<(SalaHarness, ProviderContainer, _Before)> _aFraseUnderADiskFailure(
 
 void main() {
   testWidgets(
-    'a disk failure under a listed row\'s take shows the disk word, speaks no line and '
-    'calls nobody',
+    'a disk failure under a listed row\'s take leaves the translate step as it stood, '
+    'with no disk word, no line spoken and nobody called',
     (tester) async {
       final (harness, container, before) = await _aRowUnderADiskFailure(tester);
 
@@ -233,48 +243,69 @@ void main() {
         _showing(2, SceneStep.translate)(container.read(salaSessionProvider)),
         isTrue,
       );
-      expect(_theDiskWord, findsOneWidget);
+      await _expectNoDiskWord(tester);
       _expectNoLineNoPerson(harness, container, before);
     },
   );
 
   testWidgets(
-    'a reopened scene rehearsal whose take the disk cannot keep opens on places '
-    'unknown, never on the record step, and shows the disk word there',
+    'a reopened scene rehearsal whose take the disk cannot keep shows no disk word, '
+    'speaks no line and calls nobody',
     (tester) async {
       final (harness, container, before) = await _aReopenUnderADiskFailure(
         tester,
         reopened: _unsentTwoWithAFrase,
       );
 
-      expect(
-        container.read(salaSessionProvider).scene.step,
-        SceneStep.placesUnknown,
-      );
-      expect(_theDiskWord, findsOneWidget);
+      await _expectNoDiskWord(tester);
       expect(container.read(salaSessionProvider).scene.waiting, isFalse);
       _expectNoLineNoPerson(harness, container, before);
     },
   );
 
   testWidgets(
-    'a disk failure under a frase\'s clip shows the word where her line stands',
+    'a disk failure under a frase\'s clip on the sent step leaves her listen line as '
+    'it was',
     (tester) async {
       final (harness, container, before) = await _aFraseUnderADiskFailure(
         tester,
       );
 
-      expect(byLabel('$_listen — $_diskWord'), findsOneWidget);
+      expect(byLabel(_listen), findsOneWidget);
+      expect(byLabel('$_listen — $_diskWord'), findsNothing);
       _expectNoLineNoPerson(harness, container, before);
     },
   );
 
-  group('the disk word goes', () {
-    testWidgets('when the team taps the row again and its take lands', (
-      tester,
-    ) async {
+  testWidgets(
+    'in English a disk failure under a listed row\'s take writes and announces no '
+    'disk word',
+    (tester) async {
+      final (harness, container) = await _theScreenShows(tester, [
+        _sentOne,
+        _unsentTwo,
+      ], when: _showing(2, SceneStep.translate));
+      container.read(roomLanguageProvider.notifier).choose('en');
+      await tester.pump(const Duration(milliseconds: 300));
+      harness.recorder.keepBytesFails = true;
+
+      container
+          .read(salaSessionProvider.notifier)
+          .openTheListedSceneRehearsal('ensaio-da-cena-1');
+      await _pumpUntil(tester, () => _fetched(harness, _takeOf(1)));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await _expectNoDiskWord(tester, word: _diskWordInEnglish);
+      await _expectNoDiskWord(tester);
+      expect(container.read(salaSessionProvider).scene.rehearsal?.n, 2);
+    },
+  );
+
+  testWidgets(
+    'after a disk failure the team\'s next tap on the row fetches its take again and '
+    'opens it',
+    (tester) async {
       final (harness, container, _) = await _aRowUnderADiskFailure(tester);
-      expect(_theDiskWord, findsOneWidget);
       final fetches = harness.room.clipsFetched.length;
       harness.recorder.keepBytesFails = false;
 
@@ -286,14 +317,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(harness.room.clipsFetched.length, greaterThan(fetches));
-      expect(_theDiskWord, findsNothing);
-    });
+      expect(
+        _showing(1, SceneStep.sent)(container.read(salaSessionProvider)),
+        isTrue,
+      );
+    },
+  );
 
-    testWidgets('when the team records a new take and the room keeps it', (
-      tester,
-    ) async {
+  testWidgets(
+    'after a disk failure on a reopen the team records a new take, the room keeps it '
+    'and the translate step opens',
+    (tester) async {
       final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
-      expect(_theDiskWord, findsOneWidget);
       harness.recorder.keepBytesFails = false;
       await _recordsAgain(tester);
 
@@ -312,26 +347,14 @@ void main() {
         container.read(salaSessionProvider).scene.step,
         SceneStep.translate,
       );
-      expect(_theDiskWord, findsNothing);
-    });
+    },
+  );
 
-    testWidgets('at the team\'s next gesture on the translate step', (
-      tester,
-    ) async {
-      await _aRowUnderADiskFailure(tester);
-      expect(_theDiskWord, findsOneWidget);
-
-      await tester.tap(byLabel('traduzir o ensaio da cena'));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(_theDiskWord, findsNothing);
-    });
-
-    testWidgets('when the team plays a frase again once the disk keeps it', (
-      tester,
-    ) async {
+  testWidgets(
+    'after a disk failure under a frase\'s clip the next tap on that frase fetches it '
+    'again',
+    (tester) async {
       final (harness, _, _) = await _aFraseUnderADiskFailure(tester);
-      expect(byLabel('$_listen — $_diskWord'), findsOneWidget);
       final fetches = harness.room.clipsFetched.length;
       harness.recorder.keepBytesFails = false;
 
@@ -342,86 +365,9 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(_theDiskWord, findsNothing);
-    });
-  });
-
-  testWidgets(
-    'a take too short to keep after a failed reopen does not bring the disk word back',
-    (tester) async {
-      final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
-      expect(_theDiskWord, findsOneWidget);
-      harness.recorder.rehearsalSpeaks = Uint8List(799);
-      await _recordsAgain(tester);
-
-      await tester.tap(_circleAtRest);
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(_circleRecording);
-      await _pumpUntil(
-        tester,
-        () => container.read(salaSessionProvider).channel is! Microphone,
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(container.read(salaSessionProvider).scene.step, SceneStep.record);
-      expect(_theDiskWord, findsNothing);
+      expect(harness.room.clipsFetched.length, greaterThan(fetches));
     },
   );
-
-  testWidgets(
-    'a disk failure under a reopen the team left lands on no other rehearsal',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      File(
-        '${harness.recorder.home.path}/cena-ensaio-da-cena-1.wav',
-      ).writeAsBytesSync([1, 2, 3]);
-      final (_, container) = await _theScreenShows(
-        tester,
-        [_sentOne, _unsentTwo],
-        when: (state) =>
-            _fetched(harness, _takeOf(2)) && state.scenes is! ScenesAwaited,
-        given: harness,
-        beforeTheTap: (harness) {
-          harness.room.holdNextClip();
-          harness.recorder.keepBytesFails = true;
-        },
-      );
-
-      await tester.tap(byLabel(_sentRow));
-      await _pumpUntil(
-        tester,
-        () => _showing(1, SceneStep.sent)(container.read(salaSessionProvider)),
-      );
-      harness.room.finishHeldClip();
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(
-        _showing(1, SceneStep.sent)(container.read(salaSessionProvider)),
-        isTrue,
-      );
-      expect(_theDiskWord, findsNothing);
-    },
-  );
-
-  testWidgets('a new take being kept after a Disk failure is not told as one', (
-    tester,
-  ) async {
-    final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
-    expect(_theDiskWord, findsOneWidget);
-    harness.recorder.keepBytesFails = false;
-    await _recordsAgain(tester);
-
-    await tester.tap(_circleAtRest);
-    await tester.pump(const Duration(milliseconds: 500));
-    harness.room.holdNextKeep();
-    addTearDown(harness.room.finishHeldKeep);
-    await tester.tap(_circleRecording);
-    await _pumpUntil(tester, () => harness.room.scenesKept.isNotEmpty);
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(container.read(salaSessionProvider).scene.keep, isA<Keeping>());
-    expect(_theDiskWord, findsNothing);
-  });
 
   testWidgets('the scene screen tells no network failure', (tester) async {
     final (harness, container) = await _theScreenShows(tester, [
@@ -438,7 +384,7 @@ void main() {
       _showing(2, SceneStep.translate)(container.read(salaSessionProvider)),
       isTrue,
     );
-    expect(_theDiskWord, findsNothing);
+    await _expectNoDiskWord(tester);
   });
 
   testWidgets('two fetches of one take at once play the take and say nothing', (
@@ -473,7 +419,7 @@ void main() {
       _showing(2, SceneStep.translate)(container.read(salaSessionProvider)),
       isTrue,
     );
-    expect(_theDiskWord, findsNothing);
+    await _expectNoDiskWord(tester);
     _expectNoLineNoPerson(harness, container, before);
   });
 }

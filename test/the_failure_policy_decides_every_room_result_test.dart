@@ -388,56 +388,52 @@ void main() {
     });
   });
 
-  group(
-    'a disk failure on the scene screen tells the screen and calls nobody',
-    () {
-      test('the policy hands it to the scene screen as its own failure', () {
-        _decidesOnTheTablet(
-          const TheDiskFailed(),
-          _at(const SceneRehearsal(), door: Door.sceneRehearsal),
-          const TheSceneDiskFailed(generation: 4),
-        );
-      });
+  group('a disk failure is the tablet\'s own and calls nobody', () {
+    test('the policy decides it on the tablet as its own failure', () {
+      _decidesOnTheTablet(
+        const TheDiskFailed(),
+        _at(const SceneRehearsal(), door: Door.sceneRehearsal),
+        const TheSceneDiskFailed(generation: 4),
+      );
+    });
 
-      test(
-        'on the scene rehearsal the machine tells the screen, and raises no halt',
-        () {
-          final (machine, effects) = reduce(
-            const Machine(station: SceneRehearsal()),
-            const TheSceneDiskFailed(),
-          );
+    test(
+      'on the scene rehearsal a disk failure changes nothing and tells nothing',
+      () {
+        const before = Machine(station: SceneRehearsal());
 
-          expect(effects, const [TellTheDiskFailed()]);
-          expect(machine.halt, const NoHalt());
-        },
+        final (machine, effects) = reduce(before, const TheSceneDiskFailed());
+
+        expect(effects, isEmpty);
+        expect(identical(machine, before), isTrue);
+      },
+    );
+
+    test('on the Ensaio Final plan the machine tells the screen', () {
+      final (_, effects) = reduce(
+        const Machine(station: Ensaio(step: EnsaioStep.plan)),
+        const TheSceneDiskFailed(),
       );
 
-      test('on the Ensaio Final plan the machine tells the screen too', () {
-        final (_, effects) = reduce(
-          const Machine(station: Ensaio(step: EnsaioStep.plan)),
-          const TheSceneDiskFailed(),
-        );
+      expect(effects, const [TellTheDiskFailed()]);
+    });
 
-        expect(effects, const [TellTheDiskFailed()]);
-      });
+    test('on every other Station the machine does nothing', () {
+      for (final station in const [
+        Menu(),
+        Canvas(),
+        Panorama('panorama'),
+        Ensaio(),
+        Retro(),
+      ]) {
+        final before = Machine(station: station);
+        final (machine, effects) = reduce(before, const TheSceneDiskFailed());
 
-      test('on every other Station the machine does nothing', () {
-        for (final station in const [
-          Menu(),
-          Canvas(),
-          Panorama('panorama'),
-          Ensaio(),
-          Retro(),
-        ]) {
-          final before = Machine(station: station);
-          final (machine, effects) = reduce(before, const TheSceneDiskFailed());
-
-          expect(effects, isEmpty, reason: '$station');
-          expect(identical(machine, before), isTrue, reason: '$station');
-        }
-      });
-    },
-  );
+        expect(effects, isEmpty, reason: '$station');
+        expect(identical(machine, before), isTrue, reason: '$station');
+      }
+    });
+  });
 
   test('the build guard shows the sign without calling anyone', () {
     _decidesOnTheTablet(

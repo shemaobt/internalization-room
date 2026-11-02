@@ -66,7 +66,6 @@ class SceneRehearsalView extends ConsumerWidget {
                       },
                       keep: scene.keep,
                       inTheAir: session.sceneTakeInTheAir,
-                      diskFailed: session.sceneLine == SceneLine.diskFailed,
                       label: said,
                       onTap: notifier.sceneTap,
                       onRetry: notifier.sendTheSceneTakeAgain,
@@ -134,7 +133,6 @@ class SceneRehearsalView extends ConsumerWidget {
                     channel: session.channel,
                     language: language,
                     sending: sending,
-                    line: session.sceneLine,
                     stoppedAt: session.sceneStoppedAt,
                   ),
                 },
@@ -164,7 +162,6 @@ class SceneRehearsalView extends ConsumerWidget {
 class _TheRecordStep extends StatelessWidget {
   final bool recording;
   final SceneKeep? keep;
-  final bool diskFailed;
   final String Function(String control) label;
   final TakeInTheAir? inTheAir;
   final VoidCallback onTap;
@@ -178,7 +175,6 @@ class _TheRecordStep extends StatelessWidget {
     required this.recording,
     required this.keep,
     required this.inTheAir,
-    required this.diskFailed,
     required this.label,
     required this.onTap,
     required this.onRetry,
@@ -216,14 +212,7 @@ class _TheRecordStep extends StatelessWidget {
             ),
           ],
         );
-    if (!recording && keep == null) {
-      if (!diskFailed) return circle;
-      return Semantics(
-        label: label('diskFailed'),
-        liveRegion: true,
-        child: circle,
-      );
-    }
+    if (!recording && keep == null) return circle;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
