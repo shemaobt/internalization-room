@@ -9,7 +9,6 @@ import 'package:internalization_room/main.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -25,7 +24,8 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         entrarNaTraducao,
         parte,
         tocar,
-        tocarNoCirculo;
+        tocarNoCirculo,
+        tocarOuPausar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 import 'support/temp.dart';
@@ -240,11 +240,10 @@ List<String> _naLista(WidgetTester tester) => [
 
 Future<void> _traduzirDeNovo(
   WidgetTester tester,
-  ProviderContainer container, {
-  String circulo = 'ouvindo a gravação de vocês…',
-}) async {
-  await tocar(tester, circulo);
-  await tocar(tester, 'Tocar ao terminar');
+  ProviderContainer container,
+) async {
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
   await _passo(tester);
   await waitFor(
     'a frase traduzida de novo pousar',
@@ -265,9 +264,9 @@ void main() {
     );
 
     await tocar(tester, _barra(2));
-    await tocar(tester, 'ouvindo a gravação de vocês…');
+    await tocarNoCirculo(tester);
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
-    await tocar(tester, 'Tocar ao terminar');
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase traduzida de novo subir',
       () => harness.room.replacesAsked.isNotEmpty,
@@ -524,11 +523,7 @@ void main() {
     );
 
     await tocar(tester, _barra(1));
-    await _traduzirDeNovo(
-      tester,
-      container,
-      circulo: 'ouvindo a gravação de vocês…',
-    );
+    await _traduzirDeNovo(tester, container);
 
     expect(
       find.text(
@@ -976,7 +971,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _vereditoNaFraseTres(tester, harness);
     await tocar(tester, _barra(7));
-    await tocar(tester, 'ouvindo a gravação de vocês…');
+    await tocarNoCirculo(tester);
 
     expect(container.read(salaSessionProvider).btPhase, BtPhase.capturing);
     expect(
@@ -1053,14 +1048,14 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
-    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await _passo(tester);
-    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
-    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
-    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await waitFor(
       'o terminei acender',
       () => container.read(salaSessionProvider).canAdvanceToTheVerdict,
@@ -1220,7 +1215,7 @@ void main() {
     await _traduzirDeNovo(tester, container);
     expect(harness.room.replacesAsked, ['trecho-4@gravacao-2:0-2500']);
 
-    await tocar(tester, 'Ouvir');
+    await tocar(tester, tocarOuPausar);
     harness.playback.at = const Duration(seconds: 5);
     await tocarNoCirculo(tester);
     await tocarNoCirculo(tester);
@@ -1252,7 +1247,7 @@ void main() {
     await _passo(tester);
     expect(container.read(salaSessionProvider).btTrechoTraduzidoDeNovo, isNull);
 
-    await tocar(tester, 'Ouvir');
+    await tocar(tester, tocarOuPausar);
     harness.playback.at = const Duration(seconds: 5);
     await tocarNoCirculo(tester);
     await tocarNoCirculo(tester);

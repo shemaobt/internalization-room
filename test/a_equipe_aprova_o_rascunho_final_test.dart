@@ -24,7 +24,7 @@ import 'scenario_helpers.dart';
 import 'support/temp.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
-const _ouvir = 'Ouvir a gravação';
+const _tocarOuPausar = 'Tocar ou pausar a gravação';
 
 FacilitatorCircle _circulo(WidgetTester tester) =>
     tester.widget<FacilitatorCircle>(find.byType(FacilitatorCircle));
@@ -148,7 +148,7 @@ void main() {
             'não chega ao que mede',
       );
       expect(
-        byLabel(_ouvir),
+        byLabel(_tocarOuPausar),
         findsOneWidget,
         reason:
             'a fala do veredito convida a equipe a ouvir a gravação mais '
@@ -564,7 +564,7 @@ void main() {
       'deixa a equipe onde ela está', (tester) async {
     final it = await _ateAConferida(tester);
 
-    await tester.tap(byLabel(_ouvir));
+    await tester.tap(byLabel(_tocarOuPausar));
     await tester.pump(const Duration(milliseconds: 100));
     it.harness.playback.failPlayback();
     await tester.pump(const Duration(milliseconds: 300));
@@ -738,7 +738,7 @@ void main() {
     final parte = _estado(it.container).partes.first.path;
     final tocadas = it.harness.playback.played.length;
 
-    await tester.tap(byLabel(_ouvir));
+    await tester.tap(byLabel(_tocarOuPausar));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
@@ -907,7 +907,7 @@ void main() {
     testWidgets('a recusa por $codigo deixa a conferida com o terminei '
         'de pé, mesmo cortando a última audição', (tester) async {
       final it = await _ateAConferida(tester);
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(
@@ -1249,10 +1249,10 @@ void main() {
 
     expect(_estado(it.container).btPhase, BtPhase.conferida);
     expect(
-      _circulo(tester).semanticLabel,
-      'translated and checked',
+      onTheCircle('Tap to translate this sentence'),
+      findsOneWidget,
       reason:
-          'a passagem conferida era anunciada "Traduzida" a uma sala em '
+          'a passagem conferida era anunciada em português a uma sala em '
           'inglês',
     );
 

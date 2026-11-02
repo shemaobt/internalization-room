@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0101, 0146, ENG-1925, 0178
+status: accepted, amended by 0101, 0146, ENG-1925, 0178, ENG-1884
 date: 2026-10-07
 amends: 0053 (the policy gains a row and an event that never counts), 0046 (in part: a wordless stretch is answered by her line shown, not the inaudible line)
 ---
@@ -50,7 +50,8 @@ entendi — traduzam de novo esse pedaço», and nothing is voiced.
   the slice, so a reopened session shows nothing.
 - **Shown, in a wordless room (ADR 0014),** means a mark beside the circle, on the side
   opposite the warning mark and drawn like it in the blue of the translation, whose
-  VoiceOver label is her line; the circle's own label becomes her line too. A person and
+  VoiceOver label is her line; the circle's own label stays her «Toque para traduzir
+  esta frase», or «gravem a frase inteira» while a sentence is recorded again (ENG-1884). A person and
   the offline face still win the circle's label, and a blocking halt hides the mark as it
   hides the warning.
 - **A refused replacement leaves the earlier telling** as it was, and the part does not

@@ -14,7 +14,13 @@ import 'package:internalization_room/features/sala/presentation/widgets/status_l
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show conferir, contarAteOFimDaParte, entrarNaTraducao, parte, tocar;
+    show
+        conferir,
+        contarAteOFimDaParte,
+        entrarNaTraducao,
+        parte,
+        tocar,
+        tocarNoCirculo;
 import 'the_pause_snaps_to_silence_test.dart'
     show depois, pausarAos, s, traduzirEConfirmar;
 
@@ -106,8 +112,8 @@ Future<ProviderContainer> _movidaRecusadaDepoisDeRecomecar(
   harness.room.failReplaceWith = const Refused('PAUSE_PAST_THE_END');
   await tocar(tester, _barraDaFrase2);
   await tocar(tester, depois);
-  await tocar(tester, 'Tocar para gravar a tradução de novo');
-  await tocar(tester, 'Tocar ao terminar');
+  await tocarNoCirculo(tester);
+  await tocarNoCirculo(tester);
   await waitFor(
     'a recusa chegar',
     () => container.read(salaSessionProvider).btAviso != null,

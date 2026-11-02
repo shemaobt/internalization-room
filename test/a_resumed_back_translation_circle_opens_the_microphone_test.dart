@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -90,7 +89,10 @@ void main() {
 
         await _tapAndWait(
           tester,
-          byLabel(retroLabelFor('listening', testLanguage)),
+          find.descendant(
+            of: find.byType(RetroView),
+            matching: find.byType(FacilitatorCircle),
+          ),
         );
 
         expect(container.read(salaSessionProvider).btPhase, BtPhase.playing);
@@ -108,10 +110,6 @@ void main() {
         expect(state.btPhase, BtPhase.capturing);
         expect(state.channel, isA<Microphone>());
         expect(harness.recorder.captures, captures + 1);
-        expect(
-          byLabel(retroLabelFor('recording', testLanguage)),
-          findsOneWidget,
-        );
         closeTheRoom(container);
       });
 
@@ -124,14 +122,12 @@ void main() {
           );
           final captures = harness.recorder.captures;
 
-          expect(
-            byLabel(retroLabelFor('record', testLanguage)),
-            findsNothing,
-            reason: 'nada resta por contar, e o toque não abriria nada',
-          );
           await _tapAndWait(
             tester,
-            byLabel(retroLabelFor('listening', testLanguage)),
+            find.descendant(
+              of: find.byType(RetroView),
+              matching: find.byType(FacilitatorCircle),
+            ),
           );
 
           expect(harness.recorder.captures, captures);
