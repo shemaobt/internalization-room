@@ -17,6 +17,7 @@ import 'package:internalization_room/main.dart';
 import 'a_scene_room.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, enterThePassage, relaunch, settle;
+import 'support/temp.dart';
 
 const _saving = 'guardando o ensaio da cena…';
 const _saveFailed = 'não deu para guardar o ensaio da cena — gravem de novo';
@@ -253,8 +254,7 @@ void main() {
 
   test('the tablet closed before the room confirmed a take: on reopening, the '
       'take is still waiting to be sent', () async {
-    final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-sessao-atual');
     final harness = SalaHarness(
       currentSession: LedgerThatReadsLate(home: () async => home),
     );
@@ -337,8 +337,7 @@ void main() {
   );
 
   test('a scene take is never deleted by the app', () async {
-    final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-sessao-atual');
     final harness = SalaHarness(
       currentSession: LedgerThatReadsLate(home: () async => home),
     );

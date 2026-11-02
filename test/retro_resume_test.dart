@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show intoTheBackTranslation, settle;
+import 'support/temp.dart';
 
 const _gravacao = 'gravacao-1';
 
@@ -44,10 +45,8 @@ Future<ProviderContainer> _reopen(
   bool semAudio = false,
   bool throughTheHome = false,
 }) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-retro-retomada').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final gravada = File('${aTempDir('sala-retro-retomada').path}/p1.m4a')
+    ..writeAsBytesSync([1, 2, 3]);
   if (semAudio) gravada.deleteSync();
   harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
     sessionId: 'sessao-antiga',

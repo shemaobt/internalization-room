@@ -14,6 +14,8 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
+import 'support/temp.dart';
+
 /// The team taps every row still waiting, the only way a row goes up again.
 Future<int> aTapOnEveryRow(TakeUploadQueue queue) async {
   for (final row in await queue.pending()) {
@@ -34,14 +36,13 @@ void main() {
   });
 
   setUp(() {
-    home = Directory.systemTemp.createTempSync('fila-tempo-tamanho-impressao');
+    home = aTempDir('fila-tempo-tamanho-impressao');
     requests = [];
     clock = DateTime(2026, 10, 20, 13, 40);
     answer = (request) async => request.url.path.endsWith('/takes')
         ? http.Response(jsonEncode({'take_id': 'gravacao-1'}), 200)
         : http.Response(jsonEncode(_sceneRehearsal), 200);
   });
-  tearDown(() => home.deleteSync(recursive: true));
 
   RoomRepository roomOnTheWire() {
     final room = RoomRepository(

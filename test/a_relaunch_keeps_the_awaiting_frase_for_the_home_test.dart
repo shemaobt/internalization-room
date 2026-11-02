@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart' show Sala;
+import 'support/temp.dart';
 
 Future<Sala> _relancarEAbrirACasa({required String takeDaFrase}) async {
   final harness = SalaHarness()
@@ -18,8 +19,7 @@ Future<Sala> _relancarEAbrirACasa({required String takeDaFrase}) async {
       Scene(sceneId: 'S1', title: 'Cena um'),
       Scene(sceneId: 'S2', title: 'Cena dois'),
     ];
-  final casa = Directory.systemTemp.createTempSync('sala-frase-que-aguarda');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-frase-que-aguarda');
   KeptTake guardada(int n) => KeptTake(
     scopeId: KeptScope.parte(n),
     path: (File(
