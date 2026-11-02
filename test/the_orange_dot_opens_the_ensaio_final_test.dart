@@ -1115,8 +1115,7 @@ void main() {
         roomTakes: [_roomPart(1, pass: 1, origin: 'ensaio-s1')],
         before: (harness) {
           harness.room.sceneRehearsals.addAll([rehearsal(1), rehearsal(2)]);
-          final waiting = Directory.systemTemp.createTempSync('sala-2079');
-          addTearDown(() => waiting.deleteSync(recursive: true));
+          final waiting = aTempDir('sala-2079');
           final audio = File('${waiting.path}/parte-2-junta-ensaio-s2.wav')
             ..writeAsBytesSync([1, 2, 3, 4]);
           harness.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
