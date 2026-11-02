@@ -228,7 +228,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                 onFocusLeft: notifier.accessibilityFocusLeft,
               ),
               TextButton(
-                onPressed: idle && !session.grainSwitching
+                onPressed: idle && !session.homeBusy
                     ? notifier.recordSceneByScene
                     : null,
                 child: Text(

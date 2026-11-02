@@ -1846,6 +1846,45 @@ void main() {
     },
   );
 
+  testWidgets('while a take is in the air, a row\'s sheet door opens nothing', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+    it.holdTheTake('parte-1');
+    await it.recordAgainAndKeep(1);
+    await it.theHeldTakeArrives();
+
+    await it.tapThe(it.door(2, _swap));
+    await it.wait(const Duration(seconds: 1));
+
+    expect(
+      it.showsTheSheet(),
+      isFalse,
+      reason: 'a porta da folha abria com uma gravação no ar',
+    );
+    it.room.finishHeldTake();
+    await it.settle();
+    semantics.dispose();
+  });
+
+  test('the home rests while anything of her noRec or grainBusy runs', () {
+    const rests = <String, SalaSessionState>{
+      'a take records': SalaSessionState(ensaio: EnsaioStatus.recording),
+      'a take is kept': SalaSessionState(ensaio: EnsaioStatus.recorded),
+      'a swap runs': SalaSessionState(swapping: 'ensaio-2'),
+      'a bring-back runs': SalaSessionState(bringingBack: 2),
+      'a join runs': SalaSessionState(joining: 1),
+      'a grain switch runs': SalaSessionState(grainSwitching: true),
+    };
+    for (final MapEntry(:key, :value) in rests.entries) {
+      expect(value.homeBusy, isTrue, reason: key);
+      expect(value.homeBusy, value.nothingStartsNow, reason: key);
+    }
+    expect(const SalaSessionState().homeBusy, isFalse);
+  });
+
   testWidgets('while a swap runs nothing else starts', (tester) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);

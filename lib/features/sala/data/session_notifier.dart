@@ -4372,7 +4372,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void closeTheRehearsalSheet() => _gesture(() {
     if (state.homeSheet != null) {
-      if (state.homeBusy) return;
+      if (state.swapping != null) return;
       _silenceTheRoom();
       state = state.copyWith(clearHomeSheet: true, clearSwapLine: true);
       return;
