@@ -54,7 +54,8 @@ Her row note belongs to its row and leaves only on a tap of that row
 (`Drafting.tsx:231, :2048-2055, :2529`; `src/draft/join.ts:91, :175` at 18fa7c4).
 
 - **Each row keeps its own line.** A failure writes the line on its row; a tap on
-  another row's bring-back leaves it. A tap on the row clears that row's line, and
+  another row's bring-back leaves it. The tap that confirms the row's bring-back clears that row's line (a tap that only
+  arms it leaves it), and
   leaving the recording home clears them all.
 - **The re-read no longer takes the line.** When the read after a passing failure shows
   the room did lay the frases, its stretches still replace the tablet's, but the row

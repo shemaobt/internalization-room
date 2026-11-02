@@ -1005,42 +1005,49 @@ void main() {
     },
   );
 
+  for (final code in const [
+    RefusalCode.unreadable,
+    RefusalCode.partNoLongerItsRehearsal,
+  ])
+    testWidgets(
+      'a refusal the tablet does not know as final ($code) still asks for '
+      'another tap',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _onTheHome(tester);
+        it.room.failBringBackWith = Refused(code);
+
+        await _bringBackTwice(it, 2);
+        await it.settle();
+
+        expect(
+          it.onRow(2, find.text(_failed)),
+          findsOneWidget,
+          reason: 'só a recusa que diz que nada volta é para ensaiar de novo',
+        );
+        expect(find.text(_cannotEnter), findsNothing);
+        semantics.dispose();
+      },
+    );
+
   testWidgets(
-    'a part no longer its rehearsal\'s answers the retry line, not «não pode '
-    'entrar»',
+    'a tap that only arms the bring-back leaves the failed row\'s line',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _onTheHome(tester);
-      it.room.failBringBackWith = const Refused(
-        RefusalCode.partNoLongerItsRehearsal,
-      );
-
+      it.room.failBringBackWith = const NetworkFailed('a rede caiu');
       await _bringBackTwice(it, 2);
       await it.settle();
 
-      expect(it.onRow(2, find.text(_failed)), findsOneWidget);
-      expect(find.text(_cannotEnter), findsNothing);
-      expect(it.control(2, _bringBack), findsOneWidget);
-      semantics.dispose();
-    },
-  );
-
-  testWidgets(
-    'a refusal the tablet does not know as final still asks for another tap',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      final it = await _onTheHome(tester);
-      it.room.failBringBackWith = const Refused(RefusalCode.unreadable);
-
-      await _bringBackTwice(it, 2);
-      await it.settle();
+      await it.tapThe(it.control(2, _bringBack));
+      await it.wait(const Duration(seconds: 7));
 
       expect(
         it.onRow(2, find.text(_failed)),
         findsOneWidget,
-        reason: 'só a recusa que diz que nada volta é para ensaiar de novo',
+        reason: 'um toque que só arma apagava a linha, e nada foi enviado',
       );
-      expect(find.text(_cannotEnter), findsNothing);
+      expect(it.room.bringBacksAsked, hasLength(1));
       semantics.dispose();
     },
   );

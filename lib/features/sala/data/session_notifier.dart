@@ -3926,13 +3926,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.needsPerson) {
       return;
     }
-    state = state.copyWith(
-      bringBackFailed: {...state.bringBackFailed}..remove(cena),
-    );
     _armedTap(
       'bringBack:$cena',
       needs: true,
-      then: () => _handOff(_trazerDeVoltaNaSala(sessionId, cena)),
+      then: () {
+        state = state.copyWith(
+          bringBackFailed: {...state.bringBackFailed}..remove(cena),
+        );
+        _handOff(_trazerDeVoltaNaSala(sessionId, cena));
+      },
     );
   }
 
@@ -3963,6 +3965,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         final cannotEnter = switch (failure) {
           Refused(code: RefusalCode.nothingToBringBack) => true,
+          Refused(code: RefusalCode.partNoLongerItsRehearsal) => false,
           _ => false,
         };
         state = state.copyWith(
