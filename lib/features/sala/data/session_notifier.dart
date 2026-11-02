@@ -6201,7 +6201,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(scene: shown.copyWith(clearPausa: true));
       _translateOnFrom(pausa);
     } else {
-      _translateOnFrom(rehearsal.frontier);
+      final stopped = state.sceneStoppedAt;
+      final end = state.scene.takeEnd;
+      _translateOnFrom(
+        stopped == null
+            ? rehearsal.frontier
+            : end != null && isAtTheEnd(stopped, end)
+            ? Duration.zero
+            : stopped,
+      );
     }
   }
 
@@ -10532,7 +10540,26 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final line = state.lastSpoken;
     if (!state.canHearTheVerdictAgain || line == null) return;
     _silenceTheRoom();
-    _handOff(_repeatLastSpoken(line));
+    _handOff(_repeatTheVerdict(line));
+  }
+
+  Future<void> _repeatTheVerdict(SpokenLine line) async {
+    final generation = _waitOnTheGeneration;
+    Said played;
+    try {
+      played = await _loadTheReply(
+        line,
+        generation,
+        asked: true,
+        remember: true,
+      );
+    } on RoomFailure catch (failure) {
+      _decideAt(failure, door: Door.verdict, rule: RefusalRule.passes);
+      played = Said.failed;
+    }
+    if (_abandoned(generation)) return;
+    state = state.copyWith(awaitingTheGuide: false);
+    if (played.heard) _landTheHeldCoverage();
   }
 
   void retroTap() => _gesture(() => _retroTap());
