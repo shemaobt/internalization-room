@@ -88,6 +88,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
         inUseId: sheet.chosen?.rehearsalId,
         language: language,
         busy: session.planBusy,
+        backRests: session.planBusy,
         offersToUse: sheet.offersToUse,
         onRecordAgain: notifier.rehearseThisSceneAgain,
       );

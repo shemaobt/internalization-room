@@ -1939,46 +1939,41 @@ void main() {
     },
   );
 
-  testWidgets(
-    'while a bring-back runs, «gravar esta cena de novo» on the home\'s sheet '
-    'opens nothing',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      final it = await _atRest(tester);
-      await it.joined();
-      it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
-      final notifier = it.container.read(salaSessionProvider.notifier);
-      notifier.goEnsaio();
-      await it.until(
-        'a casa oferecer a volta das traduções',
-        () => it.door(2, _bringBack).evaluate().isNotEmpty,
-      );
-      it.room.holdBringBack();
-      await it.tapThe(it.door(2, _bringBack));
-      await it.wait(const Duration(milliseconds: 700));
-      await it.tapThe(it.door(2, _bringBackArmed));
-      await it.until(
-        'a volta das traduções ficar no ar',
-        () => it.container.read(salaSessionProvider).bringingBack == 2,
-      );
+  testWidgets('while a bring-back runs, the home\'s sheet opens nothing', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+    it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
+    final notifier = it.container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await it.until(
+      'a casa oferecer a volta das traduções',
+      () => it.door(2, _bringBack).evaluate().isNotEmpty,
+    );
+    it.room.holdBringBack();
+    await it.tapThe(it.door(2, _bringBack));
+    await it.wait(const Duration(milliseconds: 700));
+    await it.tapThe(it.door(2, _bringBackArmed));
+    await it.until(
+      'a volta das traduções ficar no ar',
+      () => it.container.read(salaSessionProvider).bringingBack == 2,
+    );
 
-      notifier.openTheHomeSheet(2);
-      await it.until('a folha da cena 2 abrir', it.showsTheSheet);
-      await it.tapThe(find.text(_recordAgain));
-      await it.wait(const Duration(seconds: 1));
+    notifier.openTheHomeSheet(2);
+    await it.wait(const Duration(seconds: 1));
 
-      expect(
-        byLabel(_question),
-        findsNothing,
-        reason: 'a volta das traduções no ar ainda deixava sair para gravar',
-      );
-      expect(it.showsTheSheet(), isTrue);
+    expect(
+      it.showsTheSheet(),
+      isFalse,
+      reason: 'a volta das traduções no ar ainda deixava abrir a folha',
+    );
 
-      it.room.finishHeldBringBack();
-      await it.settle();
-      semantics.dispose();
-    },
-  );
+    it.room.finishHeldBringBack();
+    await it.settle();
+    semantics.dispose();
+  });
 
   group('«ouçam a cena nova antes de conferir»', () {
     testWidgets('stands until the listen starts', (tester) async {
