@@ -186,6 +186,22 @@ Future<void> _afterARelaunchTheClipIsReplayedFromTheTablet(
   expect(again.harness.room.sessionsSaidAgain, isEmpty);
 }
 
+List<String> _theKeptOnThe(_Tablet tablet) =>
+    tablet.harness.recorder.home
+        .listSync()
+        .map((entry) => entry.uri.pathSegments.last)
+        .toSet()
+        .toList()
+      ..sort();
+
+void _leaveOnTheTablet(_Tablet tablet, List<String> names) {
+  for (final name in names) {
+    File(
+      '${tablet.harness.recorder.home.path}/$name',
+    ).writeAsStringSync('áudio');
+  }
+}
+
 void main() {
   test(
     'a relaunch asks the room for the session the tablet holds before anything else',
@@ -204,6 +220,60 @@ void main() {
         again.harness.room.calls.skip(before),
         isNot(contains('passagesOf')),
       );
+    },
+  );
+
+  group(
+    'a relaunch sweeps the kept tellings of the sessions it does not hold',
+    () {
+      const mine = 'kept-$_held-S1-1.m4a';
+      const another = 'kept-sessao-largada-S1-1.m4a';
+      const aTake = 'parte-1-gravacao-1-1760900000003-77.m4a';
+
+      test('and keeps the held session\'s, its takes and the rest', () async {
+        final tablet = _aTabletHolding(SalaStage.ensaio);
+        _leaveOnTheTablet(tablet, [mine, another, aTake, 'checagem-t1.m4a']);
+
+        await tablet.notifier.openTheRoom();
+        await waitFor(
+          'the sweep to finish',
+          () => !_theKeptOnThe(tablet).contains(another),
+        );
+
+        expect(_theKeptOnThe(tablet), ['checagem-t1.m4a', mine, aTake]);
+      });
+
+      test(
+        'and an unreadable record of the held session sweeps nothing',
+        () async {
+          final tablet = _aTabletHolding(SalaStage.ensaio);
+          (tablet.harness.currentSession as FakeCurrentSessionLedger)
+                  .unreadable =
+              true;
+          _leaveOnTheTablet(tablet, [mine, another, aTake]);
+
+          await tablet.notifier.openTheRoom();
+          await settle();
+
+          expect(_theKeptOnThe(tablet), [mine, another, aTake]);
+        },
+      );
+
+      test('and with no session held, sweeps them all', () async {
+        final harness = SalaHarness();
+        final container = harness.container();
+        addTearDown(container.dispose);
+        final tablet = _Tablet(harness, container);
+        _leaveOnTheTablet(tablet, [mine, another, aTake]);
+
+        await tablet.notifier.openTheRoom();
+        await waitFor(
+          'the sweep to finish',
+          () => _theKeptOnThe(tablet).length == 1,
+        );
+
+        expect(_theKeptOnThe(tablet), [aTake]);
+      });
     },
   );
 

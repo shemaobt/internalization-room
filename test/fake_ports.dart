@@ -185,7 +185,8 @@ class AStorePort implements StorePort {
   void stopTheSend(String row) => stopped.add(row);
 
   @override
-  Future<CurrentSession?> currentSession() async => _held;
+  Future<({CurrentSession? session})?> knownCurrentSession() async =>
+      (session: _held);
 
   @override
   Future<void> holdTheSession(CurrentSession session) async => _held = session;
