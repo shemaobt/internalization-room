@@ -20,6 +20,7 @@ void main() {
       it.sala.leaveTheBackTranslation();
       await regravarAParte(it, 1);
       final nova = it.partes[1].path;
+      await untilTheAdvanceDiscLights(it.sala);
 
       it.sala.startRetro();
       await waitFor(

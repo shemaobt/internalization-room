@@ -57,6 +57,7 @@ enum Door {
   stretches,
   question,
   step,
+  approval,
   telling,
   verdict,
   sceneRehearsal,
@@ -118,6 +119,14 @@ final class AKeepEnded extends MachineEvent {
   final String? row;
 
   const AKeepEnded(this.part, {this.row});
+}
+
+/// The tap «enviar agora» sent [row] up for [part]: from then on it is this visit's.
+final class TheTapSent extends MachineEvent {
+  final PartOfASession part;
+  final String row;
+
+  const TheTapSent(this.part, this.row);
 }
 
 final class StopTapped extends MachineEvent {
@@ -1542,6 +1551,10 @@ const _watch = ArmTheWatch();
     ),
     const [],
   ),
+  TheTapSent(:final part, :final row) => (
+    machine.copyWith(keptThisVisit: {...machine.keptThisVisit, row: part}),
+    const [],
+  ),
   ATakeSettled(:final row) => (
     machine.copyWith(landTheTake: machine.inTheAir?.row == row),
     const [],
@@ -2304,6 +2317,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   ATakeSettled() ||
   AKeepBegan() ||
   AKeepEnded() ||
+  TheTapSent() ||
   StopTapped() ||
   LineArrived() ||
   PlayerOpened() ||
