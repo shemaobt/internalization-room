@@ -126,7 +126,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle(Duration.zero);
 
         final state = container.read(salaSessionProvider);
@@ -144,7 +144,7 @@ void main() {
         final container = harness.container();
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle();
 
         final state = container.read(salaSessionProvider);
@@ -442,7 +442,7 @@ void main() {
         final container = harness.container();
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle();
 
         expect(
@@ -462,7 +462,7 @@ void main() {
         final container = harness.container();
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle(Duration.zero);
         expect(container.read(salaSessionProvider).needsPerson, isFalse);
 
@@ -483,7 +483,7 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      container.read(salaSessionProvider.notifier).escolhaTap();
+      unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
       await settle(const Duration(milliseconds: 300));
 
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
@@ -500,7 +500,7 @@ void main() {
         harness.room.throwOn['servedBooks'] = StateError('a late defect');
         final container = harness.container();
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         container.dispose();
         await settle();
 

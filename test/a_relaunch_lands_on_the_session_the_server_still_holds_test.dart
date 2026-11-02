@@ -502,7 +502,7 @@ void main() {
     await offline.notifier.openTheRoom();
     await settle();
     offline.harness.room.reachable = true;
-    offline.notifier.escolhaTap();
+    unawaited(offline.notifier.abrirEscolha());
     await _theChoiceShowsItsWheel(offline);
     await enterThePassage(offline.notifier, () => offline.state, 'P01');
     await _landsOn(offline, session);
@@ -1011,7 +1011,7 @@ void main() {
     expect(again.state.station, isA<Menu>());
 
     again.harness.room.reachable = true;
-    again.notifier.escolhaTap();
+    unawaited(again.notifier.abrirEscolha());
     await _theChoiceShowsItsWheel(again);
 
     final later = await _relaunch(again);
