@@ -540,6 +540,14 @@ class SalaSessionState {
   final Map<int, UnsentPart> unsentParts;
   final Set<int> heldScenes;
 
+  /// The scenes whose joined part is still in the Outbox: never a take left on the
+  /// tablet, and the door waits for it.
+  final Set<int> joinsOnTheirWay;
+
+  /// Whether this life has counted the Outbox yet: before its first count a part with
+  /// no name may still be owed, so it holds the door as one that waits.
+  final bool outboxCounted;
+
   final Machine machine;
   final DateTime? recorderStartedAt;
 
@@ -715,6 +723,8 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentParts = const {},
     this.heldScenes = const {},
+    this.joinsOnTheirWay = const {},
+    this.outboxCounted = false,
     this.machine = const Machine(),
     this.recorderStartedAt,
     this.cenaDaGravacao,
@@ -827,7 +837,10 @@ class SalaSessionState {
   );
 
   bool _waitsToGoUp(KeptTake take) =>
-      take.takeId == null && unsentParts.containsKey(rowOf(take.scopeId));
+      take.takeId == null &&
+      (!outboxCounted ||
+          unsentParts.containsKey(rowOf(take.scopeId)) ||
+          joinsOnTheirWay.contains(rowOf(take.scopeId)));
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
@@ -938,9 +951,6 @@ class SalaSessionState {
     final index = partes.indexWhere((take) => rowOf(take.scopeId) == number);
     return index < 0 ? null : index;
   }
-
-  bool get aTakeFromAnEarlierVisitWaits =>
-      sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
 
   /// The one row of the whole while the passage is recorded whole. Otherwise one row per
   /// Scene, in passage order, then one per part beyond the last scene with a take still to
@@ -1825,25 +1835,26 @@ class SalaSessionState {
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       channel is! GuideSpeaking;
 
-  /// Whether the recording home offers the approval: the room calls the passage checked
-  /// and the approval is still open, and nothing is being recorded or sent.
+  /// Whether the recording home draws the approve button: the room calls the passage
+  /// checked and the approval is still open. Busyness only rests it (ADR 0136).
   bool get approveOffered =>
       stage == SalaStage.ensaio &&
-      ensaio == EnsaioStatus.idle &&
       btChecked &&
       approvalStillOpen &&
-      ensaioSalvo == null &&
+      ensaioSalvo == null;
+
+  /// Whether the approve button on the recording home acts: offered, and nothing is being
+  /// recorded or sent and no approval or open of the Checagem externa is in the air.
+  bool get approveActsOnTheHome =>
+      approveOffered &&
+      ensaio == EnsaioStatus.idle &&
       nothingWaitsInTheOutbox &&
       aBackTranslationGestureActs;
 
   /// The approval drawn on the recording home: in place of the approve button, or under it
   /// while the approval is still open (ADR 0150).
   ApprovedDraft? get approvedOnTheHome =>
-      stage == SalaStage.ensaio &&
-          ensaio == EnsaioStatus.idle &&
-          nothingWaitsInTheOutbox
-      ? btRascunhoAprovado
-      : null;
+      stage == SalaStage.ensaio ? btRascunhoAprovado : null;
 
   bool get nothingWaitsInTheOutbox => unsentTakes == 0 && unsentChunks == 0;
 
@@ -1993,6 +2004,8 @@ class SalaSessionState {
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
     Set<int>? heldScenes,
+    Set<int>? joinsOnTheirWay,
+    bool? outboxCounted,
     Machine? machine,
     DateTime? recorderStartedAt,
     bool clearRecorderStartedAt = false,
@@ -2158,6 +2171,8 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
       heldScenes: heldScenes ?? this.heldScenes,
+      joinsOnTheirWay: joinsOnTheirWay ?? this.joinsOnTheirWay,
+      outboxCounted: outboxCounted ?? this.outboxCounted,
       machine: machine ?? this.machine,
       recorderStartedAt: clearRecorderStartedAt
           ? null

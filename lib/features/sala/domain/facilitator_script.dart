@@ -489,15 +489,10 @@ String sceneRehearsalRowLabelFor(
 }
 
 const retroLabels = {
-  'record': {
-    'pt': 'Tocar para gravar a tradução deste trecho',
-    'en': 'Tap to record this stretch\'s translation',
+  'tell': {
+    'pt': 'Toque para traduzir esta frase',
+    'en': 'Tap to translate this sentence',
   },
-  'recordAgain': {
-    'pt': 'Tocar para gravar a tradução de novo',
-    'en': 'Tap to record the translation again',
-  },
-  'recording': {'pt': 'Tocar ao terminar', 'en': 'Tap when you finish'},
   'listening': {
     'pt': 'ouvindo a gravação de vocês…',
     'en': 'listening to your recording…',
@@ -507,12 +502,6 @@ const retroLabels = {
     'en': 'paused — tap the circle to mark where the sentence ends',
   },
   'endOfTheRecording': {'pt': 'fim da gravação', 'en': 'end of the recording'},
-  'listen': {'pt': 'Ouvir', 'en': 'Listen'},
-  'listenToTheTranslation': {
-    'pt': 'Ouvir a tradução',
-    'en': 'Listen to the translation',
-  },
-  'pause': {'pt': 'Pausar', 'en': 'Pause'},
   'pauseEarlier': {'pt': 'um pouco antes', 'en': 'a little earlier'},
   'hearThePause': {'pt': 'ouvir a pausa', 'en': 'hear the pause'},
   'pauseLater': {'pt': 'um pouco depois', 'en': 'a little later'},
@@ -585,10 +574,6 @@ const retroLabels = {
     'en':
         "Tap a sentence to hear it and translate it again; tap re-record to record the whole sentence again; then tap 'done'.",
   },
-  'listenToTheRecording': {
-    'pt': 'Ouvir a gravação',
-    'en': 'Listen to the recording',
-  },
   'approve': {
     'pt': 'Aprovar como rascunho final',
     'en': 'Approve as the final draft',
@@ -628,8 +613,6 @@ const retroLabels = {
     'pt': 'não deu para abrir a checagem externa — tentem de novo',
     'en': 'couldn\'t open the external check — try again',
   },
-  'listenFirst': {'pt': 'Ouvir primeiro', 'en': 'Listen first'},
-  'thinking': {'pt': 'Um instante', 'en': 'One moment'},
   'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},
   'notUnderstood': {
     'pt': 'não entendi — traduzam de novo esse pedaço',
@@ -827,11 +810,13 @@ String recordingHomeLabelFor(String key, String language, {int? n}) =>
 
 String? sendNowLabelFor(UnsentPart part, String name, String language) =>
     switch (part) {
-      UnsentPart(fromAnEarlierVisit: true, :final length) => [
-        name,
-        if (length != null) ' · ${minutesAndSecondsOf(length)}',
-        ' — ${recordingHomeLabelFor('sendNow', language)}',
-      ].join(),
+      UnsentPart(fromAnEarlierVisit: true, :final failure, :final length)
+          when failure != SendFailure.gone =>
+        [
+          name,
+          if (length != null) ' · ${minutesAndSecondsOf(length)}',
+          ' — ${recordingHomeLabelFor('sendNow', language)}',
+        ].join(),
       _ => null,
     };
 

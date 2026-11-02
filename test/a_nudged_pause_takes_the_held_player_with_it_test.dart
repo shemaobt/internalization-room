@@ -8,7 +8,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/scene_st
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'the_back_translation_is_told_by_beads_test.dart' show ouvir, tocar;
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show tocar, tocarOuPausar;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         antes,
@@ -159,7 +160,7 @@ void main() {
           'manter a tradução calava a sala e perdia a parte segurada na '
           'pausa movida',
     );
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
     expect(
       harness.playback.playedFrom.last,
       s(4.6),

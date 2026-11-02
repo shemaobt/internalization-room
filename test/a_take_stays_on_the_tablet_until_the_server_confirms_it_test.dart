@@ -620,7 +620,7 @@ void main() {
       expect(casa.copias, hasLength(1));
       expect(find.text(_aindaNoComputador), findsOneWidget);
       final atual = casa.estado.sessionId!;
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
 
       expect(casa.room.takeSessions.last, atual);
       expect(casa.room.takesKept, ['ensaio/parte-2']);
@@ -730,7 +730,7 @@ void main() {
 
       expect(find.text(_aindaNoComputador), findsOneWidget);
       final atual = casa.estado.sessionId!;
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
 
       expect(casa.room.takeSessions.last, atual);
       expect(casa.room.takesKept, ['ensaio/parte-2']);
@@ -778,7 +778,7 @@ void main() {
       await casa.entrarDeNovoNaPassagem(perdida);
 
       final atual = casa.estado.sessionId!;
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
 
       expect(casa.room.takeSessions.last, atual);
       expect(casa.room.takesKept, contains('ensaio/parte-2'));
@@ -849,7 +849,7 @@ void main() {
       expect(File(linha.path).existsSync(), isTrue);
       await casa.entrarDeNovoNaPassagem(perdida);
       final atual = casa.estado.sessionId!;
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
       expect(casa.room.takeSessions.last, atual);
       expect(casa.room.takesKept, contains('ensaio/parte-2'));
     },
@@ -919,7 +919,7 @@ void main() {
 
       await casa.aSessaoSeVai(perdida);
       await casa.entrarDeNovoNaPassagem(perdida);
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
 
       expect(casa.room.takesKept, ['ensaio/parte-2']);
       expect(casa.room.takesReceivedWhole.single.origin, isNull);
@@ -949,7 +949,7 @@ void main() {
       expect(File(linha.path).existsSync(), isTrue);
       await casa.entrarDeNovoNaPassagem(perdida);
       final atual = casa.estado.sessionId!;
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
       expect(casa.room.takeSessions.last, atual);
       expect(casa.room.takesKept, contains('ensaio/parte-2'));
     },
@@ -970,7 +970,7 @@ void main() {
         await settle(const Duration(milliseconds: 500));
       });
       await casa.entrarDeNovoNaPassagem(perdida);
-      await casa.tocar(casa.naLinha(2, find.textContaining(_enviarAgora)));
+      await casa.tocar(find.textContaining(RegExp('Cena 2 · .*$_enviarAgora')));
 
       expect(casa.room.takesKept, ['ensaio/parte-2']);
       expect(casa.room.takesReceivedWhole.single.origin, isNull);

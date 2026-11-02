@@ -27,6 +27,7 @@ import 'saved_screen.dart';
 import 'scene_question.dart';
 import 'stage_heading.dart';
 import 'stop_control.dart';
+import 'unsent_notice.dart';
 
 class EnsaioView extends ConsumerStatefulWidget {
   const EnsaioView({super.key});
@@ -93,8 +94,11 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
             ),
             if (session.rehearsalsElsewhere && session.partes.isEmpty)
               _Aviso(recordingHomeLabelFor('elsewhere', language)),
-            if (session.aTakeFromAnEarlierVisitWaits)
-              _Aviso(recordingHomeLabelFor('pending', language)),
+            UnsentNotice(
+              session: session,
+              language: language,
+              onSend: notifier.enviarDoAviso,
+            ),
             if (session.btFraseDevida != null)
               _Aviso(sceneRehearsalLabelFor('spliceFail', language)),
             const SizedBox(height: 20),
@@ -198,7 +202,12 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                   ),
                   if (session.approveOffered) ...[
                     const SizedBox(height: 12),
-                    ApproveButton(live: session.canApprove && !frozen),
+                    ApproveButton(
+                      live:
+                          session.approveActsOnTheHome &&
+                          session.canApprove &&
+                          !frozen,
+                    ),
                   ],
                   if (session.btRecusa case final recusa?
                       when session.stage == SalaStage.ensaio) ...[
@@ -563,9 +572,9 @@ class _SceneRowView extends StatelessWidget {
               ],
             ),
             ?_takeState(recording, cena, colors),
+            ?_sheetDoor(cena, colors),
             ?_bringBackControl(cena, colors),
             ?_bringBackFailed(colors),
-            ?_sheetDoor(cena, colors),
           ],
         ),
       ),
@@ -594,10 +603,6 @@ class _SceneRowView extends StatelessWidget {
   Widget? _takeState(bool recording, String cena, SalaColors colors) {
     String words(String key) => recordingHomeLabelFor(key, language);
     final inTheAir = row.inTheAir;
-    final sendNow = switch (row.unsent) {
-      final unsent? => sendNowLabelFor(unsent, cena, language),
-      null => null,
-    };
     final said = switch (row.unsent) {
       _ when recording => switch (session.recorderStartedAt) {
         final since? => Loop(
@@ -624,12 +629,7 @@ class _SceneRowView extends StatelessWidget {
           ),
         ],
       ),
-      _ when sendNow != null => _tap(
-        sendNow,
-        words('sendAria'),
-        onSend,
-        colors,
-      ),
+      UnsentPart(fromAnEarlierVisit: true) => null,
       UnsentPart(failure: SendFailure.failed) => _tap(
         words('failed'),
         words('retryAria'),
@@ -680,11 +680,7 @@ class _SceneRowView extends StatelessWidget {
 
   Widget? _sheetDoor(String cena, SalaColors colors) {
     final home = this.home;
-    if (home == null ||
-        !(home.swap || home.useScene) ||
-        session.ensaio != EnsaioStatus.idle) {
-      return null;
-    }
+    if (home == null || !(home.swap || home.useScene)) return null;
     final label = ensaioFinalPlanLabelFor(
       home.swap ? 'swap' : 'useScene',
       language,

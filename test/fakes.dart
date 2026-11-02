@@ -4150,6 +4150,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     String? fingerprint,
     String? overTake,
     bool reopensTheApprovedDraft = false,
+    bool swap = false,
   }) async {
     final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();
     if (fingerprint != null && held != fingerprint) return null;
@@ -4164,6 +4165,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       sha256: held,
       origin: origin,
       reopensTheApprovedDraft: reopensTheApprovedDraft,
+      swap: swap,
     );
     rows.add(entry);
     return entry;
@@ -4461,6 +4463,7 @@ class FakeTakeQueue implements TakeUploadQueue {
         for (final entry in rows)
           if (!entry.stored &&
               entry.kind == 'ensaio' &&
+              entry.origin == null &&
               entry.sessionId == sessionId)
             entry,
       ].length,
@@ -4475,17 +4478,27 @@ class FakeTakeQueue implements TakeUploadQueue {
         for (final entry in rows)
           if (!entry.stored &&
               entry.kind == 'ensaio' &&
+              entry.origin == null &&
               entry.sessionId == sessionId)
             entry.scope: [
               for (final row in rows)
                 if (!row.stored &&
                     row.kind == 'ensaio' &&
+                    row.origin == null &&
                     row.sessionId == sessionId &&
                     row.scope == entry.scope)
                   row,
             ],
       },
       goneParts: const <String, int>{},
+      joining: {
+        for (final entry in rows)
+          if (!entry.stored &&
+              entry.kind == 'ensaio' &&
+              entry.origin != null &&
+              entry.sessionId == sessionId)
+            entry.scope,
+      },
     );
     if (held != null) await held.future;
     return result;

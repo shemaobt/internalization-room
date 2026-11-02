@@ -14,7 +14,12 @@ import 'the_check_circle_says_hers_when_held_and_at_the_end_test.dart'
 import 'the_check_frase_rows_are_drawn_as_hers_test.dart' show voltaATraducao;
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show contarAteOFimDaParte, entrarNaTraducao, passaDoCursor, pausar, tocar;
+    show
+        contarAteOFimDaParte,
+        entrarNaTraducao,
+        passaDoCursor,
+        tocar,
+        tocarOuPausar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -22,7 +27,6 @@ import 'the_pause_snaps_to_silence_test.dart'
         entrarComAFala,
         ouvirAPausa,
         pausarAos,
-        rotuloDoCirculo,
         s,
         tocarOCirculo,
         umaLacunaAos3;
@@ -48,7 +52,7 @@ void main() {
       findsOneWidget,
       reason: 'a escuta só existia como rótulo do círculo para o VoiceOver',
     );
-    final play = tester.getRect(byLabel(pausar));
+    final play = tester.getRect(byLabel(tocarOuPausar));
     final texto = tester.getRect(linha);
     expect(
       texto.left,
@@ -67,7 +71,7 @@ void main() {
     harness.playback.at = s(2.0);
     await tester.pump(passaDoCursor);
 
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
 
     expect(container.read(salaSessionProvider).btClipPausada, isTrue);
     expect(
@@ -89,11 +93,6 @@ void main() {
     final container = await entrarComAFala(tester, harness, umaLacunaAos3);
     await pausarAos(tester, harness, s(4.2));
 
-    expect(
-      rotuloDoCirculo(tester),
-      'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo '
-      'para traduzir',
-    );
     expect(
       find.descendant(
         of: find.byType(RetroView),
@@ -135,10 +134,6 @@ void main() {
     final container = await entrarComAFala(tester, harness, null);
     await pausarAos(tester, harness, s(4.2));
 
-    expect(
-      rotuloDoCirculo(tester),
-      'a pausa ficou no toque — toquem no círculo para traduzir',
-    );
     expect(
       find.descendant(
         of: find.byType(RetroView),
@@ -302,7 +297,7 @@ void main() {
       reason: 'a sala em inglês escrevia a escuta em português',
     );
 
-    await tocar(tester, 'Pause');
+    await tocar(tester, 'Play or pause your recording');
 
     expect(
       naTela(
@@ -388,7 +383,7 @@ void main() {
     final container = await entrarNaTraducao(tester, harness);
     harness.playback.at = const Duration(milliseconds: 600);
     await tester.pump(passaDoCursor);
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -477,7 +472,7 @@ void main() {
       ),
       reason: 'a fileira de 60 do play cortava a linha comprida',
     );
-    final play = tester.getRect(byLabel('Ouvir'));
+    final play = tester.getRect(byLabel(tocarOuPausar));
     final texto = tester.getRect(linha);
     expect(play.left, greaterThanOrEqualTo(16));
     expect(texto.left, greaterThan(play.right));

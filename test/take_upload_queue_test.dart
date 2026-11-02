@@ -2461,6 +2461,41 @@ void main() {
       );
     });
 
+    test('says it is the home\'s swap across a manifest read, and a row '
+        'written without the word reads as no swap', () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 2,
+        origin: 'ensaio-2',
+        swap: true,
+      );
+      await queue.enqueueTheJoin(
+        File('${home.path}/parte-3-junta.wav')..writeAsBytesSync(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 3,
+        passNumber: 1,
+        origin: 'ensaio-3',
+      );
+
+      final read = await queueOn(FakeRoom()).pending();
+
+      expect(
+        {for (final row in read) row.scope: row.swap},
+        {'parte-2': true, 'parte-3': false},
+      );
+      expect(
+        [
+          for (final row
+              in jsonDecode(manifest().readAsStringSync()) as List<dynamic>)
+            (row as Map<String, dynamic>).containsKey('swap'),
+        ],
+        [true, false],
+      );
+    });
+
     test('keeps its origin and reopening across a manifest read', () async {
       final room = FakeRoom()..reachable = false;
       aQueueWrittenByTheOlderApp('velha.m4a');
@@ -2532,6 +2567,24 @@ void main() {
       await aTapOnEveryRow(queue);
 
       expect(room.takesKept, ['ensaio/parte-2']);
+    });
+
+    test('is never a take left on the tablet: the tally holds it as its '
+        'scene\'s join on its way', () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      );
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+
+      expect(tally.unsentParts, isEmpty);
+      expect(tally.unsentTakes, 0);
+      expect(tally.joining, {'parte-2'});
     });
 
     test('withdrawn after its pass found it and before it is sent stays '

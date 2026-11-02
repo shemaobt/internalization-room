@@ -19,7 +19,7 @@ import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel, onAScreen, settle, withRealLetters;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show cabeca, passaDoCursor, pausar;
+    show cabeca, passaDoCursor, tocarOuPausar;
 import 'the_pause_snaps_to_silence_test.dart'
     show entrarComAFala, pausarAos, s, umaLacunaAos3;
 import 'um_ensaio_de_tres_partes.dart';
@@ -171,7 +171,7 @@ void main() {
       await tester.pump(passaDoCursor);
 
       expect(
-        tester.getRect(byLabel(pausar)).top,
+        tester.getRect(byLabel(tocarOuPausar)).top,
         greaterThanOrEqualTo(_theRing(tester).bottom),
         reason: 'o botão de pausar ficava dentro do anel do círculo',
       );

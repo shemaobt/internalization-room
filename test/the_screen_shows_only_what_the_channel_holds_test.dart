@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/main.dart';
 
@@ -77,20 +76,19 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _atTheConferida(tester, harness);
     final sala = container.read(salaSessionProvider.notifier);
-    final pausar = byLabel(retroLabelFor('pause', testLanguage));
 
     sala.ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(pausar, findsOneWidget);
+    expect(harness.playback.sounding, isTrue);
     sala.ouvirGravacao();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(pausar, findsNothing);
+    expect(harness.playback.sounding, isFalse);
 
     harness.room.reachable = false;
     await sala.aprovarRascunhoFinal();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(pausar, findsNothing);
+    expect(harness.playback.sounding, isFalse);
     expect(container.read(salaSessionProvider).channel, const Silence());
     closeTheRoom(container);
   });

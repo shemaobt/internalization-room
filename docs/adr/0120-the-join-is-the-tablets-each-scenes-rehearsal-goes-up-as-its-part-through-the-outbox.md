@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (amended by ENG-1914, and by ENG-2079)
 date: 2026-10-23
 extends: 0087
 ---
@@ -21,7 +21,7 @@ The Definer settled the rules on ENG-1385 (Definition of 22 October; answers Q34
 - The part goes up one pass above the highest the room lists for it when its row is written.
 - The row also names the take the room lists as the part when it is written (`over_take`), or none only when the room listed the scene as empty; a listing the room does not answer writes no row and the scene says to try again. The room refuses `TAKE_MOVED` when the part's take is another by then (Q69, her I11a). That refusal is the same race as an answer that is not the part: wherever it arrives the row leaves the Outbox with its copy, never counted unsent and never sent again; on the plan, no «✓», and it closes to the recording home with no line and no retry.
 - Her windows over our Outbox: a request of the row's own with no answer for 70 s is given up, timed from when that request goes out, never while rows ahead of it are still sending; a "wait" (an answer the house reads as a network failure) is resent quietly every 5 s for at least 90 s. Either way, and on any other refusal, the row says «não deu para juntar esta cena — toquem para tentar de novo» and the loop stops; its tap continues from the plan as it is. A refusal naming the rehearsal as no part of the passage, a fingerprint that differs, or a recording gone from the room says «este ensaio não pode entrar» and the loop goes on.
-- A row given up for no answer stays in the Outbox and goes up only on its scene row's «enviar agora», also after a relaunch (0087, amended 28 October).
+- A row given up for no answer stays in the Outbox and goes up only on the notice's «enviar agora», also after a relaunch (0087, amended 28 October).
 - A row refused for good leaves the Outbox with its part, so it never comes back over the rehearsal the team chose next.
 - The room answers the take it already holds for the same bytes. When that take is not the scene's current part (the part was recorded again by hand meanwhile), on this try or on a landing in the background, the join claims nothing: no «✓», the part and its file leave the tablet, and the plan closes to the recording home, where the current part stands.
 - The join loop lives in the notifier, not in the machine, as the plan's own steps do (0117, 0118): an exception to AGENTS.md «The room's core» until the plan moves to the machine.
@@ -42,3 +42,22 @@ The Definer settled the rules on ENG-1385 (Definition of 22 October; answers Q34
 ## Consequences
 
 ENG-1405 lays frases on these rows' landing; ENG-1407's «usar este» writes the same kind of row over a part; ENG-1408 starts its first listen on the home the join lands on. An older server, with no sha256 on its listing, gets the bytes' own hash as the fingerprint and so cannot refuse a different file.
+
+## Amendment · 2026-11-02 (ENG-2079)
+
+Her join is the server's; nothing of a join ever waits on her computer, and her pending notice
+lists only takes the team recorded (Drafting.tsx:2204-2214 at 18fa7c4). So a join row in the
+Outbox is never a take left on the tablet: it is never offered «enviar agora», never counted
+among the unsent takes, and never decides the dot's screen, which reads the room's listing
+alone; ENG-1914's notice lists only takes the team recorded. «A row given up for no answer goes up only on
+the notice's «enviar agora»» (ENG-1914's wording of the line above) changes:
+**it is that scene's join in progress on the plan, and «juntar» sends it again**. The retro door
+still waits for it. A join row spent by its attempts, which only a disk failure does, is no
+longer that scene's join in progress: the scene is one to join again.
+
+A swap the tablet was closed on («usar este», ENG-1407) leaves the Outbox with its copy when
+the recording home is next reached: the room's part stays on the row and «trocar o ensaio
+desta cena» (or «usar o ensaio desta cena» over a row with no part) is offered again (Definer,
+2 November). The home's swap marks its row (`swap`), the only word the Outbox row carries for
+it, and only this session's rows so marked leave; a row an older app wrote has none and stays
+as a join of the plan (Definer, 2 November, on ENG-2125).

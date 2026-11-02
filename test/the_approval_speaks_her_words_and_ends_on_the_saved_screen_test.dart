@@ -8,7 +8,9 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/main.dart';
 
@@ -17,7 +19,7 @@ import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
-const _ouvir = 'Ouvir a gravação';
+const _tocarOuPausar = 'Tocar ou pausar a gravação';
 const _traduzir = 'Traduzir a gravação';
 
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
@@ -336,7 +338,7 @@ void main() {
       expect(find.text(_aprovado(1)), findsOneWidget);
       expect(byLabel(_pronto), findsOneWidget);
       expect(byLabel(_aprovar), findsNothing);
-      expect(byLabel(_ouvir), findsNothing);
+      expect(byLabel(_tocarOuPausar), findsNothing);
       expect(find.text(_traduzir), findsNothing);
 
       final falasAntesDoPronto = it.harness.voice.fixedLines.length;
@@ -674,7 +676,7 @@ void main() {
       await _tocar(tester);
       final tocadas = it.harness.playback.playedFrom.length;
 
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(it.harness.playback.playedFrom, hasLength(tocadas));
@@ -772,7 +774,7 @@ void main() {
       it.harness.voice.holdNextLine();
       await _tocar(tester);
 
-      expect(_humor(tester, _ouvir), ButtonMood.dimmed);
+      expect(_humor(tester, _tocarOuPausar), ButtonMood.dimmed);
       expect(
         tester
             .getSemantics(byLabel(_recomecar))
@@ -856,7 +858,7 @@ void main() {
       await _saiEVoltaAConferida(tester, it);
 
       final tocadas = it.harness.playback.playedFrom.length;
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
       expect(it.harness.playback.playedFrom, hasLength(tocadas + 1));
 
@@ -910,7 +912,7 @@ void main() {
     final it = await _ateAConferida(tester);
 
     expect(
-      tester.getCenter(byLabel(_ouvir)).dx,
+      tester.getCenter(byLabel(_tocarOuPausar)).dx,
       400,
       reason: 'o espaço do botão que saiu empurrava o ouvir para a esquerda',
     );
@@ -1532,14 +1534,69 @@ void main() {
       closeTheRoom(it.container);
     });
 
-    testWidgets('no offer while a take is being recorded', (tester) async {
+    testWidgets('while a take records on a checked home, «$_aprovar» stays '
+        'drawn and disabled, and a tap approves nothing', (tester) async {
+      final semantics = tester.ensureSemantics();
       final it = await aCasaConferida(tester);
 
       it.container.read(salaSessionProvider.notifier).gravarACena(2);
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(byLabel(_aprovar), findsNothing);
+      expect(it.container.read(salaSessionProvider).microphoneOpen, isTrue);
+      expect(byLabel(_aprovar), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(byLabel(_aprovar))
+            .getSemanticsData()
+            .flagsCollection
+            .isEnabled,
+        Tristate.isFalse,
+      );
+      await tester.tap(byLabel(_aprovar), warnIfMissed: false);
+      await _assentar(tester);
+      expect(it.harness.room.releasesAsked, isEmpty);
       closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
+    testWidgets('a press asked of the notifier while a take records approves '
+        'nothing', (tester) async {
+      final it = await aCasaConferida(tester);
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.gravarACena(2);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await sala.aprovarRascunhoFinal();
+      await _assentar(tester);
+
+      expect(it.harness.room.releasesAsked, isEmpty);
+      closeTheRoom(it.container);
+    });
+
+    test('a take of an earlier visit waiting in the Outbox over a checked '
+        'home keeps the button offered and resting', () {
+      const home = SalaSessionState(
+        machine: Machine(station: Ensaio()),
+        btChecked: true,
+        unsentTakes: 1,
+      );
+      expect(home.approveOffered, isTrue);
+      expect(home.approveActsOnTheHome, isFalse);
+      expect(
+        home.copyWith(unsentTakes: 0).approveActsOnTheHome,
+        isTrue,
+        reason: 'o caso só mede alguma coisa se a fila vazia deixa agir',
+      );
+    });
+
+    test('a take of an earlier visit waiting in the Outbox over an approved '
+        'draft keeps the badge', () {
+      const home = SalaSessionState(
+        machine: Machine(station: Ensaio()),
+        btRascunhoAprovado: ApprovedDraft(version: 1),
+        unsentTakes: 1,
+      );
+      expect(home.approvedOnTheHome, const ApprovedDraft(version: 1));
     });
 
     testWidgets(

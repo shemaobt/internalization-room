@@ -797,10 +797,7 @@ class RetroView extends ConsumerWidget {
     String language,
     SalaColors colors,
   ) {
-    final soando =
-        session.btClipRodando ||
-        session.btTrechoTocando ||
-        session.btRetroTocando;
+    final playPause = sceneRehearsalLabelFor('playPause', language);
     if (session.btPhase == BtPhase.conferida) {
       // The room stays open after a clean verdict: the voice invites one last listening
       // and then the approval, and the passage is not finished until the team presses.
@@ -810,10 +807,7 @@ class RetroView extends ConsumerWidget {
           children: [
             RoundActionButton(
               size: 60,
-              semanticLabel: retroLabelFor(
-                soando ? 'pause' : 'listenToTheRecording',
-                language,
-              ),
+              semanticLabel: playPause,
               gradient: BeadStyles.wood,
               mood: session.canListenAtConferida
                   ? ButtonMood.lit
@@ -850,17 +844,7 @@ class RetroView extends ConsumerWidget {
         children: [
           RoundActionButton(
             size: 60,
-            semanticLabel: session.btSoOuvir
-                ? sceneRehearsalLabelFor('playPause', language)
-                : retroLabelFor(
-                    soando
-                        ? 'pause'
-                        : session.btTraducaoPendente != null &&
-                              session.btContaEscolhida == null
-                        ? 'listenToTheTranslation'
-                        : 'listen',
-                    language,
-                  ),
+            semanticLabel: playPause,
             gradient: BeadStyles.wood,
             mood: session.btSoOuvir || session.canListenToThePendingStretch
                 ? ButtonMood.lit
@@ -907,61 +891,10 @@ class RetroView extends ConsumerWidget {
     return 'paused';
   }
 
-  String _circleLabel(SalaSessionState session, String language) {
-    if (session.wordlessTelling) {
-      return retroLabelFor('notUnderstood', language);
-    }
-    if (session.btRegravacao?.passo
-        case PassoDaRegravacao.pronta ||
-            PassoDaRegravacao.gravando ||
-            PassoDaRegravacao.revendo) {
-      return sceneRehearsalLabelFor('respeakHint', language);
-    }
-    switch (session.btPhase) {
-      case BtPhase.playing:
-        if (session.btClipEnded &&
-            !session.btTrechoTocando &&
-            !session.btParteFronteira &&
-            session.btTraducaoPendente == null &&
-            session.btTrechoTraduzidoDeNovo == null) {
-          return retroLabelFor('endOfTheRecording', language);
-        }
-        if (session.thePauseStands) {
-          return retroLabelFor(
-            session.btPausaAjustavel ? 'pauseHint' : 'pauseAtTheTap',
-            language,
-          );
-        }
-        if (session.btClipRodando || session.btTrechoTocando) {
-          return retroLabelFor('listening', language);
-        }
-        if (session.btTrechoTraduzidoDeNovo == null &&
-            !session.btCortado &&
-            session.nothingHeardSinceCursor) {
-          return retroLabelFor(
-            session.btClipEnded || session.btClipPausada
-                ? 'paused'
-                : 'listenFirst',
-            language,
-          );
-        }
-        if (session.btClipPausada &&
-            session.btTraducaoPendente == null &&
-            session.btTrechoTraduzidoDeNovo == null) {
-          return retroLabelFor('paused', language);
-        }
-        return retroLabelFor(
-          session.btTraducaoPendente != null ? 'recordAgain' : 'record',
-          language,
-        );
-      case BtPhase.capturing:
-        return retroLabelFor('recording', language);
-      case BtPhase.thinking:
-        return retroLabelFor('thinking', language);
-      case BtPhase.conferida:
-        return retroLabelFor('translated', language);
-    }
-  }
+  String _circleLabel(SalaSessionState session, String language) =>
+      session.btRegravacao != null
+      ? sceneRehearsalLabelFor('respeakHint', language)
+      : retroLabelFor('tell', language);
 }
 
 /// «ouvindo a gravação de vocês… — parte 2 · 0:41 / 1:10»: her line, then the place while

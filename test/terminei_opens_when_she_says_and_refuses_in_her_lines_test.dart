@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
-import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/status_lines.dart';
@@ -18,10 +17,8 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         conferir,
         contarAteOFimDaParte,
         entrarNaTraducao,
-        fimDaGravacao,
         gravarATraducao,
         parte,
-        terminar,
         tocar,
         tocarNoCirculo;
 
@@ -675,10 +672,10 @@ void main() {
       findsOneWidget,
     );
 
-    await tocar(tester, fimDaGravacao);
-    await tocar(tester, fimDaGravacao);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.room.failChunkWith = const Refused(RefusalCode.wordlessTelling);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a sala não entender a frase',
       () => container.read(salaSessionProvider).wordlessTelling,
@@ -707,7 +704,7 @@ void main() {
     await tocarNoCirculo(tester);
     await tocarNoCirculo(tester);
     harness.room.failChunkWith = const NetworkFailed('sem rede');
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await waitFor('a frase voltar da rede', () {
       final estado = container.read(salaSessionProvider);
       return estado.wordlessTelling;
@@ -752,7 +749,7 @@ void main() {
 
     for (var vez = 1; vez <= 3; vez++) {
       if (vez == 1) {
-        await tocar(tester, terminar);
+        await tocarNoCirculo(tester);
       } else {
         await tester.tap(find.byType(FacilitatorCircle));
         await _passo(tester);
@@ -779,14 +776,14 @@ void main() {
     final container = await entrarNaTraducao(tester, harness, partes: 1);
     harness.playback.at = cabeca;
     await tocarNoCirculo(tester);
-    await tocar(tester, retroLabelFor('pauseAtTheTap', 'en'));
-    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     harness.playback.at = parte;
     harness.playback.finishPlayback();
     await _passo(tester);
-    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
-    await tocar(tester, retroLabelFor('endOfTheRecording', 'en'));
-    await tocar(tester, retroLabelFor('recording', 'en'));
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await waitFor(
       'o terminei acender',
       () => container.read(salaSessionProvider).canAdvanceToTheVerdict,

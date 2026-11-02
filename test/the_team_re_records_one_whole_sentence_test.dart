@@ -37,7 +37,7 @@ import 'scenario_helpers.dart'
         onTheCircle,
         pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show aceso, cabeca, entrarNaTraducao, parte, tocar;
+    show aceso, cabeca, entrarNaTraducao, parte, tocar, tocarOuPausar;
 import 'support/temp.dart';
 
 Future<void> _passo(WidgetTester tester) =>
@@ -2940,12 +2940,7 @@ void main() {
     final sons = harness.playback.sounds.length;
 
     expect(
-      byLabel('Pausar'),
-      findsNothing,
-      reason: 'o ouvir principal virava pausar com a frase da revisão tocando',
-    );
-    expect(
-      aceso(tester, 'Ouvir'),
+      aceso(tester, tocarOuPausar),
       isFalse,
       reason: 'o ouvir principal acendia para a frase da revisão',
     );

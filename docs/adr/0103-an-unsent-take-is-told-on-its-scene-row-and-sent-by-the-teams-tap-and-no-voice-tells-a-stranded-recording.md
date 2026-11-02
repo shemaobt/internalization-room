@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0131 (2026-10-22: a take of this visit reads «enviando…», a refused take of this visit offers no tap, only a tap sends a spent take, and a part beyond the last scene is no longer retried by itself: its take is told and sent by the tap on its own row after the scenes, which records nothing), amended by 0177 (a row whose send ended on a wait reads failed with its tap; an earlier visit's take sent by the tap reads «✓ salvo»)
+status: accepted, amended by 0131 (2026-10-22: a take of this visit reads «enviando…», a refused take of this visit offers no tap, only a tap sends a spent take, and a part beyond the last scene is no longer retried by itself: its take is told and sent by the tap on its own row after the scenes, which records nothing), amended by 0177 (a row whose send ended on a wait reads failed with its tap; an earlier visit's take sent by the tap reads «✓ salvo»), amended by ENG-1914 (2026-11-02: an earlier visit's take is offered under the home's notice, never on its row)
 date: 2026-10-20
 amends: 0087, 0047, 0049, 0084
 ---
@@ -79,3 +79,8 @@ is deleted.
 The visit's own rows, the keeps that never reached the Outbox and the send-now gesture stay
 in the notifier, like the scene's own retry, until the Outbox's lifecycle moves into the
 machine; that is a debt against the room's core (AGENTS.md), taken knowingly.
+
+Amended by ENG-1914 (2026-11-02, Marcia's frozen app 18fa7c4 wins): the recording home lists
+every take of an earlier visit under her notice, one «Cena N · m:ss — enviar agora» per take in
+scene order, as the plan and the grain choice do (ADR 0117); a take being sent leaves the
+notice. Its Scene row draws no send for it. A take of this visit keeps its row's words.
