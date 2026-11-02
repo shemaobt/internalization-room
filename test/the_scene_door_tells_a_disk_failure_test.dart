@@ -66,6 +66,11 @@ final _sentOne = _rehearsal(
   ],
 );
 final _unsentTwo = _rehearsal(n: 2, recordedAt: DateTime(2026, 10, 15, 14, 10));
+final _unsentTwoWithAFrase = _rehearsal(
+  n: 2,
+  recordedAt: DateTime(2026, 10, 15, 14, 10),
+  frases: const [SceneFrase(fraseId: 'f1', startsMs: 0, endsMs: 4000)],
+);
 
 String _takeOf(int n) => '/ensaio-da-cena-$n/audio';
 
@@ -171,11 +176,12 @@ Future<(SalaHarness, ProviderContainer, _Before)> _aRowUnderADiskFailure(
 }
 
 Future<(SalaHarness, ProviderContainer, _Before)> _aReopenUnderADiskFailure(
-  WidgetTester tester,
-) async {
+  WidgetTester tester, {
+  SceneRehearsalRecord? reopened,
+}) async {
   final (harness, container) = await _theScreenShows(
     tester,
-    [_unsentTwo],
+    [reopened ?? _unsentTwo],
     when: (state) => state.sceneRehearsals.isNotEmpty,
     beforeTheTap: (harness) => harness.recorder.keepBytesFails = true,
   );
@@ -183,6 +189,14 @@ Future<(SalaHarness, ProviderContainer, _Before)> _aReopenUnderADiskFailure(
   await _pumpUntil(tester, () => _fetched(harness, _takeOf(2)));
   await tester.pump(const Duration(milliseconds: 500));
   return (harness, container, before);
+}
+
+final _recordAgain = byLabel('gravar o ensaio da cena de novo');
+
+/// The team leaves places unknown for the record step, the way it records again.
+Future<void> _recordsAgain(WidgetTester tester) async {
+  await tester.tap(_recordAgain);
+  await tester.pump(const Duration(milliseconds: 500));
 }
 
 final _fraseThreeControl = byLabel('ouvir a minha tradução da frase 3');
@@ -225,17 +239,19 @@ void main() {
   );
 
   testWidgets(
-    'a reopened scene rehearsal whose take the disk cannot keep shows the disk word '
-    'on the record step',
+    'a reopened scene rehearsal whose take the disk cannot keep opens on places '
+    'unknown, never on the record step, and shows the disk word there',
     (tester) async {
       final (harness, container, before) = await _aReopenUnderADiskFailure(
         tester,
+        reopened: _unsentTwoWithAFrase,
       );
 
       expect(
-        find.ancestor(of: _circleAtRest, matching: _theDiskWord),
-        findsOneWidget,
+        container.read(salaSessionProvider).scene.step,
+        SceneStep.placesUnknown,
       );
+      expect(_theDiskWord, findsOneWidget);
       expect(container.read(salaSessionProvider).scene.waiting, isFalse);
       _expectNoLineNoPerson(harness, container, before);
     },
@@ -279,6 +295,7 @@ void main() {
       final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
       expect(_theDiskWord, findsOneWidget);
       harness.recorder.keepBytesFails = false;
+      await _recordsAgain(tester);
 
       await tester.tap(_circleAtRest);
       await tester.pump(const Duration(milliseconds: 500));
@@ -335,6 +352,7 @@ void main() {
       final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
       expect(_theDiskWord, findsOneWidget);
       harness.recorder.rehearsalSpeaks = Uint8List(799);
+      await _recordsAgain(tester);
 
       await tester.tap(_circleAtRest);
       await tester.pump(const Duration(milliseconds: 500));
@@ -391,6 +409,7 @@ void main() {
     final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
     expect(_theDiskWord, findsOneWidget);
     harness.recorder.keepBytesFails = false;
+    await _recordsAgain(tester);
 
     await tester.tap(_circleAtRest);
     await tester.pump(const Duration(milliseconds: 500));

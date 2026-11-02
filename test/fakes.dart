@@ -570,6 +570,18 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> sweepTheRecordingsLeftBehind() async => sweeps++;
 
+  @override
+  Future<void> sweepTheKeptRetellingsOutside(String? session) async {
+    for (final entry in home.listSync()) {
+      if (entry is! File) continue;
+      final name = entry.uri.pathSegments.last;
+      if (name.startsWith('kept-') &&
+          (session == null || !name.startsWith('kept-$session-'))) {
+        entry.deleteSync();
+      }
+    }
+  }
+
   Object? deleteEveryThrows;
 
   @override
@@ -929,6 +941,12 @@ const deNovoUrl = '/api/internalization-room/voice/de-novo';
 
 class FakeCurrentSessionLedger implements CurrentSessionLedger {
   CurrentSession? held;
+
+  bool unreadable = false;
+
+  @override
+  Future<({CurrentSession? session})?> readIfKnown() async =>
+      unreadable ? null : (session: held);
 
   @override
   Future<CurrentSession?> read() async => held;
@@ -5115,5 +5133,12 @@ class LedgerThatReadsLate extends CurrentSessionLedger {
     final wait = readsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     return super.read();
+  }
+
+  @override
+  Future<({CurrentSession? session})?> readIfKnown() async {
+    final wait = readsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.readIfKnown();
   }
 }

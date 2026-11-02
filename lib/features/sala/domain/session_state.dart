@@ -110,7 +110,8 @@ final class ExternalCheckScreen {
 }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
-/// answered it, its take as a file on this tablet and the take's measured length, and
+/// answered it, its take as a file on this tablet and the take's length (the room's
+/// until the take comes down after the step opened, then as measured here), and
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
 /// question appeared and when the pick was made. On the translate step it holds
@@ -157,6 +158,8 @@ final class SceneScreen {
 
   SceneScreen copyWith({
     SceneRehearsalRecord? rehearsal,
+    String? take,
+    Duration? length,
     bool? waiting,
     String? label,
     bool clearLabel = false,
@@ -179,8 +182,8 @@ final class SceneScreen {
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal ?? this.rehearsal,
-    take: take,
-    length: length,
+    take: take ?? this.take,
+    length: length ?? this.length,
     waiting: waiting ?? this.waiting,
     label: clearLabel ? null : (label ?? this.label),
     keep: clearKeep ? null : (keep ?? this.keep),

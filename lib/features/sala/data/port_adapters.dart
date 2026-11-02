@@ -166,8 +166,8 @@ class ProviderStorePort implements StorePort {
   void stopTheSend(String row) => _ref.read(takeUploadQueueProvider).stop(row);
 
   @override
-  Future<CurrentSession?> currentSession() =>
-      _ref.read(currentSessionLedgerProvider).read();
+  Future<({CurrentSession? session})?> knownCurrentSession() =>
+      _ref.read(currentSessionLedgerProvider).readIfKnown();
 
   @override
   Future<void> holdTheSession(CurrentSession session) =>

@@ -142,13 +142,6 @@ bool _shows(String label) => byLabel(label).evaluate().isNotEmpty;
 
 const _theList = 'ensaios da cena desta sessão';
 
-String _rowOf(WidgetTester tester, int n) => _labelsOnScreen(tester).firstWhere(
-  (label) =>
-      label.toLowerCase().contains('ensaio da cena $n,') ||
-      label.toLowerCase().startsWith('continuar o ensaio da cena $n') ||
-      label.toLowerCase().startsWith('ensaio da cena $n'),
-);
-
 ({String words, bool live}) _theChip(WidgetTester tester) {
   final chip = tester.widget<SceneChip>(find.byType(SceneChip));
   return (words: chip.words, live: chip.live);
@@ -603,8 +596,8 @@ void main() {
 
   group('the waits and the way out', () {
     testWidgets(
-      'the session\'s rehearsals that answer after the 4 s gate showed the '
-      'question still list',
+      'the question waits for the session\'s rehearsals past 4 s, and shows '
+      'with them listed',
       (tester) async {
         final room = await _theScreenOpens(
           tester,
@@ -612,12 +605,11 @@ void main() {
           before: (harness) => harness.room.holdNextSceneList(),
           rests: false,
         );
-        await room.pump(const Duration(seconds: 4));
-        expect(byLabel(_question), findsOneWidget);
+        await room.pump(const Duration(seconds: 5));
+        expect(_theScreenRests(), isFalse);
 
-        await room.pump(const Duration(seconds: 1));
         room.room.finishHeldSceneList();
-        await room.pump(const Duration(milliseconds: 100));
+        await room.pumpUntil('a pergunta aparecer', () => _shows(_question));
 
         expect(byLabel(_theList), findsOneWidget);
         expect(_highlighted(tester), [_scene2]);
@@ -1002,8 +994,8 @@ void main() {
 
   group('the open never blocks recording', () {
     testWidgets(
-      'a rehearsal list that never answers leaves the circle on screen after 4 '
-      'seconds, and the team records',
+      'a rehearsal list in the air keeps the circle off the screen past 4 '
+      'seconds; once it answers, the circle shows and the team records',
       (tester) async {
         final room = await _theScreenOpens(
           tester,
@@ -1011,13 +1003,16 @@ void main() {
           before: (harness) => harness.room.holdNextSceneList(),
           rests: false,
         );
-        await room.pump(const Duration(milliseconds: 3900));
+        await room.pump(const Duration(seconds: 4));
 
         expect(_theCircleShows(), isFalse);
 
-        await room.pump(const Duration(milliseconds: 100));
+        await room.pump(const Duration(seconds: 2));
 
-        expect(byLabel(_record), findsOneWidget);
+        expect(_theCircleShows(), isFalse);
+
+        room.room.finishHeldSceneList();
+        await room.pumpUntil('o círculo aparecer', () => _shows(_record));
         await room.theMicrophoneOpens();
         closeTheRoom(room.container);
       },
@@ -1047,189 +1042,7 @@ void main() {
     );
   });
 
-  group('a reopen whose take is late', () {
-    testWidgets(
-      'an unsent rehearsal whose take is still on its way never sits on the '
-      'record step: its row opens from the list, and a take recorded there '
-      'carries none of it',
-      (tester) async {
-        final room = await _theScreenOpens(
-          tester,
-          rehearsals: [_rehearsal(1, scene: 'S1')],
-          before: (harness) => harness.room.holdNextClip(),
-          rests: false,
-        );
-        await room.pump(const Duration(seconds: 4));
-
-        expect(byLabel(_question), findsOneWidget);
-        expect(_rowOf(tester, 1), startsWith('continuar o ensaio da cena 1'));
-
-        await room.sleepThrough();
-        await room.pick(_scene2);
-        await room.sleepThrough();
-        room.harness.recorder.rehearsalSpeaks = _aTake(7);
-        await room.theMicrophoneOpens();
-
-        expect(_rowOf(tester, 1), startsWith('continuar o ensaio da cena 1'));
-
-        await room.stop();
-        await room.pumpUntil(
-          'o take novo abrir na tradução',
-          () => room.state.scene.rehearsal?.n == 2,
-        );
-        room.room.finishHeldClip();
-        await room.pump(const Duration(milliseconds: 100));
-
-        expect(room.state.scene.rehearsal?.n, 2);
-
-        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
-        await room.pumpUntil(
-          'o ensaio 1 abrir',
-          () => room.state.scene.rehearsal?.n == 1 && !room.state.scene.waiting,
-        );
-        closeTheRoom(room.container);
-      },
-    );
-  });
-
   group('the open after its 4 s', () {
-    testWidgets(
-      'the session\'s rehearsals that answer after the team picked still list, '
-      'and the highlight reads them',
-      (tester) async {
-        final room = await _theScreenOpens(
-          tester,
-          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
-          before: (harness) => harness.room.holdNextSceneList(),
-          rests: false,
-        );
-        await room.pump(const Duration(seconds: 4));
-        await room.sleepThrough();
-        await room.pick(_scene3);
-
-        room.room.finishHeldSceneList();
-        await room.pump(const Duration(milliseconds: 100));
-
-        expect(byLabel(_theList), findsOneWidget);
-
-        await room.sleepThrough();
-        await tester.tap(byLabel(_chip3));
-        await room.pump();
-
-        expect(_highlighted(tester), [_scene2]);
-        closeTheRoom(room.container);
-      },
-    );
-
-    testWidgets(
-      'a reopen whose take lands after the record step showed gives up, and its '
-      'row stays openable',
-      (tester) async {
-        final room = await _theScreenOpens(
-          tester,
-          rehearsals: [_rehearsal(1, scene: 'S1')],
-          atTheScreen: (harness) => harness.room
-            ..holdNextScenes()
-            ..holdNextClip(),
-          rests: false,
-        );
-        await room.pump(const Duration(seconds: 4));
-        expect(byLabel(_record), findsOneWidget);
-
-        await room.pump(const Duration(seconds: 1));
-        room.room.finishHeldClip();
-        await room.pump(const Duration(milliseconds: 100));
-
-        expect(room.state.scene.step, SceneStep.record);
-        expect(_theScreenRests(), isTrue);
-
-        room.sala.openTheListedSceneRehearsal('ensaio-da-cena-1');
-        await room.pumpUntil(
-          'o ensaio 1 abrir',
-          () => room.state.scene.rehearsal?.n == 1 && !room.state.scene.waiting,
-        );
-        closeTheRoom(room.container);
-      },
-    );
-
-    testWidgets(
-      'a reopen whose take lands after the question showed gives up too',
-      (tester) async {
-        final room = await _theScreenOpens(
-          tester,
-          rehearsals: [_rehearsal(1, scene: 'S1')],
-          before: (harness) => harness.room.holdNextClip(),
-          rests: false,
-        );
-        await room.pump(const Duration(seconds: 4));
-        expect(byLabel(_question), findsOneWidget);
-
-        await room.pump(const Duration(seconds: 1));
-        room.room.finishHeldClip();
-        await room.pump(const Duration(milliseconds: 100));
-
-        expect(room.state.scene.step, SceneStep.record);
-        expect(byLabel(_question), findsOneWidget);
-        closeTheRoom(room.container);
-      },
-    );
-
-    testWidgets(
-      'a reopen still measuring its take when the record step shows gives up',
-      (tester) async {
-        final room = await _theScreenOpens(
-          tester,
-          rehearsals: [_rehearsal(1, scene: 'S1')],
-          atTheScreen: (harness) {
-            harness.room.holdNextScenes();
-            harness.playback.holdNextMeasurement();
-          },
-          rests: false,
-        );
-        await room.pump(const Duration(seconds: 4));
-        expect(byLabel(_record), findsOneWidget);
-
-        room.harness.playback.finishHeldMeasurement();
-        await room.pump(const Duration(milliseconds: 100));
-
-        expect(room.state.scene.step, SceneStep.record);
-        expect(byLabel(_record), findsOneWidget);
-        closeTheRoom(room.container);
-      },
-    );
-
-    testWidgets(
-      'a rehearsal list that answers late never drops the take kept meanwhile',
-      (tester) async {
-        final room = await _theScreenOpens(
-          tester,
-          rehearsals: [_rehearsal(1, scene: 'S1', sent: true)],
-          before: (harness) => harness.room.holdNextSceneList(),
-          rests: false,
-        );
-        await room.pump(const Duration(seconds: 4));
-        await room.sleepThrough();
-        await room.pick(_scene2);
-        await room.sleepThrough();
-        await room.recordAndStop();
-        await room.pumpUntil(
-          'o take abrir na tradução',
-          () => room.state.scene.rehearsal?.n == 2,
-        );
-
-        room.room.finishHeldSceneList();
-        await room.pump(const Duration(milliseconds: 100));
-
-        expect(
-          room.state.sceneRehearsals.map((row) => row.n),
-          [1, 2],
-          reason: 'a resposta velha não tira o take guardado',
-        );
-        expect(_rowOf(tester, 2), startsWith('Ensaio da cena 2'));
-        closeTheRoom(room.container);
-      },
-    );
-
     test(
       'a late list adds the rows the screen lacks, keeps the rest, and never '
       'turns a sent rehearsal back to unsent',
