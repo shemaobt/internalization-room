@@ -158,6 +158,8 @@ final class SceneScreen {
 
   SceneScreen copyWith({
     SceneRehearsalRecord? rehearsal,
+    String? take,
+    Duration? length,
     bool? waiting,
     String? label,
     bool clearLabel = false,
@@ -180,8 +182,8 @@ final class SceneScreen {
   }) => SceneScreen(
     step: step,
     rehearsal: rehearsal ?? this.rehearsal,
-    take: take,
-    length: length,
+    take: take ?? this.take,
+    length: length ?? this.length,
     waiting: waiting ?? this.waiting,
     label: clearLabel ? null : (label ?? this.label),
     keep: clearKeep ? null : (keep ?? this.keep),
@@ -200,28 +202,6 @@ final class SceneScreen {
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
-
-  /// The screen with its take come down after the step opened, and the take's length as
-  /// this tablet measured it.
-  SceneScreen withTheTake(String take, Duration? length) => SceneScreen(
-    step: step,
-    rehearsal: rehearsal,
-    take: take,
-    length: length,
-    waiting: waiting,
-    label: label,
-    keep: keep,
-    picked: picked,
-    again: again,
-    askedAt: askedAt,
-    pickedAt: pickedAt,
-    pausa: pausa,
-    listened: listened,
-    notUnderstood: notUnderstood,
-    translatingAgain: translatingAgain,
-    wentToTheVoice: wentToTheVoice,
-    heard: heard,
-  );
 
   /// The screen with nothing asked again: her «não entendi» gone and no frase being
   /// translated again.

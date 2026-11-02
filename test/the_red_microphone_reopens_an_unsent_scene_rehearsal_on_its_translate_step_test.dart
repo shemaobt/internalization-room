@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -278,12 +279,13 @@ Future<SceneRoom> _keptOnTheTablet({
 
 /// Rehearsal 1 on its translate step with a frase the room refused while it was sending
 /// the rehearsal, so the tablet still holds it; then the room is unreachable, the team
-/// leaves and opens the red microphone again.
+/// leaves, the take is gone from the tablet, and the red microphone opens again.
 Future<SceneRoom> _aHeldFraseOffline() async {
   final room = await _aRoom(rehearsals: [_rehearsal()]);
   room.sala.openTheSceneRehearsal();
   await _translates(room, 1);
   await _theTakeLands(room);
+  final take = room.state.scene.take!;
   room.sala.playTheSceneRehearsal();
   await waitFor(
     'o ensaio da cena tocar',
@@ -308,6 +310,7 @@ Future<SceneRoom> _aHeldFraseOffline() async {
   await settle();
   room.harness.room.reachable = false;
   await _leaves(room);
+  File(take).deleteSync();
   room.sala.openTheSceneRehearsal();
   await _translates(room, 1);
   return room;
@@ -721,6 +724,42 @@ void main() {
         await _theTakeLands(room);
 
         expect(_takesAskedOf(room, 1), 1);
+      },
+    );
+
+    test(
+      'a take that lands while «recomeçar» is in the air leaves the screen to '
+      'the answer of «recomeçar»',
+      () async {
+        final room = await atRest(
+          SalaHarness(filaEmMemoria: true, restartWake: Duration.zero),
+        );
+        room.harness.room
+          ..sceneRehearsals.add(_rehearsal())
+          ..sceneAudio = aSpokenWav(length: _length);
+        room.harness.playback.measured = _length;
+        addTearDown(room.harness.room.finishHeldClip);
+        addTearDown(room.harness.room.finishHeldRestart);
+        room.harness.room.holdNextClip();
+        room.sala.openTheSceneRehearsal();
+        await _translates(room, 1);
+        room.harness.room.holdNextRestart();
+        await restartTheTranslationInTwoTaps(room);
+        await waitFor(
+          '«recomeçar» ir para a sala',
+          () => room.state.scene.waiting,
+        );
+
+        room.harness.room.finishHeldClip();
+        await settle();
+        room.harness.room.finishHeldRestart();
+        await waitFor(
+          'a tela sair da espera',
+          () => !room.state.scene.waiting,
+          limit: const Duration(seconds: 3),
+        );
+
+        expect(room.state.scene.step, SceneStep.translate);
       },
     );
 

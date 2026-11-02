@@ -10,7 +10,7 @@ list is taken whenever it lands, with no retry while the step is not record. Onl
 reopens does the record step wait for the scene list, at most 4 seconds from the open; the 4 s
 and its 2 s and 8 s retries bound only that list. A scene take waiting in the Outbox comes
 back at once, without waiting for the rehearsals. Her app opens the same way
-(Rehearsal.tsx 324-342).
+(Rehearsal.tsx 324-342 at 18fa7c4).
 
 # The team's scene is a tap on the scene question, read at the record tap
 
