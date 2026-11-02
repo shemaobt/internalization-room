@@ -4097,8 +4097,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
     }
-    await _theSwapsLeftBehindGo(sessionId, outbox);
-    if (_abandoned(generation)) return;
+    if (outbox.any((row) => row.sessionId == sessionId && row.swap)) {
+      await _theSwapsLeftBehindGo(sessionId, outbox);
+      if (_abandoned(generation)) return;
+    }
     final rows = [
       for (final entry in outbox)
         if (entry.sessionId == sessionId &&
