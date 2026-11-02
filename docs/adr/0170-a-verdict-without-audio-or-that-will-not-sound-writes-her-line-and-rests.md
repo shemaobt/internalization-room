@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-2128 (2026-11-02: the verdict heard again through «ouvir a resposta de novo» is outside the reload and the sign too)
+status: accepted, amended by ENG-2128 (2026-11-02: the verdict heard again through «ouvir a resposta de novo» is outside the reload and the sign too), amended by 0176 (a refusal that carries its own route never writes her line)
 date: 2026-10-30
 amends: 0152 (in part: the verdict is no longer a reply loaded once more), 0160 (in part: the verdict's sound is no longer a source of a waiting halt)
 ---
