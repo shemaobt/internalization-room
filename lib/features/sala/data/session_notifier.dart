@@ -9589,6 +9589,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canAdjustThePause) return;
     final parte = _parteNoAr;
     if (parte == null) return;
+    _tocarOMomentoAntesDaPausa(parte);
+  }
+
+  void _tocarOMomentoAntesDaPausa(KeptTake parte) {
     final segurada = _tirarAParteDoPlayer();
     _play(
       StretchSound(
@@ -9602,8 +9606,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
   }
 
-  void _seguirDaPausa() =>
-      _tocarParteDaRetro(_parteTocando, noCursor: true, desde: _trechoEnd);
+  void _seguirDaPausa() {
+    final parte = _parteNoAr;
+    if (parte == null) return;
+    final pausa = _trechoEnd;
+    if (_oTamanhoDa(parte) case final tamanho?
+        when isAtTheEnd(pausa, tamanho)) {
+      _tocarOMomentoAntesDaPausa(parte);
+      return;
+    }
+    _tocarParteDaRetro(_parteTocando, noCursor: true, desde: pausa);
+  }
 
   Duration get _cabeca {
     if (state.btParteFronteira || state.btClipEnded) {

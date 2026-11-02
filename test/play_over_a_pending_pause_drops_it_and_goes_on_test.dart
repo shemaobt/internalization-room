@@ -5,9 +5,9 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show ouvir, pausar, tocar;
+    show ouvir, parte, pausar, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
-    show entrarComAFala, ouvirAPausa, pausarAos, s;
+    show entrarComAFala, ouvirAPausa, pausarAos, s, tocarOCirculo;
 
 final _umaLacunaAos4e4 = aSpokenWav(gaps: [(s(4.4), s(4.8))]);
 
@@ -83,6 +83,33 @@ void main() {
       reason: 'o play retomava o momento antes da pausa em vez de seguir dela',
     );
     expect(container.read(salaSessionProvider).btCortado, isFalse);
+    closeTheRoom(container);
+  });
+
+  testWidgets('play over a pause standing at the end of the part plays the '
+      'moment before it, and the pause stays', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, null);
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tocarOCirculo(tester);
+    expect(container.read(salaSessionProvider).btCorte, parte);
+
+    await tocar(tester, ouvir);
+
+    expect(
+      harness.playback.ranges.lastOrNull,
+      '8500-10000',
+      reason:
+          'no fim da parte o play seguia da pausa, onde não há mais nada a '
+          'ouvir',
+    );
+    expect(
+      container.read(salaSessionProvider).btCortado,
+      isTrue,
+      reason: 'a pausa no fim da gravação caía com o play',
+    );
     closeTheRoom(container);
   });
 }
