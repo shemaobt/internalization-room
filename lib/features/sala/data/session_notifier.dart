@@ -3996,7 +3996,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The Ensaio Final plan, «pensando…» while the room is read.
-  void _openThePlan(String sessionId, {bool grainHeard = false}) {
+  void _openThePlan(
+    String sessionId, {
+    bool grainHeard = false,
+    bool joins = false,
+  }) {
     const plan = Ensaio(step: EnsaioStep.plan);
     _plansOpened++;
     _leaveTheStepFor(plan);
@@ -4015,7 +4019,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       peerCue: false,
     );
     unawaited(_countUnsent());
-    _handOff(_readThePlan(sessionId, grainHeard: grainHeard));
+    _handOff(_readThePlan(sessionId, grainHeard: grainHeard, joins: joins));
   }
 
   /// The plan stands only over a passage the room says has scenes and whose every take
@@ -4027,8 +4031,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// force, and open that grain's recording home otherwise; a read that fails or runs out
   /// with the room's listing unread asks the grain whatever is in force, unless the room
   /// has just named the grain: on the choice, in a listing that answered after it stood,
-  /// or from the choice's whole home (ADR 0134).
-  Future<void> _readThePlan(String sessionId, {bool grainHeard = false}) async {
+  /// or from the choice's whole home (ADR 0134). A plan read that [joins] runs
+  /// «juntar as cenas e ouvir» on the plan it stands, and opens the recording home when
+  /// it has nothing to join.
+  Future<void> _readThePlan(
+    String sessionId, {
+    bool grainHeard = false,
+    bool joins = false,
+  }) async {
     final generation = _waitOnTheGeneration;
     final known = state.scenesOfThePassage;
     var listingRead = grainHeard;
@@ -4143,6 +4153,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           ensaioFinalPlan: read,
           scenesOfThePassage: passage,
         );
+        if (joins && !_joinTheScenes()) {
+          return _openTheRecordingHome(sessionId, listed: guardadas);
+        }
       default:
         _theGrainOrItsHome(
           sessionId,
@@ -4276,14 +4289,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         _switchTheGrain(
           Grain.scene,
           reopens: state.overAnApprovedDraft,
-          then: () => _openThePlan(state.sessionId!),
+          then: () =>
+              _openThePlan(state.sessionId!, grainHeard: true, joins: true),
         ),
       ),
     );
   });
 
   /// Every grain control's one way through the room's grain door: nothing at the new
-  /// grain happens before the door answered, and a door that fails changes nothing.
+  /// grain happens before the door answered, and a door that fails changes nothing. A
+  /// door whose answer is lost keeps the grain controls closed until the room's listing
+  /// says which grain is in force.
   Future<void> _switchTheGrain(
     Grain grain, {
     required bool reopens,
@@ -4294,14 +4310,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     if (!fromTheChoice && state.grainInForce == grain) return then();
     final generation = _waitOnTheGeneration;
+    final life = _thisLife;
     state = state.copyWith(grainSwitching: true);
     final answer = await _room.switchTheGrain(
       sessionId,
       grain,
       reopensTheApprovedDraft: reopens,
     );
-    if (_gone) return;
-    state = state.copyWith(grainSwitching: false);
+    if (_endedSince(life)) return;
+    state = state.copyWith(
+      grainSwitching: answer is NetworkFailed && !_abandoned(generation),
+    );
     if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final listing):
@@ -4317,7 +4336,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         }
       case final NetworkFailed failure:
         _decideAt(failure, rule: RefusalRule.passes);
-        if (await _room.takesListingOf(sessionId) case Answered(
+        final listed = await _room.takesListingOf(sessionId);
+        if (_endedSince(life)) return;
+        state = state.copyWith(grainSwitching: false);
+        if (listed case Answered(
           value: final listing,
         ) when !_abandoned(generation)) {
           _theRoomsGrainHeard(listing);
@@ -4973,15 +4995,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _silenceTheRoom();
   }
 
-  void joinTheScenes() => _gesture(() {
+  void joinTheScenes() => _gesture(_joinTheScenes);
+
+  bool _joinTheScenes() {
     final rows = _planRows;
     if (rows == null ||
         state.planBusy ||
         !canJoin(rows, held: state.heldScenes)) {
-      return;
+      return false;
     }
     _handOff(_joinTheScenesNow(rows));
-  });
+    return true;
+  }
 
   void retryTheJoin(int number) => _gesture(() {
     final rows = _planRows;
