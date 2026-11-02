@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home); amended by ENG-2103 (2026-10-30: a remembered grain is let go when the room's listing names none); amended by ENG-2094 (2026-10-30: «Cena por cena» reads the plan with the grain heard)
+status: accepted, amended by ENG-1862 (2026-10-29: an unread room asks the grain whatever is remembered); amended by ENG-1892 (2026-10-29: the choice acts on one tap); amended by ENG-2084 (2026-10-30: «A passagem inteira» reaches the plan through the whole home); amended by ENG-2103 (2026-10-30: a remembered grain is let go when the room's listing names none); amended by ENG-2094 (2026-10-30: «Cena por cena» reads the plan with the grain heard); amended by ENG-1851 (2026-10-30: «Ensaio Final: juntar os ensaios das cenas» joins in one tap)
 date: 2026-10-23
 amends: 0014, 0039, 0102, 0117, 0118
 ---
@@ -199,3 +199,16 @@ heard: a plan read that fails or runs out there opens the scene recording home, 
 choice again.** A listing that answers after the choice stood and names the scene grain takes
 the same way: the plan it reads again counts the grain as heard. «A passagem inteira» is
 unchanged.
+
+## Amendment · 2026-10-30 (ENG-1851)
+
+Her `backToJoin` switches an empty whole draft to the scene grain and runs `runJoin(true)` in
+the same tap: the plan is read again and its queue joins at once (Drafting.tsx:2110-2123,
+:1942-1990 at 18fa7c4). Ours switched and only opened the plan, so the team had to tap «juntar
+as cenas e ouvir» as well. **«Ensaio Final: juntar os ensaios das cenas» switches to `scene`,
+reads the plan again with the grain heard, and runs «juntar as cenas e ouvir» on that read.** A
+row that stops stays on the plan with its own retry, a scene left without a part lands on the
+recording home, and every scene joined opens the First listen. A read that has nothing to join
+opens the recording home, as hers does; a read the team left before it landed joins nothing.
+While a lost door's listing is read the grain controls stay closed, so a second tap starts no
+second join. The arm over an approved draft is unchanged.
