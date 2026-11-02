@@ -264,6 +264,21 @@ void main() {
     },
   );
 
+  testWidgets('while a row records its line reads «gravando · m:ss» and '
+      'leaves when the take stops', (tester) async {
+    final container = await _naCasaDoEnsaio(tester, _umaSala());
+
+    await _tocar(tester, _naLinha(2, _gravar));
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.text('gravando · 0:03'), findsOneWidget);
+
+    await _tocar(tester, _naLinha(2, _parar));
+    await _guardar(tester, container, partes: 1);
+
+    expect(find.textContaining('gravando'), findsNothing);
+  });
+
   testWidgets('while one row records, another row\'s record does nothing', (
     tester,
   ) async {

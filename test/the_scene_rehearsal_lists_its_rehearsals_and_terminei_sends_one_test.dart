@@ -198,7 +198,8 @@ final class _Room {
 
   void restsNow() => _repliesAtRest = _replies;
 
-  bool get repliedOnTheCanvas => _replies > _repliesAtRest;
+  bool get repliedOnTheCanvas =>
+      _replies > _repliesAtRest && sala.state.stage == SalaStage.conversa;
 }
 
 Future<_Room> _atRest(
@@ -681,6 +682,72 @@ void main() {
     );
   });
 
+  test('play in listen mode after a frase bar played the take to its end '
+      'starts it again from its start, not from its end', () async {
+    final toTheEnd = _rehearsal(
+      scene: 'S2',
+      recordedAt: DateTime(2026, 10, 15, 14, 5),
+      sentAt: '2026-10-15T14:20:00+00:00',
+      frases: [_frase('f1', 0, 12000), _frase('f2', 12000, 20000)],
+    );
+    final room = await _inListenModeOf(toTheEnd, _unsentTwo);
+    room.sala.playTheFrase('f2');
+    await waitFor(
+      'a frase abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(seconds: 8);
+    room.harness.playback.finishPlayback();
+    await waitFor('a frase acabar', () => room.state.channel is! PartPlaying);
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      Duration.zero,
+      reason:
+          'o play depois da última frase tocava do fim do ensaio e calava na '
+          'hora',
+    );
+  });
+
+  test('play in listen mode after a frase bar stopped 30 ms short of the '
+      'take\'s end starts it from its start, not from those 30 ms', () async {
+    final shortOfTheEnd = _rehearsal(
+      scene: 'S2',
+      recordedAt: DateTime(2026, 10, 15, 14, 5),
+      sentAt: '2026-10-15T14:20:00+00:00',
+      frases: [_frase('f1', 0, 12000), _frase('f2', 12000, 19970)],
+    );
+    final room = await _inListenModeOf(shortOfTheEnd, _unsentTwo);
+    room.sala.playTheFrase('f2');
+    await waitFor(
+      'a frase abrir',
+      () => switch (room.state.channel) {
+        PartPlaying(opened: true) => true,
+        _ => false,
+      },
+    );
+    room.harness.playback.at = const Duration(milliseconds: 7970);
+    room.harness.playback.finishPlayback();
+    await waitFor('a frase acabar', () => room.state.channel is! PartPlaying);
+
+    room.sala.playTheSceneRehearsal();
+    await waitFor('o ensaio tocar', () => room.state.channel is PartPlaying);
+
+    expect(
+      room.harness.playback.playedFrom.last,
+      Duration.zero,
+      reason:
+          'o play tocava os 30 ms que a medida deste tablet deixava depois da '
+          'última frase e calava na hora',
+    );
+  });
+
   test('«gravar de novo» in listen mode while another row opens leaves the '
       'row to open, not a record step', () async {
     final room = await _inListenModeOf(_sentOne, _unsentTwo);
@@ -1010,6 +1077,61 @@ void main() {
       'a voz voltar a convidar',
       () => room.state.voice == VoiceState.invite,
     );
+  });
+
+  group('the reply of terminei plays beneath the send-off line', () {
+    Future<_Room> sentWithTheReplyHeld() async {
+      final room = await _atRest([_unsentWithFrases()]);
+      await _theScreenOpens(room, on: _showing(1, SceneStep.translate));
+      room.harness.room.holdNextTurn();
+      room.harness.room.fixedLine = 'A1';
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'o ensaio ir',
+        () => room.harness.room.scenesSent.isNotEmpty,
+      );
+      await settle();
+      room.harness.voice.holdNextLine();
+      room.harness.room.finishHeldTurn();
+      return room;
+    }
+
+    int timesSaid(_Room room) =>
+        room.harness.voice.fixedLines.where((said) => said.$1 == 'A1').length;
+
+    test(
+      'it starts at once, while the line still shows on the screen',
+      () async {
+        final room = await sentWithTheReplyHeld();
+
+        await waitFor('a linha A tocar', () => timesSaid(room) == 1);
+
+        expect(room.state.scene.wentToTheVoice, isTrue);
+        expect(room.state.stage, SalaStage.cena);
+        room.harness.voice.finishHeldLine();
+      },
+    );
+
+    test('the screen closing onto the conversation does not cut it', () async {
+      final room = await sentWithTheReplyHeld();
+      await waitFor('a linha A tocar', () => timesSaid(room) == 1);
+      final stopsBefore = room.harness.voice.stops;
+
+      await waitFor(
+        'a tela fechar',
+        () => room.state.stage == SalaStage.conversa,
+      );
+      room.harness.voice.finishHeldLine();
+      await waitFor(
+        'a voz voltar a convidar',
+        () => room.state.voice == VoiceState.invite,
+      );
+
+      expect(timesSaid(room), 1);
+      expect(room.harness.voice.stops, stopsBefore);
+      expect(room.state.needsPerson, isFalse);
+      expect(room.state.awaitingTheGuide, isFalse);
+    });
   });
 
   test('a terminei the room answered with an A line is the line «Ouvir de '

@@ -88,13 +88,10 @@ class AHandHost implements HandHost {
   int get waitOnTheGeneration => 0;
 
   @override
-  Duration get listenedFor => Duration.zero;
-
-  @override
   String stamp() => 'carimbo';
 
   @override
-  bool theGuardKeeps(String path, Duration listenedFor) => true;
+  bool theGuardKeeps(String path) => true;
 
   @override
   void dispatch(MachineEvent event) {}

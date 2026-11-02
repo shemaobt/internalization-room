@@ -316,7 +316,9 @@ final class TheSceneRehearsalOpened extends StationEvent {
 }
 
 final class TheSceneRehearsalLeft extends StationEvent {
-  const TheSceneRehearsalLeft();
+  final bool keepsTheReply;
+
+  const TheSceneRehearsalLeft({this.keepsTheReply = false});
 }
 
 final class TheExternalCheckOpened extends StationEvent {
@@ -965,10 +967,6 @@ final class TellThePlayFailed extends Effect {
   const TellThePlayFailed();
 }
 
-final class TellThePlayOpened extends Effect {
-  const TellThePlayOpened();
-}
-
 final class TellTheSendFailed extends Effect {
   const TellTheSendFailed();
 }
@@ -1280,13 +1278,7 @@ const _watch = ArmTheWatch();
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
   PlayerOpened() => (
     _opened(machine),
-    [
-      if (machine.channel is Playing) const ArmTheCeiling(),
-      if (machine.channel case Playing(
-        sound: PartSound() || StretchSound(telling: false),
-      ) when machine.station is Retro)
-        const TellThePlayOpened(),
-    ],
+    [if (machine.channel is Playing) const ArmTheCeiling()],
   ),
   PlayerEnded(:final line?) => _answer(
     machine,
@@ -1741,7 +1733,8 @@ const _watch = ArmTheWatch();
   final next = machine.station.answer(event);
   if (next == machine.station) return (machine, const []);
   final carriesTheSceneTurn =
-      event is TheSceneRehearsalLeft && machine.holdsATurn;
+      event is TheSceneRehearsalLeft &&
+      (machine.holdsATurn || event.keepsTheReply);
   final arrived = (carriesTheSceneTurn ? machine : moveTheGeneration(machine))
       .copyWith(
         station: next,

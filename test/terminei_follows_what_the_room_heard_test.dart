@@ -8,36 +8,14 @@ import 'um_ensaio_de_tres_partes.dart';
 
 Future<Sala> _ouvidaInteiraPelaSala() async {
   final it = await umEnsaioDeTresPartesGravado();
-  it.harness.room.listeningUnheardTakeIds = [
-    for (final parte in it.partes) parte.takeId!,
-  ];
-  it.sala.startRetro();
-  for (var onde = 0; onde < partesDoEnsaio.length; onde++) {
-    await waitFor(
-      'a parte ${onde + 1} entrar no ar',
-      () =>
-          it.harness.playback.played.isNotEmpty &&
-          it.harness.playback.played.last == it.partes[onde].path &&
-          it.harness.playback.sounding,
-    );
-    if (onde == partesDoEnsaio.length - 1) {
-      it.harness.room.listeningUnheardTakeIds = const [];
-    }
-    await ouvirAteOFim(it, partesDoEnsaio[onde]);
-  }
-  await waitFor(
-    'a primeira escuta acabar e a primeira parte voltar ao ar',
-    () =>
-        !it.estado.btSoOuvir &&
-        it.estado.btPhase == BtPhase.playing &&
-        it.harness.playback.sounding,
-  );
+  await ouvidaInteiraPelaSala(it);
   return it;
 }
 
 void main() {
-  test('a frase told with the room counting every part heard lights terminei, '
-      'though the telling stopped in the middle of the first part', () async {
+  test('a frase told after the first listen keeps terminei dark with the room '
+      'counting every part heard, until the telling plays the recording '
+      'through', () async {
     final it = await _ouvidaInteiraPelaSala();
 
     await traduzirUmTrecho(it, const Duration(seconds: 4));
@@ -45,14 +23,22 @@ void main() {
       'a equipe voltar ao círculo',
       () => it.estado.btPhase == BtPhase.playing,
     );
+    await settle();
 
+    expect(it.estado.btOuvidaInteira, isTrue);
     expect(
       it.estado.canAdvanceToTheVerdict,
-      isTrue,
+      isFalse,
       reason:
-          'o terminei esperava a tradução chegar ao fim da parte, com a sala '
-          'já contando tudo ouvido',
+          'a primeira escuta contava como ouvida na tradução, e a dela conta '
+          'só o que tocou desde que a tradução começou',
     );
+
+    for (final quanto in partesDoEnsaio) {
+      await ouvirAteOFim(it, quanto);
+    }
+    await settle();
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
   });
 
   test('a room still naming a part unheard keeps terminei dark, though the '
@@ -83,8 +69,16 @@ void main() {
       'a equipe voltar ao círculo',
       () => it.estado.btPhase == BtPhase.playing,
     );
-    if (!it.estado.btClipRodando) it.sala.ouvirGravacao();
-    await waitFor('a parte tocar', () => it.estado.btClipRodando);
+    await ouvirAteOFim(it, partesDoEnsaio[0]);
+    await ouvirAteOFim(it, partesDoEnsaio[1]);
+    await theClipOpens(it.harness);
+    await waitFor('a terceira parte tocar', () => it.estado.btClipRodando);
+    it.harness.playback.at =
+        partesDoEnsaio[2] - const Duration(milliseconds: 500);
+    it.sala.ouvirGravacao();
+    await waitFor('a parte pausar', () => !it.harness.playback.sounding);
+    it.sala.ouvirGravacao();
+    await waitFor('a parte seguir', () => it.estado.btClipRodando);
 
     expect(
       it.estado.canAdvanceToTheVerdict,
@@ -151,6 +145,71 @@ void main() {
       reason:
           'a resposta atrasada da passagem deixada valia como a contagem da '
           'que veio depois',
+    );
+  });
+
+  test('the unheard parts of a passage the team left, answered late, never '
+      'dot the passage opened next', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    final deixada = it.estado.sessionId!;
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[0].takeId!]
+      ..holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    it.harness.room.listeningUnheardTakeIds = const [];
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => it.estado.stage == SalaStage.escolha && it.estado.naRoda != null,
+    );
+    await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+    await waitFor(
+      'a outra passagem abrir',
+      () => it.estado.sessionId != null && it.estado.sessionId != deixada,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btNaoOuvidas,
+      isEmpty,
+      reason:
+          'a resposta atrasada da passagem deixada marcava como não ouvidas '
+          'as partes da passagem aberta depois',
+    );
+  });
+
+  test('the unheard parts of a passage the team left, answered late on the '
+      'Choice, are not kept', () async {
+    final it = await _ouvidaInteiraPelaSala();
+    final relatos = it.harness.room.listeningReports.length;
+    it.harness.room
+      ..listeningUnheardTakeIds = [it.partes[0].takeId!]
+      ..holdNextListening();
+
+    it.sala.leaveThePassage();
+    await waitFor(
+      'o relato da passagem deixada sair',
+      () => it.harness.room.listeningReports.length > relatos,
+    );
+    await waitFor(
+      'a sala abrir a Escolha',
+      () => it.estado.stage == SalaStage.escolha && it.estado.naRoda != null,
+    );
+    it.harness.room.finishHeldListening();
+    await settle();
+
+    expect(
+      it.estado.btNaoOuvidas,
+      isEmpty,
+      reason:
+          'a resposta atrasada da passagem deixada guardava partes por ouvir '
+          'numa Escolha sem passagem',
     );
   });
 }

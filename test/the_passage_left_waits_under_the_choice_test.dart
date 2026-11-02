@@ -587,6 +587,169 @@ void main() {
     expect(reduce(waiting, const TheSessionLetGo('s2')).$1.waiting, left);
   });
 
+  test(
+    'the chevron tapped while a pill\'s open is in flight still lands on '
+    'the passage that opened, as hers adopts what the open answers',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+      harness.room.holdNextCreate();
+
+      tablet.notifier.openTheEntry(p02);
+      await waitFor('the open to be in flight', () => harness.room.createHeld);
+      await tablet.notifier.returnToTheLeftEntry();
+      harness.room.finishHeldCreate();
+      await waitFor(
+        'P02 to open',
+        () => read().pericope == 'P02' && read().voice == VoiceState.invite,
+      );
+
+      expect(read().station, isA<Canvas>());
+      expect(read().sessionId, isNot(tablet.p01));
+      expect(read().sessionId, harness.room.sessionIds.last);
+    },
+  );
+
+  test(
+    'a new life born while a pill\'s open is held after the chevron does not '
+    'open that pill by itself',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+      harness.room.holdNextCreate();
+
+      tablet.notifier.openTheEntry(p02);
+      await waitFor('the open to be in flight', () => harness.room.createHeld);
+      await tablet.notifier.returnToTheLeftEntry();
+      tablet.container.invalidate(salaSessionProvider);
+      read();
+      harness.room.finishHeldCreate();
+      await settle();
+      await settle();
+
+      expect(harness.room.pericopesAsked.where((asked) => asked == 'P02'), [
+        'P02',
+      ]);
+      expect(read().pericope, isNot('P02'));
+    },
+  );
+
+  test('a pill tapped while an earlier open is still in flight does nothing, '
+      'and the earlier open lands, as hers keeps one open at a time', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    Passagem entry(String pericope) =>
+        read().naRoda!.firstWhere((entry) => entry.pericope == pericope);
+    final p02 = entry('P02');
+    harness.room.holdNextCreate();
+
+    tablet.notifier.openTheEntry(p02);
+    await waitFor('the open to be in flight', () => harness.room.createHeld);
+    await tablet.notifier.returnToTheLeftEntry();
+    await waitFor('P01 back', () => read().sessionId == tablet.p01);
+    tablet.notifier.leaveThePassage();
+    await waitFor('the Choice', () => read().entriesOpen);
+    tablet.notifier.openTheEntry(entry('P03'));
+    await settle();
+    harness.room.finishHeldCreate();
+    await waitFor(
+      'P02 to open',
+      () => read().pericope == 'P02' && read().voice == VoiceState.invite,
+    );
+    await settle();
+
+    expect(read().pericope, 'P02');
+    expect(harness.room.pericopesAsked, isNot(contains('P03')));
+  });
+
+  test(
+    'the chevron tapped while the Panorama pill\'s open is in flight still '
+    'lands on the Panorama, as hers sends it through the same open',
+    () async {
+      final given = SalaHarness();
+      given.room.passages = [
+        ...given.room.passages,
+        const Passagem(
+          pericope: 'OV-Ruth',
+          audioUrl: '/voice/ov-ruth',
+          book: 'Ruth',
+          kind: PassagemKind.panorama,
+        ),
+      ];
+      final tablet = await _onTheChoiceFromP01(given);
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final panorama = read().naRoda!.firstWhere((entry) => entry.isPanorama);
+      harness.room.holdNextCreate();
+
+      tablet.notifier.openTheEntry(panorama);
+      await waitFor('the open to be in flight', () => harness.room.createHeld);
+      await tablet.notifier.returnToTheLeftEntry();
+      harness.room.finishHeldCreate();
+      await waitFor(
+        'the Panorama to open',
+        () =>
+            read().station is Panorama &&
+            read().panoramaSessionId != null &&
+            read().voice == VoiceState.invite,
+      );
+
+      expect(read().station, Panorama(panorama.pericope));
+    },
+  );
+
+  test(
+    'an Error thrown in the open raises no person sign and frees the '
+    'flight, resting on the new passage as hers does after a failed kickoff',
+    () async {
+      final tablet = await _onTheChoiceFromP01();
+      final harness = tablet.harness;
+      final read = tablet.read;
+      final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+      harness.room.throwOn['openSession'] = ArgumentError('the player broke');
+
+      tablet.notifier.openTheEntry(p02);
+      await waitFor(
+        'the open to rest on P02',
+        () =>
+            read().pericope == 'P02' &&
+            read().voice == VoiceState.invite &&
+            read().machine.inFlight == null,
+      );
+
+      expect(read().needsPerson, isFalse);
+      expect(read().openingEntry, isNull);
+      expect(harness.room.calls, isNot(contains('lookAtTheTurn')));
+    },
+  );
+
+  test('an Error thrown in a spoken turn still raises the person sign and '
+      'looks at nothing', () async {
+    final harness = SalaHarness();
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePassage(notifier, read, 'P01');
+    await waitFor(
+      'P01 to open',
+      () => read().sessionId != null && read().voice == VoiceState.invite,
+    );
+    harness.room.throwOn['sendTurn'] = StateError('the build broke');
+
+    notifier.conversaTap();
+    await settle();
+    notifier.conversaTap();
+    await waitFor('the person sign', () => read().needsPerson);
+
+    expect(harness.room.calls, isNot(contains('lookAtTheTurn')));
+  });
+
   group('the way back from the Choice', () {
     const held = LeftEntry(pericope: 'P01', book: 'Ruth', session: 's1');
     const noSession = LeftEntry(pericope: 'P01', book: 'Ruth');

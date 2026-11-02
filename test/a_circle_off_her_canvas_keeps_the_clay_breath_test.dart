@@ -14,7 +14,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/facilita
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaConferida;
+    show aprovadaNaCasa;
 import 'fakes.dart' show SalaHarness, closeTheRoom;
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
@@ -118,7 +118,7 @@ void main() {
     'external check circle draws none',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
-      final container = await aprovadaNaConferida(tester, harness);
+      final container = await aprovadaNaCasa(tester, harness);
       await tester.ensureVisible(byLabel('Checagem externa').first);
       await tester.tap(byLabel('Checagem externa').first, warnIfMissed: false);
       for (var i = 0; i < 6; i++) {
