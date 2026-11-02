@@ -153,6 +153,9 @@ class AStationHost implements StationHost {
       asked.add('hearThePendingTranslationLetGo');
 
   @override
+  void hearTheHeldStretchGo() => asked.add('hearTheHeldStretchGo');
+
+  @override
   void hearThePassageRefused() => asked.add('hearThePassageRefused');
 
   @override

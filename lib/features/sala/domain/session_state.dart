@@ -1263,6 +1263,8 @@ class SalaSessionState {
 
   bool get wordlessTelling => machine.wordlessTelling;
 
+  bool get aStretchWaitsForItsPart => machine.aStretchWaitsForItsPart;
+
   VoiceState get voice {
     if (halt is Blocking) return VoiceState.invite;
     return switch (channel) {
@@ -1438,6 +1440,7 @@ class SalaSessionState {
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       (btOuvidaInteira ?? btClipEnded) &&
       !btSoOuvir &&
+      !aStretchWaitsForItsPart &&
       aBackTranslationGestureActs;
 
   bool get _btNaVez =>
@@ -1747,6 +1750,7 @@ class SalaSessionState {
 
   bool fraseRegravavel(Trecho trecho) =>
       !btSoOuvir &&
+      !aStretchWaitsForItsPart &&
       aBackTranslationGestureActs &&
       trecho.frase != null &&
       trecho.segmentId != null &&
@@ -1797,6 +1801,9 @@ class SalaSessionState {
   bool get aFraseDevidaEmBusca =>
       btFraseDevida != null &&
       btRegravacao?.passo == PassoDaRegravacao.enviando;
+
+  bool get wayBackIsDisabled =>
+      station is Retro && btRegravacao?.passo == PassoDaRegravacao.enviando;
 
   /// Whether an approval may still be won over what the room holds: no approved version,
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).
@@ -1879,6 +1886,7 @@ class SalaSessionState {
   bool get canHearAFrase =>
       stage == SalaStage.retro &&
       !btSoOuvir &&
+      !aStretchWaitsForItsPart &&
       partes.isNotEmpty &&
       !needsPerson &&
       aBackTranslationGestureActs &&

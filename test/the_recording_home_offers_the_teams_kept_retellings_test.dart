@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -502,6 +503,37 @@ void main() {
       expect(_viva(tester, _naLinha(2, _comoContaram)), isTrue);
       closeTheRoom(container);
     });
+  });
+
+  testWidgets('the chevron stops a kept retelling playing on the home, and '
+      'leaves for the conversation', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final (harness, container) = await _naCasa(tester, [_s2]);
+    await _tocar(tester, _naLinha(2, _comoContaram));
+    await _ate(
+      tester,
+      'o conto da cena 2 tocar',
+      () => _tocaPorUltimo(harness, _s2) && harness.playback.sounding,
+    );
+    const volta = 'Voltar para a passagem atual';
+
+    expect(isDrawn(tester, byLabel(volta)), isTrue);
+    expect(enabledFlagOf(tester, byLabel(volta)), Tristate.isTrue);
+
+    await _tocar(tester, byLabel(volta));
+    await _ate(
+      tester,
+      'a conversa voltar',
+      () => container.read(salaSessionProvider).stage == SalaStage.conversa,
+    );
+
+    expect(
+      harness.playback.sounding,
+      isFalse,
+      reason: 'o conto guardado seguia tocando por cima da conversa',
+    );
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   test('a kept retelling tapped over a part takes the Channel alone', () {

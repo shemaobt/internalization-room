@@ -108,6 +108,10 @@ AnsweringEvent _stampedAnswer(
     readAgain: readAgain,
     generation: generation,
   ),
+  TheTellingWaitsForItsPart() => TheTellingWaitsForItsPart(
+    generation: generation,
+  ),
+  TheTellingWasTurnedAway() => TheTellingWasTurnedAway(generation: generation),
   TheStepFailed() => TheStepFailed(generation: generation),
   TheResumeFailed() => TheResumeFailed(generation: generation),
   TheSceneTurnFoundNothing() => TheSceneTurnFoundNothing(

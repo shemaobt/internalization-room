@@ -279,47 +279,6 @@ void main() {
   });
 
   testWidgets(
-    '«Back to the current passage» is hidden while the team\'s take is recorded',
-    (tester) async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      room.notifier.goEnsaio();
-      await _passTime(tester, 300);
-      await tester.pump(const Duration(seconds: 2));
-      expect(_live(tester, _back), isTrue);
-
-      room.notifier.gravarACena(1);
-      await _passTime(tester, 300);
-
-      expect(room.harness.sounds, contains('recorder:start'));
-      expect(_hidden(tester, _back), isTrue);
-
-      await tester.tap(byLabel(_back), warnIfMissed: false);
-      await _passTime(tester, 300);
-
-      expect(room.state.stage, SalaStage.ensaio);
-      expect(room.harness.recorder.deleted, isEmpty);
-    },
-  );
-
-  testWidgets('«Back to recording» is hidden while the back-translation\'s '
-      'microphone is open', (tester) async {
-    final room = await _pump(tester, memory: true);
-    await _takeThePassage(tester, room, 'P01');
-    await _keepAPart(tester, room);
-    room.notifier.startRetro();
-    await _passTime(tester, 300);
-    room.harness.playback.at = const Duration(seconds: 2);
-    room.notifier.retroTap();
-    room.notifier.retroTap();
-    await _passTime(tester, 300);
-
-    expect(room.state.stage, SalaStage.retro);
-    expect(room.state.voice, VoiceState.listening);
-    expect(_hidden(tester, _backToRecording), isTrue);
-  });
-
-  testWidgets(
     'a raised-hand note being spoken leaves «Choose another passage» in reach, '
     'and a tap throws the note away',
     (tester) async {
@@ -486,6 +445,46 @@ void main() {
 
     expect(room.state.station, isA<Canvas>());
     expect(room.state.sessionId, second);
+  });
+
+  testWidgets('a stretch that lands after the team went on to another '
+      'passage reads nothing of the passage it left', (tester) async {
+    final room = await _pump(tester, memory: true);
+    await _takeThePassage(tester, room, 'P01');
+    await _keepAPart(tester, room);
+    final left = room.state.sessionId;
+    room.notifier.startRetro();
+    await _passTime(tester, 300);
+    room.harness.playback.at = const Duration(seconds: 2);
+    room.notifier.retroTap();
+    room.notifier.retroTap();
+    await _passTime(tester, 300);
+    room.harness.room.holdNextChunk();
+    addTearDown(room.harness.room.finishHeldChunk);
+    room.notifier.retroTap();
+    for (var vez = 0; vez < 50 && room.harness.room.chunkTakes.isEmpty; vez++) {
+      await _passTime(tester, 100);
+    }
+    expect(room.harness.room.chunkTakes, hasLength(1));
+
+    await _tap(tester, _backToRecording);
+    await _tap(tester, _back);
+    await tester.pump(const Duration(seconds: 1));
+    await _tap(tester, _leave);
+    await tester.pump(const Duration(seconds: 1));
+    await _takeThePassage(tester, room, 'P02');
+    await tester.pump(const Duration(seconds: 1));
+    expect(room.state.sessionId, isNot(left));
+    final reads = room.harness.room.statesRead.length;
+
+    room.harness.room.finishHeldChunk();
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(
+      room.harness.room.statesRead.skip(reads),
+      isNot(contains(left)),
+      reason: 'a resposta atrasada lia a passagem deixada por cima da nova',
+    );
   });
 
   testWidgets('a room that just opened offers no way back', (tester) async {

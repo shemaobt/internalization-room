@@ -25,7 +25,8 @@ import 'package:path/path.dart' as p;
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, relaunch, voiceOverFocusLeaves;
+import 'scenario_helpers.dart'
+    show byLabel, enabledFlagOf, isDrawn, relaunch, voiceOverFocusLeaves;
 import 'support/temp.dart';
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
@@ -2093,6 +2094,85 @@ void main() {
     await it.swapLands();
     semantics.dispose();
   });
+
+  testWidgets(
+    'on the Ensaio Final plan the chevron stays drawn and live while a join '
+    'is in the air',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s1a, s2a, s3a]);
+      await it.held(const [s1a, s2a, s3a]);
+      await it.openThePlan();
+      it.holdTheTake('parte-1');
+      addTearDown(it.room.finishHeldTake);
+      final join = byLabel(_join);
+      await tester.ensureVisible(join);
+      await tester.pump();
+      await tester.tap(join);
+      await it.beat();
+      await it.theHeldTakeArrives();
+      expect(it.container.read(salaSessionProvider).joining, isNotNull);
+
+      expect(isDrawn(tester, byLabel(_houseBack)), isTrue);
+      expect(byLabel(_houseBack).hitTestable(), findsOneWidget);
+      expect(
+        enabledFlagOf(tester, byLabel(_houseBack)),
+        Tristate.isTrue,
+        reason: 'a seta sumia com a junta no ar, e a equipe ficava presa',
+      );
+
+      await it.tapThe(byLabel(_houseBack));
+      await it.until(
+        'a conversa voltar',
+        () =>
+            it.container.read(salaSessionProvider).stage == SalaStage.conversa,
+      );
+      it.room.finishHeldTake();
+      await it.settle();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while «usar este» is in the air on the home\'s Rehearsal sheet its '
+    'chevron is inert, and only then',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+      await it.openTheSheet(2, _swap);
+      expect(enabledFlagOf(tester, byLabel(_back)), Tristate.isTrue);
+
+      it.holdTheTake('parte-2');
+      addTearDown(it.room.finishHeldTake);
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+
+      expect(isDrawn(tester, byLabel(_back)), isTrue);
+      expect(
+        it.enabled(byLabel(_back)),
+        isFalse,
+        reason: 'a seta da folha aceitava o toque com a troca no ar',
+      );
+      await it.tapThe(byLabel(_back));
+      await it.wait(const Duration(milliseconds: 700));
+      expect(it.showsTheSheet(), isTrue);
+
+      it.room.finishHeldTake();
+      await it.swapLands();
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        enabledFlagOf(tester, byLabel(_back)),
+        Tristate.isTrue,
+        reason: 'a seta da folha seguia sem toque depois da troca',
+      );
+      await it.tapThe(byLabel(_back));
+      await it.until('a folha fechar', () => !it.showsTheSheet());
+      semantics.dispose();
+    },
+  );
 
   testWidgets(
     'while a swap runs «gravar esta cena de novo» is dimmed and its tap opens '

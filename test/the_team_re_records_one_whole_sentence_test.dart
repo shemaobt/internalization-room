@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'dart:typed_data';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,8 +30,10 @@ import 'fakes.dart';
 import 'scenario_helpers.dart'
     show
         byLabel,
+        enabledFlagOf,
         holdTheSession,
         intoTheBackTranslation,
+        isDrawn,
         onTheCircle,
         pressTheApproval;
 import 'the_back_translation_is_told_by_beads_test.dart'
@@ -3451,37 +3454,37 @@ void main() {
   });
 
   testWidgets('while the owed part is fetched again the way back is drawn '
-      'away, not lit over a tap it no longer takes', (tester) async {
+      'and inert, not lit over a tap it no longer takes', (tester) async {
+    final semantics = tester.ensureSemantics();
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
     final nova = await deitarSemAParte(tester, harness, 2);
     harness.room.failClipOf.remove(nova);
     harness.room.holdNextClip();
-    double volta() => tester
-        .widget<AnimatedOpacity>(
-          find
-              .ancestor(
-                of: byLabel('Voltar para a gravação'),
-                matching: find.byType(AnimatedOpacity),
-              )
-              .first,
-        )
-        .opacity;
-    expect(volta(), 1);
+    bool desenhada() => isDrawn(tester, byLabel('Voltar para a gravação'));
+    Tristate habilitada() =>
+        enabledFlagOf(tester, byLabel('Voltar para a gravação'));
+    expect(habilitada(), Tristate.isTrue);
 
     await tocar(tester, 'não deu para guardar a frase — tentar de novo');
     await _passo(tester);
 
+    expect(desenhada(), isTrue);
     expect(
-      volta(),
-      0,
+      habilitada(),
+      Tristate.isFalse,
       reason: 'a seta de voltar ficava acesa e o toque nela não fazia nada',
     );
+    await tester.tap(byLabel('Voltar para a gravação'), warnIfMissed: false);
+    await _passo(tester);
+    expect(container.read(salaSessionProvider).stage, SalaStage.retro);
     harness.room.finishHeldClip();
     await _passo(tester);
     await _passo(tester);
-    expect(volta(), 1);
+    expect(desenhada(), isTrue);
+    expect(habilitada(), Tristate.isTrue);
     closeTheRoom(container);
+    semantics.dispose();
   });
 
   testWidgets('while a new part is owed no row offers «regravar», not even '
@@ -4825,5 +4828,184 @@ void main() {
           'também precisa ser traduzida de novo',
     );
     closeTheRoom(container);
+  });
+
+  group('the way back to the recording over a sentence recording', () {
+    const volta = 'Voltar para a gravação';
+
+    SalaSessionState estado(ProviderContainer container) =>
+        container.read(salaSessionProvider);
+
+    bool desenhada(WidgetTester tester) => isDrawn(tester, byLabel(volta));
+
+    Tristate habilitada(WidgetTester tester) =>
+        enabledFlagOf(tester, byLabel(volta));
+
+    Future<void> voltar(WidgetTester tester) async {
+      await tester.tap(byLabel(volta), warnIfMissed: false);
+      for (var vez = 0; vez < 10; vez++) {
+        await _passo(tester);
+      }
+    }
+
+    Iterable<String> frasesApagadasDesde(SalaHarness harness, int desde) =>
+        harness.recorder.deleted
+            .skip(desde)
+            .where((path) => path.contains('frase_'));
+
+    bool umaFraseNaFila(SalaHarness harness) => (harness.takes as FakeTakeQueue)
+        .rows
+        .any((row) => row.kind == sentenceKind);
+
+    testWidgets('while a sentence recording is being sent the '
+        'Back-translation\'s chevron is drawn and inert, and once the room '
+        'answers it is live again', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await quatroFrasesEmWav(tester, harness);
+      await gravarAFrase(tester, harness, 3);
+      final segura = harness.room.holdTheSentence = Completer<void>();
+      addTearDown(() {
+        if (!segura.isCompleted) segura.complete();
+      });
+      await tester.tap(naLinha('usar esta'));
+      await _passo(tester);
+      expect(estado(container).btRegravacao?.passo, PassoDaRegravacao.enviando);
+
+      expect(desenhada(tester), isTrue);
+      expect(
+        habilitada(tester),
+        Tristate.isFalse,
+        reason: 'a seta aceitava o toque com a frase a caminho da sala',
+      );
+      await voltar(tester);
+      expect(estado(container).stage, SalaStage.retro);
+      expect(harness.room.sentencesSent, hasLength(1));
+
+      segura.complete();
+      for (var vez = 0; vez < 10; vez++) {
+        await _passo(tester);
+      }
+
+      expect(desenhada(tester), isTrue);
+      expect(habilitada(tester), Tristate.isTrue);
+      await voltar(tester);
+      expect(estado(container).stage, SalaStage.ensaio);
+      closeTheRoom(container);
+      semantics.dispose();
+    });
+
+    testWidgets('a tap while a sentence recording records discards it and '
+        'nothing is sent', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await quatroFrasesEmWav(tester, harness);
+      await regravarAte(tester, harness, 3);
+      await _tocarOCirculo(tester);
+      expect(estado(container).btRegravacao?.passo, PassoDaRegravacao.gravando);
+      final apagadas = harness.recorder.deleted.length;
+
+      await voltar(tester);
+
+      expect(estado(container).stage, SalaStage.ensaio);
+      expect(frasesApagadasDesde(harness, apagadas), hasLength(1));
+      expect(harness.room.sentencesSent, isEmpty);
+      expect(umaFraseNaFila(harness), isFalse);
+      closeTheRoom(container);
+    });
+
+    testWidgets('a tap while a sentence recording is stopping discards it, '
+        'leaves no file, and nothing is sent', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await quatroFrasesEmWav(tester, harness);
+      await regravarAte(tester, harness, 3);
+      await _tocarOCirculo(tester);
+      final apagadas = harness.recorder.deleted.length;
+      harness.recorder.rehearsalSpeaks = aSpokenWav(
+        length: const Duration(seconds: 2),
+      );
+      harness.recorder.holdNextStop();
+      addTearDown(harness.recorder.finishStop);
+      final paradas = harness.recorder.sounds
+          .where((som) => som == 'recorder:stop')
+          .length;
+      await tester.tap(_circulo());
+      await tester.pump();
+      expect(
+        harness.recorder.sounds.where((som) => som == 'recorder:stop'),
+        hasLength(paradas + 1),
+      );
+
+      await voltar(tester);
+      harness.recorder.finishStop();
+      for (var vez = 0; vez < 10; vez++) {
+        await _passo(tester);
+      }
+
+      expect(estado(container).stage, SalaStage.ensaio);
+      expect(
+        frasesApagadasDesde(harness, apagadas),
+        hasLength(1),
+        reason: 'a frase que parava na hora do toque ficava no tablet',
+      );
+      expect(harness.room.sentencesSent, isEmpty);
+      expect(umaFraseNaFila(harness), isFalse);
+      closeTheRoom(container);
+    });
+
+    testWidgets('a tap while a sentence recording is in review leaves, sends '
+        'nothing, and the sentence is offered again on its row at the next '
+        'entry', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await quatroFrasesEmWav(tester, harness);
+      await gravarAFrase(tester, harness, 3);
+      expect(naLinha('usar esta'), findsOneWidget);
+
+      await voltar(tester);
+      for (var vez = 0; vez < 50; vez++) {
+        await _passo(tester);
+      }
+
+      expect(estado(container).stage, SalaStage.ensaio);
+      expect(harness.room.sentencesSent, isEmpty);
+
+      container.read(salaSessionProvider.notifier).startRetro();
+      for (var vez = 0; vez < 20; vez++) {
+        await _passo(tester);
+      }
+
+      expect(estado(container).stage, SalaStage.retro);
+      expect(
+        _naLista('não deu para guardar a frase — tentar de novo'),
+        findsOneWidget,
+        reason: 'a frase gravada antes do toque não voltava à sua linha',
+      );
+      expect(harness.room.sentencesSent, isEmpty);
+      closeTheRoom(container);
+    });
+
+    testWidgets('a sentence whose file is gone does not leave the chevron '
+        'inert', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await quatroFrasesEmWav(tester, harness);
+      await gravarAFrase(tester, harness, 3);
+      File(estado(container).btRegravacao!.path!).deleteSync();
+      harness.room.sentenceAnswersFirst.add(const NetworkFailed('sem arquivo'));
+
+      await tester.tap(naLinha('usar esta'));
+      for (var vez = 0; vez < 10; vez++) {
+        await _passo(tester);
+      }
+
+      expect(
+        habilitada(tester),
+        Tristate.isTrue,
+        reason: 'a seta ficava presa sem toque com a frase sem arquivo',
+      );
+      await voltar(tester);
+      expect(estado(container).stage, SalaStage.ensaio);
+      closeTheRoom(container);
+      semantics.dispose();
+    });
   });
 }
