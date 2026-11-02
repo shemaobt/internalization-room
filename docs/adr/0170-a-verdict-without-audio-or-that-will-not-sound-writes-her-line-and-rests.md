@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0174 (a refusal that carries its own route never writes her line)
 date: 2026-10-30
 amends: 0152 (in part: the verdict is no longer a reply loaded once more), 0160 (in part: the verdict's sound is no longer a source of a waiting halt)
 ---
