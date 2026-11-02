@@ -55,6 +55,7 @@ void main() {
       sala.gravarACena(1);
       await settle();
       sala.takeKeep();
+      await untilTheAdvanceDiscLights(sala);
       sala.startRetro();
       await settle();
       harness.playback.finishPlayback();

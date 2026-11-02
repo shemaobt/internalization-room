@@ -154,7 +154,7 @@ void main() {
 
       sala.notifier.leaveThePassage();
       await tester.pump(const Duration(seconds: 2));
-      sala.notifier.escolhaTap();
+      unawaited(sala.notifier.abrirEscolha());
       await _until(
         sala,
         'the way back to be live',

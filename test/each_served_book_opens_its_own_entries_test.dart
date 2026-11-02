@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
@@ -83,7 +85,7 @@ void main() {
           expect(tablet.state.livroInteiroFeito, isFalse);
 
           tablet.harness.room.failBooksWith = null;
-          tablet.notifier.escolhaTap();
+          unawaited(tablet.notifier.abrirEscolha());
           await theChoiceOffersAPassage(tablet.container);
 
           expect(tablet.state.naRoda, [
@@ -109,7 +111,7 @@ void main() {
           expect(tablet.state.needsPerson, isFalse);
 
           tablet.harness.room.failBooksWith = null;
-          tablet.notifier.escolhaTap();
+          unawaited(tablet.notifier.abrirEscolha());
           await theChoiceOffersAPassage(tablet.container);
 
           expect(tablet.state.naRoda, [
