@@ -2269,8 +2269,8 @@ void main() {
     );
 
     testWidgets(
-      'a swap still in the Outbox at the kill is offered only once it lands '
-      'after the relaunch',
+      'a swap still in the Outbox at the kill is never offered after the '
+      'relaunch: it leaves, and «trocar» is offered again',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final it = await _atRest(tester);
@@ -2286,20 +2286,12 @@ void main() {
 
         await it.relaunchOnTheHome();
         it.room.unreachableTake = null;
+        await it.theOutboxLetsGoOf(s2b);
+        await it.wait(const Duration(seconds: 30));
+
         expect(it.takesOf(2), hasLength(1));
         expect(find.text(_hearNew), findsNothing);
-
-        await it.tapThe(it.onRow(2, find.textContaining('enviar agora')));
-        await it.within(
-          const Duration(seconds: 30),
-          'a troca chegar à sala',
-          () => it.takesOf(2).length == 2,
-        );
-        await it.within(
-          const Duration(seconds: 10),
-          'a casa pedir a escuta da cena nova',
-          () => find.text(_hearNew).evaluate().isNotEmpty,
-        );
+        expect(it.door(2, _swap), findsOneWidget);
         semantics.dispose();
       },
     );
