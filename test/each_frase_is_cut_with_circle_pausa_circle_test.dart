@@ -2291,4 +2291,167 @@ void main() {
       expect(room.harness.playback.played, hasLength(1));
     },
   );
+
+  test(
+    'play on a take paused 20 ms after the frontier, where no pausa fits, resumes from the pause, not from the frontier',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 9900)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = const Duration(milliseconds: 9920);
+      room.sala.playTheSceneRehearsal();
+      await waitFor('o take pausar', () => room.state.channel is! PartPlaying);
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 9920),
+        reason:
+            'o play voltava à fronteira em vez de retomar onde o take pausou',
+      );
+    },
+  );
+
+  test(
+    'play on a take that played to its end with no pausa left starts it from the start, as hers, not from the end',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 9900)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = const Duration(seconds: 10);
+      room.harness.playback.finishPlayback();
+      await waitFor('o take acabar', () => room.state.channel is! PartPlaying);
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        Duration.zero,
+        reason:
+            'o play de um take acabado sem pausa tocava do fim e calava na hora',
+      );
+    },
+  );
+
+  test(
+    'play on a take whose playback failed resumes from where it failed, not from the frontier',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = _s(4.5);
+      room.harness.playback.failPlayback();
+      await waitFor('o take parar', () => room.state.channel is! PartPlaying);
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        _s(4.5),
+        reason:
+            'o play voltava à fronteira depois de o take falhar, e não a onde '
+            'ele parou',
+      );
+    },
+  );
+
+  test(
+    'play after the team\'s own translation stopped the take resumes from where the take stopped, not from the frontier',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 4000)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = _s(7);
+      room.sala.hearTheFraseTranslation('f1');
+      await waitFor(
+        'a tradução da frase tocar',
+        () =>
+            room.harness.playback.played.last.endsWith(
+              'cena-ensaio-da-cena-1-frase-f1.wav',
+            ) &&
+            room.state.channel is PartPlaying,
+      );
+      room.harness.playback.finishPlayback();
+      await waitFor(
+        'a tradução acabar',
+        () => room.state.channel is! PartPlaying,
+      );
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        _s(7),
+        reason:
+            'o play voltava à fronteira depois de ouvir a tradução da equipe, '
+            'e não a onde o take parou',
+      );
+    },
+  );
+
+  test(
+    'play after «manter a tradução de antes» inside an earlier frase\'s replay resumes from where the replay stopped, before the frontier, as hers',
+    () async {
+      final room = await _onTheTranslateStep(
+        length: const Duration(seconds: 20),
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 9000)],
+        ),
+      );
+      await _listening(room);
+      room.sala.translateTheFraseAgain('f1');
+      await waitFor(
+        'a frase 1 tocar de novo',
+        () => room.state.scene.translatingAgain?.fraseId == 'f1',
+      );
+      await settle();
+      room.harness.playback.at = _s(2.5);
+      room.sala.keepTheEarlierTranslation();
+      await waitFor(
+        'a frase 1 ser deixada',
+        () => room.state.scene.translatingAgain == null,
+      );
+      await settle();
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        _s(2.5),
+        reason:
+            'o play voltava à fronteira depois de «manter a tradução de '
+            'antes», e não a onde a frase ouvida de novo parou',
+      );
+    },
+  );
 }
