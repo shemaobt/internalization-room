@@ -5,6 +5,8 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/facilitator_script.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
@@ -14,10 +16,21 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 import 'package:internalization_room/features/sala/presentation/widgets/shema_mark.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
+    show aprovadaNaCasa;
 import 'a_scene_room.dart' show pumpUntil, translateOnScreen;
 import 'fakes.dart';
+import 'support/temp.dart';
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel, onAScreen, settle, withRealLetters;
+import 'scenario_helpers.dart'
+    show
+        byLabel,
+        gravarUmaParte,
+        offTheRows,
+        onAScreen,
+        onTheRows,
+        settle,
+        withRealLetters;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show cabeca, passaDoCursor, tocarOuPausar;
 import 'the_pause_snaps_to_silence_test.dart'
@@ -86,6 +99,29 @@ Rect _theRing(WidgetTester tester) {
     ),
   );
   return circle.inflate(circle.width * facilitatorRippleGrowth / 2);
+}
+
+void _standApartInHerOrder(
+  WidgetTester tester,
+  Size screen,
+  List<(String, Finder)> pieces,
+) {
+  for (final (name, finder) in pieces) {
+    expect(finder, findsOneWidget, reason: '«$name» is drawn once');
+    final rect = tester.getRect(finder);
+    expect(
+      rect.left >= 0 && rect.right <= screen.width,
+      isTrue,
+      reason: '«$name» saía da tela',
+    );
+  }
+  for (var i = 1; i < pieces.length; i++) {
+    expect(
+      tester.getRect(pieces[i - 1].$2).bottom,
+      lessThanOrEqualTo(tester.getRect(pieces[i].$2).top + 0.01),
+      reason: '«${pieces[i - 1].$1}» stands above «${pieces[i].$1}»',
+    );
+  }
 }
 
 void main() {
@@ -325,4 +361,68 @@ void main() {
     );
     closeTheRoom(it.container);
   });
+
+  for (final (named, screen, bar) in [
+    ('the iPhone SE', _se, _seBar),
+    ('the iPad', const Size(820, 1180), 24.0),
+  ]) {
+    testWidgets('on $named the recording home\'s pieces stand apart in her '
+        'order with every scene recorded', (tester) async {
+      tester.view
+        ..physicalSize = const Size(820, 1180)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final harness =
+          SalaHarness(
+              filaEmMemoria: true,
+              takesHome: aTempDir('sala-1913-screen'),
+            )
+            ..room.passageScenes = const [
+              Scene(sceneId: 'S1', title: 'A fome em Belém'),
+              Scene(sceneId: 'S2', title: 'Noemi decide voltar'),
+              Scene(sceneId: 'S3', title: 'Rute fica com Noemi'),
+            ];
+      final container = await pumpSala(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await notifier.goConversa(book: 'Ruth', pericope: 'P01');
+      await tester.pump(const Duration(milliseconds: 200));
+      notifier.goEnsaio();
+      await tester.pump(const Duration(milliseconds: 400));
+      for (var n = 1; n <= 3; n++) {
+        await gravarUmaParte(tester, container, n);
+      }
+      onAScreen(tester, screen, bar: bar);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      _standApartInHerOrder(tester, screen, [
+        ('the last Scene row', onTheRows('Ouvir').last),
+        ('the wood play', offTheRows('Ouvir')),
+        ('Ouvir tudo', find.text('Ouvir tudo')),
+        ('Traduzir a gravação', byLabel('Traduzir a gravação')),
+        ('the grain switch', byLabel('Gravar a passagem inteira')),
+      ]);
+      closeTheRoom(container);
+    });
+
+    testWidgets('on $named the recording home\'s pieces stand apart in her '
+        'order on an approved draft', (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await aprovadaNaCasa(
+        tester,
+        harness,
+        approved: const ApprovedDraft(version: 1, listeners: 2),
+      );
+      onAScreen(tester, screen, bar: bar);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      _standApartInHerOrder(tester, screen, [
+        ('Traduzir a gravação', byLabel('Traduzir a gravação')),
+        ('the badge', find.text('✓ aprovado como rascunho final (v1)')),
+        ('the listeners line', find.text('checagem externa: 2 ouvintes')),
+        ('Checagem externa', byLabel('Checagem externa')),
+        ('the grain switch', byLabel('Gravar a passagem inteira')),
+      ]);
+      closeTheRoom(container);
+    });
+  }
 }

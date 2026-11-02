@@ -64,6 +64,19 @@ Future<void> _aprovadaDeNovoComoV2(
   await tester.pump(const Duration(seconds: 2));
 }
 
+void _inHerOrder(WidgetTester tester, List<(String, Finder)> pieces) {
+  for (final (name, finder) in pieces) {
+    expect(finder, findsOneWidget, reason: '«$name» is drawn once');
+  }
+  for (var i = 1; i < pieces.length; i++) {
+    expect(
+      tester.getRect(pieces[i - 1].$2).bottom,
+      lessThanOrEqualTo(tester.getRect(pieces[i].$2).top + 0.01),
+      reason: '«${pieces[i - 1].$1}» stands above «${pieces[i].$1}»',
+    );
+  }
+}
+
 void main() {
   testWidgets('a forced draft whose telling is conferida offers «$_aprovar» '
       'with its badge under it, and the press approves it as v2', (
@@ -183,6 +196,24 @@ void main() {
     expect(harness.room.releasesAsked, hasLength(2));
     expect(find.text(_badge(2)), findsOneWidget);
     expect(byLabel(_aprovar), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('after a forced approval the approve button stands above '
+      '«✓ aprovado como rascunho final (v1)»', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(
+      tester,
+      harness,
+      approved: _forcada,
+    );
+    await _naCasa(tester, harness, container);
+
+    _inHerOrder(tester, [
+      ('Traduzir a gravação', byLabel('Traduzir a gravação')),
+      ('Aprovar como rascunho final', byLabel(_aprovar)),
+      ('the badge', find.text(_badge(1))),
+    ]);
     closeTheRoom(container);
   });
 
