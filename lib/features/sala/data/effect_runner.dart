@@ -212,6 +212,8 @@ class EffectRunner {
           _playThePart(part);
         case PlayStretch(:final stretch):
           _playThePart(stretch);
+        case PlayKeptRetelling(:final retelling):
+          _playThePart(retelling);
         case OpenTheMic(:final owner, :final take):
           _openTheMic(owner, take);
         case ArmTheCeiling():

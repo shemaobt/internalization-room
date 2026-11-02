@@ -707,7 +707,9 @@ void main() {
     );
     await waitFor(
       'a conferida voltar',
-      () => _estado(it.container).btPhase == BtPhase.conferida,
+      () =>
+          _estado(it.container).btPhase == BtPhase.conferida &&
+          _estado(it.container).btVeredito,
       step: () => letTheRehearsalReachTheRoom(tester),
     );
 

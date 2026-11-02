@@ -2752,7 +2752,9 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'a conferência chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);
@@ -4021,7 +4023,9 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'a conferência chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);

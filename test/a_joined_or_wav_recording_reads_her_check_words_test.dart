@@ -89,7 +89,8 @@ Future<ProviderContainer> _voltaAUmaTraducao(
     'a tradução voltar com as duas frases',
     () =>
         container.read(salaSessionProvider).btTrechos.length == 2 &&
-        container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+        container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+        container.read(salaSessionProvider).btVeredito,
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);

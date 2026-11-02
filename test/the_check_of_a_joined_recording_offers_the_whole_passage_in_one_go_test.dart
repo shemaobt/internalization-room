@@ -157,7 +157,9 @@ Future<ProviderContainer> _naConferencia(
         container.read(salaSessionProvider).btTrechos.length ==
             (primeiraEscuta ? 0 : (aPrimeiraParteContada ? 2 : 1)) &&
         container.read(salaSessionProvider).btPhase ==
-            (aprovada || conferida ? BtPhase.conferida : BtPhase.playing),
+            (aprovada || conferida ? BtPhase.conferida : BtPhase.playing) &&
+        (!(aprovada || conferida) ||
+            container.read(salaSessionProvider).btVeredito),
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(
