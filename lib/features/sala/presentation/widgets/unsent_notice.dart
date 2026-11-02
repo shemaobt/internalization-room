@@ -22,15 +22,16 @@ class UnsentNotice extends StatelessWidget {
     final unsent = [
       for (final MapEntry(key: scene, value: part)
           in session.unsentParts.entries)
-        if (sendNowLabelFor(
-              part,
-              session.scopeOfRow(scene) == KeptScope.whole
-                  ? recordingHomeLabelFor('wholePassage', language)
-                  : recordingHomeLabelFor('scene', language, n: scene),
-              language,
-            )
-            case final label?)
-          (scene, label),
+        if (session.partInTheAir(scene) == null)
+          if (sendNowLabelFor(
+                part,
+                session.scopeOfRow(scene) == KeptScope.whole
+                    ? recordingHomeLabelFor('wholePassage', language)
+                    : recordingHomeLabelFor('scene', language, n: scene),
+                language,
+              )
+              case final label?)
+            (scene, label),
     ]..sort((a, b) => a.$1.compareTo(b.$1));
     if (unsent.isEmpty) return const SizedBox.shrink();
     final colors = SalaColors.of(context);

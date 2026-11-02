@@ -8,7 +8,9 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
+import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/main.dart';
 
@@ -1532,14 +1534,69 @@ void main() {
       closeTheRoom(it.container);
     });
 
-    testWidgets('no offer while a take is being recorded', (tester) async {
+    testWidgets('while a take records on a checked home, «$_aprovar» stays '
+        'drawn and disabled, and a tap approves nothing', (tester) async {
+      final semantics = tester.ensureSemantics();
       final it = await aCasaConferida(tester);
 
       it.container.read(salaSessionProvider.notifier).gravarACena(2);
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(byLabel(_aprovar), findsNothing);
+      expect(it.container.read(salaSessionProvider).microphoneOpen, isTrue);
+      expect(byLabel(_aprovar), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(byLabel(_aprovar))
+            .getSemanticsData()
+            .flagsCollection
+            .isEnabled,
+        Tristate.isFalse,
+      );
+      await tester.tap(byLabel(_aprovar), warnIfMissed: false);
+      await _assentar(tester);
+      expect(it.harness.room.releasesAsked, isEmpty);
       closeTheRoom(it.container);
+      semantics.dispose();
+    });
+
+    testWidgets('a press asked of the notifier while a take records approves '
+        'nothing', (tester) async {
+      final it = await aCasaConferida(tester);
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.gravarACena(2);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await sala.aprovarRascunhoFinal();
+      await _assentar(tester);
+
+      expect(it.harness.room.releasesAsked, isEmpty);
+      closeTheRoom(it.container);
+    });
+
+    test('a take of an earlier visit waiting in the Outbox over a checked '
+        'home keeps the button offered and resting', () {
+      const home = SalaSessionState(
+        machine: Machine(station: Ensaio()),
+        btChecked: true,
+        unsentTakes: 1,
+      );
+      expect(home.approveOffered, isTrue);
+      expect(home.approveActsOnTheHome, isFalse);
+      expect(
+        home.copyWith(unsentTakes: 0).approveActsOnTheHome,
+        isTrue,
+        reason: 'o caso só mede alguma coisa se a fila vazia deixa agir',
+      );
+    });
+
+    test('a take of an earlier visit waiting in the Outbox over an approved '
+        'draft keeps the badge', () {
+      const home = SalaSessionState(
+        machine: Machine(station: Ensaio()),
+        btRascunhoAprovado: ApprovedDraft(version: 1),
+        unsentTakes: 1,
+      );
+      expect(home.approvedOnTheHome, const ApprovedDraft(version: 1));
     });
 
     testWidgets(

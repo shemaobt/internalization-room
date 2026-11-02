@@ -6912,7 +6912,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theFraseNotUnderstood() =>
       state = state.copyWith(scene: state.scene.copyWith(notUnderstood: true));
 
-  /// The disk word stands on the scene screen until the team's next gesture.
+  /// The disk word stands on the Ensaio Final plan until the team's next gesture.
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 
@@ -11508,7 +11508,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gestureThen(() => _aprovarRascunhoFinal());
 
   Future<void> _aprovarRascunhoFinal() async {
-    final fromTheHome = state.approveOffered;
+    final fromTheHome = state.approveActsOnTheHome;
     if (!fromTheHome &&
         (state.station is! Retro || !state.approveActsOnTheCheck)) {
       return;

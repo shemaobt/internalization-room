@@ -952,9 +952,6 @@ class SalaSessionState {
     return index < 0 ? null : index;
   }
 
-  bool get aTakeFromAnEarlierVisitWaits =>
-      sceneRows.any((row) => row.unsent?.fromAnEarlierVisit ?? false);
-
   /// The one row of the whole while the passage is recorded whole. Otherwise one row per
   /// Scene, in passage order, then one per part beyond the last scene with a take still to
   /// send, in the air, being kept or kept this visit; with a passage the room answered
@@ -1838,25 +1835,26 @@ class SalaSessionState {
       (btPhase == BtPhase.playing || btPhase == BtPhase.conferida) &&
       channel is! GuideSpeaking;
 
-  /// Whether the recording home offers the approval: the room calls the passage checked
-  /// and the approval is still open, and nothing is being recorded or sent.
+  /// Whether the recording home draws the approve button: the room calls the passage
+  /// checked and the approval is still open. Busyness only rests it (ADR 0136).
   bool get approveOffered =>
       stage == SalaStage.ensaio &&
-      ensaio == EnsaioStatus.idle &&
       btChecked &&
       approvalStillOpen &&
-      ensaioSalvo == null &&
+      ensaioSalvo == null;
+
+  /// Whether the approve button on the recording home acts: offered, and nothing is being
+  /// recorded or sent and no approval or open of the Checagem externa is in the air.
+  bool get approveActsOnTheHome =>
+      approveOffered &&
+      ensaio == EnsaioStatus.idle &&
       nothingWaitsInTheOutbox &&
       aBackTranslationGestureActs;
 
   /// The approval drawn on the recording home: in place of the approve button, or under it
   /// while the approval is still open (ADR 0150).
   ApprovedDraft? get approvedOnTheHome =>
-      stage == SalaStage.ensaio &&
-          ensaio == EnsaioStatus.idle &&
-          nothingWaitsInTheOutbox
-      ? btRascunhoAprovado
-      : null;
+      stage == SalaStage.ensaio ? btRascunhoAprovado : null;
 
   bool get nothingWaitsInTheOutbox => unsentTakes == 0 && unsentChunks == 0;
 

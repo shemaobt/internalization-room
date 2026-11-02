@@ -19,8 +19,10 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/unsent_notice.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show byLabel, intoTheRecordingHome, offTheRows, relaunch, settle;
@@ -94,6 +96,9 @@ class _Casa {
   Finder naLinha(int n, Finder alvo) =>
       find.descendant(of: linha(n), matching: alvo);
 
+  Finder noAviso(Finder alvo) =>
+      find.descendant(of: find.byType(UnsentNotice), matching: alvo);
+
   Future<void> emTempoReal(Future<void> Function() corpo) async {
     await tester.runAsync(corpo);
     await tester.pump(const Duration(milliseconds: 100));
@@ -150,14 +155,14 @@ class _Casa {
     });
   }
 
-  Future<void> relancar({String? lingua}) async {
+  Future<void> relancar({String? lingua, Duration? medido = _umaParte}) async {
     late SalaHarness de;
     late ProviderContainer para;
     await tester.runAsync(() async {
       container.dispose();
       await harness.takes.flush();
       (de, para) = await relaunch(harness, container, lingua: lingua);
-      de.playback.measured = _umaParte;
+      de.playback.measured = medido;
       para.read(salaSessionProvider);
     });
     harness = de;
@@ -187,12 +192,12 @@ class _Casa {
     });
   }
 
-  void controles({required String madeira}) {
+  void controles({required String madeira, int noAvisoHa = 0}) {
     expect(offTheRows(madeira), findsOneWidget, reason: 'o play de madeira');
     expect(
       offTheRows(_enviarAGravacao),
-      findsOneWidget,
-      reason: 'o visto verde',
+      findsNWidgets(1 + noAvisoHa),
+      reason: 'o visto verde e os envios do aviso',
     );
     expect(offTheRows(_traduzir), findsOneWidget, reason: 'o disco');
     _nenhumaPalavraNossa();
@@ -397,10 +402,7 @@ void main() {
       await casa.relancar();
 
       expect(find.text(_aviso), findsOneWidget);
-      expect(
-        casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))),
-        findsOneWidget,
-      );
+      expect(casa.noAviso(find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
 
       casa.room.unreachableTake = null;
       await casa.tocarAte(
@@ -427,6 +429,7 @@ void main() {
 
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
       expect(find.text(_aviso), findsNothing);
+      expect(find.textContaining('enviar agora'), findsNothing);
 
       casa.room.unreachableTake = null;
       await casa.tocarAte(
@@ -473,7 +476,7 @@ void main() {
       isEmpty,
     );
     expect(find.text(_aviso), findsOneWidget);
-    expect(casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
+    expect(casa.noAviso(find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
   });
 
   testWidgets('every recording and translation control reads her words', (
@@ -534,8 +537,8 @@ void main() {
       );
 
       await casa.relancar();
-      casa.controles(madeira: _ouvir);
-      expect(casa.naLinha(2, byLabel(_enviarAGravacao)), findsOneWidget);
+      casa.controles(madeira: _ouvir, noAvisoHa: 2);
+      expect(casa.noAviso(byLabel(_enviarAGravacao)), findsNWidgets(2));
     } finally {
       semantica.dispose();
     }
@@ -592,7 +595,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      casa.naLinha(2, find.text('Scene 2 · 0:48 — send it now')),
+      casa.noAviso(find.text('Scene 2 · 0:48 — send it now')),
       findsOneWidget,
     );
   });
@@ -626,7 +629,7 @@ void main() {
       await casa.relancar();
 
       expect(find.text(_aviso), findsOneWidget);
-      final botao = casa.naLinha(2, find.textContaining('— enviar agora'));
+      final botao = casa.noAviso(find.textContaining('— enviar agora'));
       expect(botao, findsOneWidget);
 
       final antes = casa.envios;
@@ -689,8 +692,8 @@ void main() {
     await casa.relancar();
 
     expect(find.text(_aviso), findsOneWidget);
-    expect(casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
-    expect(casa.naLinha(3, find.text(_enviarAgora(3, '0:48'))), findsOneWidget);
+    expect(casa.noAviso(find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
+    expect(casa.noAviso(find.text(_enviarAgora(3, '0:48'))), findsOneWidget);
 
     final antes = casa.envios;
     await casa.tocarAte(
@@ -702,7 +705,7 @@ void main() {
     expect(casa.envios - antes, 1, reason: 'só a cena 3 foi tentada');
     expect(casa.naSala, contains('ensaio/parte-3'));
     expect(casa.naSala, isNot(contains('ensaio/parte-2')));
-    expect(casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
+    expect(casa.noAviso(find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
   });
 
   testWidgets(
@@ -733,7 +736,7 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.tocarAte(
-        casa.naLinha(2, find.textContaining('enviar agora')),
+        casa.noAviso(find.textContaining('Cena 2 ·')),
         'a cena 2 ser enviada',
         () => casa.room.takePasses.isNotEmpty,
       );
@@ -820,7 +823,7 @@ void main() {
       });
 
       expect(find.text(_aviso), findsOneWidget);
-      expect(casa.naLinha(1, find.text(_enviarAgora(1, '0:48'))), findsOne);
+      expect(casa.noAviso(find.text(_enviarAgora(1, '0:48'))), findsOne);
       expect(audio.existsSync(), isTrue);
 
       casa.room.unreachableTake = null;
@@ -1314,7 +1317,7 @@ void main() {
 
       casa.room.unreachableTake = null;
       await casa.tocarAte(
-        casa.naLinha(4, find.textContaining('enviar agora')),
+        casa.noAviso(find.textContaining('Cena 4')),
         'a cena 4 chegar',
         () => casa.estado.everyPartIsSent,
       );
@@ -1498,13 +1501,200 @@ void main() {
       });
 
       expect(casa.naSala, isNot(contains('ensaio/parte-2')));
-      expect(
-        casa.naLinha(2, find.text(_enviarAgora(2, '0:48'))),
-        findsOneWidget,
-      );
+      expect(casa.noAviso(find.text(_enviarAgora(2, '0:48'))), findsOneWidget);
       expect(casa.naLinha(2, find.text(_falhou)), findsNothing);
     },
   );
+  group('the home\'s notice', () {
+    Future<_Casa> duasDeUmaVisitaAnterior(
+      WidgetTester tester, {
+      String lingua = 'pt',
+      Duration? medido = _umaParte,
+    }) async {
+      final casa = await _naCasa(
+        tester,
+        lingua: lingua,
+        cenas: lingua == 'en' ? _scenes : _cenas,
+      );
+      casa.room.unreachableTake = 'ensaio/parte-3';
+      await casa.guardar(3);
+      casa.room.unreachableTake = 'ensaio/parte-2';
+      await casa.guardar(2);
+      await casa.relancar(lingua: lingua, medido: medido);
+      return casa;
+    }
+
+    testWidgets(
+      'two takes of an earlier visit are listed under the home\'s notice in '
+      'scene order, «Cena 2 · 0:48 — enviar agora» then «Cena 3 · 0:48 — '
+      'enviar agora»',
+      (tester) async {
+        final casa = await duasDeUmaVisitaAnterior(tester);
+
+        expect(find.text(_aviso), findsOneWidget);
+        final dois = casa.noAviso(find.text(_enviarAgora(2, '0:48')));
+        final tres = casa.noAviso(find.text(_enviarAgora(3, '0:48')));
+        expect(dois, findsOneWidget);
+        expect(tres, findsOneWidget);
+        expect(
+          tester.getTopLeft(dois).dy,
+          lessThan(tester.getTopLeft(tres).dy),
+        );
+        for (final n in [1, 2, 3, 4]) {
+          expect(
+            casa.naLinha(n, find.textContaining('enviar agora')),
+            findsNothing,
+          );
+        }
+      },
+    );
+
+    testWidgets(
+      'a join of an earlier visit still in the Outbox is never listed under '
+      'the home\'s notice: only the take recorded on this tablet is',
+      (tester) async {
+        final casa = await _naCasa(tester);
+        casa.room.unreachableTake = 'ensaio/parte-2';
+        await casa.guardar(2);
+        await casa.relancar();
+        final sessionId = casa.estado.sessionId!;
+        await casa.emTempoReal(() async {
+          final pasta = aTempDir('sala-2079-junta-na-casa');
+          await casa.harness.takes.enqueueTheJoin(
+            File('${pasta.path}/parte-3-junta.wav')
+              ..writeAsBytesSync(aWavTake()),
+            sessionId: sessionId,
+            number: 3,
+            passNumber: 1,
+            origin: 'ensaio-da-cena-3',
+          );
+        });
+        await casa.emTempoReal(() async {
+          await casa.sala.refreshUnsent();
+          await settle();
+        });
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          casa.noAviso(find.text(_enviarAgora(2, '0:48'))),
+          findsOneWidget,
+        );
+        expect(casa.noAviso(find.textContaining('Cena 3')), findsNothing);
+        expect(find.textContaining('Cena 3 ·'), findsNothing);
+      },
+    );
+
+    testWidgets('no scene row carries a send for a take of an earlier visit', (
+      tester,
+    ) async {
+      final casa = await duasDeUmaVisitaAnterior(tester);
+
+      for (final n in [2, 3]) {
+        expect(
+          casa.naLinha(n, find.textContaining('enviar agora')),
+          findsNothing,
+        );
+        expect(casa.naLinha(n, find.text(_enviando)), findsNothing);
+        expect(casa.naLinha(n, find.text(_falhou)), findsNothing);
+      }
+    });
+
+    testWidgets(
+      'a tap on the notice\'s «Cena 2 · 0:48 — enviar agora» sends scene 2 '
+      'only, and the notice goes once it lands',
+      (tester) async {
+        final casa = await duasDeUmaVisitaAnterior(tester);
+        casa.room.unreachableTake = null;
+
+        await casa.tocarAte(
+          casa.noAviso(find.text(_enviarAgora(2, '0:48'))),
+          'a cena 2 ficar enviada',
+          () => casa.enviada(2),
+        );
+
+        expect(casa.naSala, contains('ensaio/parte-2'));
+        expect(casa.naSala, isNot(contains('ensaio/parte-3')));
+        expect(
+          casa.noAviso(find.text(_enviarAgora(3, '0:48'))),
+          findsOneWidget,
+        );
+
+        await casa.tocarAte(
+          casa.noAviso(find.text(_enviarAgora(3, '0:48'))),
+          'a cena 3 ficar enviada',
+          () => casa.enviada(3),
+        );
+
+        expect(find.text(_aviso), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a take of an earlier visit whose length cannot be read is offered as '
+      '«Cena 2 — enviar agora»',
+      (tester) async {
+        final casa = await _naCasa(tester);
+        casa.room.unreachableTake = 'ensaio/parte-2';
+        await casa.guardar(2);
+
+        await casa.relancar(medido: null);
+
+        expect(
+          casa.noAviso(find.text('Cena 2 — enviar agora')),
+          findsOneWidget,
+        );
+        expect(find.textContaining(' · '), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a take being sent from the notice leaves the notice while the others '
+      'stay',
+      (tester) async {
+        final casa = await duasDeUmaVisitaAnterior(tester);
+        casa.room.unreachableTake = null;
+        casa.room.holdNextTake('parte-2');
+
+        await casa.emTempoReal(() async {
+          final dois = casa.noAviso(find.text(_enviarAgora(2, '0:48')));
+          await tester.ensureVisible(dois);
+          await tester.tap(dois);
+          await waitFor(
+            'o envio da cena 2 ficar preso na sala',
+            () => casa.room.takeHeld,
+            limit: const Duration(seconds: 10),
+          );
+          await settle(const Duration(milliseconds: 400));
+        });
+
+        expect(casa.noAviso(find.text(_enviarAgora(2, '0:48'))), findsNothing);
+        expect(
+          casa.noAviso(find.text(_enviarAgora(3, '0:48'))),
+          findsOneWidget,
+        );
+        expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'the notice and its sends on the home read her English words in an '
+      'English room',
+      (tester) async {
+        final casa = await duasDeUmaVisitaAnterior(tester, lingua: 'en');
+
+        expect(
+          find.text(
+            'A recording is still on this computer and has not been sent.',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          casa.noAviso(find.text('Scene 2 · 0:48 — send it now')),
+          findsOneWidget,
+        );
+      },
+    );
+  });
 }
 
 class _QueueThatRefusesOnce extends TakeUploadQueue {
