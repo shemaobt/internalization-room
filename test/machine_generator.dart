@@ -65,7 +65,7 @@ class World {
           calling = true;
         case StopCallingForAPerson():
           calling = false;
-        case PlayLine() || PlayPart() || PlayStretch():
+        case PlayLine() || PlayPart() || PlayStretch() || PlayKeptRetelling():
           busy = true;
         case SilenceTheRoom() || StopTheSound():
           busy = false;
@@ -341,6 +341,7 @@ String describeSound(Sound sound) => switch (sound) {
   PartSound(:final part, :final from) => 'part $part from ${from.inSeconds}s',
   final StretchSound stretch =>
     'stretch ${stretch.key}${stretch.telling ? ' told' : ''}',
+  KeptRetellingSound(:final scope) => 'kept retelling $scope',
 };
 
 String describeChannel(Channel channel) => switch (channel) {
@@ -362,6 +363,8 @@ String describeEffect(Effect effect) => switch (effect) {
   PlayLine(:final line) => 'PlayLine(${describeLine(line)})',
   PlayPart(:final part) => 'PlayPart(${describeSound(part)})',
   PlayStretch(:final stretch) => 'PlayStretch(${describeSound(stretch)})',
+  PlayKeptRetelling(:final retelling) =>
+    'PlayKeptRetelling(${describeSound(retelling)})',
   OpenTheMic(:final owner) => 'OpenTheMic(${owner.name})',
   _ => effect.runtimeType.toString(),
 };
@@ -663,19 +666,24 @@ Source _drawASource(Random random) => switch (random.nextInt(4)) {
   _ => Source.reply('resposta-${random.nextInt(2)}'),
 };
 
-Sound _drawASound(Random random) => random.nextBool()
-    ? PartSound(
-        random.nextInt(2),
-        'parte-${random.nextInt(2)}.m4a',
-        from: Duration(seconds: random.nextInt(20)),
-      )
-    : StretchSound(
-        'parte-${random.nextInt(2)}.m4a',
-        named: 'trecho-${random.nextInt(2)}',
-        from: Duration(seconds: random.nextInt(10)),
-        to: Duration(seconds: 10 + random.nextInt(10)),
-        telling: random.nextBool(),
-      );
+Sound _drawASound(Random random) => switch (random.nextInt(3)) {
+  0 => PartSound(
+    random.nextInt(2),
+    'parte-${random.nextInt(2)}.m4a',
+    from: Duration(seconds: random.nextInt(20)),
+  ),
+  1 => StretchSound(
+    'parte-${random.nextInt(2)}.m4a',
+    named: 'trecho-${random.nextInt(2)}',
+    from: Duration(seconds: random.nextInt(10)),
+    to: Duration(seconds: 10 + random.nextInt(10)),
+    telling: random.nextBool(),
+  ),
+  _ => KeptRetellingSound(
+    'conto-${random.nextInt(2)}.m4a',
+    scope: 'S${1 + random.nextInt(2)}',
+  ),
+};
 
 /// The stamp the generator gives an answer that is always from an older generation.
 const theOlderGeneration = -1;
@@ -773,15 +781,7 @@ MachineEvent _draw(
   ]),
   EventKind.pauseTapped => const PauseTapped(),
   EventKind.theHeldPartReturns => TheHeldPartReturns(
-    Paused(
-      PartSound(
-        random.nextInt(2),
-        'parte-${random.nextInt(2)}.m4a',
-        from: Duration(seconds: random.nextInt(20)),
-      ),
-      started: false,
-      opened: false,
-    ),
+    Paused(_drawASound(random), started: false, opened: false),
   ),
   EventKind.gestureSilenced => GestureSilenced(
     keepingTheHold: random.nextBool(),
