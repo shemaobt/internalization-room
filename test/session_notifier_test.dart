@@ -6137,6 +6137,45 @@ void main() {
     );
   });
 
+  test(
+    'the door to the retro stays dark across a keep the Outbox refuses',
+    () async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.goEnsaio();
+      await gravaEGuardaAParte(container, 1);
+      await gravaEGuardaAParte(container, 2);
+      await theRoomNamesBothParts(container);
+      notifier.gravarACena(3);
+      notifier.gravarACena(3);
+      await waitFor(
+        'a tomada ser oferecida',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+      );
+      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+      final lit = <bool>[];
+      container.listen(
+        salaSessionProvider,
+        (_, state) => lit.add(state.ensaioDone),
+      );
+
+      notifier.takeKeep();
+      await waitFor(
+        'a parte recusada contar como não enviada',
+        () => container.read(salaSessionProvider).unsentParts.containsKey(3),
+      );
+      await settle();
+
+      expect(
+        lit,
+        everyElement(isFalse),
+        reason: 'a porta acendia entre o fim do guardar recusado e a contagem',
+      );
+    },
+  );
+
   test('a recording still running holds the door to the retro', () async {
     final harness = SalaHarness();
     final container = await inConversa(harness);
