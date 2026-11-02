@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-2011 (2026-11-02: the offer survives a relaunch)
 date: 2026-10-23
 extends: 0102, 0120
 ---
