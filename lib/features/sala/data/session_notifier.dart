@@ -1351,7 +1351,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final line = state.lastSpoken;
     final onTheTablet = line != null && await _isOnTheTablet(line);
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation) ||
+        !state.canHearAgain ||
+        state.lastSpoken != line) {
+      return;
+    }
     if (onTheTablet) return _repeatLastSpoken(line);
     await _askTheRoomToSayItAgain();
   }
