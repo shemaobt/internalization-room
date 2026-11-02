@@ -1424,7 +1424,8 @@ void main() {
   );
 
   testWidgets(
-    'a part that fails to play says so, calls nobody, and the next tap plays it',
+    'a part that fails to play says so, calls nobody, and the next tap plays it '
+    'under the same line',
     (tester) async {
       final it = await _naTela(tester, _juntadaNaCasa);
       await _ate(tester, () async {
@@ -1446,7 +1447,7 @@ void main() {
         ),
       );
 
-      expect(find.text(_naoDeuParaConferir), findsNothing);
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
       expect(it.harness.playback.played.last, it.partes[0].path);
       closeTheRoom(it.container);
     },
@@ -1606,6 +1607,31 @@ void main() {
         microfones,
         reason: 'só ouvir: microfone fechado',
       );
+    },
+  );
+
+  test(
+    'on entry, a recording no join touched whose unheard list names only takes from another tablet starts the listen with P0 and the whole passage',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      it.harness.room.listeningUnheardTakeIds = const ['de-outro-tablet'];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
+
+      await _oDisco(it);
+      expect(it.harness.voice.fixedLines.skip(linhas), [('P0', testLanguage)]);
+      await _ouvirAte(it);
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
     },
   );
 

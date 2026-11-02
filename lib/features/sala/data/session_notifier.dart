@@ -1781,7 +1781,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
-      return;
+      switch (answer) {
+        case Answered():
+          return;
+        case _:
+          if (endsTheConversation && _endOf(endedSession) == (line: null)) {
+            _setTheEnd(endedSession, before);
+          }
+          return;
+      }
     }
     if (answer case final RoomFailure lost
         when FailurePolicy.theAnswerWasLost(lost.result, rule)) {
@@ -8217,7 +8225,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (deixou()) return;
     final nomes = ouvida?.unheardTakeIds;
     final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
-    final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
+    final deFora = naoOuvidas != null && nomes!.isNotEmpty;
     final jaLidoNaVisita =
         state.btFraseQueAguarda != null ||
         conferida ||
@@ -8756,7 +8764,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btOuvidoMs: _pontoNoColar(0),
       btParteNoArMs: 0,
       btOuvidoAlemDoCursor: false,
-      clearBtRecusa: state.btRecusa == CheckRefusal.checkUnavailable,
     );
     _parteJaTocou = true;
     // The deadline is armed once this clip's own `openings` event lands, never here:
@@ -8771,11 +8778,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _aParteNaoTocou() {
     if (state.btRegravacao != null) return;
     state = state.copyWith(btAviso: BtAviso.tocarFalhou);
-  }
-
-  void _aParteTocou() {
-    if (state.btAviso != BtAviso.tocarFalhou) return;
-    state = state.copyWith(clearAviso: true);
   }
 
   void _fimDeParte({required bool seguir}) {
@@ -12157,9 +12159,6 @@ class _NotifierHost implements StationHost {
 
   @override
   void hearThePlayFailed() => _notifier._aParteNaoTocou();
-
-  @override
-  void hearThePlayOpened() => _notifier._aParteTocou();
 
   @override
   void hearTheSendFailed() => _notifier._theSendFailed();

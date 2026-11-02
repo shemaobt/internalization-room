@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen), amended by ENG-1854 (2026-10-30: a list naming no part this tablet holds is N0)
+status: accepted, amended by 0140 (coming back to a telling in progress is quiet), amended by ENG-1912 (2026-10-28: play after an incomplete listen replays the recording from its first part, as hers), amended by ENG-1886 (2026-10-28: the First listen draws no circle), amended by ENG-1859 (2026-10-30: an entry the room cannot answer starts the First listen), amended by ENG-1854 (2026-10-30: a list naming no part this tablet holds is N0), amended by ENG-2114 (2026-11-02: a recording no join touched whose list names only another tablet's takes opens with P0 and the whole chain)
 date: 2026-10-23
 ---
 
@@ -120,3 +120,11 @@ result gives N0 and the whole passage (`ensaioFinal.ts:380-381`, at 18fa7c4). Ru
 bullet no longer holds: **a joined recording whose unheard list names no part this tablet holds
 opens with N0 and plays every part from its beginning**, not P2. Rule 7.1 is unchanged: after
 the listen, a part the room names that this tablet does not hold still keeps the listen.
+
+## Amendment · 2026-11-02 (ENG-2114)
+
+Her `listenPlan` plays P0 with the whole chain for a recording no join touched, whatever is unheard
+(`ensaioFinal.ts:374`, at 18fa7c4). Which tablet recorded a take never decides whether it is
+heard: **a recording no join touched whose unheard list names only takes from another tablet
+opens with P0 and plays every part from its beginning**, as a joined one opens with N0. The telling
+comes only when the room counts every part heard.

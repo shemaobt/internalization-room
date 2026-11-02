@@ -23,7 +23,13 @@ import 'the_back_translation_is_told_by_beads_test.dart'
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 import 'the_pause_snaps_to_silence_test.dart'
-    show entrarComAFala, ouvirAPausa, pausarAos, s, umaLacunaAos3;
+    show
+        entrarComAFala,
+        ouvirAPausa,
+        pausarAos,
+        s,
+        traduzirEConfirmar,
+        umaLacunaAos3;
 
 const _naoDeuParaConferir = 'não deu para conferir agora — tentem de novo';
 const _couldNotCheck = 'couldn\'t check right now — try again';
@@ -100,65 +106,15 @@ void main() {
       expect(machine.channel, const Silence());
     });
 
-    test('a sound that opens on the Back-translation tells the screen it '
-        'played', () {
-      final (_, effects) = reduce(
-        const Machine(station: Retro(), channel: StretchPlaying(_stretch)),
-        const PlayerOpened(),
-      );
-
-      expect(effects, contains(const TellThePlayOpened()));
-    });
-
-    test('the team\'s own translation that opens tells nothing, as her own '
-        'element never touches the line', () {
-      const own = StretchSound(
-        'traducao-1.m4a',
-        named: 'trecho-1',
-        telling: true,
-      );
-      final (_, effects) = reduce(
-        const Machine(station: Retro(), channel: StretchPlaying(own)),
-        const PlayerOpened(),
-      );
-
-      expect(effects, isNot(contains(const TellThePlayOpened())));
-    });
-
-    test('in every sequence a sound that opens tells the screen only on the '
-        'Back-translation and only for the recording\'s own sound', () {
-      for (var seed = 0; seed < 50; seed++) {
-        final random = Random(seed);
-        var machine = const Machine(station: Retro());
-        var world = const World();
-        for (var step = 0; step < 40; step++) {
-          if (machine.channel case Playing(:final sound)) {
-            final (_, effects) = reduce(machine, const PlayerOpened());
-            expect(
-              effects.contains(const TellThePlayOpened()),
-              machine.station is Retro &&
-                  !(sound is StretchSound && sound.telling),
-              reason:
-                  'seed $seed, step $step: ${describeMachine(machine)} | '
-                  '${effects.map(describeEffect).join(', ')}',
-            );
-          }
-          final event = drawAnEvent(world, random);
-          final (next, drawn) = reduce(machine, event);
-          world = world.after(event, drawn);
-          machine = next;
-        }
-      }
-    });
-
-    test('a sound that opens on every other Station tells nothing', () {
-      for (final station in _everyOtherStation) {
+    test('a sound that opens tells the screen nothing on any Station, so a '
+        'play never takes her lines away', () {
+      for (final station in [const Retro(), ..._everyOtherStation]) {
         final (_, effects) = reduce(
           Machine(station: station, channel: const PartPlaying(_part)),
           const PlayerOpened(),
         );
 
-        expect(effects, isNot(contains(const TellThePlayOpened())));
+        expect(effects, const [ArmTheCeiling()]);
       }
     });
 
@@ -279,8 +235,8 @@ void main() {
       closeTheRoom(container);
     });
 
-    testWidgets('«ouvir a pausa» that plays after one that failed takes her '
-        'line away', (tester) async {
+    testWidgets('«ouvir a pausa» that plays after one that failed leaves her '
+        'line standing', (tester) async {
       _telaAlta(tester);
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await entrarComAFala(tester, harness, umaLacunaAos3);
@@ -294,6 +250,10 @@ void main() {
       await _passo(tester);
 
       expect(harness.playback.sounding, isTrue);
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
+
+      await traduzirEConfirmar(tester);
+
       expect(find.text(_naoDeuParaConferir), findsNothing);
       closeTheRoom(container);
     });
