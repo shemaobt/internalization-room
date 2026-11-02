@@ -2089,8 +2089,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// reset and hide that this one is gone (ADR 0064).
   Future<void> _launch() async {
     final generation = _waitOnTheGeneration;
-    final held = await _store.currentSession();
+    final known = await _store.knownCurrentSession();
     if (_abandoned(generation)) return;
+    final held = known?.session;
+    if (known != null) {
+      unawaited(_recorder.sweepTheKeptRetellingsOutside(held?.sessionId));
+    }
     if (held == null) return _abrirEscolha();
     return _landOn(held);
   }

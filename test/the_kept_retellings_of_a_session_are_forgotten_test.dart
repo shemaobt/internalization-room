@@ -75,4 +75,59 @@ void main() {
       );
     },
   );
+  test('the sweep outside a session deletes the tellings kept for every other '
+      'session, and leaves that session, the takes and the rest', () async {
+    final recordings = Directory('${documents.path}/recordings')
+      ..createSync(recursive: true);
+    for (final name in [
+      'kept-sessao-a-S1-2.wav',
+      'kept-sessao-a-S2-1.m4a',
+      'kept-sessao-b-S1-1.m4a',
+      'kept-sessao-b-S3-1.wav',
+      'kept-sessao-c-S1-1.m4a.part',
+      'conversa_1760900000003.m4a',
+      'cena-ensaio-da-cena-1.wav',
+      'parte-1-gravacao-1-1760900000003-77.m4a',
+      'checagem-t1.m4a',
+    ]) {
+      File('${recordings.path}/$name').writeAsStringSync('áudio');
+    }
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.sweepTheKeptRetellingsOutside('sessao-a');
+
+    expect(
+      recordings.listSync().map((entry) => entry.path.split('/').last).toSet(),
+      {
+        'kept-sessao-a-S1-2.wav',
+        'kept-sessao-a-S2-1.m4a',
+        'conversa_1760900000003.m4a',
+        'cena-ensaio-da-cena-1.wav',
+        'parte-1-gravacao-1-1760900000003-77.m4a',
+        'checagem-t1.m4a',
+      },
+    );
+  });
+
+  test('the sweep outside no session deletes every kept telling', () async {
+    final recordings = Directory('${documents.path}/recordings')
+      ..createSync(recursive: true);
+    for (final name in [
+      'kept-sessao-a-S1-2.wav',
+      'kept-sessao-b-S1-1.m4a',
+      'conversa_1760900000003.m4a',
+    ]) {
+      File('${recordings.path}/$name').writeAsStringSync('áudio');
+    }
+    final recording = RecordingRepository();
+    addTearDown(recording.dispose);
+
+    await recording.sweepTheKeptRetellingsOutside(null);
+
+    expect(
+      recordings.listSync().map((entry) => entry.path.split('/').last).toSet(),
+      {'conversa_1760900000003.m4a'},
+    );
+  });
 }
