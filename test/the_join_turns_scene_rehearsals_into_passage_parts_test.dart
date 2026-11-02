@@ -676,8 +676,8 @@ void main() {
 
   testWidgets(
     'a join row that failed on the network sends nothing after the app is '
-    "reopened, and only the notice's enviar agora sends it, with its origin "
-    'and fingerprint',
+    'reopened, is never offered as a take left on the tablet, and the plan\'s '
+    '«juntar» sends it, with its origin and fingerprint',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
@@ -702,14 +702,15 @@ void main() {
 
       expect(it.room.takesAsked.skip(asked), isEmpty);
 
-      await it.toTheRecordingHome();
-      final send = find.textContaining(RegExp(r'Cena 2 · .*enviar agora'));
-      expect(send, findsOneWidget);
-      await tester.tap(send);
+      await it.openThePlan();
+      expect(find.text(_planLine), findsOneWidget);
+      expect(find.textContaining('enviar agora'), findsNothing);
+      await it.tapJoin();
       await it.until(
-        'a parte 2 chegar pelo toque',
+        'a parte 2 chegar pelo juntar',
         () => it.partsReceived.contains('parte-2'),
       );
+      await _theJoinEnds(it);
 
       expect(
         it.room.takesReceivedWhole.where((take) => take.scope == 'parte-2'),
@@ -727,6 +728,7 @@ void main() {
         hasLength(1),
         reason: 'a mesma junta enviada duas vezes é uma take só',
       );
+      closeTheRoom(it.container);
       semantics.dispose();
     },
   );
@@ -1372,6 +1374,36 @@ void main() {
         findsOneWidget,
       );
       semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a scene\'s join still on its way holds the door to the retro dark',
+    (tester) async {
+      final it = await _atRest(tester);
+      it.seed();
+      await it.openThePlan();
+      it.holdTheTake('parte-3');
+      await it.tapJoin();
+      await it.until(
+        'a parte 3 chegar à porta',
+        () => it.theHeldTakeArrived && it.ticked(2),
+      );
+      await it.wait(joinAnswerWait);
+      await it.until(
+        'a linha 3 pedir outra tentativa',
+        () => it.onRow(3, find.text(_retry)).evaluate().isNotEmpty,
+      );
+
+      final state = it.container.read(salaSessionProvider);
+      expect(state.everySceneHasItsPart, isTrue);
+      expect(
+        state.ensaioDone,
+        isFalse,
+        reason: 'a porta acendia com a junta da cena 3 ainda no ar',
+      );
+      it.room.finishHeldTake();
+      await it.settle();
     },
   );
 

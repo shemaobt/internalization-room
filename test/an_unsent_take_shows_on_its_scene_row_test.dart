@@ -22,6 +22,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/features/sala/presentation/widgets/unsent_notice.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show byLabel, intoTheRecordingHome, offTheRows, relaunch, settle;
@@ -1545,6 +1546,41 @@ void main() {
             findsNothing,
           );
         }
+      },
+    );
+
+    testWidgets(
+      'a join of an earlier visit still in the Outbox is never listed under '
+      'the home\'s notice: only the take recorded on this tablet is',
+      (tester) async {
+        final casa = await _naCasa(tester);
+        casa.room.unreachableTake = 'ensaio/parte-2';
+        await casa.guardar(2);
+        await casa.relancar();
+        final sessionId = casa.estado.sessionId!;
+        await casa.emTempoReal(() async {
+          final pasta = aTempDir('sala-2079-junta-na-casa');
+          await casa.harness.takes.enqueueTheJoin(
+            File('${pasta.path}/parte-3-junta.wav')
+              ..writeAsBytesSync(aWavTake()),
+            sessionId: sessionId,
+            number: 3,
+            passNumber: 1,
+            origin: 'ensaio-da-cena-3',
+          );
+        });
+        await casa.emTempoReal(() async {
+          await casa.sala.refreshUnsent();
+          await settle();
+        });
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          casa.noAviso(find.text(_enviarAgora(2, '0:48'))),
+          findsOneWidget,
+        );
+        expect(casa.noAviso(find.textContaining('Cena 3')), findsNothing);
+        expect(find.textContaining('Cena 3 ·'), findsNothing);
       },
     );
 
