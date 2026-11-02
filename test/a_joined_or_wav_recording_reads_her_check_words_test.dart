@@ -14,6 +14,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show byLabel, holdTheSession, intoTheBackTranslation;
+import 'support/temp.dart';
 
 const _herSubVerdict =
     'Toquem numa frase para ouvir e traduzir de novo; toquem em regravar para '
@@ -36,8 +37,7 @@ Future<ProviderContainer> _voltaAUmaTraducao(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1806');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1806');
   await holdTheSession(
     harness,
     ResumePoint(

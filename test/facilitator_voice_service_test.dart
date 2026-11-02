@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'fakes.dart';
+import 'support/temp.dart';
 
 const _clip = '/api/internalization-room/voice/aaa';
 const _other = '/api/internalization-room/voice/bbb';
@@ -80,12 +81,8 @@ void main() {
   }
 
   setUp(() {
-    library = Directory.systemTemp.createTempSync('sala-voz');
+    library = aTempDir('sala-voz');
     fetched = [];
-  });
-
-  tearDown(() {
-    if (library.existsSync()) library.deleteSync(recursive: true);
   });
 
   FacilitatorVoiceService service({

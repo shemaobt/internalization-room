@@ -9,6 +9,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show holdTheSession, intoTheRecordingHome, settle;
+import 'support/temp.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _umaParte = [Duration(seconds: 10)];
@@ -117,8 +118,7 @@ void main() {
     'do not stand for it: the line under terminei still asks for listening',
     () async {
       final harness = SalaHarness();
-      final pasta = Directory.systemTemp.createTempSync('sala-2134');
-      addTearDown(() => pasta.deleteSync(recursive: true));
+      final pasta = aTempDir('sala-2134');
       final caminho = (File(
         '${pasta.path}/p1.wav',
       )..writeAsBytesSync([1, 2, 3])).path;

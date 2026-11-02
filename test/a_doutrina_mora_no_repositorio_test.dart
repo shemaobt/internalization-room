@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import '../tool/sync_doctrine.dart';
+import 'support/temp.dart';
 
 void main() {
   test('the doctrine is vendored in the repo at the sha its pin records', () {
@@ -28,8 +29,7 @@ void main() {
   test(
     'a vendored artefact edited in place is reported rather than accepted',
     () {
-      final dir = Directory.systemTemp.createTempSync('doctrine_pin_');
-      addTearDown(() => dir.deleteSync(recursive: true));
+      final dir = aTempDir('doctrine_pin_');
       final vendored = File(p.join(dir.path, vendoredDoctrine));
       vendored.parent.createSync(recursive: true);
       vendored.writeAsStringSync('dela\n');
@@ -56,8 +56,7 @@ void main() {
   );
 
   test('a pin moved with no ruling beside it is refused', () {
-    final dir = Directory.systemTemp.createTempSync('doctrine_rulings_');
-    addTearDown(() => dir.deleteSync(recursive: true));
+    final dir = aTempDir('doctrine_rulings_');
     final rulings = Directory(p.join(dir.path, 'rulings'))..createSync();
     File(
       p.join(rulings.path, '2026-09-03-a-doutrina-tem-dona.md'),

@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart';
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 const _familiarization = Moment(at: MomentAt.familiarization, parts: 4);
 
@@ -79,8 +80,7 @@ void main() {
   test(
     'a relaunch mid-conversation lands with the moment the room kept',
     () async {
-      final home = Directory.systemTemp.createTempSync('sala-momento');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-momento');
       final harness =
           SalaHarness(
               currentSession: CurrentSessionLedger(home: () async => home),
@@ -166,8 +166,7 @@ void main() {
   test(
     'a relaunch into the rehearsal with its takes on disk comes back with the moment the room kept',
     () async {
-      final pasta = Directory.systemTemp.createTempSync('sala-momento-ensaio');
-      addTearDown(() => pasta.deleteSync(recursive: true));
+      final pasta = aTempDir('sala-momento-ensaio');
       final gravada = File('${pasta.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
       final harness = SalaHarness()
         ..room.nextMoment = const Moment(

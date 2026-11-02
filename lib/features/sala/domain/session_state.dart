@@ -1034,14 +1034,13 @@ class SalaSessionState {
   /// Whether the plan holds its gestures: a label is in the air, or a join runs.
   bool get planBusy => labelling || joining != null;
 
-  bool get homeBusy => swapping != null;
+  bool get homeBusy => nothingStartsNow;
 
   bool get nothingStartsNow =>
       ensaio != EnsaioStatus.idle ||
       _theTakeInTheAirOf(partTakeKind) != null ||
       machine.keeping.keys.any((part) => part.session == sessionId) ||
-      joining != null ||
-      bringingBack != null ||
+      phaseBusy ||
       grainSwitching;
 
   bool get phaseBusy =>

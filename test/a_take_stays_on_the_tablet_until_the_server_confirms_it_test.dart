@@ -240,9 +240,6 @@ Future<_Casa> _naCasa(
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final sala = harness ?? SalaHarness();
-  if (relaunched == null) {
-    addTearDown(() => sala.takesHome.deleteSync(recursive: true));
-  }
   sala.room.passageScenes = _cenas;
   final container = (await tester.runAsync(
     () async => (relaunched ?? sala.container())..read(salaSessionProvider),

@@ -361,8 +361,10 @@ class TakeUploadQueue {
   }) : _home = home ?? getApplicationSupportDirectory,
        _now = now ?? clock.now;
 
+  Future<String> _folderPath() async => p.join((await _home()).path, _folder);
+
   Future<Directory> _dir() async {
-    final dir = Directory(p.join((await _home()).path, _folder));
+    final dir = Directory(await _folderPath());
     await dir.create(recursive: true);
     return dir;
   }
@@ -379,7 +381,7 @@ class TakeUploadQueue {
   /// nothing about where the audio is, and answering "nothing pending" to that told the
   /// team their recordings were safe on the word of a file we had just failed to read.
   Future<List<PendingTake>?> _written() async {
-    final folder = (await _dir()).path;
+    final folder = await _folderPath();
     final file = File(p.join(folder, _manifest));
     final stat = await file.stat();
     if (stat.type == FileSystemEntityType.notFound) {
@@ -810,17 +812,19 @@ class TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-  }) async => (await _enqueue(
-    audio,
-    sessionId: sessionId,
-    passage: passage,
-    kind: kind,
-    scope: scope,
-    passNumber: passNumber,
-    chunkIndex: chunkIndex,
-    scene: scene,
-    recordedAt: await audio.lastModified(),
-  ))!;
+  }) => _underway(
+    () async => (await _enqueue(
+      audio,
+      sessionId: sessionId,
+      passage: passage,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+      recordedAt: await audio.lastModified(),
+    ))!,
+  );
 
   /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
   /// is [fingerprint]'s, naming [overTake], the part's take it replaces. Each try sends
@@ -835,20 +839,35 @@ class TakeUploadQueue {
     String? fingerprint,
     String? overTake,
     bool reopensTheApprovedDraft = false,
-  }) => _enqueue(
-    audio,
-    sessionId: sessionId,
-    passage: passage,
-    kind: 'ensaio',
-    scope: KeptScope.parte(number),
-    passNumber: passNumber,
-    chunkIndex: number,
-    recordedAt: _now(),
-    fingerprint: fingerprint,
-    origin: origin,
-    reopensTheApprovedDraft: reopensTheApprovedDraft,
-    overTake: overTake,
+  }) => _underway(
+    () => _enqueue(
+      audio,
+      sessionId: sessionId,
+      passage: passage,
+      kind: 'ensaio',
+      scope: KeptScope.parte(number),
+      passNumber: passNumber,
+      chunkIndex: number,
+      recordedAt: _now(),
+      fingerprint: fingerprint,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
+    ),
   );
+
+  final Set<Future<void>> _enqueuesUnderway = {};
+
+  Future<T> _underway<T>(Future<T> Function() enqueue) async {
+    final done = Completer<void>();
+    _enqueuesUnderway.add(done.future);
+    try {
+      return await enqueue();
+    } finally {
+      _enqueuesUnderway.remove(done.future);
+      done.complete();
+    }
+  }
 
   Future<PendingTake?> _enqueue(
     File audio, {
@@ -981,6 +1000,22 @@ class TakeUploadQueue {
     if (stop == null || stop.isCompleted || _inTheAir?.id != row) return;
     _stopped = true;
     stop.complete();
+  }
+
+  Future<void> drained() async {
+    while (true) {
+      final writes = _writes;
+      await _flushInFlight?.then((_) {}, onError: (_) {});
+      await Future.wait(_enqueuesUnderway);
+      await Future.wait(_copiesBeingMade.values);
+      await writes;
+      if (identical(writes, _writes) &&
+          _flushInFlight == null &&
+          _enqueuesUnderway.isEmpty &&
+          _copiesBeingMade.isEmpty) {
+        return;
+      }
+    }
   }
 
   /// Send the rows a tap of this life made due, each with the rest of its part and after
