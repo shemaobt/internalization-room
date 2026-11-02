@@ -20,6 +20,7 @@ import 'scenario_helpers.dart' show byLabel, enterThePassage, relaunch, settle;
 import 'support/temp.dart';
 
 const _saving = 'guardando o ensaio da cena…';
+const _keptCircle = 'Gravar o ensaio da cena';
 const _saveFailed = 'não deu para guardar o ensaio da cena — gravem de novo';
 const _tooLarge = 'grande demais para o servidor — grave em partes menores';
 const _retry = 'falhou — toque para tentar de novo';
@@ -155,7 +156,7 @@ void main() {
       });
       await _pumpTheRoom(tester, room);
 
-      expect(byLabel(_saving), findsOneWidget);
+      expect(byLabel(_keptCircle), findsOneWidget);
 
       await tester.runAsync(() async {
         room.harness.room.failSceneWith = _offline;
@@ -228,7 +229,7 @@ void main() {
       expect(room.harness.room.takeHeld, isTrue);
       expect(find.text(_saveFailed), findsOneWidget);
       expect(find.text(_retry), findsOneWidget);
-      expect(byLabel(_saving), findsNothing);
+      expect(find.text(_saving), findsNothing);
       await tester.runAsync(() => _thePartsKeepGoing(room));
     },
   );

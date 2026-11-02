@@ -27,9 +27,7 @@ const _sentRow =
 
 final _redMicrophone = byLabel('ensaio da cena');
 final _circleAtRest = byLabel('Gravar o ensaio da cena');
-final _circleRecording = byLabel(
-  'gravem o ensaio da cena na língua materna; toquem para parar',
-);
+final _circleRecording = byLabel('Parar');
 const _diskWordInEnglish =
     'couldn\'t keep the scene rehearsal on this computer';
 

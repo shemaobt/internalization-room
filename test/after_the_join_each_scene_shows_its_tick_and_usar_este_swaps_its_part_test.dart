@@ -62,11 +62,7 @@ const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _bringBackArmed =
     'toquem de novo: as traduções do ensaio voltam; as que vocês fizeram aqui '
     'para esta cena ficam guardadas';
-const _sceneCircle = [
-  'Gravar o ensaio da cena',
-  'gravem o ensaio da cena na língua materna; toquem para parar',
-  'guardando o ensaio da cena…',
-];
+const _sceneCircle = ['Gravar o ensaio da cena', 'Parar'];
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),

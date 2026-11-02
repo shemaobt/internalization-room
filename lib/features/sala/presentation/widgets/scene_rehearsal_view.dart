@@ -252,13 +252,7 @@ class _RecordCircle extends StatelessWidget {
           : recording
           ? VoiceState.listening
           : VoiceState.invite,
-      semanticLabel: label(
-        keeping
-            ? 'saving'
-            : recording
-            ? 'recording'
-            : 'record',
-      ),
+      semanticLabel: label(recording && !keeping ? 'stop' : 'record'),
       enabled: !keeping,
       onTap: onTap,
     );

@@ -15,9 +15,8 @@ import 'scenario_helpers.dart' show byLabel;
 
 const _record = 'Gravar o ensaio da cena';
 const _tell = 'Toque para traduzir esta frase do ensaio da cena';
-const _saving = 'guardando o ensaio da cena…';
-const _recording =
-    'gravem o ensaio da cena na língua materna; toquem para parar';
+const _saving = 'Gravar o ensaio da cena';
+const _recording = 'Parar';
 
 const _herFill = {
   Brightness.light: [
