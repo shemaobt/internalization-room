@@ -8251,7 +8251,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool entrando = false,
   }) async {
     final life = _thisLife;
-    if (!await _medirAsPartesDaRetro(generation)) return;
+    final stoodAsTheVerdict = conferida;
+    if (!await _medirAsPartesDaRetro(generation, conferida: conferida)) return;
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
     final sessionId = state.sessionId;
@@ -8272,6 +8273,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       oferecidas = await _readWhatAwaits(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
+    if (stoodAsTheVerdict && state.btPhase != BtPhase.conferida) {
+      if (conferida) {
+        state = state.copyWith(
+          btVeredito: true,
+          btFindings: _osAchadosQueFicam(
+            achados ?? state.btFindings,
+            state.btTrechos,
+          ),
+        );
+      } else if (_faseAntesDeTraduzirDeNovo == BtPhase.conferida) {
+        _faseAntesDeTraduzirDeNovo = BtPhase.playing;
+      }
+      return;
+    }
+    if (stoodAsTheVerdict && !conferida) _leaveTheStandIn();
     if (entrando && sessionId != null) {
       unawaited(_lembrarDaFraseGuardada(sessionId, oferecidas: oferecidas));
     }
@@ -8347,8 +8363,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(partes);
   }
 
+  void _leaveTheStandIn() {
+    if (state.btPhase == BtPhase.conferida && !state.btVeredito) {
+      state = state.copyWith(btPhase: BtPhase.playing);
+    }
+  }
+
   Future<void> _dizer(String? linha) async {
     if (linha == null) return;
+    _leaveTheStandIn();
     try {
       await _sayALine(
         LineKind.guide,
@@ -8501,7 +8524,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(falta.aFrente);
   }
 
-  Future<bool> _medirAsPartesDaRetro(int generation) async {
+  Future<bool> _medirAsPartesDaRetro(
+    int generation, {
+    bool conferida = false,
+  }) async {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
@@ -8524,10 +8550,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // one would open the check over an empty back translation.
       return false;
     }
-    // Measuring waits on the player, and the screen it waits under is the retro with its
-    // buttons up: a cut landing inside the wait opened the microphone over a clip about to
-    // start, with the cursor at nought. Busy is the honest state for it.
-    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
+    state = state.copyWith(
+      btPhase: conferida ? BtPhase.conferida : BtPhase.thinking,
+      btVeredito: conferida ? false : null,
+      awaitingTheGuide: true,
+    );
     await _medirAsPartes(partes, generation);
     return !_abandoned(generation);
   }

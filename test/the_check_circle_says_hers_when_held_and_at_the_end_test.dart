@@ -583,7 +583,9 @@ Future<ProviderContainer> umaFraseConferida(
   );
   await waitFor(
     'o veredito chegar',
-    () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+    () =>
+        container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+        container.read(salaSessionProvider).btVeredito,
     step: () => tester.pump(const Duration(milliseconds: 100)),
   );
   return container;

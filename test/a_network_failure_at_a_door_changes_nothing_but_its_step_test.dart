@@ -489,7 +489,7 @@ void main() {
     await room.sala.finishBackTranslation();
     await waitFor(
       'a passagem ser conferida',
-      () => room.estado.btPhase == BtPhase.conferida,
+      () => room.estado.btPhase == BtPhase.conferida && room.estado.btVeredito,
     );
     room.theNetworkFalls();
     final said = room.said;
