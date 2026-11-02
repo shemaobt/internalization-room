@@ -7706,6 +7706,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!await audio.exists()) {
         if (!_endedSince(life)) {
           _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
+          await _countedFromNow(life);
         }
         return null;
       }
@@ -7723,6 +7724,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } on Object {
         if (_endedSince(life)) return null;
         _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+        await _countedFromNow(life);
         return null;
       }
       kept = linha.id;
@@ -8035,6 +8037,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         for (final scope in tally.unsentParts.keys) ?KeptScope.numberOf(scope),
       },
       joinsOnTheirWay: {for (final scope in tally.joining) ?state.rowOf(scope)},
+      outboxCounted: true,
     );
     _weighTheRehearsal();
     _appliedCount = counting;
