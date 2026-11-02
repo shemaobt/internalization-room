@@ -1,16 +1,12 @@
-const _failuresBeforeSetAside = 2;
-
 class HandReply {
   final String id;
   final String audioUrl;
   final bool heard;
-  final int failures;
 
   const HandReply({
     required this.id,
     required this.audioUrl,
     this.heard = false,
-    this.failures = 0,
   });
 
   factory HandReply.fromJson(Map<String, dynamic> json) => HandReply(
@@ -18,14 +14,9 @@ class HandReply {
     audioUrl: json['audio_url'] as String? ?? '',
   );
 
-  bool get offered => !heard && failures < _failuresBeforeSetAside;
+  bool get offered => !heard;
 
-  HandReply asHeard() =>
-      HandReply(id: id, audioUrl: audioUrl, heard: true, failures: failures);
+  HandReply asHeard() => HandReply(id: id, audioUrl: audioUrl, heard: true);
 
-  HandReply asUnheard() =>
-      HandReply(id: id, audioUrl: audioUrl, failures: failures);
-
-  HandReply withFailures(int count) =>
-      HandReply(id: id, audioUrl: audioUrl, heard: heard, failures: count);
+  HandReply asUnheard() => HandReply(id: id, audioUrl: audioUrl);
 }

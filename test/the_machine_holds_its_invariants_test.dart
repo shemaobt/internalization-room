@@ -351,6 +351,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
     if (before.halt is Blocking || after.halt is! Blocking) return null;
     final herCase = switch (event) {
       RoomRaisedAHalt() ||
+      TheTellingWasTurnedAway() ||
       TheSceneTurnFoundNothing() ||
       LookEmpty() ||
       LookFailed() => true,

@@ -197,6 +197,10 @@ abstract final class FailurePolicy {
       RoomRefused(code: RefusalCode.sceneRehearsalSent)
           when context.door == Door.sceneFrase =>
         TheSceneWentAlready(generation: generation),
+      RoomRefused(:final code)
+          when context.door == Door.telling &&
+              RefusalCode.stopsTheRoom.contains(code) =>
+        TheTellingWasTurnedAway(generation: generation),
       RoomRefused() when context.door == Door.telling =>
         TheTellingCameBackEmpty(generation: generation),
       RoomRefused() when turn != null && theAnswerWasLost(result, rule) =>
@@ -314,8 +318,12 @@ abstract final class FailurePolicy {
         callsForAPerson: false,
         generation: generation,
       ),
-      TheStretchHasNoPartYet() || TheStretchCannotBeRead() =>
-        TheTellingCameBackEmpty(generation: generation),
+      TheStretchHasNoPartYet() => TheTellingWaitsForItsPart(
+        generation: generation,
+      ),
+      TheStretchCannotBeRead() => TheTellingCameBackEmpty(
+        generation: generation,
+      ),
     };
   }
 }

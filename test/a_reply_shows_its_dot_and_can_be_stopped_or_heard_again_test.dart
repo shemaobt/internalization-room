@@ -404,6 +404,30 @@ void main() {
   );
 
   testWidgets(
+    'the hand keeps its dot after the reply fails to play three times',
+    (tester) async {
+      final room = await _withAReplyWaiting(tester);
+      room.harness.voice.succeeds = false;
+
+      for (var taps = 1; taps <= 3; taps++) {
+        room.sala.handTap();
+        await room.until(
+          'a resposta terminar de falhar',
+          () =>
+              room.timesTheReplyPlayed == taps &&
+              room.estado.playingReplyId == null,
+        );
+        await room.beat(300);
+        expect(
+          room.theDotShows,
+          isTrue,
+          reason: 'o ponto saía da mão depois de $taps falhas',
+        );
+      }
+    },
+  );
+
+  testWidgets(
     'Tapping the circle on the Panorama before its first line was heard stops '
     'a playing reply before the room is asked',
     (tester) async {
