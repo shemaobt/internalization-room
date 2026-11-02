@@ -589,6 +589,9 @@ class RetroView extends ConsumerWidget {
       _ => null,
     };
     if (recusa != null) return retroLabelFor(recusa, language);
+    if (session.aStretchWaitsForItsPart) {
+      return recordingHomeLabelFor('sending', language);
+    }
     if (session.wordlessTelling) {
       return retroLabelFor('notUnderstood', language);
     }

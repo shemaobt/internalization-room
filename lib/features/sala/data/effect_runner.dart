@@ -109,6 +109,8 @@ abstract interface class StationHost {
 
   void hearThePendingTranslationLetGo();
 
+  void hearTheHeldStretchGo();
+
   void hearThePassageRefused();
 
   /// The Station takes the scene rehearsals the room listed when it was asked again.
@@ -279,6 +281,8 @@ class EffectRunner {
           host.hearTheStepLetGo();
         case LetThePendingTranslationGo():
           host.hearThePendingTranslationLetGo();
+        case TellTheHeldStretch():
+          host.hearTheHeldStretchGo();
         case RefuseThePassage():
           host.hearThePassageRefused();
         case ReadTheSceneRehearsals():

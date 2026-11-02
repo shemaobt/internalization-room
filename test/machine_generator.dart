@@ -54,6 +54,7 @@ class World {
         looking &&
         event is! LookFound &&
         event is! RoomRaisedAHalt &&
+        event is! TheTellingWasTurnedAway &&
         event is! TheOpeningMissed &&
         event is! TheSceneTurnFoundNothing;
     for (final effect in effects) {
@@ -292,6 +293,10 @@ String describeEvent(MachineEvent event) => switch (event) {
   ThePassageCannotOpen() => 'ThePassageCannotOpen',
   TheTellingCameBackEmpty(:final readAgain) =>
     'TheTellingCameBackEmpty(readAgain: $readAgain)',
+  TheTellingWaitsForItsPart() => 'TheTellingWaitsForItsPart',
+  TheTellingWasTurnedAway() => 'TheTellingWasTurnedAway',
+  APartWasNamed() => 'APartWasNamed',
+  ThePendingTranslationWasLetGo() => 'ThePendingTranslationWasLetGo',
   TheStepFailed() => 'TheStepFailed',
   TheResumeFailed() => 'TheResumeFailed',
   TheSceneTurnFoundNothing() => 'TheSceneTurnFoundNothing',
@@ -391,6 +396,10 @@ enum EventKind {
   aKeepBegan,
   aKeepEnded,
   theTapSent,
+  theTellingWaitsForItsPart,
+  theTellingWasTurnedAway,
+  aPartWasNamed,
+  thePendingTranslationWasLetGo,
   stopTapped,
   theRoomAnswered,
   outboxChanged,
@@ -511,6 +520,10 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheReplyFailedToLoad() => EventKind.theReplyFailedToLoad,
   ThePassageCannotOpen() => EventKind.thePassageCannotOpen,
   TheTellingCameBackEmpty() => EventKind.theTellingCameBackEmpty,
+  TheTellingWaitsForItsPart() => EventKind.theTellingWaitsForItsPart,
+  TheTellingWasTurnedAway() => EventKind.theTellingWasTurnedAway,
+  APartWasNamed() => EventKind.aPartWasNamed,
+  ThePendingTranslationWasLetGo() => EventKind.thePendingTranslationWasLetGo,
   TheStepFailed() => EventKind.theStepFailed,
   TheResumeFailed() => EventKind.theResumeFailed,
   TheSceneTurnFoundNothing() => EventKind.theSceneTurnFoundNothing,
@@ -576,6 +589,10 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.aKeepBegan ||
   EventKind.aKeepEnded ||
   EventKind.theTapSent ||
+  EventKind.theTellingWaitsForItsPart ||
+  EventKind.theTellingWasTurnedAway ||
+  EventKind.aPartWasNamed ||
+  EventKind.thePendingTranslationWasLetGo ||
   EventKind.stopTapped ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
@@ -718,6 +735,11 @@ MachineEvent _draw(
     session: _drawASession(random),
     scope: _drawAScope(random),
   ), 'linha-${random.nextInt(3)}'),
+  EventKind.theTellingWaitsForItsPart => const TheTellingWaitsForItsPart(),
+  EventKind.theTellingWasTurnedAway => const TheTellingWasTurnedAway(),
+  EventKind.aPartWasNamed => const APartWasNamed(),
+  EventKind.thePendingTranslationWasLetGo =>
+    const ThePendingTranslationWasLetGo(),
   EventKind.stopTapped => StopTapped((
     session: _drawASession(random),
     kind: const ['ensaio', 'cena'][random.nextInt(2)],

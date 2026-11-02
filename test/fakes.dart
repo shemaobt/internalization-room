@@ -1884,6 +1884,8 @@ class FakeRoom implements RoomRepository {
 
   bool get aTakesListIsHeld => _heldTakesLists.isNotEmpty;
 
+  int get takesListsHeld => _heldTakesLists.length;
+
   void finishHeldTakesList() => _heldTakesLists.removeAt(0).complete();
 
   @override
@@ -3100,6 +3102,9 @@ class FakeRoom implements RoomRepository {
     finishHeldTake();
     finishHeldKeep();
     releaseTheLabel();
+    while (aChunkFailureIsHeld) {
+      failTheHeldChunk(const NetworkFailed('the test ended'));
+    }
     for (final held in [
       ?_heldListing,
       ..._heldTakesLists,
@@ -3304,6 +3309,12 @@ class FakeRoom implements RoomRepository {
       return gone;
     }
     if (chunkAnswersFirst.isNotEmpty) return chunkAnswersFirst.removeAt(0);
+    if (_refuseTheNextChunkLater) {
+      _refuseTheNextChunkLater = false;
+      final refusal = Completer<RoomFailure>();
+      _heldChunkRefusals.add(refusal);
+      return refusal.future;
+    }
     final kept = forgetsTheKeys ? null : _chunksKept[idempotencyKey];
     if (kept != null) return kept;
     final answer = await _sendChunk(audio, takeId: takeId, from: from, to: to);
@@ -3370,6 +3381,16 @@ class FakeRoom implements RoomRepository {
 
   /// Holds a stretch's delivery in flight, so a test can see the room still thinking.
   void holdNextChunk() => _holdingChunk = Completer<void>();
+
+  bool _refuseTheNextChunkLater = false;
+  final List<Completer<RoomFailure>> _heldChunkRefusals = [];
+
+  void holdNextChunkFailure() => _refuseTheNextChunkLater = true;
+
+  bool get aChunkFailureIsHeld => _heldChunkRefusals.isNotEmpty;
+
+  void failTheHeldChunk(RoomFailure failure) =>
+      _heldChunkRefusals.removeAt(0).complete(failure);
 
   void finishHeldChunk() {
     _holdingChunk?.complete();
@@ -4318,6 +4339,13 @@ class FakeTakeQueue implements TakeUploadQueue {
       if (entry.id == row) return entry.takeId;
     }
     return null;
+  }
+
+  @override
+  Future<String?> fingerprintOf(String path) async {
+    final file = File(path);
+    if (!file.existsSync()) return null;
+    return crypto.sha256.convert(file.readAsBytesSync()).toString();
   }
 
   @override
