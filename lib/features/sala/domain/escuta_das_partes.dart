@@ -89,15 +89,30 @@ class EscutaDasPartes {
     }
   }
 
-  bool ouvidaInteira(String arquivo, int tamanho, Duration folga) {
+  bool ouvidaInteira(String arquivo, int tamanho, Duration folga) =>
+      tamanho > 0 &&
+      _partes.containsKey(arquivo) &&
+      trechoOuvido(faixasOuvidas(arquivo), 0, tamanho, folga);
+
+  List<List<int>> faixasOuvidas(String arquivo) {
     final escutada = _partes[arquivo];
-    if (escutada == null || tamanho <= 0) return false;
+    if (escutada == null) return const [];
+    return _unidas([...escutada.faixas.skip(_desde[arquivo] ?? 0)]);
+  }
+
+  static bool trechoOuvido(
+    List<List<int>> faixas,
+    int de,
+    int ate,
+    Duration folga,
+  ) {
+    final tamanho = ate - de;
+    if (tamanho <= 0) return true;
     var ouvido = 0;
-    final desde = _desde[arquivo] ?? 0;
-    for (final faixa in _unidas([...escutada.faixas.skip(desde)])) {
-      final de = faixa[0] < 0 ? 0 : faixa[0];
-      final ate = faixa[1] > tamanho ? tamanho : faixa[1];
-      if (ate > de) ouvido += ate - de;
+    for (final faixa in _unidas(faixas)) {
+      final inicio = faixa[0] < de ? de : faixa[0];
+      final fim = faixa[1] > ate ? ate : faixa[1];
+      if (fim > inicio) ouvido += fim - inicio;
     }
     final folgaMs = folga.inMilliseconds < tamanho ~/ 2
         ? folga.inMilliseconds
