@@ -92,7 +92,7 @@ void main() {
 
   test(
     'after the verdict the circle never tells up to the dropped pause: the next '
-    'frase runs from the cursor to a pause marked afresh',
+    'frase runs from the cursor to a pause marked afresh where the take stood',
     () async {
       final it = await _umaPausaMovidaComTudoOuvido();
       await pedirOVeredito(it);
@@ -107,11 +107,14 @@ void main() {
             'o primeiro toque depois do veredito abria o microfone de uma vez, '
             'até a pausa que a equipe já tinha deixado para trás',
       );
-      it.sala.ouvirGravacao();
-      await theClipOpens(it.harness);
-      it.harness.playback.at = _s(8.8);
-      it.sala.retroTap();
-      await waitFor('a pausa nova ficar', () => it.estado.btCorte == _s(8.8));
+      expect(
+        it.estado.btCorte,
+        _s(6.05),
+        reason:
+            'o primeiro toque depois do veredito não marcava pausa nenhuma: a '
+            'gravação tinha sido parada no terminei, não segurada nos 5,8 s '
+            'em que a pausa movida a deixou',
+      );
       it.sala.retroTap();
       await waitFor(
         'o microfone abrir',
@@ -125,7 +128,7 @@ void main() {
 
       expect(
         it.harness.room.chunkSpans.last,
-        '3200-8800',
+        '3200-6050',
         reason: 'a frase subia até a pausa largada, 3200-5800',
       );
     },

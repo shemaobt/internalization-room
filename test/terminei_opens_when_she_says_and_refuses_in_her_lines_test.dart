@@ -489,6 +489,144 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a frase awaiting its words whose line the player fails still '
+      'opens to be translated, never her «não deu para conferir»', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictFixedLine = 'N5'
+      ..verdictUntoldSegmentId = 'trecho-1';
+    harness.voice.refuses.add('N5');
+
+    await _recusado(tester, container);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+      reason:
+          'a N5 que não tocava mandava a recusa para «não deu para conferir», '
+          'e a frase que espera nunca abria; a dela abre a frase seja o que '
+          'for que o áudio fez',
+    );
+    expect(
+      container.read(salaSessionProvider).btRecusa,
+      isNot(CheckRefusal.checkUnavailable),
+    );
+    expect(
+      find.text('não deu para conferir agora — tentem de novo'),
+      findsNothing,
+    );
+    expect(harness.playback.ranges.last, '0-4000');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase awaiting its words whose line the room refuses to '
+      'serve still opens to be translated, and calls nobody', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictFixedLine = 'N5'
+      ..verdictUntoldSegmentId = 'trecho-1';
+    harness.voice.roomFailsFor['N5'] = const Refused('NOT_FOUND');
+
+    await _recusado(tester, container);
+
+    expect(
+      container.read(salaSessionProvider).btTrechoTraduzidoDeNovo?.segmentId,
+      'trecho-1',
+      reason:
+          'a sala sem o áudio da N5 para a língua virava «não deu para '
+          'conferir» na porta do veredito, e a frase que espera nunca abria',
+    );
+    expect(
+      container.read(salaSessionProvider).btRecusa,
+      isNot(CheckRefusal.checkUnavailable),
+    );
+    expect(container.read(salaSessionProvider).needsPerson, isFalse);
+    expect(harness.playback.ranges.last, '0-4000');
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase awaiting its words is refused with her N5, and that '
+      'line is not what «ouvir a resposta de novo» gives back', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _duasFrasesNoTerminei(tester, harness);
+    harness.room
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictFixedLine = 'N5'
+      ..verdictUntoldSegmentId = 'trecho-1';
+    final antes = container.read(salaSessionProvider).lastSpoken;
+
+    await tocar(tester, conferir);
+    await waitFor(
+      'a frase que espera abrir',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechoTraduzidoDeNovo
+              ?.segmentId ==
+          'trecho-1',
+      step: () => _passo(tester),
+    );
+
+    expect(
+      container.read(salaSessionProvider).lastSpoken?.fixedLine,
+      isNot('N5'),
+      reason:
+          'a N5 da recusa descia como resposta e ficava para «ouvir a resposta '
+          'de novo»; a dela guarda só o áudio do próprio veredito',
+    );
+    expect(
+      identical(container.read(salaSessionProvider).lastSpoken, antes),
+      isTrue,
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a stretch the room named untranslated whose line the player '
+    'fails still plays from that stretch, never her «não deu para conferir»',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await _duasFrasesNoTerminei(tester, harness);
+      harness.room
+        ..verdictRefusal = CheckRefusal.stretchUntranslated
+        ..verdictFixedLine = 'N2'
+        ..verdictUntranslated = [
+          UntranslatedPart(
+            takeId: container.read(salaSessionProvider).partes.single.takeId!,
+            scene: 1,
+            from: cabeca,
+          ),
+        ];
+      harness.voice.refuses.add('N2');
+
+      await _recusado(tester, container);
+      await waitFor(
+        'o trecho voltar ao ar',
+        () => harness.playback.sounding,
+        step: () => _passo(tester),
+      );
+
+      expect(
+        container.read(salaSessionProvider).btRecusa,
+        CheckRefusal.stretchUntranslated,
+        reason:
+            'o trecho sem tradução segue a mesma regra da frase que espera: a '
+            'linha que falha não tira o caminho dele',
+      );
+      expect(
+        find.text('não deu para conferir agora — tentem de novo'),
+        findsNothing,
+      );
+      closeTheRoom(container);
+    },
+  );
+
   testWidgets('a refusal\'s line leaves the moment «terminei» is pressed '
       'again, not when the next answer comes', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

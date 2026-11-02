@@ -224,3 +224,16 @@ slack of 750 ms or half the part, which the check's «terminei» and the line un
 the room's count.
 It sits on `SalaSessionState` beside the other `bt` fields and moves with them. No Station opens
 or resumes differently.
+
+Extended by name (ENG-2134, 2026-11-02), same end date: `btFaixasOuvidasAqui`, the spans this
+tablet played of each part since the telling began, as the Listening ledger keeps them with no
+bridge, and `btFrasesNovas`, the sentences the room's read says it laid into the parts, which the
+check's «terminei» and the line under it read beside the parts played whole. Both sit on
+`SalaSessionState` beside the other `bt` fields and move with them. No Station opens or resumes
+differently.
+
+Extended by name (ENG-2135, 2026-11-02), same end date: `btTamanhosDasPartesMs`, each part's own
+measured length by file, which the check's played-here term reads so that a part after one the
+player cannot measure keeps its length while the ruler keeps its break. It sits on
+`SalaSessionState` beside the other `bt` fields and moves with them. No Station opens or resumes
+differently.
