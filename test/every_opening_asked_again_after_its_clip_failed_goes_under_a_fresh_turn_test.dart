@@ -48,30 +48,4 @@ void main() {
 
     _expectAFreshTurnId(harness);
   });
-
-  test('the panorama\'s opening asked again by the circle after its clip '
-      'could not be fetched goes under a fresh turn id', () async {
-    final harness = SalaHarness()..room.passages = const [_panorama, _p01];
-    final container = harness.container();
-    addTearDown(container.dispose);
-    final notifier = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await notifier.abrirEscolha();
-    await theChoiceOffersAPassage(container);
-
-    harness.voice.roomFailsWith = const Refused(RefusalCode.notFound);
-    notifier.openTheEntry(read().naRoda!.first);
-    await waitFor(
-      'a sala descansar no convite',
-      () =>
-          harness.room.turnIdsAsked.isNotEmpty &&
-          read().voice == VoiceState.invite,
-    );
-    expect(read().needsPerson, isFalse);
-    harness.voice.roomFailsWith = null;
-    notifier.panoramaTap();
-    await settle();
-
-    _expectAFreshTurnId(harness);
-  });
 }

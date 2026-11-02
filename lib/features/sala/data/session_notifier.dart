@@ -2260,28 +2260,30 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     if (state.voice == VoiceState.speaking) return _cutTheVoice();
-    if (state.panoramaSaid) {
-      switch (state.circleVoice) {
-        case VoiceState.invite:
-          if (_recordingStarting) return;
-          if (state.channel is Microphone) _dispatch(const MicDiscarded());
-          _startListening('panorama_${_stamp()}');
-        case VoiceState.listening:
-          if (_closings.isNotEmpty) return;
-          if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
-              TapDecision.stop) {
-            _handOff(_finishPanoramaListening());
-          }
-        case VoiceState.thinking:
-        case VoiceState.speaking:
-        case VoiceState.done:
-          break;
+    if (state.panoramaSessionId == null) {
+      if (state.voice == VoiceState.invite) {
+        _silenceTheRoom();
+        _handOff(
+          _entrarNoPanorama(station.id, state.machine.panorama?.language),
+        );
       }
       return;
     }
-    if (state.voice == VoiceState.invite) {
-      _silenceTheRoom();
-      _handOff(_entrarNoPanorama(station.id, state.machine.panorama?.language));
+    switch (state.circleVoice) {
+      case VoiceState.invite:
+        if (_recordingStarting) return;
+        if (state.channel is Microphone) _dispatch(const MicDiscarded());
+        _startListening('panorama_${_stamp()}');
+      case VoiceState.listening:
+        if (_closings.isNotEmpty) return;
+        if (_captureGuard.decide(isRecording: true, elapsed: _listenedFor) ==
+            TapDecision.stop) {
+          _handOff(_finishPanoramaListening());
+        }
+      case VoiceState.thinking:
+      case VoiceState.speaking:
+      case VoiceState.done:
+        break;
     }
   }
 
