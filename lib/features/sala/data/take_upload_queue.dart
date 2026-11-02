@@ -118,6 +118,10 @@ class PendingTake {
   final String? origin;
   final bool reopensTheApprovedDraft;
 
+  /// Written by the recording home's swap, «usar este», and by nothing else; a row an
+  /// older app wrote has none and is a join of the plan.
+  final bool swap;
+
   /// The part's take a join row replaces, as the room listed it when the row was
   /// written; none over an empty scene. The room turns the row away for good when the
   /// part's take is another by then.
@@ -146,6 +150,7 @@ class PendingTake {
     this.sha256,
     this.origin,
     this.reopensTheApprovedDraft = false,
+    this.swap = false,
     this.overTake,
   });
 
@@ -182,6 +187,7 @@ class PendingTake {
     sha256: sha256,
     origin: origin,
     reopensTheApprovedDraft: reopensTheApprovedDraft,
+    swap: swap,
     overTake: overTake,
   );
 
@@ -203,6 +209,7 @@ class PendingTake {
     sha256: sha256,
     origin: origin,
     reopensTheApprovedDraft: reopensTheApprovedDraft,
+    swap: swap,
     overTake: overTake,
   );
 
@@ -242,6 +249,7 @@ class PendingTake {
     sha256: sha256,
     origin: origin,
     reopensTheApprovedDraft: reopensTheApprovedDraft,
+    swap: swap,
     overTake: overTake,
   );
 
@@ -268,6 +276,7 @@ class PendingTake {
     'sha256': sha256,
     'origin': origin,
     'reopens_the_approved_draft': reopensTheApprovedDraft,
+    if (swap) 'swap': true,
     'over_take': overTake,
   };
 
@@ -309,6 +318,7 @@ class PendingTake {
     origin: json['origin'] as String?,
     reopensTheApprovedDraft:
         json['reopens_the_approved_draft'] as bool? ?? false,
+    swap: json['swap'] as bool? ?? false,
     overTake: json['over_take'] as String?,
   );
 }
@@ -856,6 +866,7 @@ class TakeUploadQueue {
     String? fingerprint,
     String? overTake,
     bool reopensTheApprovedDraft = false,
+    bool swap = false,
   }) => _underway(
     () => _enqueue(
       audio,
@@ -869,6 +880,7 @@ class TakeUploadQueue {
       fingerprint: fingerprint,
       origin: origin,
       reopensTheApprovedDraft: reopensTheApprovedDraft,
+      swap: swap,
       overTake: overTake,
     ),
   );
@@ -899,6 +911,7 @@ class TakeUploadQueue {
     String? fingerprint,
     String? origin,
     bool reopensTheApprovedDraft = false,
+    bool swap = false,
     String? overTake,
   }) async {
     final dir = await _dir();
@@ -932,6 +945,7 @@ class TakeUploadQueue {
         sha256: held.sha256,
         origin: origin,
         reopensTheApprovedDraft: reopensTheApprovedDraft,
+        swap: swap,
         overTake: overTake,
       );
       final gone = kind == partTakeKind

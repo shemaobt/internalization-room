@@ -4529,6 +4529,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         above: index == null ? 0 : state.partes[index].pass,
         replacing: index == null ? null : state.partes[index].takeId,
         reopens: reopens,
+        swap: true,
       );
       if (_left(generation, life)) return;
       if (written == null) return _theSwapFailed(id, failed!);
@@ -4649,11 +4650,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   ) async {
     final left = [
       for (final row in await _takes.pending())
-        if (row.sessionId == sessionId &&
-            row.kind == partTakeKind &&
-            row.origin != null &&
-            _aboveThePart(row))
-          row,
+        if (row.sessionId == sessionId && row.swap) row,
     ];
     if (_left(generation, life) || !_thePartsMayMove) return;
     if (left.isEmpty &&
@@ -4769,12 +4766,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case _:
         return null;
     }
-  }
-
-  bool _aboveThePart(PendingTake row) {
-    final number = KeptScope.numberOf(row.scope);
-    final index = number == null ? null : state.partIndexOf(number);
-    return index != null && (row.passNumber ?? 0) > state.partes[index].pass;
   }
 
   void _theSwapFailed(String rehearsalId, JoinRow failed) {
@@ -5089,6 +5080,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int above = 0,
     String? replacing,
     bool reopens = false,
+    bool swap = false,
   }) async {
     const leftBehind = (written: null, failed: null);
     var fromTheTablet = true;
@@ -5116,6 +5108,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           origin: rehearsal.rehearsalId,
           fingerprint: rehearsal.sha256,
           reopensTheApprovedDraft: reopens,
+          swap: swap,
           overTake: replacing ?? stands.live,
         );
       } on Exception {

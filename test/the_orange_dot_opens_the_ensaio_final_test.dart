@@ -1231,6 +1231,44 @@ void main() {
   );
 
   testWidgets(
+    'on the grain choice a join still on its way is never offered as a take '
+    'left on the tablet',
+    (tester) async {
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: const [],
+        scenes: const [],
+        before: (harness) {
+          final waiting = aTempDir('sala-2079-grao');
+          final audio = File('${waiting.path}/parte-1-junta.wav')
+            ..writeAsBytesSync([1, 2, 3, 4]);
+          harness.room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
+          (harness.takes as FakeTakeQueue).rows.add(
+            PendingTake(
+              id: 'junta-1',
+              path: audio.path,
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: KeptScope.parte(1),
+              passNumber: 1,
+              chunkIndex: 1,
+              origin: 'ensaio-s1',
+            ),
+          );
+          harness.playback.measured = const Duration(seconds: 48);
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text('Cena por cena'), findsOneWidget);
+      expect(find.text(_pendingNotice), findsNothing);
+      expect(find.text(_sendSceneOne), findsNothing);
+    },
+  );
+
+  testWidgets(
     'on the grain choice a take only on the tablet is offered under her '
     'notice too',
     (tester) async {

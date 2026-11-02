@@ -2461,6 +2461,41 @@ void main() {
       );
     });
 
+    test('says it is the home\'s swap across a manifest read, and a row '
+        'written without the word reads as no swap', () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 2,
+        origin: 'ensaio-2',
+        swap: true,
+      );
+      await queue.enqueueTheJoin(
+        File('${home.path}/parte-3-junta.wav')..writeAsBytesSync(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 3,
+        passNumber: 1,
+        origin: 'ensaio-3',
+      );
+
+      final read = await queueOn(FakeRoom()).pending();
+
+      expect(
+        {for (final row in read) row.scope: row.swap},
+        {'parte-2': true, 'parte-3': false},
+      );
+      expect(
+        [
+          for (final row
+              in jsonDecode(manifest().readAsStringSync()) as List<dynamic>)
+            (row as Map<String, dynamic>).containsKey('swap'),
+        ],
+        [true, false],
+      );
+    });
+
     test('keeps its origin and reopening across a manifest read', () async {
       final room = FakeRoom()..reachable = false;
       aQueueWrittenByTheOlderApp('velha.m4a');

@@ -55,3 +55,8 @@ still waits for it. A swap the tablet was closed on («usar este», ENG-1407) le
 with its copy when the recording home is next reached: the room's part stays on the row and
 «trocar o ensaio desta cena» is offered again (Definer, 2 November). Only rows above the part
 the home holds leave; a join on its way and a recorded take stay.
+The home's swap marks its row (`swap`), the only word the Outbox row carries for it, and
+only rows so marked leave on arrival; a row an older app wrote has none and stays as a join
+of the plan (Definer, 2 November, on ENG-2125). A join row spent by its attempts, which only
+a disk failure does, is no longer that scene's join in progress: the scene is one to join
+again.
