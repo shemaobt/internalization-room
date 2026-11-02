@@ -6,7 +6,7 @@ amends: 0024 (the gestures that hold a clip)
 
 # «terminei» holds the part where it stood, and the first circle tap after a verdict marks a pause there
 
-This amends ADR 0024 without editing its decision: it adds "amended by 0173" to its status
+This amends ADR 0024 without editing its decision: it adds "amended by 0174" to its status
 line. Her app is the bar, and it wins over our ADRs (João, 26 October). Settled on the ticket
 (ENG-2132).
 
