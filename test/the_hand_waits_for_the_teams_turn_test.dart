@@ -365,6 +365,44 @@ void main() {
     }
   });
 
+  testWidgets('While a question uploads a tap on the circle does nothing, and '
+      'once it lands the circle opens the turn\'s microphone', (tester) async {
+    final room = await _inConversa(tester);
+    room.sala.handTap();
+    await room.beat();
+    room.sala.conversaTap();
+    await room.until(
+      'a pergunta abrir o microfone',
+      () => room.estado.voice == VoiceState.listening,
+    );
+    room.harness.inbox.holdNextQuestion();
+    room.sala.conversaTap();
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice != VoiceState.listening,
+    );
+    await room.beat(1400);
+    final starts = room.harness.recorder.starts.length;
+
+    room.sala.conversaTap();
+    await room.beat(600);
+
+    expect(room.harness.recorder.starts.length, starts);
+    expect(room.estado.voice, VoiceState.invite);
+
+    room.harness.inbox.finishHeldQuestion();
+    await room.until(
+      'a pergunta chegar',
+      () => room.harness.inbox.questionsSent.isNotEmpty,
+    );
+    await room.beat(600);
+    room.sala.conversaTap();
+    await room.until(
+      'o microfone do turno abrir',
+      () => room.estado.voice == VoiceState.listening,
+    );
+  });
+
   testWidgets('After a Knot is sent the hand looks exactly as it did before', (
     tester,
   ) async {
