@@ -2539,6 +2539,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveThePassage() => _gesture(() => _leaveThePassage());
 
   void _leaveThePassage() {
+    if (state.hearNewScene) {
+      state = state.copyWith(hearNewScene: false);
+      _rememberWhereTheyAre(_aLinhaDiz ?? state.station);
+    }
     final left = _whatTheLeaveLeaves();
     state = state.copyWith(clearPassageLeft: true);
     final passage = _emCurso;
@@ -3287,6 +3291,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             listener: _listenerInProgress,
             wholeHeldByTheRoom: [...state.wholeHeldByTheRoom],
             grain: state.grainInForce,
+            hearNewScene: state.hearNewScene,
           ),
         ),
       ),
@@ -3346,6 +3351,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptTakes: takes,
       wholeHeldByTheRoom: heldByTheRoom,
       grainInForce: waiting.grain,
+      hearNewScene: waiting.hearNewScene,
     );
     _aLinhaDiz = Station.stored(waiting.stage);
     _readTheScenesForTheRehearsal();
@@ -4725,8 +4731,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (adopted) {
       _weighTheRehearsal();
-      _rememberWhereTheyAre(const Ensaio());
       state = state.copyWith(hearNewScene: true);
+      _rememberWhereTheyAre(const Ensaio());
       unawaited(_countUnsent());
     }
   }
@@ -4797,12 +4803,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theSwapLanded(String path) {
     unawaited(_medirAParteRegravada(path, _generation));
     _weighTheRehearsal();
+    state = state.copyWith(hearNewScene: true);
     _rememberWhereTheyAre(const Ensaio());
-    state = state.copyWith(
-      hearNewScene: true,
-      clearHomeSheet: true,
-      clearSwapLine: true,
-    );
+    state = state.copyWith(clearHomeSheet: true, clearSwapLine: true);
     _readTheRehearsalsAtHome();
     unawaited(_countUnsent());
   }
@@ -8161,6 +8164,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final conferida = state.btPhase == BtPhase.conferida || state.btChecked;
     _leaveTheStepFor(const Retro());
     _clearAll();
+    state = state.copyWith(hearNewScene: false);
     _rememberWhereTheyAre(const Retro());
     _arriveAt(const TheBackTranslationOpened());
     _regravouNestaVisita = false;
@@ -8173,7 +8177,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btRestoPorOuvir: false,
       btPass: 1,
       peerCue: false,
-      hearNewScene: false,
       btSoOuvir: false,
     );
     _descartarATraducaoPendente();
