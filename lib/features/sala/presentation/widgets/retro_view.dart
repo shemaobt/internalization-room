@@ -496,6 +496,7 @@ class RetroView extends ConsumerWidget {
         _dormindo('restart', session) ||
         !session.aBackTranslationGestureActs ||
         !session.theFraseListIsIdle ||
+        session.aStretchWaitsForItsPart ||
         session.btRegravacao != null;
     return Semantics(
       button: true,

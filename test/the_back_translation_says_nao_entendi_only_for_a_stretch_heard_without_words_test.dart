@@ -392,6 +392,29 @@ void main() {
       expect(_state(it.container).btTraducaoPendente, isNull);
     });
 
+    test('«recomeçar» rests while a stretch waits for its part, so a naming '
+        'during a failed restart still sends it', () async {
+      final it = await _aStretchToldBeforeItsPartHasAName();
+      it.harness.room
+        ..holdTheTranslationRestart()
+        ..failRestartWith = const NetworkFailed('sem rede');
+
+      _notifier(it.container).recomecarATraducao();
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      _notifier(it.container).recomecarATraducao();
+      await settle();
+      await _thePartIsNamed(it);
+      it.harness.room.finishTheTranslationRestart();
+      await settle();
+      await waitFor(
+        'o trecho guardado ir à sala',
+        () => it.harness.room.chunksSent == it.sentBefore + 1,
+        limit: const Duration(seconds: 5),
+      );
+
+      expect(it.harness.room.restartsAsked, isEmpty);
+    });
+
     test('«terminei» rests while a stretch waits for its part', () async {
       final it = await _aStretchToldBeforeItsPartHasAName();
       it.harness.playback.finishPlayback();
@@ -570,10 +593,12 @@ void main() {
 
       await tocarNoCirculo(tester);
       await tocarNoCirculo(tester);
+      final retold = harness.recorder.lastPath!;
       await _settleOnScreen(tester);
 
       expect(harness.room.replaceAnswersFirst, isEmpty);
       expectNoNaoEntendiAndAPersonWaiting(container);
+      expect(harness.recorder.deleted, contains(retold));
       closeTheRoom(container);
     });
   });

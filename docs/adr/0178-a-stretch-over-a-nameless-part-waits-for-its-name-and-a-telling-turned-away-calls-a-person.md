@@ -20,9 +20,11 @@ send, a 401 included, and has no nameless part because she sends by clip key.
   the Back-translation's status line, the words ENG-1774 gave a take in flight. The tablet
   looks for the part's name at once, and the stretch goes with no tap once the name is
   adopted, as a tapped stretch would. The circle stays live: telling it again lets the held
-  recording go, and only the newest one is sent. «terminei» and «regravar a frase N» rest
-  while a stretch is held. Leaving the Back-translation, translating a frase again or any other
-  way the pending translation is let go drops the held stretch, and it is never sent after.
+  recording go, and only the newest one is sent. While a stretch is held, «terminei»,
+  «regravar a frase N», hearing a frase and «recomeçar» rest, as her «terminei» and her
+  restart do: none of them may leave the held stretch with nowhere to go when the name
+  lands. Leaving the Back-translation, translating a frase again or any other way the
+  pending translation is let go drops the held stretch, and it is never sent after.
   It lives in memory only; a relaunch loses it.
 - **A telling the room turns away for the tablet (UNAUTHORIZED, FORBIDDEN, DEVICE_REVOKED)
   calls a person**, at the telling door and for a stretch told again (amends 0093: the six

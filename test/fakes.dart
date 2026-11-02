@@ -3102,6 +3102,7 @@ class FakeRoom implements RoomRepository {
     finishHeldTake();
     finishHeldKeep();
     releaseTheLabel();
+    finishTheTranslationRestart();
     while (aChunkFailureIsHeld) {
       failTheHeldChunk(const NetworkFailed('the test ended'));
     }
@@ -3526,6 +3527,16 @@ class FakeRoom implements RoomRepository {
 
   RoomFailure? failRestartWith;
 
+  Completer<void>? _holdingTheTranslationRestart;
+
+  void holdTheTranslationRestart() =>
+      _holdingTheTranslationRestart = Completer<void>();
+
+  void finishTheTranslationRestart() {
+    _holdingTheTranslationRestart?.complete();
+    _holdingTheTranslationRestart = null;
+  }
+
   List<SegmentView> standingAfterRestart = const [];
 
   @override
@@ -3533,6 +3544,7 @@ class FakeRoom implements RoomRepository {
     String sessionId,
   ) async {
     restartsAsked.add(sessionId);
+    await _holdingTheTranslationRestart?.future;
     final refusal = failRestartWith;
     if (refusal != null) return refusal;
     _retired.addAll(segmentIds);

@@ -9583,6 +9583,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (state.station is! Retro || sessionId == null) return;
     if (!state.aBackTranslationGestureActs) return;
+    if (state.aStretchWaitsForItsPart) return;
     if (state.btPhase == BtPhase.capturing ||
         state.btPhase == BtPhase.thinking) {
       return;
