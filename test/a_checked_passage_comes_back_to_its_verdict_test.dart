@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -284,30 +286,30 @@ void main() {
     );
   });
 
-  test('a resume whose re-entry read fails opens the check with the nuance '
-      'mark the resume restored', () async {
+  const _trechos = [
+    SegmentView(
+      segmentId: 'trecho-1',
+      takeId: _gravacao,
+      startsMs: 0,
+      endsMs: 12000,
+      frase: 1,
+    ),
+    SegmentView(
+      segmentId: 'trecho-2',
+      takeId: _gravacao,
+      startsMs: 12000,
+      endsMs: 30000,
+      frase: 2,
+    ),
+  ];
+
+  Future<(SalaHarness, ProviderContainer)> _relaunchedOnAChecked() async {
     final harness = SalaHarness()
       ..playback.length = _umaParte
       ..playback.measured = _umaParte;
-    const trechos = [
-      SegmentView(
-        segmentId: 'trecho-1',
-        takeId: _gravacao,
-        startsMs: 0,
-        endsMs: 12000,
-        frase: 1,
-      ),
-      SegmentView(
-        segmentId: 'trecho-2',
-        takeId: _gravacao,
-        startsMs: 12000,
-        endsMs: 30000,
-        frase: 2,
-      ),
-    ];
     harness.room
       ..retroSoFar = const BackTranslationProgress(
-        segments: trechos,
+        segments: _trechos,
         checked: true,
         namedNuance: BtFinding(
           kind: BtFindingKind.nuance,
@@ -347,9 +349,50 @@ void main() {
       () => estado().stage == SalaStage.ensaio && estado().partes.isNotEmpty,
     );
     await settle();
+    return (harness, container);
+  }
+
+  Future<Sala> _reenteredWhileTheReadIsInTheAir() async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..holdNextState();
+    it.sala.startRetro();
+    await waitFor('a tradução abrir', () => it.estado.stage == SalaStage.retro);
+    await settle();
+    return it;
+  }
+
+  test('a relaunch onto a checked passage shows the check at once, and the '
+      'marks are drawn when the read answers', () async {
+    final (harness, container) = await _relaunchedOnAChecked();
+    SalaSessionState estado() => container.read(salaSessionProvider);
+    harness.room.holdNextState();
+
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor('a tradução abrir', () => estado().stage == SalaStage.retro);
+    await settle();
+
+    expect(estado().btPhase, BtPhase.conferida);
+    expect(estado().btVeredito, isFalse);
+
+    harness.room.finishHeldState();
+    await waitFor('o veredito chegar', () => estado().btVeredito);
+
+    expect(estado().btPhase, BtPhase.conferida);
+    expect(
+      [for (final f in estado().btFindings) f.kind],
+      [BtFindingKind.nuance],
+    );
+  });
+
+  test('a resume whose re-entry read fails opens the check with the nuance '
+      'mark the resume restored', () async {
+    final (harness, container) = await _relaunchedOnAChecked();
+    SalaSessionState estado() => container.read(salaSessionProvider);
     harness.room.failStateOnceWith = const NetworkFailed('sem rede');
 
-    sala.startRetro();
+    container.read(salaSessionProvider.notifier).startRetro();
     await waitFor(
       'a tradução abrir',
       () => estado().stage == SalaStage.retro && !estado().awaitingTheGuide,
@@ -362,5 +405,94 @@ void main() {
       [BtFindingKind.nuance],
       reason: 'a leitura falha abria a conferência sem a marca de nuance',
     );
+  });
+
+  test(
+    'while the re-entry read is in the air the gestures act on the last '
+    'restored verdict, and the room\'s refusal is shown as it is today',
+    () async {
+      final it = await _reenteredWhileTheReadIsInTheAir();
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+
+      await it.sala.aprovarRascunhoFinal();
+      await settle();
+
+      expect(it.harness.room.releasesAsked, hasLength(1));
+      expect(it.estado.btRecusa, CheckRefusal.notConferida);
+
+      final tocadas = it.harness.playback.played.length;
+      it.sala.ouvirGravacao();
+      await settle();
+
+      expect(it.harness.playback.played.length, tocadas + 1);
+      it.harness.room.finishHeldState();
+      await settle();
+    },
+  );
+
+  test('a frase retold while the re-entry read is in the air keeps its open '
+      'microphone when the read lands, and the circle closes it', () async {
+    final it = await _reenteredWhileTheReadIsInTheAir();
+    it.sala.traduzirAFraseDeNovo(1);
+    await settle();
+    it.sala.retroTap();
+    await settle();
+    expect(it.estado.channel, isA<Microphone>());
+
+    it.harness.room.finishHeldState();
+    await settle();
+
+    expect(
+      it.estado.channel,
+      isA<Microphone>(),
+      reason: 'a leitura que pousou fechou o microfone sem a frase subir',
+    );
+    expect(
+      it.estado.btPhase,
+      BtPhase.capturing,
+      reason: 'a leitura tomava a fase de debaixo do microfone aberto',
+    );
+    it.sala.retroTap();
+    await settle();
+    expect(it.estado.channel, isNot(isA<Microphone>()));
+  });
+
+  test('a read that names an unheard part never lets the guide speak over a '
+      'screen standing as the verdict', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    it.harness.room.listeningUnheardTakeIds = [it.estado.partes.first.takeId!];
+    it.harness.voice.holdNextLine();
+    final fases = <BtPhase>[];
+    it.container.listen<SalaSessionState>(salaSessionProvider, (_, s) {
+      if (s.channel is GuideSpeaking) fases.add(s.btPhase);
+    });
+
+    it.sala.startRetro();
+    await waitFor('a sala falar', () => it.estado.channel is GuideSpeaking);
+    await settle();
+
+    expect(fases, isNotEmpty);
+    expect(
+      fases,
+      everyElement(isNot(BtPhase.conferida)),
+      reason: 'a tela já dizia conferida enquanto a sala convidava a ouvir',
+    );
+    it.harness.voice.finishHeldLine();
+    await settle();
+  });
+
+  test('a read that no longer counts the passage as checked corrects the '
+      'screen it stood in as the verdict', () async {
+    final it = await _reenteredWhileTheReadIsInTheAir();
+    it.harness.room.retroSoFar = BackTranslationProgress(
+      segments: [...it.harness.room.segments],
+    );
+
+    it.harness.room.finishHeldState();
+    await waitFor('a leitura pousar', () => !it.estado.awaitingTheGuide);
+    await settle();
+
+    expect(it.estado.btPhase, BtPhase.playing);
+    expect(it.estado.btVeredito, isFalse);
   });
 }

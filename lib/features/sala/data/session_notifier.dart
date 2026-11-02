@@ -8219,6 +8219,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool entrando = false,
   }) async {
     final life = _thisLife;
+    final stoodAsTheVerdict = conferida;
     if (!await _medirAsPartesDaRetro(generation, conferida: conferida)) return;
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
@@ -8240,6 +8241,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       oferecidas = await _readWhatAwaits(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
+    // A gesture made while the read was in the air took the screen off the verdict it stood
+    // in. The landing then only keeps the marks: taking the phase back would strand an open
+    // microphone, and playing on would run over what the team started.
+    if (stoodAsTheVerdict && state.btPhase != BtPhase.conferida) {
+      if (achados case final lidos?) {
+        state = state.copyWith(
+          btFindings: _osAchadosQueFicam(lidos, state.btTrechos),
+        );
+      }
+      return;
+    }
+    if (stoodAsTheVerdict && !conferida) _leaveTheStandIn();
     if (entrando && sessionId != null) {
       unawaited(_lembrarDaFraseGuardada(sessionId, oferecidas: oferecidas));
     }
@@ -8315,8 +8328,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(partes);
   }
 
+  void _leaveTheStandIn() {
+    if (state.btPhase == BtPhase.conferida && !state.btVeredito) {
+      state = state.copyWith(btPhase: BtPhase.playing);
+    }
+  }
+
   Future<void> _dizer(String? linha) async {
     if (linha == null) return;
+    _leaveTheStandIn();
     try {
       await _sayALine(
         LineKind.guide,
