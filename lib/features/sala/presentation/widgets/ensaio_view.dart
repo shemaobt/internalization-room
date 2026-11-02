@@ -307,6 +307,7 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
       inUseId: home.inUse,
       language: language,
       busy: session.homeBusy,
+      backRests: session.swapping != null,
       offersToUse: (rehearsal) => offersToSwapIn(home, rehearsal),
       answerOf: (rehearsal) => switch (session.swapLine) {
         (:final rehearsalId, :final cannotEnter)
