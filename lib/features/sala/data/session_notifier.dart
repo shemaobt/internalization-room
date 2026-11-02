@@ -8225,7 +8225,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (deixou()) return;
     final nomes = ouvida?.unheardTakeIds;
     final naoOuvidas = nomes == null ? null : _asPartesNomeadas(nomes);
-    final deFora = juntada && naoOuvidas != null && nomes!.isNotEmpty;
+    final deFora = naoOuvidas != null && nomes!.isNotEmpty;
     final jaLidoNaVisita =
         state.btFraseQueAguarda != null ||
         conferida ||
