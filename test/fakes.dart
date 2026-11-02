@@ -570,6 +570,18 @@ class FakeRecorder implements RecordingRepository {
   @override
   Future<void> sweepTheRecordingsLeftBehind() async => sweeps++;
 
+  @override
+  Future<void> sweepTheKeptRetellingsOutside(String? session) async {
+    for (final entry in home.listSync()) {
+      if (entry is! File) continue;
+      final name = entry.uri.pathSegments.last;
+      if (name.startsWith('kept-') &&
+          (session == null || !name.startsWith('kept-$session-'))) {
+        entry.deleteSync();
+      }
+    }
+  }
+
   Object? deleteEveryThrows;
 
   @override
@@ -930,6 +942,12 @@ const deNovoUrl = '/api/internalization-room/voice/de-novo';
 class FakeCurrentSessionLedger implements CurrentSessionLedger {
   CurrentSession? held;
 
+  bool unreadable = false;
+
+  @override
+  Future<({CurrentSession? session})?> readIfKnown() async =>
+      unreadable ? null : (session: held);
+
   @override
   Future<CurrentSession?> read() async => held;
 
@@ -1235,6 +1253,9 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+
+  /// The session each read of the room's state asked for, in order.
+  final List<String> statesRead = [];
   final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
@@ -2646,6 +2667,7 @@ class FakeRoom implements RoomRepository {
 
   @override
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
+    statesRead.add(sessionId);
     if (_guard('fetchState') case final failure?) {
       final wait = failedReadsLandAfter;
       if (wait == null) return failure;
@@ -5098,5 +5120,12 @@ class LedgerThatReadsLate extends CurrentSessionLedger {
     final wait = readsAfter;
     if (wait != null) await Future<void>.delayed(wait);
     return super.read();
+  }
+
+  @override
+  Future<({CurrentSession? session})?> readIfKnown() async {
+    final wait = readsAfter;
+    if (wait != null) await Future<void>.delayed(wait);
+    return super.readIfKnown();
   }
 }

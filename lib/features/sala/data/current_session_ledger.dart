@@ -37,6 +37,25 @@ class CurrentSessionLedger {
     }
   }
 
+  /// The record, or null when it cannot be told: no record is a known nothing held, an
+  /// unreadable one is not.
+  Future<({CurrentSession? session})?> readIfKnown() async {
+    await _writes;
+    try {
+      final file = await _file();
+      if (!await file.exists()) return (session: null);
+      return (session: _decode(await file.readAsString()));
+    } on FileSystemException {
+      return null;
+    } on MissingPlatformDirectoryException {
+      return null;
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+
   Future<void> hold(CurrentSession session) => _write((_) => session);
 
   Future<void> letGo({String? only}) =>
@@ -131,25 +150,28 @@ class CurrentSessionLedger {
   static Future<CurrentSession?> _held(File file) async {
     if (!await file.exists()) return null;
     try {
-      final json =
-          jsonDecode(await file.readAsString()) as Map<String, Object?>;
-      return CurrentSession(
-        sessionId: json['session_id']! as String,
-        book: json['book']! as String,
-        pericope: json['pericope']! as String,
-        language: json['language']! as String,
-        lastLine: json['last_url'] == null
-            ? null
-            : SpokenLine(
-                url: json['last_url']! as String,
-                fixedLine: json['last_fixed_line']! as String,
-              ),
-        teamSpokeLast: json['team_spoke_last'] == true,
-        panorama: json['panorama'] == true,
-      );
+      return _decode(await file.readAsString());
     } on Object {
       return null;
     }
+  }
+
+  static CurrentSession _decode(String text) {
+    final json = jsonDecode(text) as Map<String, Object?>;
+    return CurrentSession(
+      sessionId: json['session_id']! as String,
+      book: json['book']! as String,
+      pericope: json['pericope']! as String,
+      language: json['language']! as String,
+      lastLine: json['last_url'] == null
+          ? null
+          : SpokenLine(
+              url: json['last_url']! as String,
+              fixedLine: json['last_fixed_line']! as String,
+            ),
+      teamSpokeLast: json['team_spoke_last'] == true,
+      panorama: json['panorama'] == true,
+    );
   }
 }
 

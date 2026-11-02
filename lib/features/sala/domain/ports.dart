@@ -141,7 +141,8 @@ abstract interface class RecorderPort {
 abstract interface class StorePort {
   void stopTheSend(String row);
 
-  Future<CurrentSession?> currentSession();
+  /// Null when the record cannot be read: that is not the same as nothing held.
+  Future<({CurrentSession? session})?> knownCurrentSession();
 
   Future<void> holdTheSession(CurrentSession session);
 

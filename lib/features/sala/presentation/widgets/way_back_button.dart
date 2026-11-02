@@ -16,36 +16,30 @@ class WayBackButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(salaSessionProvider);
     if (session.stage != stage) return const SizedBox.shrink();
-    final away = session.wayOutIsHidden || session.aFraseDevidaEmBusca;
+    final disabled = session.wayBackIsDisabled;
+    final notifier = ref.read(salaSessionProvider.notifier);
+    final leave = stage == SalaStage.retro
+        ? notifier.leaveTheBackTranslation
+        : notifier.leaveTheRecording;
 
     return Positioned(
       left: 14,
       top: top,
-      child: IgnorePointer(
-        ignoring: away,
-        child: AnimatedOpacity(
-          opacity: away ? 0 : 1,
-          duration: const Duration(milliseconds: 400),
-          child: Semantics(
-            button: true,
-            label: roomLabelFor(
-              stage == SalaStage.retro ? 'backToRecording' : 'backToPassage',
-              ref.watch(roomLanguageProvider),
-            ),
-            child: GestureDetector(
-              onTap: stage == SalaStage.retro
-                  ? ref
-                        .read(salaSessionProvider.notifier)
-                        .leaveTheBackTranslation
-                  : ref.read(salaSessionProvider.notifier).leaveTheRecording,
-              behavior: HitTestBehavior.opaque,
-              child: const SizedBox(
-                width: 46,
-                height: 46,
-                child: Center(
-                  child: Opacity(opacity: 0.6, child: WayBackChevron()),
-                ),
-              ),
+      child: Semantics(
+        button: true,
+        enabled: !disabled,
+        label: roomLabelFor(
+          stage == SalaStage.retro ? 'backToRecording' : 'backToPassage',
+          ref.watch(roomLanguageProvider),
+        ),
+        child: GestureDetector(
+          onTap: disabled ? null : leave,
+          behavior: HitTestBehavior.opaque,
+          child: const SizedBox(
+            width: 46,
+            height: 46,
+            child: Center(
+              child: Opacity(opacity: 0.6, child: WayBackChevron()),
             ),
           ),
         ),

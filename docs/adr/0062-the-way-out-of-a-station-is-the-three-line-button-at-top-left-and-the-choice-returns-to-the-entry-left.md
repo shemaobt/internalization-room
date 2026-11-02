@@ -1,10 +1,16 @@
 ---
-status: accepted, amended by 0092, amended by 0130, amended by 0137, amended by 0139, amended by 0142, amended by ENG-1977, amended by ENG-1970, amended by ENG-1900
+status: accepted, amended by 0092, amended by 0130, amended by 0137, amended by 0139, amended by 0142, amended by ENG-1977, amended by ENG-1970, amended by ENG-1900, amended by ENG-1848
 date: 2026-10-07
 amends: 0040 (a button that does not apply is dimmed, never hidden: this button alone)
 ---
 
 # The way out of a Station is the ≡ at top-left, hidden while it cannot apply, and the Choice returns to the entry left
+
+Amended by ENG-1848 (2026-11-02): the hiding rule is the ≡'s alone (the Conversation and the
+Panorama). The recording screens' chevron (ADR 0139) is drawn and live in every state, as hers; it is
+inert only while a sentence recording is being sent, and the Rehearsal sheet's only while its «usar
+este» is in the air. A tap stops what plays, and discards a take, a telling or a sentence recording
+that is open, sending nothing. The person sign still takes every tap while it stands (ADR 0107).
 
 Amended by ENG-1900 (2026-10-30): the chevron no longer waits for the Wheel to be read, and no longer dims while the voice is busy, when a passage is held (ADR 0143). As in her app (`app/page.tsx:408`, `:950-956`), the chevron
 shows whenever a passage is held under the Choice, is always live, and its tap lays the passage back with

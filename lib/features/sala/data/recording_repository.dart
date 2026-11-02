@@ -182,6 +182,25 @@ class RecordingRepository {
     }
   }
 
+  /// Deletes the retellings kept for every session but [session]: a launch lands on one
+  /// session, and what was kept for a passage the tablet no longer holds is never played
+  /// again. [session] null is a launch holding none.
+  Future<void> sweepTheKeptRetellingsOutside(String? session) async {
+    try {
+      final dir = await _recordingsDir();
+      await for (final entry in dir.list()) {
+        if (entry is! File) continue;
+        final name = p.basename(entry.path);
+        if (name.startsWith('kept-') &&
+            (session == null || !name.startsWith('kept-$session-'))) {
+          await entry.delete();
+        }
+      }
+    } on Exception {
+      return;
+    }
+  }
+
   Future<void> deleteEveryRecording() async {
     final dir = await _recordingsDir();
     await for (final entry in dir.list()) {
