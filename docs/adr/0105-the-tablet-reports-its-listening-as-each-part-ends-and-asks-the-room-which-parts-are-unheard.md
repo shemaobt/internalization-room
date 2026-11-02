@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers), ENG-2054 (2026-10-29: «terminei» and the line under it follow the room's count, not the last part's end) and ENG-2109 (2026-10-30: beside the room's count, every part played here or told)
+status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers), ENG-2054 (2026-10-29: «terminei» and the line under it follow the room's count, not the last part's end), ENG-2109 (2026-10-30: beside the room's count, every part played here or told) and ENG-2135 (2026-11-02: each part's own length decides its played-here term, and a frase replay re-reads the parts the moment it ends)
 date: 2026-10-20
 ---
 
@@ -117,3 +117,17 @@ check keeps it (`:1017`, `:1573-1580`), as her listen branch keeps it on entry. 
 ledger answers which parts were, with a floor at those two points while its report to the room
 keeps every span, and the state carries them as `btPartesOuvidasAqui`. A room's answer counting every part heard
 on an earlier day no longer lights «terminei» or clears the line on a fresh screen by itself.
+
+Amended by ENG-2135 (2026-11-02, the same rule): the played-here term measures each part
+against its own length, as her `durationOf` answers for every clip on its own
+(`chainPlayer.ts:179-183`, `computeBReady`, `Drafting.tsx:898-909`). It used to read the
+length off the ruler, which ends at the first part the player cannot measure, so every part
+after that one had no length and was read as heard: three parts, the second unmeasurable,
+the third never played, lit «terminei». The state carries each part's own measured length
+(`btTamanhosDasPartesMs`, by file as the ledger) beside the ruler, which keeps its break for
+positions. A part the player cannot measure still keeps today's rule and is not held against
+the team. And the replay of a frase, laid in (N4) or returned to with only its take unheard
+(N5), re-reads the played-here parts the moment it ends, as her `tick` recomputes
+`computeBReady` (`:910`), so the line under «terminei» clears with no other gesture; the
+pill itself still waits for that frase's translation, as her `canCheck` does
+(`Drafting.tsx:2340-2341`).

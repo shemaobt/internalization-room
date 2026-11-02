@@ -224,3 +224,9 @@ slack of 750 ms or half the part, which the check's «terminei» and the line un
 the room's count.
 It sits on `SalaSessionState` beside the other `bt` fields and moves with them. No Station opens
 or resumes differently.
+
+Extended by name (ENG-2135, 2026-11-02), same end date: `btTamanhosDasPartesMs`, each part's own
+measured length by file, which the check's played-here term reads so that a part after one the
+player cannot measure keeps its length while the ruler keeps its break. It sits on
+`SalaSessionState` beside the other `bt` fields and moves with them. No Station opens or resumes
+differently.
