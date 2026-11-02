@@ -4119,17 +4119,24 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           for (final row in rows)
             if (!row.exhausted) ?KeptScope.numberOf(row.scope): row.origin!,
         };
+        final listedJoins = {
+          for (final MapEntry(:key, :value) in _correntes(guardadas).entries)
+            if ((key, value.origin) case (final n?, final origin?)) n: origin,
+        };
         final read = PlanRead(
           rehearsals: listed,
           scenes: passage,
-          joined: {
-            for (final MapEntry(:key, :value) in _correntes(guardadas).entries)
-              if ((key, value.origin) case (final n?, final origin?)) n: origin,
-          }..removeWhere((n, _) => waiting.containsKey(n)),
+          joined: {...listedJoins}
+            ..removeWhere((n, _) => waiting.containsKey(n)),
           waiting: waiting,
         );
-        if ((read.joined.isNotEmpty || read.waiting.isNotEmpty) &&
-            !stillToJoin(read, sessionId, state.planChoices)) {
+        final theRooms = PlanRead(
+          rehearsals: listed,
+          scenes: passage,
+          joined: listedJoins,
+        );
+        if (listedJoins.isNotEmpty &&
+            !stillToJoin(theRooms, sessionId, state.planChoices)) {
           state = state.copyWith(
             theRoomJoinedParts: _partesJuntadas(guardadas),
           );
@@ -4666,6 +4673,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         !read.rehearsals.any((rehearsal) => rehearsal.sessionId == sessionId)) {
       return;
     }
+    for (final row in left) {
+      await _takes.withdraw(row);
+    }
+    if (_left(generation, life)) return;
     await _countUnsent();
     if (_left(generation, life)) return;
     await _thePartsTheRoomHolds(sessionId, read, generation, life);
@@ -7749,13 +7760,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       for (final row in _theNewestPass(tally.unsentParts)[cena] ?? const [])
         row.id,
     };
-    var joined = false;
     for (final MapEntry(key: scope, value: rows) in tally.unsentParts.entries) {
       if (state.rowOf(scope) != cena) continue;
       for (final row in rows) {
         if (row.id != sent &&
             (tapped.contains(row.id) || row.refusal == null)) {
-          joined = joined || row.origin != null;
           await queue.dueAgain(row.id, intoTheSession: sessionId);
         }
       }
@@ -7765,7 +7774,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     await _countUnsentIn(life);
     await _adoptTheNames(queue, life);
     if (_endedSince(life)) return;
-    if (joined) _readTheRehearsalsAtHome();
     if (!state.unsentParts.containsKey(cena)) _toItsHome();
   }
 
@@ -7954,10 +7962,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(
       unsentParts: _unsentPartsOf(tally, speaking),
       heldScenes: {
-        for (final MapEntry(key: scope, value: rows)
-            in tally.unsentParts.entries)
-          if (rows.any((row) => row.origin == null)) ?KeptScope.numberOf(scope),
+        for (final scope in tally.unsentParts.keys) ?KeptScope.numberOf(scope),
       },
+      joinsOnTheirWay: {for (final scope in tally.joining) ?state.rowOf(scope)},
     );
     _weighTheRehearsal();
     if (sessionId != null) {

@@ -2535,6 +2535,24 @@ void main() {
       expect(room.takesKept, ['ensaio/parte-2']);
     });
 
+    test('is never a take left on the tablet: the tally holds it as its '
+        'scene\'s join on its way', () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      await queue.enqueueTheJoin(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      );
+
+      final tally = await queue.tally(sessionId: 'sessao-1');
+
+      expect(tally.unsentParts, isEmpty);
+      expect(tally.unsentTakes, 0);
+      expect(tally.joining, {'parte-2'});
+    });
+
     test('withdrawn after its pass found it and before it is sent stays '
         'unsent, and the room never receives it', () async {
       final room = FakeRoom();

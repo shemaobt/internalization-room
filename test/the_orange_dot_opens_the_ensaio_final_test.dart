@@ -16,6 +16,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
+import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
@@ -1092,6 +1093,60 @@ void main() {
             'dela abre o plano',
       );
       expect(find.text(_homeLine), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a join still on its way never decides the dot: the room holding only '
+    'scene 1\'s join opens the plan, with no take offered as left behind',
+    (tester) async {
+      SceneRehearsalRecord rehearsal(int n) => SceneRehearsalRecord(
+        rehearsalId: 'ensaio-s$n',
+        sessionId: 'sessao-antiga',
+        n: n,
+        scene: 'S$n',
+        sentAt: '2026-10-22T09:0$n:00+00:00',
+        durationMs: 6000,
+        frases: const [
+          SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 6000),
+        ],
+        verified: true,
+      );
+      await _reopenedOnTheConversation(
+        tester,
+        roomTakes: [_roomPart(1, pass: 1, origin: 'ensaio-s1')],
+        before: (harness) {
+          harness.room.sceneRehearsals.addAll([rehearsal(1), rehearsal(2)]);
+          final waiting = Directory.systemTemp.createTempSync('sala-2079');
+          addTearDown(() => waiting.deleteSync(recursive: true));
+          final audio = File('${waiting.path}/parte-2-junta-ensaio-s2.wav')
+            ..writeAsBytesSync([1, 2, 3, 4]);
+          harness.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
+          (harness.takes as FakeTakeQueue).rows.add(
+            PendingTake(
+              id: 'junta-2',
+              path: audio.path,
+              sessionId: 'sessao-antiga',
+              kind: 'ensaio',
+              scope: KeptScope.parte(2),
+              passNumber: 1,
+              chunkIndex: 2,
+              origin: 'ensaio-s2',
+            ),
+          );
+        },
+      );
+
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'a junta da cena 2 ainda no Outbox abria a casa de gravação',
+      );
+      expect(find.text(_homeLine), findsNothing);
+      expect(find.text(_pendingNotice), findsNothing);
     },
   );
 

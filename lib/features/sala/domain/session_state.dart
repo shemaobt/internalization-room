@@ -537,6 +537,10 @@ class SalaSessionState {
   final Map<int, UnsentPart> unsentParts;
   final Set<int> heldScenes;
 
+  /// The scenes whose joined part is still in the Outbox: never a take left on the
+  /// tablet, and the door waits for it.
+  final Set<int> joinsOnTheirWay;
+
   final Machine machine;
   final DateTime? recorderStartedAt;
 
@@ -712,6 +716,7 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentParts = const {},
     this.heldScenes = const {},
+    this.joinsOnTheirWay = const {},
     this.machine = const Machine(),
     this.recorderStartedAt,
     this.cenaDaGravacao,
@@ -822,7 +827,9 @@ class SalaSessionState {
   bool get everyPartIsSent => !partes.any(_waitsToGoUp);
 
   bool _waitsToGoUp(KeptTake take) =>
-      take.takeId == null && unsentParts.containsKey(rowOf(take.scopeId));
+      take.takeId == null &&
+      (unsentParts.containsKey(rowOf(take.scopeId)) ||
+          joinsOnTheirWay.contains(rowOf(take.scopeId)));
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
@@ -1961,6 +1968,7 @@ class SalaSessionState {
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
     Set<int>? heldScenes,
+    Set<int>? joinsOnTheirWay,
     Machine? machine,
     DateTime? recorderStartedAt,
     bool clearRecorderStartedAt = false,
@@ -2126,6 +2134,7 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
       heldScenes: heldScenes ?? this.heldScenes,
+      joinsOnTheirWay: joinsOnTheirWay ?? this.joinsOnTheirWay,
       machine: machine ?? this.machine,
       recorderStartedAt: clearRecorderStartedAt
           ? null

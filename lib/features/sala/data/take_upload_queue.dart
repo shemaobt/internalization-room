@@ -38,6 +38,7 @@ typedef OutboxTally = ({
   int unsentChunks,
   Map<String, List<PendingTake>> unsentParts,
   Map<String, int> goneParts,
+  Set<String> joining,
   Map<String, PartFact> parts,
 });
 
@@ -555,6 +556,7 @@ class TakeUploadQueue {
     for (final entry in written ?? const <PendingTake>[]) {
       if (!entry.stored &&
           entry.kind == partTakeKind &&
+          entry.origin == null &&
           _ofTheVisit(entry, sessionId, passage) &&
           await File(entry.path).exists()) {
         parts.putIfAbsent(entry.scope, () => []).add(entry);
@@ -562,6 +564,20 @@ class TakeUploadQueue {
     }
     return parts;
   }
+
+  Future<Set<String>> _joiningIn(
+    List<PendingTake>? written,
+    String? sessionId,
+    String? passage,
+  ) async => {
+    for (final entry in written ?? const <PendingTake>[])
+      if (!entry.stored &&
+          entry.kind == partTakeKind &&
+          entry.origin != null &&
+          _ofTheVisit(entry, sessionId, passage) &&
+          await File(entry.path).exists())
+        entry.scope,
+  };
 
   Future<Map<String, int>> _gonePartsIn(
     List<PendingTake>? written,
@@ -628,6 +644,7 @@ class TakeUploadQueue {
           : _unsentIn(written, sentenceKind, sessionId, passage: passage),
       unsentParts: unsentParts,
       goneParts: await _gonePartsIn(written, sessionId, passage),
+      joining: await _joiningIn(written, sessionId, passage),
     );
   }
 
