@@ -491,7 +491,19 @@ void main() {
       'marks are drawn when the read answers', () async {
     final (harness, container) = await _relaunchedOnAChecked();
     SalaSessionState estado() => container.read(salaSessionProvider);
-    harness.room.holdNextState();
+    harness.room
+      ..retroSoFar = const BackTranslationProgress(
+        segments: _trechos,
+        checked: true,
+        findings: [
+          BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: 2,
+            segmentId: 'trecho-2',
+          ),
+        ],
+      )
+      ..holdNextState();
 
     container.read(salaSessionProvider.notifier).startRetro();
     await waitFor('a tradução abrir', () => estado().stage == SalaStage.retro);
@@ -506,7 +518,8 @@ void main() {
     expect(estado().btPhase, BtPhase.conferida);
     expect(
       [for (final f in estado().btFindings) f.kind],
-      [BtFindingKind.nuance],
+      [BtFindingKind.unclear],
+      reason: 'as marcas do veredito são as da leitura, não as da retomada',
     );
   });
 
