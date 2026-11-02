@@ -126,7 +126,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle(Duration.zero);
 
         final state = container.read(salaSessionProvider);
@@ -144,7 +144,7 @@ void main() {
         final container = harness.container();
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle();
 
         final state = container.read(salaSessionProvider);
@@ -314,6 +314,18 @@ void main() {
         );
         expect(read().sessionId, p01);
         expect(harness.room.calls.skip(asked), ['createSession']);
+        expect(read().machine.inFlight, isNull);
+
+        harness.room.throwOn.remove('createSession');
+        notifier.leaveThePassage();
+        await waitFor('the Choice again', () => read().entriesOpen);
+        notifier.openTheEntry(
+          read().naRoda!.firstWhere((entry) => entry.pericope == 'P02'),
+        );
+        await waitFor(
+          'P02 to open on the second tap',
+          () => read().pericope == 'P02' && read().voice == VoiceState.invite,
+        );
       },
     );
 
@@ -430,7 +442,7 @@ void main() {
         final container = harness.container();
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle();
 
         expect(
@@ -450,7 +462,7 @@ void main() {
         final container = harness.container();
         addTearDown(container.dispose);
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         await settle(Duration.zero);
         expect(container.read(salaSessionProvider).needsPerson, isFalse);
 
@@ -471,7 +483,7 @@ void main() {
       final container = harness.container();
       addTearDown(container.dispose);
 
-      container.read(salaSessionProvider.notifier).escolhaTap();
+      unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
       await settle(const Duration(milliseconds: 300));
 
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
@@ -488,7 +500,7 @@ void main() {
         harness.room.throwOn['servedBooks'] = StateError('a late defect');
         final container = harness.container();
 
-        container.read(salaSessionProvider.notifier).escolhaTap();
+        unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
         container.dispose();
         await settle();
 

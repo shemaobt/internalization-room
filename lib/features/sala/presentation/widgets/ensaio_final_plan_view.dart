@@ -33,9 +33,12 @@ class EnsaioFinalPlanView extends ConsumerStatefulWidget {
 class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
   int _cardAt = 0;
   String? _lastLabelled;
+  String? _sheetFrom;
 
   @override
   Widget build(BuildContext context) {
+    final returnTo = _sheetFrom;
+    _sheetFrom = null;
     final session = ref.watch(salaSessionProvider);
     final notifier = ref.read(salaSessionProvider.notifier);
     final language = ref.watch(roomLanguageProvider);
@@ -76,6 +79,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
         .where((row) => row.scene.sceneId == session.planSheet)
         .firstOrNull;
     if (sheet != null) {
+      _sheetFrom = sheet.scene.sceneId;
       return RehearsalSheet(
         number: sheet.number,
         title: sheet.scene.title,
@@ -83,7 +87,8 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
         candidates: sheet.candidates,
         inUseId: sheet.chosen?.rehearsalId,
         language: language,
-        busy: session.planBusy,
+        busy: session.planBusy || session.homeBusy,
+        backRests: session.planBusy,
         offersToUse: sheet.offersToUse,
         onRecordAgain: notifier.rehearseThisSceneAgain,
       );
@@ -125,7 +130,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
               UnsentNotice(
                 session: session,
                 language: language,
-                onSend: notifier.enviarACena,
+                onSend: notifier.enviarDoAviso,
               ),
               if (session.sceneLine == SceneLine.diskFailed)
                 Semantics(
@@ -167,6 +172,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                         onSwap: () =>
                             notifier.swapTheRehearsal(row.scene.sceneId),
                         onRetry: () => notifier.retryTheJoin(row.number),
+                        focusReturns: row.scene.sceneId == returnTo,
                       ),
                   ],
                 ),
@@ -176,7 +182,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                   rehearsal: unlabelled,
                   scenes: read.scenes,
                   language: language,
-                  busy: session.planBusy,
+                  busy: session.planBusy || session.homeBusy,
                   playing:
                       session.planListening?.rehearsalId ==
                       unlabelled.rehearsalId,
@@ -216,9 +222,14 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                 ),
               ],
               const SizedBox(height: 24),
-              wholeAtOnce(session, language, notifier.recordTheWholePassage),
+              wholeAtOnce(
+                session,
+                language,
+                notifier.recordTheWholePassage,
+                onFocusLeft: notifier.accessibilityFocusLeft,
+              ),
               TextButton(
-                onPressed: idle && !session.grainSwitching
+                onPressed: idle && !session.homeBusy
                     ? notifier.recordSceneByScene
                     : null,
                 child: Text(
@@ -244,6 +255,7 @@ class _PlanRowView extends StatelessWidget {
   final VoidCallback onPlay;
   final VoidCallback onSwap;
   final VoidCallback onRetry;
+  final bool focusReturns;
 
   const _PlanRowView({
     required this.row,
@@ -254,6 +266,7 @@ class _PlanRowView extends StatelessWidget {
     required this.onPlay,
     required this.onSwap,
     required this.onRetry,
+    required this.focusReturns,
   });
 
   @override
@@ -376,16 +389,20 @@ class _PlanRowView extends StatelessWidget {
             if (row.canSwap)
               Padding(
                 padding: const EdgeInsets.only(left: 32, top: 4),
-                child: Semantics(
-                  button: true,
-                  label: '${ensaioFinalPlanLabelFor('swap', language)} — $cena',
-                  onTap: idle ? onSwap : null,
-                  excludeSemantics: true,
-                  child: TextButton(
-                    onPressed: idle ? onSwap : null,
-                    child: Text(
-                      ensaioFinalPlanLabelFor('swap', language),
-                      style: TextStyle(color: colors.telha, fontSize: 15),
+                child: FocusOnArrival(
+                  wanted: focusReturns,
+                  child: Semantics(
+                    button: true,
+                    label:
+                        '${ensaioFinalPlanLabelFor('swap', language)} — $cena',
+                    onTap: idle ? onSwap : null,
+                    excludeSemantics: true,
+                    child: TextButton(
+                      onPressed: idle ? onSwap : null,
+                      child: Text(
+                        ensaioFinalPlanLabelFor('swap', language),
+                        style: TextStyle(color: colors.telha, fontSize: 15),
+                      ),
                     ),
                   ),
                 ),

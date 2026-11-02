@@ -18,6 +18,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _gravacao = 'gravacao-1';
 const _aPart = Duration(seconds: 30);
@@ -78,8 +79,7 @@ SalaHarness _aRoomHolding({
 
 /// A resume point on [stage] naming the rehearsal, still on this tablet.
 void _aRowOn(SalaHarness harness, SalaStage stage) {
-  final home = Directory.systemTemp.createTempSync('sala-rascunho');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-rascunho');
   harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
     sessionId: 'sessao-antiga',
     stage: stage,
@@ -440,8 +440,7 @@ void main() {
             pass: 2,
           ),
         );
-      final home = Directory.systemTemp.createTempSync('sala-recoberta');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-recoberta');
       harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.retro,

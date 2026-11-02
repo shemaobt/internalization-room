@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Tristate;
 
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -25,6 +26,7 @@ import 'package:internalization_room/main.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, relaunch;
+import 'support/temp.dart';
 
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
@@ -37,6 +39,7 @@ const _cannotEnter = 'este ensaio não pode entrar — ensaiem esta cena de novo
 const _retry = 'não deu para juntar esta cena — toquem para tentar de novo';
 const _retryEn = 'this scene could not be joined — tap to try again';
 const _tick = '✓';
+const _enviarAGravacao = 'Enviar a gravação';
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -177,6 +180,29 @@ class _Room {
     await settle();
   }
 
+  Future<void> aHandTakeGivenUp(int n) async {
+    await aHandTakeHeld(n);
+    await tester.runAsync(() async {
+      while (!(await harness.takes.entries()).any(
+        (row) => row.scope == KeptScope.parte(n) && row.exhausted,
+      )) {
+        await harness.takes.flush();
+      }
+    });
+    unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+    await settle();
+  }
+
+  Finder get sendNow => find.ancestor(
+    of: find.textContaining('enviar agora'),
+    matching: find.byType(TextButton),
+  );
+
+  Finder sendNowOf(int n) => find.ancestor(
+    of: find.textContaining('Cena $n · '),
+    matching: find.byType(TextButton),
+  );
+
   /// Every part a join wrote, landed in the room or still in the Outbox.
   Future<Set<String>> scopesJoined() async => {
     for (final take in room.takesReceivedWhole)
@@ -305,7 +331,7 @@ Future<_Room> _atRest(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = aTempHome('sala-1385-junta');
+  final home = aTempDir('sala-1385-junta');
   final harness = SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
@@ -1717,6 +1743,286 @@ void main() {
       );
       expect(it.container.read(salaSessionProvider).joinRows, isEmpty);
       expect(await it.scopesJoined(), isEmpty);
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a scene recording asked while a join runs opens no microphone', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.seed();
+    for (final n in [1, 2, 3]) {
+      await it.heldOnTheTablet(n);
+    }
+    await it.toTheRecordingHome();
+    it.container.read(salaSessionProvider.notifier).leaveTheRecording();
+    await it.settle();
+    await it.openThePlan();
+    it.holdTheTake('parte-1');
+    await it.tapJoin();
+    await it.until(
+      'a junta da cena 1 chegar à porta',
+      () =>
+          it.theHeldTakeArrived &&
+          it.container.read(salaSessionProvider).joining == 1,
+    );
+
+    it.container.read(salaSessionProvider.notifier).gravarACena(1);
+    await it.settle();
+
+    expect(
+      it.container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.idle,
+      reason:
+          'a gravação da cena abria o microfone no meio da junta, e a tomada '
+          'ia parar debaixo da parte que a sala estava juntando',
+    );
+    expect(it.harness.recorder.captures, 0);
+
+    it.room.finishHeldTake();
+    await _theJoinEnds(it);
+    closeTheRoom(it.container);
+    semantics.dispose();
+  });
+
+  testWidgets('a keep asked while a join runs keeps nothing', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.seed();
+    for (final n in [1, 2, 3]) {
+      await it.heldOnTheTablet(n);
+    }
+    await it.toTheRecordingHome();
+    final notifier = it.container.read(salaSessionProvider.notifier);
+    notifier.leaveTheRecording();
+    await it.settle();
+    await it.openThePlan();
+    notifier.gravarACena(1);
+    await it.until(
+      'a gravação da cena 1 começar',
+      () =>
+          it.container.read(salaSessionProvider).ensaio ==
+          EnsaioStatus.recording,
+    );
+    notifier.gravarACena(1);
+    await it.until(
+      'a gravação da cena 1 terminar',
+      () =>
+          it.container.read(salaSessionProvider).ensaio ==
+          EnsaioStatus.recorded,
+    );
+    it.holdTheTake('parte-1');
+    notifier.joinTheScenes();
+    await it.until(
+      'a junta da cena 1 chegar à porta',
+      () =>
+          it.theHeldTakeArrived &&
+          it.container.read(salaSessionProvider).joining == 1,
+    );
+
+    notifier.takeKeep();
+    await it.settle();
+
+    expect(
+      it.container.read(salaSessionProvider).ensaio,
+      EnsaioStatus.recorded,
+      reason:
+          'o guardar no meio da junta levava a tomada, e a parte da mão entrava '
+          'na fila por cima da parte que a sala estava juntando',
+    );
+    final entries = (await tester.runAsync(it.harness.takes.entries))!;
+    expect([
+      for (final row in entries)
+        if (row.origin == null) row.scope,
+    ], isEmpty);
+
+    it.room.finishHeldTake();
+    await _theJoinEnds(it);
+    closeTheRoom(it.container);
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'a scene microphone open when a join starts still closes at its stop',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2, 3]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.toTheRecordingHome();
+      final notifier = it.container.read(salaSessionProvider.notifier);
+      notifier.leaveTheRecording();
+      await it.settle();
+      await it.openThePlan();
+      notifier.gravarACena(1);
+      await it.until(
+        'a gravação da cena 1 começar',
+        () =>
+            it.container.read(salaSessionProvider).ensaio ==
+            EnsaioStatus.recording,
+      );
+      it.holdTheTake('parte-1');
+      notifier.joinTheScenes();
+      await it.until(
+        'a junta da cena 1 chegar à porta',
+        () =>
+            it.theHeldTakeArrived &&
+            it.container.read(salaSessionProvider).joining == 1,
+      );
+
+      notifier.gravarACena(1);
+      await it.until(
+        'a gravação da cena 1 terminar',
+        () =>
+            it.container.read(salaSessionProvider).ensaio !=
+            EnsaioStatus.recording,
+      );
+
+      expect(
+        it.container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recorded,
+        reason:
+            'a trava da junta ficava à frente do toque que fecha o microfone, e '
+            'uma gravação aberta quando a junta começava não tinha como parar',
+      );
+
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "while a join runs, the notice's «enviar agora» of a take still on the "
+    'tablet rests, and a tap sends nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.aHandTakeGivenUp(3);
+      await it.openThePlan();
+      expect(find.text(_planLine), findsOneWidget);
+      expect(it.sendNow, findsOneWidget);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-1');
+
+      await it.tapJoin();
+      await it.until('a parte 1 ficar presa na sala', () => it.room.takeHeld);
+      final asked = it.room.takesAsked.length;
+
+      expect(
+        tester.widget<TextButton>(it.sendNow).onPressed,
+        isNull,
+        reason: 'o «enviar agora» ficava aceso no meio da junta',
+      );
+      expect(
+        tester
+            .getSemantics(byLabel(_enviarAGravacao))
+            .flagsCollection
+            .isEnabled,
+        Tristate.isFalse,
+        reason: 'o VoiceOver lia o botão como vivo no meio da junta',
+      );
+      await tester.tap(it.sendNow, warnIfMissed: false);
+      await it.beat();
+      expect(it.room.takesAsked.skip(asked), isEmpty);
+
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      expect(
+        it.room.takesAsked.skip(asked),
+        isNot(contains('ensaio/parte-3')),
+        reason: 'o toque no meio da junta mandava a parte 3 depois dela',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "the notice's enviar agora asked of the notifier while a join runs is "
+    'refused, and the part never goes up after the join',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      for (final n in [1, 2]) {
+        await it.heldOnTheTablet(n);
+      }
+      await it.aHandTakeGivenUp(3);
+      await it.openThePlan();
+      expect(it.sendNow, findsOneWidget);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-1');
+
+      await it.tapJoin();
+      await it.until('a parte 1 ficar presa na sala', () => it.room.takeHeld);
+      final asked = it.room.takesAsked.length;
+
+      it.container.read(salaSessionProvider.notifier).enviarDoAviso(3);
+      await it.beat();
+      it.room.finishHeldTake();
+      await _theJoinEnds(it);
+      await it.wait(const Duration(seconds: 5));
+
+      expect(
+        it.room.takesAsked.skip(asked),
+        isNot(contains('ensaio/parte-3')),
+        reason:
+            'o enviarACena no meio da junta punha a parte 3 de novo na fila, e '
+            'ela subia logo depois da junta',
+      );
+      closeTheRoom(it.container);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "while one scene's take goes up from the notice, the other scene's «enviar "
+    'agora» rests, and is offered again once it landed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.seed();
+      await it.heldOnTheTablet(1);
+      await it.aHandTakeGivenUp(2);
+      await it.aHandTakeGivenUp(3);
+      await it.openThePlan();
+      expect(it.sendNowOf(2), findsOneWidget);
+      expect(it.sendNowOf(3), findsOneWidget);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-2');
+
+      await tester.tap(it.sendNowOf(2));
+      await it.until('a parte 2 ficar presa na sala', () => it.room.takeHeld);
+
+      expect(
+        tester.widget<TextButton>(it.sendNowOf(3)).onPressed,
+        isNull,
+        reason:
+            'o «enviar agora» da cena 3 ficava aceso enquanto a cena 2 subia',
+      );
+
+      it.room.finishHeldTake();
+      await it.until(
+        'a parte 2 chegar',
+        () => it.partsReceived.contains('parte-2'),
+      );
+      await it.until(
+        'o «enviar agora» da cena 3 voltar',
+        () =>
+            it.sendNowOf(3).evaluate().isNotEmpty &&
+            tester.widget<TextButton>(it.sendNowOf(3)).onPressed != null,
+      );
       closeTheRoom(it.container);
       semantics.dispose();
     },

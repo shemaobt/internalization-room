@@ -15,6 +15,7 @@ import 'fakes.dart';
 import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio;
 import 'scenario_helpers.dart'
     show intoTheRecordingHome, relaunch, settle, umaParteInteira;
+import 'support/temp.dart';
 
 final _parte3 = KeptScope.parte(3);
 const _bytesDaParte = [1, 2, 3];
@@ -71,8 +72,7 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
   SalaHarness harness, {
   int passNaSala = 1,
 }) async {
-  final home = Directory.systemTemp.createTempSync('sala-parte-sem-nome');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-parte-sem-nome');
   await harness.emAberto.remember(
     'Ruth',
     'P01',

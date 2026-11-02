@@ -11,6 +11,7 @@ import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/dashed_edge.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 import 'package:internalization_room/main.dart';
 
@@ -19,6 +20,7 @@ import 'scenario_helpers.dart' show holdTheSession, intoTheBackTranslation;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
+import 'support/temp.dart';
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -33,8 +35,7 @@ Future<ProviderContainer> voltaATraducao(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1937');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1937');
   await holdTheSession(
     harness,
     ResumePoint(
@@ -378,6 +379,92 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('a «regravada» frase whose stretch carries a nuance before its '
+      'missing finding still wears her blue', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.takes.add(
+      const TakeView(
+        takeId: 'gravacao-velha-3',
+        scope: 'parte-3',
+        kind: 'ensaio',
+        ordinal: 3,
+      ),
+    );
+    final container = await voltaATraducao(
+      tester,
+      harness,
+      BackTranslationProgress(
+        segments: const [
+          SegmentView(
+            segmentId: 'trecho-1',
+            takeId: 'gravacao-1',
+            startsMs: 0,
+            endsMs: 4000,
+            frase: 1,
+          ),
+        ],
+        stale: const [
+          SegmentView(
+            segmentId: 'trecho-2',
+            takeId: 'gravacao-velha-3',
+            startsMs: 0,
+            endsMs: 5000,
+          ),
+        ],
+        findings: BtFinding.listFrom({
+          'findings': [
+            {'kind': 'nuance', 'frase': 2, 'segment_id': 'trecho-2'},
+            {'kind': 'missing', 'frase': 2, 'segment_id': 'trecho-2'},
+          ],
+        }),
+      ),
+      partes: [1, 3],
+    );
+    await waitFor(
+      'a frase regravada achar a sua parte',
+      () => container.read(salaSessionProvider).btTrechosRegravados.isNotEmpty,
+      step: () => _passo(tester),
+    );
+    await _passo(tester);
+
+    final cartao = find
+        .ancestor(
+          of: find.text('regravada — traduzam de novo'),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                widget.foregroundDecoration is DashedEdge,
+          ),
+        )
+        .first;
+
+    expect(
+      (tester.widget<Container>(cartao).foregroundDecoration as DashedEdge?)
+          ?.color,
+      ShemaBrand.azul,
+      reason:
+          'a nuance sem tipo na frente do trecho deixava a frase regravada '
+          'sem a cor do achado que veio depois',
+    );
+    expect(
+      (tester
+                  .widget<Container>(
+                    find.descendant(
+                      of: find.descendant(
+                        of: cartao,
+                        matching: find.byType(FractionallySizedBox),
+                      ),
+                      matching: find.byType(Container),
+                    ),
+                  )
+                  .decoration
+              as BoxDecoration)
+          .color,
+      ShemaBrand.azul,
+    );
+    closeTheRoom(container);
+  });
+
   testWidgets('a frase the check found missing or unclear wears her blue on '
       'its bar, its border and its word, and an addition stays terracotta', (
     tester,
@@ -440,6 +527,36 @@ void main() {
       ),
       findsNothing,
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a frase whose nuance comes before its missing finding still '
+      'reads «faltou depois desta», as hers', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _quatroFrasesComAchados(
+      tester,
+      harness,
+      BtFinding.listFrom({
+        'findings': [
+          {'kind': 'nuance', 'frase': 2, 'segment_id': 'trecho-2'},
+          {'kind': 'missing', 'frase': 2, 'segment_id': 'trecho-2'},
+        ],
+      }),
+    );
+
+    expect(
+      find.descendant(
+        of: _aFrase(2).first,
+        matching: find.text('faltou depois desta'),
+      ),
+      findsOneWidget,
+      reason:
+          'uma nuance sem tipo na frente escondia o «faltou» da mesma frase, '
+          'que a dela marca',
+    );
+    expect(_borda(tester, 2), ShemaBrand.azul);
+    expect(_corDaBarra(tester, 2), ShemaBrand.azul);
+    expect(_corDaPalavra(tester, 2, 'faltou depois desta'), ShemaBrand.azul);
     closeTheRoom(container);
   });
 

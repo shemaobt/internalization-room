@@ -232,6 +232,25 @@ void main() {
   }
 
   testWidgets(
+    'a frase bar tapped after a restart writes the retelling line and keeps the restarted note',
+    (tester) async {
+      final harness = SalaHarness(
+        filaEmMemoria: true,
+        restartLapse: const Duration(seconds: 20),
+      );
+      final container = await _recomecadaComUmaFrase(tester, harness);
+      await _duasFrasesComUmAchado(tester, harness, container);
+      expect(find.text(_recomecada), findsOneWidget);
+
+      await tocar(tester, _barraDaFrase2);
+
+      expect(find.text(_recomecada), findsOneWidget);
+      expect(find.textContaining('traduzindo de novo a frase'), findsOneWidget);
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets(
     'a refusal that lands inside the six seconds of the restarted note stays when the note goes',
     (tester) async {
       final container = await _movidaRecusadaDepoisDeRecomecar(

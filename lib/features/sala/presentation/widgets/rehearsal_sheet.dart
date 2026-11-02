@@ -7,6 +7,7 @@ import '../../domain/facilitator_script.dart';
 import '../../domain/scene_rehearsal.dart';
 import 'bead_styles.dart';
 import 'listen_glyph.dart';
+import 'scene_question.dart';
 import 'way_back_chevron.dart';
 
 const _rem = 16.0;
@@ -22,11 +23,13 @@ class RehearsalSheet extends ConsumerWidget {
   final String? inUseId;
   final String language;
   final bool busy;
+  final bool backRests;
   final bool Function(SceneRehearsalRecord) offersToUse;
   final String? Function(SceneRehearsalRecord)? answerOf;
   final String Function(SceneRehearsalRecord)? useLabelOf;
   final bool Function(SceneRehearsalRecord)? armedOf;
   final bool Function(SceneRehearsalRecord)? wakingOf;
+  final void Function(SceneRehearsalRecord)? onFocusLeft;
   final VoidCallback? onRecordAgain;
 
   const RehearsalSheet({
@@ -38,11 +41,13 @@ class RehearsalSheet extends ConsumerWidget {
     required this.inUseId,
     required this.language,
     required this.busy,
+    required this.backRests,
     required this.offersToUse,
     this.answerOf,
     this.useLabelOf,
     this.armedOf,
     this.wakingOf,
+    this.onFocusLeft,
     this.onRecordAgain,
   });
 
@@ -53,8 +58,10 @@ class RehearsalSheet extends ConsumerWidget {
     final colors = SalaColors.of(context);
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     final onRecordAgain = this.onRecordAgain;
+    final onFocusLeft = this.onFocusLeft;
     final screen = MediaQuery.sizeOf(context);
     final inset = MediaQuery.viewPaddingOf(context).top;
+    final scene = recordingHomeLabelFor('scene', language, n: number);
 
     final sheet = Padding(
       padding: EdgeInsets.fromLTRB(
@@ -65,22 +72,35 @@ class RehearsalSheet extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          Text(
-            recordingHomeLabelFor('scene', language, n: number),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.verde,
-              fontSize: 1.5 * _rem,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.verdeClaro,
-              fontSize: 0.95 * _rem,
-              fontWeight: FontWeight.w400,
+          FocusOnArrival(
+            wanted: true,
+            child: Semantics(
+              header: true,
+              label: '$scene — $title',
+              child: ExcludeSemantics(
+                child: Column(
+                  children: [
+                    Text(
+                      scene,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.verde,
+                        fontSize: 1.5 * _rem,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.verdeClaro,
+                        fontSize: 0.95 * _rem,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 1.1 * _rem),
@@ -112,6 +132,9 @@ class RehearsalSheet extends ConsumerWidget {
                         notifier.playARehearsal(candidate.rehearsalId),
                     onUse: () =>
                         notifier.useThisRehearsal(candidate.rehearsalId),
+                    onFocusLeft: onFocusLeft == null
+                        ? null
+                        : () => onFocusLeft(candidate),
                   ),
               ],
             ),
@@ -148,11 +171,11 @@ class RehearsalSheet extends ConsumerWidget {
               top: inset + screen.height * 0.05 - 2,
               child: Semantics(
                 button: true,
-                enabled: !busy,
+                enabled: !backRests,
                 label: said('back'),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: busy ? null : notifier.closeTheRehearsalSheet,
+                  onTap: backRests ? null : notifier.closeTheRehearsalSheet,
                   child: SizedBox(
                     width: 44,
                     height: 44,
@@ -190,6 +213,7 @@ class _SheetLine extends StatelessWidget {
   final bool busy;
   final VoidCallback onPlay;
   final VoidCallback onUse;
+  final VoidCallback? onFocusLeft;
 
   const _SheetLine({
     required this.rehearsal,
@@ -205,6 +229,7 @@ class _SheetLine extends StatelessWidget {
     required this.busy,
     required this.onPlay,
     required this.onUse,
+    required this.onFocusLeft,
   });
 
   @override
@@ -310,8 +335,10 @@ class _SheetLine extends StatelessWidget {
                   Semantics(
                     button: true,
                     enabled: usable,
+                    toggled: armed,
                     label: '$useLabel — $line',
                     onTap: usable ? onUse : null,
+                    onDidLoseAccessibilityFocus: onFocusLeft,
                     excludeSemantics: true,
                     child: Opacity(
                       opacity: busy

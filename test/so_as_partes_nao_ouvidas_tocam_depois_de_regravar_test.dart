@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
@@ -9,7 +10,7 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show holdTheSession, intoTheBackTranslation, settle;
+    show holdTheSession, intoTheBackTranslation, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
 
 const _cincoPartes = [
@@ -21,13 +22,8 @@ const _cincoPartes = [
 ];
 
 /// The part at [onde] recorded again the way ADR 0020 has it, through a finding on it,
-/// and kept. With [semNome] its upload is held, so the room has not named it yet.
-Future<void> _regravada(
-  Sala it,
-  int onde,
-  Duration quanto, {
-  bool semNome = false,
-}) async {
+/// and kept.
+Future<void> _regravada(Sala it, int onde, Duration quanto) async {
   it.harness.room
     ..verdictChecked = false
     ..verdictHasFinding = true
@@ -38,15 +34,51 @@ Future<void> _regravada(
     onde,
     reason: 'o cenário só mede alguma coisa se o achado apontar essa parte',
   );
-  if (semNome) it.harness.room.holdNextTake('parte-${onde + 1}');
   it.sala.leaveTheBackTranslation();
   await regravarAParte(it, onde);
-  if (!semNome) {
-    await waitFor(
-      'a sala nomear a parte gravada de novo',
-      () => it.partes[onde].takeId != null,
-    );
+  await waitFor(
+    'a sala nomear a parte gravada de novo',
+    () => it.partes[onde].takeId != null,
+  );
+  it.harness.playback.lengths[it.partes[onde].path] = quanto;
+  it.harness.room
+    ..verdictHasFinding = false
+    ..verdictFindingPlace = null;
+}
+
+/// The part at [onde] recorded again and kept, landed in the room while the app was
+/// closed: killed before the tablet learned its name, and the room's listing fails on the
+/// resume and again on the home, so the part comes back to the recording home nameless
+/// and off the Outbox (ADR 0163).
+Future<void> _regravadaSemNome(Sala it, int onde, Duration quanto) async {
+  it.harness.room
+    ..verdictChecked = false
+    ..verdictHasFinding = true
+    ..verdictFindingPlace = onde;
+  await pedirOVeredito(it);
+  it.harness.room.holdNextTake('parte-${onde + 1}');
+  it.sala.leaveTheBackTranslation();
+  await regravarAParte(it, onde);
+  await it.harness.room.untilTakeHeld().timeout(const Duration(seconds: 10));
+  it.container.dispose();
+  it.harness.room
+    ..failTakesWith = const NetworkFailed('sem rede')
+    ..finishHeldTake();
+  await waitFor(
+    'a parte chegar à sala com o app fechado',
+    () => it.harness.room.takesKept.contains('ensaio/parte-${onde + 1}'),
+  );
+  await it.harness.takes.writingEnds();
+  for (final row in await it.harness.takes.pending()) {
+    if (row.scope == 'parte-${onde + 1}') await it.harness.takes.withdraw(row);
   }
+  it.container = it.harness.container();
+  addTearDown(it.container.dispose);
+  await it.sala.refreshUnsent();
+  await it.sala.openTheRoom();
+  await intoTheRecordingHome(it.sala, () => it.estado);
+  await settle();
+  expect(it.partes[onde].takeId, isNull, reason: 'a parte volta sem nome');
   it.harness.playback.lengths[it.partes[onde].path] = quanto;
   it.harness.room
     ..verdictHasFinding = false
@@ -117,82 +149,6 @@ Future<void> _retomadaJuntada(
 }
 
 void main() {
-  test(
-    'a parte gravada de novo numa passagem de cinco toca sozinha depois da fala dela',
-    () async {
-      final it = await umEnsaioContadoInteiro(_cincoPartes);
-      await _retomadaJuntada(it, _cincoPartes[4]);
-      await _regravada(it, 2, _cincoPartes[2], semNome: true);
-      final terceira = it.partes[2].path;
-      it.harness.room.listeningUnheardTakeIds = const [];
-      final linhas = it.harness.voice.fixedLines.length;
-      final sons = it.harness.sounds.length;
-      final tocadas = it.harness.playback.played.length;
-
-      await _entrar(it);
-
-      expect(
-        it.harness.voice.fixedLines.skip(linhas),
-        [('P2', testLanguage)],
-        reason:
-            'quatro partes seguem ouvidas: a sala diz a P2 dela, «Ainda falta '
-            'ouvir um trecho da gravação antes de eu conferir.», e não a abertura',
-      );
-      final depois = it.harness.sounds.skip(sons).toList();
-      expect(depois, contains('voice:fixed'));
-      expect(
-        depois.indexOf('voice:fixed'),
-        lessThan(depois.lastIndexOf('playback:play')),
-        reason: 'a fala vem antes do som da parte',
-      );
-      expect(it.harness.playback.played.skip(tocadas), [terceira]);
-      expect(it.harness.playback.playedFrom.last, Duration.zero);
-
-      it.harness.room.finishHeldTake();
-      await waitFor(
-        'a sala nomear a parte que faltava',
-        () => it.partes[2].takeId != null,
-      );
-      await ouvirAteOFim(it, _cincoPartes[2]);
-      await waitFor(
-        'ouvida a parte que faltava, terminei acende',
-        () => it.estado.canFinishBackTranslation,
-      );
-      expect(
-        it.estado.btParteFronteira,
-        isFalse,
-        reason: 'a quarta parte já foi ouvida: não há travessia para ela',
-      );
-      expect(it.harness.playback.played.skip(tocadas), [terceira]);
-    },
-  );
-
-  test(
-    'numa gravação juntada, a parte que a sala ainda não nomeou segue por ouvir depois de tocada',
-    () async {
-      final it = await umEnsaioContadoInteiro(_cincoPartes);
-      await _retomadaJuntada(it, _cincoPartes[4]);
-      await _regravada(it, 2, _cincoPartes[2], semNome: true);
-      it.harness.room.listeningUnheardTakeIds = const [];
-      await _entrar(it);
-      final relatos = it.harness.room.listeningReports.length;
-
-      await ouvirAteOFim(it, _cincoPartes[2]);
-      await waitFor(
-        'o relato da parte',
-        () => it.harness.room.listeningReports.length > relatos,
-      );
-      await settle();
-
-      expect(
-        it.estado.canFinishBackTranslation,
-        isFalse,
-        reason: 'a sala não pode contar ouvida uma parte que ainda não nomeou',
-      );
-      expect(it.estado.btRecusa, CheckRefusal.partUnheard);
-    },
-  );
-
   test(
     'a sala pedindo uma pessoa durante a fala dela não mostra o sinal, e a parte que falta toca e para nela',
     () async {
@@ -287,30 +243,6 @@ void main() {
         isFalse,
         reason: 'a quinta já foi ouvida: depois da última que faltava, para',
       );
-    },
-  );
-
-  test(
-    'uma passagem de uma parte gravada de novo ouve a abertura e a gravação inteira',
-    () async {
-      const umaParte = [Duration(seconds: 10)];
-      final it = await umEnsaioContadoInteiro(umaParte);
-      await _regravada(it, 0, umaParte[0], semNome: true);
-      it.harness.room.listeningUnheardTakeIds = const [];
-      final linhas = it.harness.voice.fixedLines.length;
-      final tocadas = it.harness.playback.played.length;
-
-      await _entrar(it);
-
-      expect(
-        _linhas(it, linhas),
-        ['P0'],
-        reason:
-            'nenhuma parte segue ouvida: a abertura e a gravação inteira, '
-            'não a P2',
-      );
-      expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
-      expect(it.harness.playback.playedFrom.last, Duration.zero);
     },
   );
 
@@ -675,7 +607,7 @@ void main() {
     'uma sala antiga que não nomeia nada mantém o caminho de hoje',
     () async {
       final it = await umEnsaioContadoInteiro(_cincoPartes);
-      await _regravada(it, 2, _cincoPartes[2], semNome: true);
+      await _regravada(it, 2, _cincoPartes[2]);
       it.harness.room.listeningUnheardTakeIds = null;
       final linhas = it.harness.voice.fixedLines.length;
       final tocadas = it.harness.playback.played.length;
@@ -791,43 +723,123 @@ void main() {
     expect(_linhas(it, linhas), ['P0']);
     expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
   });
-
   test(
-    'a part whose upload has not landed keeps the listen before a frase that '
-    'awaits, even when the room names only that frase\'s take',
+    'uma passagem de uma parte gravada de novo ouve a abertura e a gravação inteira',
     () async {
-      final it = await umEnsaioDeTresPartesContadoInteiro();
-      final daPrimeira = it.estado.btTrechos.firstWhere(
-        (trecho) => trecho.parte == 0,
-      );
-      it.harness.room
-        ..awaitingSegmentId = daPrimeira.segmentId
-        ..verdictChecked = false
-        ..verdictRefusal = CheckRefusal.fraseAwaiting
-        ..verdictUntoldSegmentId = daPrimeira.segmentId;
-      await pedirOVeredito(it);
-      it.harness.room
-        ..verdictRefusal = null
-        ..verdictUntoldSegmentId = null;
-      await _regravada(it, 1, partesDoEnsaio[1], semNome: true);
-      expect(it.estado.btFraseQueAguarda, daPrimeira.segmentId);
-      expect(it.partes[1].takeId, isNull);
-      it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!];
+      const umaParte = [Duration(seconds: 10)];
+      final it = await umEnsaioContadoInteiro(umaParte);
+      await _regravadaSemNome(it, 0, umaParte[0]);
+      it.harness.room.listeningUnheardTakeIds = const [];
       final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
 
-      it.sala.startRetro();
-      await waitFor(
-        'a voz dizer o que vem',
-        () => it.harness.voice.fixedLines.length > linhas,
-      );
+      await _entrar(it);
 
       expect(
-        _linhas(it, linhas).first,
-        'P0',
+        _linhas(it, linhas),
+        ['P0'],
         reason:
-            'a volta pulava a escuta da parte que ainda subia e abria a '
-            'frase que espera',
+            'nenhuma parte segue ouvida: a abertura e a gravação inteira, '
+            'não a P2',
       );
+      expect(it.harness.playback.played.skip(tocadas), [it.partes[0].path]);
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
     },
   );
+
+  test(
+    'a parte gravada de novo numa passagem de cinco toca sozinha depois da fala dela',
+    () async {
+      final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
+      await _regravadaSemNome(it, 2, _cincoPartes[2]);
+      final terceira = it.partes[2].path;
+      it.harness.room.listeningUnheardTakeIds = const [];
+      final linhas = it.harness.voice.fixedLines.length;
+      final sons = it.harness.sounds.length;
+      final tocadas = it.harness.playback.played.length;
+
+      await _entrar(it);
+
+      expect(
+        it.harness.voice.fixedLines.skip(linhas),
+        [('P2', testLanguage)],
+        reason:
+            'quatro partes seguem ouvidas: a sala diz a P2 dela, «Ainda falta '
+            'ouvir um trecho da gravação antes de eu conferir.», e não a abertura',
+      );
+      final depois = it.harness.sounds.skip(sons).toList();
+      expect(depois, contains('voice:fixed'));
+      expect(
+        depois.indexOf('voice:fixed'),
+        lessThan(depois.lastIndexOf('playback:play')),
+        reason: 'a fala vem antes do som da parte',
+      );
+      expect(it.harness.playback.played.skip(tocadas), [terceira]);
+      expect(it.harness.playback.playedFrom.last, Duration.zero);
+    },
+  );
+
+  test(
+    'numa gravação juntada, a parte cujo nome o tablet não aprendeu segue por ouvir depois de tocada',
+    () async {
+      final it = await umEnsaioContadoInteiro(_cincoPartes);
+      await _retomadaJuntada(it, _cincoPartes[4]);
+      await _regravadaSemNome(it, 2, _cincoPartes[2]);
+      it.harness.room.listeningUnheardTakeIds = const [];
+      await _entrar(it);
+      final relatos = it.harness.room.listeningReports.length;
+
+      await ouvirAteOFim(it, _cincoPartes[2]);
+      await waitFor(
+        'o relato da parte',
+        () => it.harness.room.listeningReports.length > relatos,
+      );
+      await settle();
+
+      expect(
+        it.estado.canFinishBackTranslation,
+        isFalse,
+        reason: 'a sala não pode contar ouvida uma parte que ainda não nomeou',
+      );
+      expect(it.estado.btRecusa, CheckRefusal.partUnheard);
+    },
+  );
+
+  test('a part landed without this tablet learning its name keeps the listen '
+      'before a frase that awaits, even when the room names only that frase\'s '
+      'take', () async {
+    final it = await umEnsaioDeTresPartesContadoInteiro();
+    final daPrimeira = it.estado.btTrechos.firstWhere(
+      (trecho) => trecho.parte == 0,
+    );
+    it.harness.room
+      ..awaitingSegmentId = daPrimeira.segmentId
+      ..verdictChecked = false
+      ..verdictRefusal = CheckRefusal.fraseAwaiting
+      ..verdictUntoldSegmentId = daPrimeira.segmentId;
+    await pedirOVeredito(it);
+    it.harness.room
+      ..verdictRefusal = null
+      ..verdictUntoldSegmentId = null;
+    await _regravadaSemNome(it, 1, partesDoEnsaio[1]);
+    expect(it.estado.btFraseQueAguarda, daPrimeira.segmentId);
+    expect(it.partes[1].takeId, isNull);
+    it.harness.room.listeningUnheardTakeIds = [it.partes[0].takeId!];
+    final linhas = it.harness.voice.fixedLines.length;
+
+    it.sala.startRetro();
+    await waitFor(
+      'a voz dizer o que vem',
+      () => it.harness.voice.fixedLines.length > linhas,
+    );
+
+    expect(
+      _linhas(it, linhas).first,
+      'P0',
+      reason:
+          'a volta pulava a escuta da parte que ainda subia e abria a '
+          'frase que espera',
+    );
+  });
 }

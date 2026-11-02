@@ -15,16 +15,15 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show holdTheSession, intoTheRecordingHome;
+import 'support/temp.dart';
 
 void main() {
   testWidgets(
     'a warning that lands in the Rehearsal draws no mark beside the circle',
     (tester) async {
       final handle = tester.ensureSemantics();
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-1141-ensaio').path}/p1.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-1141-ensaio').path}/p1.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       final harness = SalaHarness(filaEmMemoria: true, lingua: 'en')
         ..room.serverHalt = HaltKind.warning;
       await holdTheSession(

@@ -174,7 +174,7 @@ void main() {
     );
     final panorama = read().panoramaSessionId;
     notifier.leaveThePassage();
-    await waitFor('the way back', () => read().theWayBackIsLive);
+    await waitFor('the way back', () => read().entriesOpen);
     harness.room.reachable = false;
     final playedBefore = harness.voice.played.length;
 
@@ -206,7 +206,7 @@ void main() {
       () => read().panoramaSaid && read().voice == VoiceState.invite,
     );
     notifier.leaveThePassage();
-    await waitFor('the way back', () => read().theWayBackIsLive);
+    await waitFor('the way back', () => read().entriesOpen);
     harness.room.reachable = false;
 
     notifier.openTheEntry(read().naRoda!.firstWhere((e) => e.isPanorama));
@@ -228,7 +228,7 @@ void main() {
     final notifier = container.read(salaSessionProvider.notifier);
     SalaSessionState read() => container.read(salaSessionProvider);
     await _theSaidPanoramaLeftForAPassage(notifier, read);
-    await waitFor('the way back to P01', () => read().theWayBackIsLive);
+    await waitFor('the way back to P01', () => read().entriesOpen);
     final p01 = read().passageLeft!.session;
     harness.room.reachable = false;
 
@@ -253,7 +253,7 @@ void main() {
       () => read().panoramaSaid && read().voice == VoiceState.invite,
     );
     notifier.leaveThePassage();
-    await waitFor('the way back', () => read().theWayBackIsLive);
+    await waitFor('the way back', () => read().entriesOpen);
     final callsBefore = harness.room.calls.length;
     final playedBefore = harness.voice.played.length;
 
@@ -300,7 +300,7 @@ void main() {
       );
       expect(read().panoramaSaid, isFalse);
       notifier.leaveThePassage();
-      await waitFor('the way back', () => read().theWayBackIsLive);
+      await waitFor('the way back', () => read().entriesOpen);
       final callsBefore = harness.room.calls.length;
       final playedBefore = harness.voice.played.length;
 

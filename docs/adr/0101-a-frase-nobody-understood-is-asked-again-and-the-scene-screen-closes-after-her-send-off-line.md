@@ -1,10 +1,12 @@
 ---
-status: accepted, amended by 0100, 0146
+status: accepted, amended by 0100, 0146, 0167
 date: 2026-10-20
 amends: 0053 (a door of its own and its rows), 0068, 0085, 0099
 ---
 
 # A frase nobody understood is asked again, and the scene screen closes after her send-off line
+
+Amended by 0167 (ENG-1907, 2026-10-30): the reply of «terminei» plays from the moment it lands, beneath the send-off line, and not after the screen closes; the screen still closes after 1.4 s.
 
 This amends ADRs 0053, 0068, 0085 and 0099 without editing their decisions; it adds "amended by
 0101" to their status lines. The Definer settled the rules on 19 and 20 October (ENG-1363).

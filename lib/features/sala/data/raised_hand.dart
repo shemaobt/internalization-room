@@ -49,11 +49,9 @@ abstract interface class HandHost {
 
   int get waitOnTheGeneration;
 
-  Duration get listenedFor;
-
   String stamp();
 
-  bool theGuardKeeps(String path, Duration listenedFor);
+  bool theGuardKeeps(String path);
 
   void dispatch(MachineEvent event);
 
@@ -80,6 +78,8 @@ class RaisedHand {
   Future<void>? _inboxRead;
 
   bool _sendingAQuestion = false;
+
+  bool get sendingAQuestion => _sendingAQuestion;
 
   final _failures = <(String, String), int>{};
 
@@ -340,20 +340,17 @@ class RaisedHand {
     host.leaveNoteMode();
     _sendingAQuestion = true;
     host.handOff(
-      _deliver(
-        host.thisLife,
-        host.listenedFor,
-      ).whenComplete(() => _sendingAQuestion = false),
+      _deliver(host.thisLife).whenComplete(() => _sendingAQuestion = false),
     );
   }
 
-  Future<void> _deliver(int? life, Duration listenedFor) async {
+  Future<void> _deliver(int? life) async {
     final generation = host.waitOnTheGeneration;
     final sessionId = _state.stationSessionId;
     final path = (await host.closeTheMicrophone()).take;
     if (path == null ||
         host.endedSince(life) ||
-        !host.theGuardKeeps(path, listenedFor) ||
+        !host.theGuardKeeps(path) ||
         sessionId == null) {
       if (path != null) unawaited(recorder().delete(path));
       return;

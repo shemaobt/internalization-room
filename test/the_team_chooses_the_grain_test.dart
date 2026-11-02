@@ -28,7 +28,9 @@ import 'scenario_helpers.dart'
         intoTheRecordingHome,
         relaunch,
         thePersonSign,
+        voiceOverFocusLeaves,
         voiceOverTap;
+import 'support/temp.dart';
 
 const _how = 'Como vocês querem gravar?';
 const _whole = 'A passagem inteira';
@@ -354,8 +356,7 @@ Future<PendingTake> _aHandTakeHeld(
 }
 
 File _anAudioFile(String scope) {
-  final folder = Directory.systemTemp.createTempSync('sala-2078');
-  addTearDown(() => folder.deleteSync(recursive: true));
+  final folder = aTempDir('sala-2078');
   return File('${folder.path}/$scope.m4a')..writeAsBytesSync([1, 2, 3, 4]);
 }
 
@@ -456,6 +457,38 @@ void main() {
 
       expect(find.text(_planLine), findsOneWidget);
       expect(find.text(_how), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '1. «Cena por cena» whose plan read runs out with the room unread opens the '
+    'scene home, never «Como vocês querem gravar?» again',
+    (tester) async {
+      final (harness, _) = await _onTheChoice(tester);
+      harness.room
+        ..holdNextTakesList()
+        ..holdNextSceneList();
+
+      await _tap(tester, _sceneByScene);
+      await _settles(tester);
+      expect(find.text(_thinking), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 6000));
+      await _settles(tester);
+
+      expect(
+        find.text(_homeLine),
+        findsOneWidget,
+        reason:
+            'a leitura do plano depois de «Cena por cena» esgotava sem a '
+            'listagem e perguntava de novo o grão que a sala acabara de '
+            'responder; o dela abre a casa das cenas',
+      );
+      expect(find.text(_wholeInstead), findsOneWidget);
+      expect(find.text(_how), findsNothing);
+      harness.room
+        ..finishHeldTakesList()
+        ..finishHeldSceneList();
     },
   );
 
@@ -1077,6 +1110,41 @@ void main() {
     await tester.pump(_theArmLapses);
   });
 
+  testWidgets(
+    'on the recording home, VoiceOver focus leaving the armed whole switch '
+    'reads «gravar a passagem inteira de uma vez» again, and the next tap only '
+    'arms',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (harness, _) = await _onTheJoinedHome(tester);
+      await _tap(tester, _wholeAtOnce);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text(_wholeArmed), findsOneWidget);
+
+      voiceOverFocusLeaves(tester, byLabel(_wholeArmed));
+      await _settles(tester);
+
+      expect(
+        find.text(_wholeAtOnce),
+        findsOneWidget,
+        reason: 'na casa o botão seguia armado depois que o foco saiu dele',
+      );
+      expect(find.text(_wholeArmed), findsNothing);
+
+      await _tap(tester, _wholeAtOnce);
+      await _settles(tester);
+
+      expect(find.text(_wholeArmed), findsOneWidget);
+      expect(
+        harness.room.grainSwitches,
+        isEmpty,
+        reason: 'o toque seguinte trocava o grão em vez de só armar',
+      );
+      await tester.pump(_theArmLapses);
+      semantics.dispose();
+    },
+  );
+
   testWidgets('8. a second tap after 8 s does nothing: the arm lapsed', (
     tester,
   ) async {
@@ -1456,6 +1524,49 @@ void main() {
       expect(find.text(_how), findsNothing);
       expect(find.text(_planLine), findsOneWidget);
     });
+
+    testWidgets(
+      'naming the scene grain reads the plan again with the grain heard: a '
+      'read that runs out there opens the scene home, never the choice again',
+      (tester) async {
+        final (harness, _) = await _atRest(
+          tester,
+          seed: (session) => [_rehearsal(session)],
+        );
+        harness.room
+          ..grain = Grain.scene
+          ..holdTheTakesListing();
+
+        await _tapTheDot(tester);
+        await tester.pump(const Duration(milliseconds: 6000));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text(_how), findsOneWidget);
+
+        harness.room
+          ..holdNextTakesList()
+          ..holdNextSceneList()
+          ..finishTheTakesListing();
+        await _settles(tester);
+        expect(find.text(_thinking), findsOneWidget);
+
+        await tester.pump(const Duration(milliseconds: 6000));
+        await _settles(tester);
+
+        expect(
+          find.text(_homeLine),
+          findsOneWidget,
+          reason:
+              'a listagem tardia que nomeava as cenas relia o plano com o grão '
+              'por ouvir, e a releitura esgotada perguntava o grão de novo; o '
+              'dela, com o rascunho lido, abre a casa das cenas',
+        );
+        expect(find.text(_wholeInstead), findsOneWidget);
+        expect(find.text(_how), findsNothing);
+        harness.room
+          ..finishHeldTakesList()
+          ..finishHeldSceneList();
+      },
+    );
 
     testWidgets(
       'naming the whole over a scene rehearsal of this session lands on the '
@@ -1848,6 +1959,43 @@ void main() {
       expect(find.text(_planLine), findsOneWidget);
     });
 
+    testWidgets(
+      'armed over an approved draft, VoiceOver focus leaving it reads its own '
+      'text again, and the next tap only arms',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final (harness, container) = await _onTheEmptyWholeHome(tester);
+        harness.room.approvedDraft = const ApprovedDraft(version: 1);
+        await _relaunchOnTheApp(tester, harness, container);
+        await _settles(tester);
+        await _tap(tester, _backToJoin);
+        await tester.pump(const Duration(seconds: 2));
+        expect(find.text(_reopenArmed), findsOneWidget);
+
+        voiceOverFocusLeaves(tester, byLabel(_reopenArmed));
+        await _settles(tester);
+
+        expect(
+          find.text(_backToJoin),
+          findsOneWidget,
+          reason: 'a linha seguia armada depois que o foco do VoiceOver saiu',
+        );
+        expect(find.text(_reopenArmed), findsNothing);
+        final before = harness.room.grainSwitches.length;
+
+        await _tap(tester, _backToJoin);
+        await _settles(tester);
+
+        expect(find.text(_reopenArmed), findsOneWidget);
+        expect(
+          harness.room.grainSwitches,
+          hasLength(before),
+          reason: 'o toque seguinte voltava para a junção em vez de só armar',
+        );
+        await tester.pump(_theArmLapses);
+        semantics.dispose();
+      },
+    );
     testWidgets('is gone once the whole has a take', (tester) async {
       final (_, container) = await _onTheEmptyWholeHome(tester);
 

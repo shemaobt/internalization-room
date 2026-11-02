@@ -16,6 +16,7 @@ import 'fakes.dart';
 import 'resto_da_historia_test.dart' as resto;
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _pronto = 'Pronto';
@@ -566,6 +567,7 @@ void main() {
     await regravarAParte(it, 1);
     final nova = it.partes[1].path;
     final tocadas = it.harness.playback.played.length;
+    await waitFor('a sala guardar a parte 1', () => it.estado.ensaioDone);
 
     it.sala.startRetro();
     await waitFor(
@@ -641,8 +643,7 @@ void main() {
           Scene(sceneId: 'S2', title: 'Cena dois'),
           Scene(sceneId: 'S3', title: 'Cena tres'),
         ];
-      final casa = Directory.systemTemp.createTempSync('sala-passada-guardada');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-passada-guardada');
       KeptTake guardada(String scope, String takeId) => KeptTake(
         scopeId: scope,
         path: (File(
@@ -704,6 +705,10 @@ void main() {
     await waitFor(
       'a gravação confirmada tomar o lugar da parte 2',
       () => it.partes[1].path == pendente,
+    );
+    await waitFor(
+      'a sala guardar a parte 2',
+      () => it.estado.canPlayTheRehearsal,
     );
 
     expect(

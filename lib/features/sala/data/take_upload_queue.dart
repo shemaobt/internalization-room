@@ -361,8 +361,10 @@ class TakeUploadQueue {
   }) : _home = home ?? getApplicationSupportDirectory,
        _now = now ?? clock.now;
 
+  Future<String> _folderPath() async => p.join((await _home()).path, _folder);
+
   Future<Directory> _dir() async {
-    final dir = Directory(p.join((await _home()).path, _folder));
+    final dir = Directory(await _folderPath());
     await dir.create(recursive: true);
     return dir;
   }
@@ -379,7 +381,7 @@ class TakeUploadQueue {
   /// nothing about where the audio is, and answering "nothing pending" to that told the
   /// team their recordings were safe on the word of a file we had just failed to read.
   Future<List<PendingTake>?> _written() async {
-    final folder = (await _dir()).path;
+    final folder = await _folderPath();
     final file = File(p.join(folder, _manifest));
     final stat = await file.stat();
     if (stat.type == FileSystemEntityType.notFound) {
@@ -687,11 +689,12 @@ class TakeUploadQueue {
     _lifeEnded = true;
     try {
       await _mutate((_) => const []);
-      await _inTurn(
+      final kept = await _inTurn(
         () => _deleteTheCopies(
           (copy) async => !_copiesBeingMade.containsKey(copy.path),
         ),
       );
+      if (kept.isNotEmpty) return false;
       await _recordings().deleteEveryRecording();
       return true;
     } on FileSystemException {
@@ -748,12 +751,21 @@ class TakeUploadQueue {
     r'-.+-\d+-\d+(\.[^.]+)?$',
   );
 
-  Future<void> _deleteTheCopies(Future<bool> Function(File copy) leaves) async {
+  Future<List<File>> _deleteTheCopies(
+    Future<bool> Function(File copy) leaves,
+  ) async {
+    final kept = <File>[];
     await for (final entity in (await _dir()).list()) {
       if (!_aCopy.hasMatch(p.basename(entity.path))) continue;
       final copy = File(entity.path);
-      if (await leaves(copy)) await copy.delete();
+      if (!await leaves(copy)) continue;
+      try {
+        await copy.delete();
+      } on FileSystemException {
+        kept.add(copy);
+      }
     }
+    return kept;
   }
 
   /// [step] in a turn of its own on the manifest's write chain.
@@ -800,17 +812,19 @@ class TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-  }) async => (await _enqueue(
-    audio,
-    sessionId: sessionId,
-    passage: passage,
-    kind: kind,
-    scope: scope,
-    passNumber: passNumber,
-    chunkIndex: chunkIndex,
-    scene: scene,
-    recordedAt: await audio.lastModified(),
-  ))!;
+  }) => _underway(
+    () async => (await _enqueue(
+      audio,
+      sessionId: sessionId,
+      passage: passage,
+      kind: kind,
+      scope: scope,
+      passNumber: passNumber,
+      chunkIndex: chunkIndex,
+      scene: scene,
+      recordedAt: await audio.lastModified(),
+    ))!,
+  );
 
   /// A row of a join: the rehearsal's own bytes as the part, written only when the copy
   /// is [fingerprint]'s, naming [overTake], the part's take it replaces. Each try sends
@@ -825,20 +839,35 @@ class TakeUploadQueue {
     String? fingerprint,
     String? overTake,
     bool reopensTheApprovedDraft = false,
-  }) => _enqueue(
-    audio,
-    sessionId: sessionId,
-    passage: passage,
-    kind: 'ensaio',
-    scope: KeptScope.parte(number),
-    passNumber: passNumber,
-    chunkIndex: number,
-    recordedAt: _now(),
-    fingerprint: fingerprint,
-    origin: origin,
-    reopensTheApprovedDraft: reopensTheApprovedDraft,
-    overTake: overTake,
+  }) => _underway(
+    () => _enqueue(
+      audio,
+      sessionId: sessionId,
+      passage: passage,
+      kind: 'ensaio',
+      scope: KeptScope.parte(number),
+      passNumber: passNumber,
+      chunkIndex: number,
+      recordedAt: _now(),
+      fingerprint: fingerprint,
+      origin: origin,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      overTake: overTake,
+    ),
   );
+
+  final Set<Future<void>> _enqueuesUnderway = {};
+
+  Future<T> _underway<T>(Future<T> Function() enqueue) async {
+    final done = Completer<void>();
+    _enqueuesUnderway.add(done.future);
+    try {
+      return await enqueue();
+    } finally {
+      _enqueuesUnderway.remove(done.future);
+      done.complete();
+    }
+  }
 
   Future<PendingTake?> _enqueue(
     File audio, {
@@ -948,6 +977,10 @@ class TakeUploadQueue {
   /// Each row's id once the room's answer to its request is written down.
   Stream<String> get rowsBack => _rowsBack.stream;
 
+  final StreamController<String> _rowsDone = StreamController<String>.broadcast(
+    sync: true,
+  );
+
   bool inTheAir(String row) => _inTheAir?.id == row;
 
   final Set<String> _moved = {};
@@ -967,6 +1000,22 @@ class TakeUploadQueue {
     if (stop == null || stop.isCompleted || _inTheAir?.id != row) return;
     _stopped = true;
     stop.complete();
+  }
+
+  Future<void> drained() async {
+    while (true) {
+      final writes = _writes;
+      await _flushInFlight?.then((_) {}, onError: (_) {});
+      await Future.wait(_enqueuesUnderway);
+      await Future.wait(_copiesBeingMade.values);
+      await writes;
+      if (identical(writes, _writes) &&
+          _flushInFlight == null &&
+          _enqueuesUnderway.isEmpty &&
+          _copiesBeingMade.isEmpty) {
+        return;
+      }
+    }
   }
 
   /// Send the rows a tap of this life made due, each with the rest of its part and after
@@ -1048,17 +1097,18 @@ class TakeUploadQueue {
     final held = <String>{};
     final leftInThisPass = <String, DateTime>{};
     for (final entry in rows) {
-      if (_turnedAway || _stopped) break;
       final part = _partOf(entry);
-      if (part != null && held.contains(part)) continue;
-      switch (await _landed(entry, leftInThisPass)) {
-        case _Landing.landed:
-          sent++;
-        case _Landing.held when part != null:
-          held.add(part);
-        case _Landing.held || _Landing.givenUp:
-          break;
+      if (!_turnedAway && !_stopped && (part == null || !held.contains(part))) {
+        switch (await _landed(entry, leftInThisPass)) {
+          case _Landing.landed:
+            sent++;
+          case _Landing.held when part != null:
+            held.add(part);
+          case _Landing.held || _Landing.givenUp:
+            break;
+        }
       }
+      _rowsDone.add(entry.id);
     }
     return sent;
   }
@@ -1419,14 +1469,7 @@ class TakeUploadQueue {
     ];
     if (old.isEmpty) return;
     for (final entry in old) {
-      try {
-        await _deleteTheCopy(entry);
-      } on FileSystemException catch (error) {
-        debugPrint(
-          'Uma tradução antiga não pôde ser apagada da fila (${entry.path}): '
-          '$error',
-        );
-      }
+      await _deleteTheCopy(entry);
     }
     await _mutate(
       (written) => [
@@ -1439,7 +1482,7 @@ class TakeUploadQueue {
   Future<void> _deleteTheCopy(PendingTake entry) async {
     try {
       await File(entry.path).delete();
-    } on PathNotFoundException {
+    } on FileSystemException {
       return;
     }
   }
@@ -1448,33 +1491,56 @@ class TakeUploadQueue {
     String row, {
     String? intoTheSession,
   }) async {
-    await _mutate((written) {
-      final at = written.indexWhere((entry) => entry.id == row);
-      final kept = [
-        for (var i = 0; i < written.length; i++)
-          i == at ||
-                  i < at &&
-                      written[i].kind == sceneTakeKind &&
-                      written[i].sessionId == written[at].sessionId &&
-                      (written[i].sessionId != null ||
-                          written[i].passage == written[at].passage) &&
-                      written[i].refusal == null
-              ? switch (written[i].dueNow()) {
-                  final due when due.sessionId == null => due.inTheSession(
-                    intoTheSession,
-                  ),
-                  final due => due,
-                }
-              : written[i],
-      ];
-      for (var i = 0; i < kept.length; i++) {
-        if (!identical(kept[i], written[i])) tapped(kept[i].id);
-      }
-      return kept;
+    final done = Completer<void>();
+    final subscription = _rowsDone.stream.listen((id) {
+      if (id == row && !done.isCompleted) done.complete();
     });
-    await flush();
+    try {
+      await _dueWithTheScenesBeforeIt(row, intoTheSession);
+      flush().then(
+        (_) {
+          if (!done.isCompleted) done.complete();
+        },
+        onError: (Object error, StackTrace stack) {
+          if (done.isCompleted) {
+            Zone.current.handleUncaughtError(error, stack);
+          } else {
+            done.completeError(error, stack);
+          }
+        },
+      );
+      await done.future;
+    } finally {
+      await subscription.cancel();
+    }
     return keptSceneOf(row);
   }
+
+  Future<void> _dueWithTheScenesBeforeIt(String row, String? intoTheSession) =>
+      _mutate((written) {
+        final at = written.indexWhere((entry) => entry.id == row);
+        final kept = [
+          for (var i = 0; i < written.length; i++)
+            i == at ||
+                    i < at &&
+                        written[i].kind == sceneTakeKind &&
+                        written[i].sessionId == written[at].sessionId &&
+                        (written[i].sessionId != null ||
+                            written[i].passage == written[at].passage) &&
+                        written[i].refusal == null
+                ? switch (written[i].dueNow()) {
+                    final due when due.sessionId == null => due.inTheSession(
+                      intoTheSession,
+                    ),
+                    final due => due,
+                  }
+                : written[i],
+        ];
+        for (var i = 0; i < kept.length; i++) {
+          if (!identical(kept[i], written[i])) tapped(kept[i].id);
+        }
+        return kept;
+      });
 
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
 
@@ -1615,12 +1681,13 @@ class TakeUploadQueue {
       !entry.stored && _sameRow(entry, row);
 }
 
-final takeUploadQueueProvider = Provider<TakeUploadQueue>(
-  (ref) => TakeUploadQueue(
+final takeUploadQueueProvider = Provider<TakeUploadQueue>((ref) {
+  final recordings = ref.read(recordingRepositoryProvider);
+  return TakeUploadQueue(
     room: ref.read(roomRepositoryProvider),
     spacing: ref.read(takeAttemptSpacingProvider),
-    recordings: () => ref.read(recordingRepositoryProvider),
-  ),
-);
+    recordings: () => recordings,
+  );
+});
 
 enum _Landing { landed, held, givenUp }

@@ -230,8 +230,9 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('while her line plays the button stands dimmed, and it is lit '
-      'after «Pronto»', (tester) async {
+  testWidgets('while her line plays the check draws the sentence and the badge '
+      'with no «Checagem externa», and the home\'s button is lit after '
+      '«Pronto»', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _ateAConferida(tester, harness);
     final w = _pt(1);
@@ -240,8 +241,7 @@ void main() {
 
     expect(find.text(w.approvedSentence), findsOneWidget);
     expect(find.text(w.badge), findsOneWidget);
-    expect(byLabel(w.checagem), findsOneWidget);
-    expect(_habilitado(tester, w.checagem), isFalse);
+    expect(byLabel(w.checagem), findsNothing);
 
     await _finishP3(tester, harness);
     await _prontoEDeVoltaPeloPonto(tester, harness, w);
@@ -387,16 +387,19 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a tap on «Checagem externa» while P3 plays opens nothing and '
-      'cuts nothing: «Ensaio salvo» still follows the line', (tester) async {
+  testWidgets('while P3 plays the check offers no «Checagem externa», and '
+      '«Ensaio salvo» still follows the line', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await _ateAConferida(tester, harness);
     final w = _pt(1);
     final antes = harness.voice.fixedLines.length;
     await _approveWithP3Held(tester, harness, w);
 
-    await _tapAndSettle(tester, w.checagem);
-
+    expect(
+      byLabel(w.checagem),
+      findsNothing,
+      reason: 'a tela da checagem oferecia a «Checagem externa» com a P3 no ar',
+    );
     expect(harness.room.externalChecksOpened, isEmpty);
     expect(find.text(w.salvo), findsNothing);
 

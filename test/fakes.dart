@@ -7,6 +7,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show BindingBase;
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -54,6 +56,8 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/turn_result.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
+
+import 'support/temp.dart';
 
 /// Throwing here instead of returning keeps the failure at the wait: a deadline that
 /// passes in silence surfaces as an unrelated error several lines later.
@@ -371,18 +375,6 @@ class FakeVoice implements FacilitatorVoiceService {
   Future<void> dispose() async {}
 }
 
-Directory aTempHome(String prefix) {
-  final home = Directory.systemTemp.createTempSync(prefix);
-  try {
-    addTearDown(() {
-      if (home.existsSync()) home.deleteSync(recursive: true);
-    });
-  } on StateError {
-    return home;
-  }
-  return home;
-}
-
 class FakeRecorder implements RecordingRepository {
   /// The same ordered log the players write to: the microphone opening on a silent room
   /// is an order between two doubles, not a pair of counters.
@@ -392,7 +384,7 @@ class FakeRecorder implements RecordingRepository {
 
   final StreamController<bool> _interruptions =
       StreamController<bool>.broadcast();
-  final Directory home = aTempHome('sala-gravacoes');
+  final Directory home = aTempDir('sala-gravacoes');
   int captures = 0;
   bool returnsNothing = false;
   bool returnsEmpty = false;
@@ -401,6 +393,7 @@ class FakeRecorder implements RecordingRepository {
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
   String? rehearsalSpeaksAs;
+  Uint8List? questionSpeaks;
 
   bool permitted = true;
 
@@ -489,7 +482,12 @@ class FakeRecorder implements RecordingRepository {
   String? _named;
 
   @override
-  Future<String?> stop() async {
+  Future<String?> stop() {
+    sounds.add('recorder:stop');
+    return _stop();
+  }
+
+  Future<String?> _stop() async {
     final named = '${home.path}/${_named ?? 'captura-$captures'}';
     final owner = lastOwner;
     final count = captures;
@@ -507,6 +505,11 @@ class FakeRecorder implements RecordingRepository {
         owner == MicOwner.scene ||
         owner == MicOwner.frase ||
         owner == MicOwner.listener;
+    final question = questionSpeaks;
+    if (question != null && owner == MicOwner.question) {
+      final take = File('$named.m4a')..writeAsBytesSync(question);
+      return lastPath = take.path;
+    }
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -545,7 +548,7 @@ class FakeRecorder implements RecordingRepository {
       return;
     }
     if (!_recording) return;
-    final path = await stop();
+    final path = await _stop();
     if (path != null) deleted.add(path);
   }
 
@@ -598,6 +601,13 @@ class FakeRecorder implements RecordingRepository {
   void holdNextLookup() => _holdTheNextLookup = true;
 
   void finishHeldLookup() => _heldLookups.removeAt(0).complete();
+
+  void letGoOfEverythingHeld() {
+    for (final held in [..._holdingStarts, ..._heldLookups]) {
+      if (!held.isCompleted) held.complete();
+    }
+    finishStop();
+  }
 
   @override
   Future<String?> heldAs(String fileName) async {
@@ -772,7 +782,8 @@ class FakePlayback implements PlaybackRepository {
   Duration _abertaEm = Duration.zero;
 
   @override
-  Duration? get playingLength => _aberto ? length : null;
+  Duration? get playingLength =>
+      !_aberto || length == null ? null : _fimDoClipe ?? length;
 
   bool get open => _aberto && !_abrindo;
 
@@ -784,7 +795,6 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     playedFrom.add(from);
     sounds.add('playback:play');
-    _fimDoClipe = null;
     return _soundUntilItStops(from);
   }
 
@@ -793,10 +803,9 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
     sounds.add('playback:play');
-    _fimDoClipe = to - from;
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
-    return _soundUntilItStops(Duration.zero);
+    return _soundUntilItStops(Duration.zero, fim: to - from);
   }
 
   @override
@@ -855,7 +864,7 @@ class FakePlayback implements PlaybackRepository {
   // just_audio only completes the future of `play` when the sound stops: at the end
   // of the clip, on a pause or on a stop. A double that returns at once hides
   // everything hung off that future.
-  Future<void> _soundUntilItStops(Duration from) {
+  Future<void> _soundUntilItStops(Duration from, {Duration? fim}) {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
@@ -879,6 +888,7 @@ class FakePlayback implements PlaybackRepository {
       if (geracao != _opens) return;
       _abrindo = false;
       at = _abertaEm = from;
+      _fimDoClipe = fim;
       _aberto = paradas == stops;
       // Announced either way, held or stopped: the listening ceiling and the measure of
       // the part in the air both hang off this, and a clip that never announces itself
@@ -1477,6 +1487,8 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
 
+  final List<RerecordedSentence> rerecordedSentences = [];
+
   /// The approval the room says the session's draft stands under, on the open and on
   /// every read.
   ApprovedDraft? approvedDraft;
@@ -1601,6 +1613,7 @@ class FakeRoom implements RoomRepository {
   String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  Completer<void>? holdingTheCredential;
   RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
@@ -1775,6 +1788,7 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
     if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
+    await holdingTheCredential?.future;
     final refusal = refuseCredentialWith;
     if (refusal != null) return refusal;
     return Answered(credential);
@@ -2623,6 +2637,7 @@ class FakeRoom implements RoomRepository {
           segments: _numbered,
           checked: readsChecked,
           awaitingSegmentId: awaitingSegmentId,
+          rerecordedSentences: rerecordedSentences,
         ),
     approved: approvedDraft,
   );
@@ -3079,6 +3094,20 @@ class FakeRoom implements RoomRepository {
     _holdingTake?.complete();
     _holdingTake = null;
     holdTakeScope = null;
+  }
+
+  void letGoOfEverythingHeld() {
+    finishHeldTake();
+    finishHeldKeep();
+    releaseTheLabel();
+    for (final held in [
+      ?_heldListing,
+      ..._heldTakesLists,
+      ..._heldSceneLists,
+      ..._heldScenes,
+    ]) {
+      if (!held.isCompleted) held.complete();
+    }
   }
 
   Duration? takeLandsAfter;
@@ -3544,18 +3573,6 @@ class FakeRoom implements RoomRepository {
   /// that refused nothing, which is what a mint looks like from here.
   List<String> releaseBlockers = const [];
 
-  /// Which current parts this room says carry nobody's words, when `untold_part` is among
-  /// the holes above. Its own field, as on the wire, and read only for its own blocker.
-  List<String> releaseUntoldTakeIds = const [];
-
-  /// Which parts this room says the team's report does not cover, when
-  /// `playback_did_not_cover_the_clip` is among them.
-  List<String> releaseUnheardTakeIds = const [];
-
-  /// Which stretch this room says was recorded and never told back, when `untold_stretch`
-  /// is among them.
-  String? releaseUntoldSegmentId;
-
   Completer<void>? _holdingState;
 
   /// Holds a read of the room's state in flight, so a test can press again while the room
@@ -3608,14 +3625,7 @@ class FakeRoom implements RoomRepository {
       await held.future;
     }
     if (releaseBlockers.isEmpty) return Answered(release);
-    return Answered(
-      ApprovalAnswer(
-        blockers: releaseBlockers,
-        untoldTakeIds: releaseUntoldTakeIds,
-        unheardTakeIds: releaseUnheardTakeIds,
-        untoldSegmentId: releaseUntoldSegmentId,
-      ),
-    );
+    return Answered(ApprovalAnswer(blockers: releaseBlockers));
   }
 
   final List<String> externalChecksOpened = [];
@@ -4227,6 +4237,9 @@ class FakeTakeQueue implements TakeUploadQueue {
       : entry.sessionId == sessionId;
 
   @override
+  Future<void> drained() async {}
+
+  @override
   Future<int> flush() async {
     var sent = 0;
     for (final id in [for (final entry in rows) entry.id]) {
@@ -4339,20 +4352,29 @@ class FakeTakeQueue implements TakeUploadQueue {
   ].length;
 
   Completer<void>? _armed;
-  Completer<void>? _holding;
+  final List<Completer<void>> _holding = [];
 
   /// Hold the next reading *after* it has looked at the queue, so a count taken while
   /// recordings were still here can be made to arrive after a newer one.
   void holdTheNextReading() => _armed = Completer<void>();
 
+  /// The next reading of the queue fails, the way a disk that cannot be read would.
+  bool failsTheNextReading = false;
+
   /// Whether a reading is parked in the hold with its numbers already taken. Waiting on
   /// a duration here instead would let the queue change first, and the older reading
   /// would come back as fresh as the newer one — a race the case never ran.
-  bool get readingHeld => _holding != null;
+  bool get readingHeld => _holding.isNotEmpty;
+
+  int get readingsHeld => _holding.length;
+
+  void releaseTheOldestReading() => _holding.removeAt(0).complete();
 
   void releaseTheHeldReading() {
-    _holding?.complete();
-    _holding = null;
+    for (final held in _holding) {
+      held.complete();
+    }
+    _holding.clear();
   }
 
   /// How many takes were still unsent each time the room counted, in order.
@@ -4363,10 +4385,14 @@ class FakeTakeQueue implements TakeUploadQueue {
     required String? sessionId,
     String? passage,
   }) async {
+    if (failsTheNextReading) {
+      failsTheNextReading = false;
+      throw const FileSystemException('o disco não leu a fila');
+    }
     unsentAtEachTally.add(rows.where((entry) => !entry.stored).length);
     final held = _armed;
     _armed = null;
-    if (held != null) _holding = held;
+    if (held != null) _holding.add(held);
     // Nenhum await antes daqui: os números precisam ser tomados no mesmo turno
     // síncrono em que a espera é armada — um await entre as duas coisas muda
     // quando a leitura vê a fila, não só quando ela responde.
@@ -4444,6 +4470,26 @@ Future<void> letTheRehearsalReachTheRoom(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
+/// Until the advance disc lights: every scene has its part and the room holds every one.
+Future<void> untilTheAdvanceDiscLights(
+  SalaSessionNotifier sala, {
+  Future<void> Function()? step,
+}) => waitFor(
+  'o disco de avanço acender',
+  () => sala.state.ensaioDone,
+  step: step,
+);
+
+/// Until the wood play lights: no part is still going up to the room.
+Future<void> untilTheWoodPlayLights(
+  SalaSessionNotifier sala, {
+  Future<void> Function()? step,
+}) => waitFor(
+  'o play de madeira acender',
+  () => sala.state.canPlayTheRehearsal,
+  step: step,
+);
+
 Future<void> theRoomNamesTheParts(
   WidgetTester tester,
   ProviderContainer container, {
@@ -4497,7 +4543,7 @@ class SalaHarness {
   final List<String> sounds = [];
   late final FakeVoice voice = FakeVoice(sounds: sounds);
   final FacilitatorVoiceService? voiceService;
-  late final FakeRecorder recorder = FakeRecorder(sounds: sounds);
+  late final FakeRecorder recorder;
   late final FakePlayback playback = FakePlayback(sounds: sounds);
   final FakeInbox inbox;
   final FakeRoom room;
@@ -4576,12 +4622,37 @@ class SalaHarness {
   }) : room = room ?? FakeRoom(),
        roomLanguage = roomLanguage ?? FakeRoomLanguageLedger(chosen: lingua),
        look = look ?? FakeLookLedger(),
-       takesHome =
-           takesHome ?? Directory.systemTemp.createTempSync('sala-tomadas'),
+       takesHome = takesHome ?? aTempDir('sala-tomadas'),
        currentSession = currentSession ?? FakeCurrentSessionLedger(),
        inbox = FakeInbox(replies: replies),
        vinculo = FakeLinkedTeam(remembered: linkedAs) {
     this.room.heldByTheTeam = _theRowsSession;
+    recorder = FakeRecorder(sounds: sounds);
+    _onAFakeClock = _aWidgetTestClockIsRunning();
+    addTearDown(_letGo);
+  }
+
+  void onAFakeClock() => _onAFakeClock = true;
+
+  final List<ProviderContainer> _containers = [];
+
+  late bool _onAFakeClock;
+
+  static bool _aWidgetTestClockIsRunning() =>
+      BindingBase.debugBindingType() != null &&
+      switch (WidgetsBinding.instance) {
+        final TestWidgetsFlutterBinding binding => binding.inTest,
+        _ => false,
+      };
+
+  Future<void> _letGo() async {
+    for (final container in _containers) {
+      container.dispose();
+    }
+    room.letGoOfEverythingHeld();
+    recorder.letGoOfEverythingHeld();
+    if (_onAFakeClock) return;
+    await takes.drained();
   }
 
   Future<String?> _theRowsSession(String? pericope, String language) async {
@@ -4635,7 +4706,8 @@ class SalaHarness {
   Directory? _lifeOver;
 
   void endTheLifeOnTheDisk() =>
-      _lifeOver = Directory.systemTemp.createTempSync('sala-vida-encerrada');
+      _lifeOver = Directory(p.join(takesHome.path, 'vida-encerrada'))
+        ..createSync();
 
   List<Duration> takeSpacing = const [];
 
@@ -4675,7 +4747,12 @@ class SalaHarness {
       roomInboxWatchProvider.overrideWithValue(every),
   ];
 
-  ProviderContainer container() => ProviderContainer(overrides: overrides);
+  ProviderContainer container() {
+    final container = ProviderContainer(overrides: overrides);
+    _onAFakeClock |= _aWidgetTestClockIsRunning();
+    _containers.add(container);
+    return container;
+  }
 
   Completer<void>? _envelopeHeld;
 
@@ -4851,6 +4928,34 @@ class QueueHeldOnTheTally extends TakeUploadQueue {
   }) async {
     if (!asking.isCompleted) asking.complete();
     await answer.future;
+    return super.tally(sessionId: sessionId, passage: passage);
+  }
+}
+
+/// A real Outbox whose next count, once armed, waits for the case to let it answer.
+class QueueHeldOnTheNextTally extends TakeUploadQueue {
+  QueueHeldOnTheNextTally({
+    required super.room,
+    super.home,
+    required super.recordings,
+  });
+
+  ({Completer<void> asking, Completer<void> answer})? _armed;
+
+  ({Completer<void> asking, Completer<void> answer}) holdTheNextTally() =>
+      _armed = (asking: Completer<void>(), answer: Completer<void>());
+
+  @override
+  Future<OutboxTally> tally({
+    required String? sessionId,
+    String? passage,
+  }) async {
+    final held = _armed;
+    _armed = null;
+    if (held != null) {
+      held.asking.complete();
+      await held.answer.future;
+    }
     return super.tally(sessionId: sessionId, passage: passage);
   }
 }

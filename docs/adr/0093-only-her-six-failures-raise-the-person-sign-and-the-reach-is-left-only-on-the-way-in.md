@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0107, 0108, 0125, 0152, 0159, ENG-2028
+status: accepted, amended by 0107, 0108, 0125, 0152, 0159, ENG-2028, ENG-2128
 date: 2026-10-20
 supersedes: 0050 (in part), 0073 (in part)
 amends: 0053, 0074, 0097
@@ -16,6 +16,11 @@ reach stand, and its empty look decides by this policy). It adds "superseded in 
 
 Amended by ENG-2028 (2026-10-29): a refused approval on the Back-translation leaves the
 check where it stood, not as it stood before «terminei» (ADR 0030 as amended).
+
+Amended by ENG-2128 (2026-11-02): «the reply's sound failing twice» counts the Guide's replies
+only. The verdict's own sound is outside it on its first play (ADR 0170) and on «ouvir a
+resposta de novo» (ADR 0152 as amended): her `replayVerdict` plays the kept verdict once and
+goes back to rest, with no second load, no count and no sign.
 
 ## Context
 

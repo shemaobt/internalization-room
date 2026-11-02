@@ -1664,7 +1664,7 @@ void main() {
     },
   );
 
-  testWidgets('B9 — depois do corte, ouvir toca o trecho do cursor ao corte', (
+  testWidgets('B9 — depois do corte, ouvir segue do corte e o corte cai', (
     tester,
   ) async {
     final harness = SalaHarness(filaEmMemoria: true);
@@ -1674,7 +1674,12 @@ void main() {
     await tocarNoCirculo(tester);
     await _tocarNaTraducao(tester, ouvir);
 
-    expect(harness.playback.ranges.last, '0-4000');
+    expect(
+      harness.playback.playedFrom.last,
+      cabeca,
+      reason: 'ouvir tocava o trecho do cursor ao corte, como antes da dela',
+    );
+    expect(container.read(salaSessionProvider).btCortado, isFalse);
     expect(harness.playback.sounding, isTrue);
     closeTheRoom(container);
   });

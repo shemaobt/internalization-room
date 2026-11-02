@@ -121,6 +121,14 @@ final class AKeepEnded extends MachineEvent {
   const AKeepEnded(this.part, {this.row});
 }
 
+/// The tap «enviar agora» sent [row] up for [part]: from then on it is this visit's.
+final class TheTapSent extends MachineEvent {
+  final PartOfASession part;
+  final String row;
+
+  const TheTapSent(this.part, this.row);
+}
+
 final class StopTapped extends MachineEvent {
   final TheKeep keep;
 
@@ -309,7 +317,9 @@ final class TheSceneRehearsalOpened extends StationEvent {
 }
 
 final class TheSceneRehearsalLeft extends StationEvent {
-  const TheSceneRehearsalLeft();
+  final bool keepsTheReply;
+
+  const TheSceneRehearsalLeft({this.keepsTheReply = false});
 }
 
 final class TheExternalCheckOpened extends StationEvent {
@@ -958,10 +968,6 @@ final class TellThePlayFailed extends Effect {
   const TellThePlayFailed();
 }
 
-final class TellThePlayOpened extends Effect {
-  const TellThePlayOpened();
-}
-
 final class TellTheSendFailed extends Effect {
   const TellTheSendFailed();
 }
@@ -1273,13 +1279,7 @@ const _watch = ArmTheWatch();
   LineArrived(:final line, :final by) => _arrive(machine, line, by),
   PlayerOpened() => (
     _opened(machine),
-    [
-      if (machine.channel is Playing) const ArmTheCeiling(),
-      if (machine.channel case Playing(
-        sound: PartSound() || StretchSound(telling: false),
-      ) when machine.station is Retro)
-        const TellThePlayOpened(),
-    ],
+    [if (machine.channel is Playing) const ArmTheCeiling()],
   ),
   PlayerEnded(:final line?) => _answer(
     machine,
@@ -1551,6 +1551,10 @@ const _watch = ArmTheWatch();
     ),
     const [],
   ),
+  TheTapSent(:final part, :final row) => (
+    machine.copyWith(keptThisVisit: {...machine.keptThisVisit, row: part}),
+    const [],
+  ),
   ATakeSettled(:final row) => (
     machine.copyWith(landTheTake: machine.inTheAir?.row == row),
     const [],
@@ -1730,7 +1734,8 @@ const _watch = ArmTheWatch();
   final next = machine.station.answer(event);
   if (next == machine.station) return (machine, const []);
   final carriesTheSceneTurn =
-      event is TheSceneRehearsalLeft && machine.holdsATurn;
+      event is TheSceneRehearsalLeft &&
+      (machine.holdsATurn || event.keepsTheReply);
   final arrived = (carriesTheSceneTurn ? machine : moveTheGeneration(machine))
       .copyWith(
         station: next,
@@ -2312,6 +2317,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   ATakeSettled() ||
   AKeepBegan() ||
   AKeepEnded() ||
+  TheTapSent() ||
   StopTapped() ||
   LineArrived() ||
   PlayerOpened() ||

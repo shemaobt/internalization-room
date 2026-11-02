@@ -217,3 +217,23 @@ told ground stops short of the end, cleared when the recording's last part ends 
 rule 2). Both sit on `SalaSessionState` beside the other `bt` fields and move with them. With
 them goes one more of the Listening ledger's reports with nothing to report, sent when a
 checked telling is picked back up. No Station opens or resumes differently.
+
+Extended by name (ENG-2109, 2026-10-30), same end date: `btPartesOuvidasAqui`, the parts this
+tablet played whole since the telling began, as the Listening ledger counts them within her
+slack of 750 ms or half the part, which the check's «terminei» and the line under it read beside
+the room's count.
+It sits on `SalaSessionState` beside the other `bt` fields and moves with them. No Station opens
+or resumes differently.
+
+Extended by name (ENG-2134, 2026-11-02), same end date: `btFaixasOuvidasAqui`, the spans this
+tablet played of each part since the telling began, as the Listening ledger keeps them with no
+bridge, and `btFrasesNovas`, the sentences the room's read says it laid into the parts, which the
+check's «terminei» and the line under it read beside the parts played whole. Both sit on
+`SalaSessionState` beside the other `bt` fields and move with them. No Station opens or resumes
+differently.
+
+Extended by name (ENG-2135, 2026-11-02), same end date: `btTamanhosDasPartesMs`, each part's own
+measured length by file, which the check's played-here term reads so that a part after one the
+player cannot measure keeps its length while the ruler keeps its break. It sits on
+`SalaSessionState` beside the other `bt` fields and moves with them. No Station opens or resumes
+differently.

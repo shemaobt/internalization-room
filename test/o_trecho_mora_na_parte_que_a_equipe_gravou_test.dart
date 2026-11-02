@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
@@ -11,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _parteLen = Duration(seconds: 10);
 
@@ -31,6 +34,8 @@ const _contadoDaqui = BackTranslationProgress(
     ),
   ],
 );
+
+enum _Onde { ficou, naEscolha, naOutra }
 
 class _Retomada {
   final SalaHarness harness;
@@ -53,8 +58,7 @@ Future<_Retomada> _reabrir(
   required BackTranslationProgress contado,
   int partes = 3,
 }) async {
-  final casa = Directory.systemTemp.createTempSync('sala-trecho-na-parte');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-trecho-na-parte');
   final gravadas = [
     for (var n = 1; n <= partes; n++)
       (File('${casa.path}/p$n.m4a')..writeAsBytesSync([1, 2, 3])).path,
@@ -104,6 +108,141 @@ void main() {
       expect([for (final trecho in it.estado.btTrechos) trecho.parte], [0, 1]);
     },
   );
+
+  for (final listaPorUltimo in [true, false]) {
+    test('a stretch on a recording this tablet lacks keeps its part whatever '
+        'order the two reads land in (listing last: $listaPorUltimo)', () async {
+      final harness = SalaHarness();
+      harness.room
+        ..openedSessions.add('sessao-antiga')
+        ..takes.add(
+          const TakeView(
+            takeId: 'de-fora',
+            kind: 'ensaio',
+            scope: 'parte-2',
+            ordinal: 2,
+          ),
+        )
+        ..listeningUnheardTakeIds = const [];
+      if (listaPorUltimo) harness.room.holdNextTakesList();
+      final it = await _reabrir(
+        harness,
+        partes: 2,
+        contado: BackTranslationProgress(
+          segments: [
+            _contadoDaqui.segments.first,
+            const SegmentView(
+              segmentId: 'trecho-2',
+              takeId: 'de-fora',
+              startsMs: 0,
+              endsMs: 10000,
+            ),
+          ],
+          checked: true,
+        ),
+      );
+      it.sala.openTheEnsaioFinal();
+      await settle();
+      it.sala.startRetro();
+      await settle();
+      if (listaPorUltimo) harness.room.finishHeldTakesList();
+      await settle();
+
+      expect(
+        [for (final trecho in it.estado.btTrechos) trecho.parte],
+        [0, 1],
+        reason:
+            'a listagem que chegava depois da entrada não punha o trecho na parte',
+      );
+    });
+  }
+
+  for (final (name, aLista, onde) in [
+    ('answering', (SalaHarness h) {}, _Onde.naOutra),
+    (
+      'lost on the network',
+      (SalaHarness h) => h.room.failTakesWith = const NetworkFailed('sem rede'),
+      _Onde.naOutra,
+    ),
+    (
+      'answering session-gone',
+      (SalaHarness h) => h.room.forgetTheSession('sessao-antiga'),
+      _Onde.naEscolha,
+    ),
+    (
+      'answering session-gone',
+      (SalaHarness h) => h.room.forgetTheSession('sessao-antiga'),
+      _Onde.naOutra,
+    ),
+    (
+      'lost on the network',
+      (SalaHarness h) => h.room.failTakesWith = const NetworkFailed('sem rede'),
+      _Onde.ficou,
+    ),
+  ]) {
+    test(
+      'a listing of a passage, $name, read while the team ${onde.name}',
+      () async {
+        final harness = SalaHarness();
+        harness.room
+          ..takes.add(
+            const TakeView(
+              takeId: 'velha-de-fora',
+              kind: 'ensaio',
+              scope: 'inteiro',
+            ),
+          )
+          ..holdNextTakesList();
+        final it = await _reabrir(
+          harness,
+          partes: 2,
+          contado: BackTranslationProgress(
+            segments: [_contadoDaqui.segments.first],
+            stale: const [
+              SegmentView(
+                segmentId: 'velho',
+                takeId: 'velha-de-fora',
+                startsMs: 0,
+                endsMs: 10000,
+                frase: 1,
+              ),
+            ],
+          ),
+        );
+        harness.room.retroSoFar = null;
+        if (onde != _Onde.ficou) {
+          it.sala.leaveThePassage();
+          await settle();
+        }
+        if (onde == _Onde.naOutra) {
+          await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+          await settle();
+        }
+        final sessao = it.estado.sessionId;
+        aLista(harness);
+        final logged = <String>[];
+        final printed = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = printed);
+        harness.room.finishHeldTakesList();
+        await settle();
+
+        final falhas = logged.where((l) => l.startsWith('Falha decidida'));
+        switch (onde) {
+          case _Onde.ficou:
+            expect(falhas, isNotEmpty);
+          case _Onde.naOutra:
+            expect(falhas, isEmpty);
+            expect(it.estado.btTrechosRegravados, isEmpty);
+            expect(it.estado.sessionId, sessao);
+          case _Onde.naEscolha:
+            expect(it.estado.passageLeft, isNull);
+            expect(it.estado.leftEntry, isNull);
+            expect(it.estado.sessionId, sessao);
+        }
+      },
+    );
+  }
 
   test('a resposta da sala pode ainda trazer composed_take_id', () {
     final trocado = TellingAgain.fromJson({

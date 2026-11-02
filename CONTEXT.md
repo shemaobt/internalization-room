@@ -19,7 +19,7 @@ The station where the team describes the passage out loud, and what the team tou
 _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 
 **Rehearsal** (`ensaio`):
-The station where the team records the passage scene by scene in the mother tongue, one Scene row per scene, listens and records again; the advance disc opens the Back-translation only once every scene has its part.
+The station where the team records the passage scene by scene in the mother tongue, one Scene row per scene, listens and records again; the advance disc opens the Back-translation, and «Ouvir tudo» plays the whole recording, only once every scene has its part and the room holds every part.
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
 **Back-translation** (`retro`):
@@ -271,11 +271,11 @@ The room's control on every station but the recording home, whose Scene rows rec
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:
-The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it lights only once every scene has its part and every part is on the tablet.
+The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it lights only once every scene has its part, every part is on the tablet, and the room holds every part, from the keep tap on.
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:
-A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one too short for the capture guard is dropped unsent.
+A question the team raised at its idle turn, recorded by a tap on the hand and sent to the facilitator. A sent Knot leaves no sign on the tablet, and one whose file is under 800 bytes is dropped unsent, however long it ran: a Knot is held to no time floor (ADR 0067).
 _Avoid_: nó, question, bead (a knot is not one)
 
 **Raised hand**:
@@ -336,10 +336,6 @@ _Avoid_: waveform, timeline, ruler (the Ensaio's)
 One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N. A row with a take shows «✓»; a row offers its Rehearsal sheet with «trocar o ensaio desta cena» when its part is joined and its scene has another rehearsal, or «usar o ensaio desta cena» when none of its takes came from a join and a Usable rehearsal exists.
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
-**Part on its way**:
-A current Part the room holds that this tablet does not, on a Rehearsal reopened without its recordings. Its Scene row shows it from the moment the room's takes list answers, with its listen dark until its recording is here; the parts on their way come down one at a time, in part order. A fetch that fails leaves the row as it is, and the next tap on its listen fetches it again. Its own listen stays dark until it is here, and the wood play and the advance disc wait until every part is here; recording the scene again is never held back by it.
-_Avoid_: placeholder, missing part (a part the room no longer has), pending part, unsent take (the other direction)
-
 **Joined recording** (`origin`):
 A rehearsal with at least one current Part laid in from a Scene rehearsal, which the part's `origin` names (the server's term, same field and meaning). On the tablet it turns the Rehearsal's title into «Ensaio Final», and the Back-translation's into «Ensaio Final»; entering it starts the First listen while the room counts every part unheard. The tablet makes one with «juntar as cenas e ouvir» on the Ensaio Final plan. Each scene's chosen rehearsal goes up through the Outbox as that scene's Part: the rehearsal's own bytes under its fingerprint, with `origin`. The same bytes joined again, from any tablet, are the same take (ADR 0120).
 _Avoid_: assembled recording, merged, Junção (in prose)
@@ -385,7 +381,7 @@ The one take the Outbox is sending now, from its first attempt to the moment it 
 _Avoid_: leaving take, upload in progress, current upload
 
 **Unsent take**:
-A take of a Part of this session still on this tablet, the newest pass of its Part, that is still in the Outbox (sending, failed or refused for good), or that this visit kept and could not put in the Outbox. Its Scene row tells it in her words: «enviando…» while it is being kept, with no tap whatever the row read before, or sent, with «parar» once its send has been in the air for 8 s; «falhou — toque para tentar de novo» once its three attempts are spent, the team stopped it, it waits behind a spent take of its Part, or it never reached the Outbox; «falhou — grave de novo», with no tap and nothing to play but the room's own part, once its recording is gone, even after a relaunch, since it can never go up (recording the Part again recovers it); «grande demais para o servidor — grave em partes menores» or «não foi aceita — grave de novo», with no tap, once the room refused it for good; and a take left by an earlier visit with her notice «Uma gravação ainda está neste computador e não foi enviada.» and «Cena N · m:ss — enviar agora». Once the room's list holds it, the row reads «✓ salvo» for the rest of the visit, until the part is recorded again. A tap gives the part three attempts; nothing sends a take but a tap, and a take of a session the room no longer knows is offered on the next visit to its passage and goes into that passage's session. A Part beyond the passage's last Scene has a numbered row of its own while it has a take to tell; that row tells the send and records nothing. A visit is this app run of the session: a relaunch makes every take still waiting one of an earlier visit.
+A take of a Part of this session still on this tablet, the newest pass of its Part, that is still in the Outbox (sending, failed or refused for good), or that this visit kept and could not put in the Outbox. Its Scene row tells it in her words: «enviando…» while it is being kept, with no tap whatever the row read before, or sent, with «parar» once its send has been in the air for 8 s; «falhou — toque para tentar de novo» once its three attempts are spent, the team stopped it, it waits behind a spent take of its Part, its send ended on a wait (the room turned the tablet away, or a join's take fell on the network), or it never reached the Outbox; «falhou — grave de novo», with no tap and nothing to play but the room's own part, once its recording is gone, even after a relaunch, since it can never go up (recording the Part again recovers it); «grande demais para o servidor — grave em partes menores» or «não foi aceita — grave de novo», with no tap, once the room refused it for good; and a take left by an earlier visit with her notice «Uma gravação ainda está neste computador e não foi enviada.» and «Cena N · m:ss — enviar agora». Once the room's list holds it, the row reads «✓ salvo» for the rest of the visit, until the part is recorded again; a take of an earlier visit is this visit's once the tap that sends it lands, and reads the same. A tap gives the part three attempts; nothing sends a take but a tap, and a take of a session the room no longer knows is offered on the next visit to its passage and goes into that passage's session. A Part beyond the passage's last Scene has a numbered row of its own while it has a take to tell; that row tells the send and records nothing. A visit is this app run of the session: a relaunch makes every take still waiting one of an earlier visit.
 _Avoid_: stranded take, stuck recording, gravação presa, pending take (the Outbox's row)
 
 **Resume point**:

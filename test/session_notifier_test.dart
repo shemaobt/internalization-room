@@ -32,6 +32,7 @@ import 'scenario_helpers.dart'
         stateReads,
         withDiskThatAnswersAtOnce,
         traduzirOApontadoDeNovo;
+import 'support/temp.dart';
 
 bool aPortaDaRetroAcendeu(ProviderContainer container) {
   final state = container.read(salaSessionProvider);
@@ -233,7 +234,7 @@ Future<void> _theChoiceOffersThePanorama(
   );
 }
 
-/// The team taps the Panorama on the Choice, and its opening has had time to be said.
+/// The team taps the Panorama on the Choice, and its opening has landed, said or not.
 Future<void> _enterThePanorama(
   SalaHarness harness,
   ProviderContainer container,
@@ -243,7 +244,10 @@ Future<void> _enterThePanorama(
     container.read(salaSessionProvider.notifier),
     () => container.read(salaSessionProvider),
   );
-  await settle();
+  await waitFor('o panorama abrir', () {
+    final state = container.read(salaSessionProvider);
+    return state.station is Panorama && !state.awaitingTheGuide;
+  });
 }
 
 class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
@@ -278,10 +282,8 @@ class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
 void main() {
   test('resuming past the conversa does not reopen the conversa', () async {
     final harness = SalaHarness();
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-retomada').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-retomada').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.ensaio,
@@ -314,10 +316,7 @@ void main() {
     'a rehearsal with one part missing comes back to the conversa',
     () async {
       final harness = SalaHarness();
-      final gravadas = Directory.systemTemp.createTempSync(
-        'sala-ensaio-partido',
-      );
-      addTearDown(() => gravadas.deleteSync(recursive: true));
+      final gravadas = aTempDir('sala-ensaio-partido');
       final partes = [
         for (var parte = 1; parte <= 3; parte++)
           KeptTake(
@@ -367,10 +366,8 @@ void main() {
 
   test('a row saved a week ago is resumed, not thrown away', () async {
     final harness = SalaHarness();
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-semana-passada').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-semana-passada').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-velha',
       stage: SalaStage.ensaio,
@@ -418,10 +415,8 @@ void main() {
     'a passage entered afresh carries nothing of the session before it',
     () async {
       final harness = SalaHarness();
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-recomeco').path}/p1.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-recomeco').path}/p1.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
         sessionId: 'sessao-antiga',
         stage: SalaStage.retro,
@@ -602,10 +597,8 @@ void main() {
 
   test('the next passage opens with nothing of the one before it', () async {
     final harness = SalaHarness();
-    final gravada = File(
-      '${Directory.systemTemp.createTempSync('sala-passagem-anterior').path}/p1.m4a',
-    )..writeAsBytesSync([1, 2, 3]);
-    addTearDown(() => gravada.parent.deleteSync(recursive: true));
+    final gravada = File('${aTempDir('sala-passagem-anterior').path}/p1.m4a')
+      ..writeAsBytesSync([1, 2, 3]);
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-antiga',
       stage: SalaStage.retro,
@@ -708,10 +701,8 @@ void main() {
     'a stored id created in pt does not post a turn to it from a device now in en',
     () async {
       final harness = SalaHarness(lingua: 'en');
-      final gravada = File(
-        '${Directory.systemTemp.createTempSync('sala-outra-lingua').path}/p2.m4a',
-      )..writeAsBytesSync([1, 2, 3]);
-      addTearDown(() => gravada.parent.deleteSync(recursive: true));
+      final gravada = File('${aTempDir('sala-outra-lingua').path}/p2.m4a')
+        ..writeAsBytesSync([1, 2, 3]);
       harness.emAberto.rows['Ruth/P02/en'] = ResumePoint(
         sessionId: 'sessao-p02',
         stage: SalaStage.ensaio,
@@ -1950,26 +1941,53 @@ void main() {
       notifier.goEnsaio();
       notifier.gravarACena(1);
       notifier.gravarACena(1);
-      await settle();
+      await waitFor(
+        'a gravação da parte chegar',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+      );
       notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte guardada',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
+      await waitFor(
+        'a porta da retro acender',
+        () => aPortaDaRetroAcendeu(container),
+      );
       notifier.startRetro();
-      await settle();
+      await waitFor('a conferida abrir', () {
+        final state = container.read(salaSessionProvider);
+        return state.stage == SalaStage.retro &&
+            state.btPhase == BtPhase.playing;
+      });
       harness.playback.at = const Duration(seconds: 2);
       notifier.retroTap();
       notifier.retroTap();
-      await settle();
-      await confirmarATraducao(container);
-      await settle();
-      harness.playback.finishPlayback();
-      await settle();
-      await notifier.finishBackTranslation();
-      await settle();
-      await notifier.aprovarRascunhoFinal();
       await waitFor(
-        'o ensaio salvo',
-        () => container.read(salaSessionProvider).ensaioSalvo != null,
+        'a captura abrir',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
       );
-      await settle();
+      await confirmarATraducao(container);
+      await waitFor(
+        'o clipe voltar a tocar',
+        () => container.read(salaSessionProvider).btClipRodando,
+      );
+      harness.playback.finishPlayback();
+      await waitFor(
+        'o clipe acabar',
+        () => container.read(salaSessionProvider).btClipEnded,
+      );
+      await notifier.finishBackTranslation();
+      await waitFor(
+        'o veredito ser ouvido',
+        () => container.read(salaSessionProvider).btVeredito,
+      );
+      await notifier.aprovarRascunhoFinal();
+      await waitFor('o ensaio salvo descansar', () {
+        final state = container.read(salaSessionProvider);
+        return state.ensaioSalvo != null && state.btAprovando == null;
+      });
 
       var emits = 0;
       container.listen(salaSessionProvider, (_, _) => emits++);
@@ -4319,7 +4337,7 @@ void main() {
     await settle();
     harness.room.failWith = null;
 
-    notifier.escolhaTap();
+    unawaited(notifier.abrirEscolha());
     await settle();
 
     expect(
@@ -4359,7 +4377,7 @@ void main() {
     expect(container.read(salaSessionProvider).voice, VoiceState.invite);
 
     harness.room.reachable = true;
-    notifier.escolhaTap();
+    unawaited(notifier.abrirEscolha());
     await settle(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).naRoda, hasLength(3));
@@ -4427,6 +4445,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'o ensaio poder tocar',
+      () => container.read(salaSessionProvider).canPlayTheRehearsal,
+    );
     notifier.playTheRehearsal();
 
     expect(container.read(salaSessionProvider).playPing, isTrue);
@@ -4455,6 +4477,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a porta da retro acender',
+      () => aPortaDaRetroAcendeu(container),
+    );
     notifier.startRetro();
     await settle(const Duration(milliseconds: 60));
 
@@ -4486,6 +4512,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a porta da retro acender',
+      () => aPortaDaRetroAcendeu(container),
+    );
     notifier.startRetro();
     await settle();
     harness.playback.at = const Duration(seconds: 2);
@@ -4536,6 +4566,10 @@ void main() {
           notifier.gravarACena(1);
           await settle();
           notifier.takeKeep();
+          await waitFor(
+            'a porta da retro acender',
+            () => aPortaDaRetroAcendeu(container!),
+          );
           notifier.startRetro();
           await settle(const Duration(milliseconds: 50));
 
@@ -4760,8 +4794,7 @@ void main() {
   test('a part recorded for the first time after a resume is its own first '
       'recording', () async {
     final harness = SalaHarness();
-    final gravadas = Directory.systemTemp.createTempSync('sala-ensaio-passada');
-    addTearDown(() => gravadas.deleteSync(recursive: true));
+    final gravadas = aTempDir('sala-ensaio-passada');
     harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(
       sessionId: 'sessao-regravada',
       stage: SalaStage.ensaio,
@@ -5194,6 +5227,10 @@ void main() {
     notifier.gravarACena(1);
     await settle();
     notifier.takeKeep();
+    await waitFor(
+      'a porta da retro acender',
+      () => aPortaDaRetroAcendeu(container),
+    );
     notifier.startRetro();
     await settle();
     harness.playback.finishPlayback();
@@ -5637,6 +5674,10 @@ void main() {
       notifier.gravarACena(1);
       await settle();
       notifier.takeKeep();
+      await waitFor(
+        'a porta da retro acender',
+        () => aPortaDaRetroAcendeu(container),
+      );
       notifier.startRetro();
       await settle();
 
@@ -6091,6 +6132,10 @@ void main() {
     notifier.goEnsaio();
     await gravaEGuardaAParte(container, 1);
     await gravaEGuardaAParte(container, 2);
+    await waitFor(
+      'o ensaio poder tocar',
+      () => container.read(salaSessionProvider).canPlayTheRehearsal,
+    );
 
     notifier.playTheRehearsal();
     await settle();
@@ -6975,8 +7020,7 @@ void main() {
     () async {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
-      final library = Directory.systemTemp.createTempSync('sala-voz-chegando');
-      addTearDown(() => library.deleteSync(recursive: true));
+      final library = aTempDir('sala-voz-chegando');
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
           lineAt: noFixedLine,
@@ -7025,8 +7069,7 @@ void main() {
     () async {
       final player = SpeakingPlayer();
       final body = StreamController<List<int>>();
-      final library = Directory.systemTemp.createTempSync('sala-voz-cabecalho');
-      addTearDown(() => library.deleteSync(recursive: true));
+      final library = aTempDir('sala-voz-cabecalho');
       var answered = false;
       final harness = SalaHarness(
         voiceService: FacilitatorVoiceService(
@@ -7079,8 +7122,7 @@ void main() {
 
   test('lines the team never hears halt the room for a person', () async {
     final player = SpeakingPlayer()..stopsBeforeTheEnd = true;
-    final library = Directory.systemTemp.createTempSync('sala-voz-parada');
-    addTearDown(() => library.deleteSync(recursive: true));
+    final library = aTempDir('sala-voz-parada');
     final harness = SalaHarness(
       voiceService: FacilitatorVoiceService(
         lineAt: noFixedLine,
@@ -7120,8 +7162,7 @@ Future<ProviderContainer> _umaGravacaoRetomada(
   required Set<int> juntas,
   int partes = 2,
 }) async {
-  final pasta = Directory.systemTemp.createTempSync('sala-1747');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1747');
   harness.playback
     ..measured = const Duration(seconds: 10)
     ..length = const Duration(seconds: 10);
