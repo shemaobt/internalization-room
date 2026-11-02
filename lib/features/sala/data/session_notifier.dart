@@ -6116,7 +6116,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
 
-  void _playTheSceneRehearsal() {
+  void _playTheSceneRehearsal({bool? soundingAtTheTap}) {
     final SceneScreen(
       :step,
       :take,
@@ -6134,7 +6134,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal == null) {
       return;
     }
-    final playing = _theSceneTakeThatSounds(state.machine) != null;
+    final playing =
+        soundingAtTheTap ?? _theSceneTakeThatSounds(state.machine) != null;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
@@ -6157,7 +6158,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    if (_theListFirst(_playTheSceneRehearsal)) return;
+    if (_theListFirst(
+      () => _playTheSceneRehearsal(soundingAtTheTap: playing),
+    )) {
+      return;
+    }
     if (translatingAgain != null && pausa != null) {
       final end = state.scene.takeEnd;
       if (playing) {
