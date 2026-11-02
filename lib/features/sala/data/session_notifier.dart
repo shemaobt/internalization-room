@@ -10835,7 +10835,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (_trechoTraduzidoDeNovo == null) _trechoEnd = _trechoStart;
     _dispatch(const TheVerdictAsked());
     state = state.copyWith(clearAviso: true);
-    _silenceTheRoom();
+    _silenceTheRoom(holdTheClip: true);
     _oQueFaltaOuvir = null;
     final sessionId = state.sessionId;
     if (sessionId == null) return;
