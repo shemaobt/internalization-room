@@ -2072,7 +2072,9 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('is gone after a relaunch', (tester) async {
+    testWidgets('the offer to hear the new scene stands after a relaunch', (
+      tester,
+    ) async {
       final semantics = tester.ensureSemantics();
       final it = await _atRest(tester);
       await it.joined();
@@ -2082,9 +2084,124 @@ void main() {
       expect(find.text(_hearNew), findsOneWidget);
 
       await it.relaunchOnTheHome();
-      expect(find.text(_hearNew), findsNothing);
+
+      expect(find.text(_hearNew), findsOneWidget);
       semantics.dispose();
     });
+
+    testWidgets(
+      'the offer heard before the kill is not offered after the relaunch',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        await it.joined();
+        await it.openTheSheet(2, _swap);
+        await it.swapIn(s2b);
+        await it.swapLands();
+        expect(find.text(_hearNew), findsOneWidget);
+
+        await it.until(
+          'o disco de avançar acender',
+          () => it.enabled(byLabel(_listenAndCheck)),
+        );
+        await it.tapThe(byLabel(_listenAndCheck));
+        await it.until(
+          'a Retro abrir',
+          () => it.container.read(salaSessionProvider).station is Retro,
+        );
+        await it.settle();
+
+        await it.relaunchOnTheHome();
+
+        expect(find.text(_hearNew), findsNothing);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'the offer is gone when the team leaves the passage and comes back',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        await it.joined();
+        await it.openTheSheet(2, _swap);
+        await it.swapIn(s2b);
+        await it.swapLands();
+        expect(find.text(_hearNew), findsOneWidget);
+
+        it.container.read(salaSessionProvider.notifier).leaveThePassage();
+        await it.settle();
+        await _toTheConversation(it);
+        it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+        await it.until('a casa voltar', it.showsTheHome);
+        await it.settle();
+
+        expect(find.text(_hearNew), findsNothing);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'the offer is gone when the team leaves from the conversation a '
+      'relaunch landed on and takes the way back',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        await it.joined();
+        await it.openTheSheet(2, _swap);
+        await it.swapIn(s2b);
+        await it.swapLands();
+
+        await it.relaunchOnTheConversation();
+        final notifier = it.container.read(salaSessionProvider.notifier)
+          ..leaveThePassage();
+        await it.settle();
+        await notifier.returnToTheLeftEntry();
+        await it.settle();
+        notifier.openTheEnsaioFinal();
+        await it.until('a casa voltar', it.showsTheHome);
+        await it.settle();
+
+        expect(find.text(_hearNew), findsNothing);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'a swap still in the Outbox at the kill is offered only once it lands '
+      'after the relaunch',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        await it.joined();
+        await it.openTheSheet(2, _swap);
+        it.holdTheTake('parte-2');
+        await it.swapIn(s2b);
+        await it.theHeldTakeArrives();
+        it.room
+          ..unreachableTake = 'ensaio/parte-2'
+          ..finishHeldTake();
+        await it.settle();
+
+        await it.relaunchOnTheHome();
+        it.room.unreachableTake = null;
+        expect(it.takesOf(2), hasLength(1));
+        expect(find.text(_hearNew), findsNothing);
+
+        await it.tapThe(it.onRow(2, find.textContaining('enviar agora')));
+        await it.within(
+          const Duration(seconds: 30),
+          'a troca chegar à sala',
+          () => it.takesOf(2).length == 2,
+        );
+        await it.within(
+          const Duration(seconds: 10),
+          'a casa pedir a escuta da cena nova',
+          () => find.text(_hearNew).evaluate().isNotEmpty,
+        );
+        semantics.dispose();
+      },
+    );
   });
 
   testWidgets(
