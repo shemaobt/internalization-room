@@ -34,6 +34,8 @@ const _contadoDaqui = BackTranslationProgress(
   ],
 );
 
+enum _Onde { ficou, naEscolha, naOutra }
+
 class _Retomada {
   final SalaHarness harness;
   final ProviderContainer container;
@@ -155,103 +157,85 @@ void main() {
     });
   }
 
-  test('a listing of the passage the team left lands in the next one with '
-      'none of its stretches', () async {
-    final harness = SalaHarness();
-    harness.room
-      ..takes.add(
-        const TakeView(
-          takeId: 'velha-de-fora',
-          kind: 'ensaio',
-          scope: 'inteiro',
-        ),
-      )
-      ..holdNextTakesList();
-    final it = await _reabrir(
-      harness,
-      partes: 2,
-      contado: BackTranslationProgress(
-        segments: [_contadoDaqui.segments.first],
-        stale: const [
-          SegmentView(
-            segmentId: 'velho',
-            takeId: 'velha-de-fora',
-            startsMs: 0,
-            endsMs: 10000,
-            frase: 1,
-          ),
-        ],
-      ),
-    );
-    harness.room.retroSoFar = null;
-    await it.sala.abrirEscolha();
-    await settle();
-    await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
-    await settle();
-    harness.room.finishHeldTakesList();
-    await settle();
-
-    expect(
-      it.estado.btTrechosRegravados,
-      isEmpty,
-      reason:
-          'a listagem da passagem deixada gravava os trechos dela na seguinte',
-    );
-  });
-
-  for (final (name, aLista) in [
+  for (final (name, aLista, onde) in [
+    ('answering', (SalaHarness h) {}, _Onde.naOutra),
     (
       'lost on the network',
       (SalaHarness h) => h.room.failTakesWith = const NetworkFailed('sem rede'),
+      _Onde.naOutra,
     ),
     (
       'answering session-gone',
       (SalaHarness h) => h.room.forgetTheSession('sessao-antiga'),
+      _Onde.naEscolha,
+    ),
+    (
+      'lost on the network',
+      (SalaHarness h) => h.room.failTakesWith = const NetworkFailed('sem rede'),
+      _Onde.ficou,
     ),
   ]) {
-    test('a listing of the passage the team left, $name, writes nothing on '
-        'the next one', () async {
-      final harness = SalaHarness();
-      harness.room
-        ..takes.add(
-          const TakeView(
-            takeId: 'velha-de-fora',
-            kind: 'ensaio',
-            scope: 'inteiro',
-          ),
-        )
-        ..holdNextTakesList();
-      final it = await _reabrir(
-        harness,
-        partes: 2,
-        contado: BackTranslationProgress(
-          segments: [_contadoDaqui.segments.first],
-          stale: const [
-            SegmentView(
-              segmentId: 'velho',
+    test(
+      'a listing of a passage, $name, read while the team ${onde.name}',
+      () async {
+        final harness = SalaHarness();
+        harness.room
+          ..takes.add(
+            const TakeView(
               takeId: 'velha-de-fora',
-              startsMs: 0,
-              endsMs: 10000,
-              frase: 1,
+              kind: 'ensaio',
+              scope: 'inteiro',
             ),
-          ],
-        ),
-      );
-      harness.room.retroSoFar = null;
-      await it.sala.abrirEscolha();
-      await settle();
-      await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
-      await settle();
-      aLista(harness);
-      final logged = <String>[];
-      final printed = debugPrint;
-      debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
-      addTearDown(() => debugPrint = printed);
-      harness.room.finishHeldTakesList();
-      await settle();
+          )
+          ..holdNextTakesList();
+        final it = await _reabrir(
+          harness,
+          partes: 2,
+          contado: BackTranslationProgress(
+            segments: [_contadoDaqui.segments.first],
+            stale: const [
+              SegmentView(
+                segmentId: 'velho',
+                takeId: 'velha-de-fora',
+                startsMs: 0,
+                endsMs: 10000,
+                frase: 1,
+              ),
+            ],
+          ),
+        );
+        harness.room.retroSoFar = null;
+        if (onde != _Onde.ficou) {
+          it.sala.leaveThePassage();
+          await settle();
+        }
+        if (onde == _Onde.naOutra) {
+          await it.sala.goConversa(book: 'Ruth', pericope: 'P02');
+          await settle();
+        }
+        final sessao = it.estado.sessionId;
+        aLista(harness);
+        final logged = <String>[];
+        final printed = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        addTearDown(() => debugPrint = printed);
+        harness.room.finishHeldTakesList();
+        await settle();
 
-      expect(logged.where((l) => l.startsWith('Falha decidida')), isEmpty);
-    });
+        final falhas = logged.where((l) => l.startsWith('Falha decidida'));
+        switch (onde) {
+          case _Onde.ficou:
+            expect(falhas, isNotEmpty);
+          case _Onde.naOutra:
+            expect(falhas, isEmpty);
+            expect(it.estado.btTrechosRegravados, isEmpty);
+            expect(it.estado.sessionId, sessao);
+          case _Onde.naEscolha:
+            expect(it.estado.passageLeft, isNull);
+            expect(it.estado.sessionId, sessao);
+        }
+      },
+    );
   }
 
   test('a resposta da sala pode ainda trazer composed_take_id', () {

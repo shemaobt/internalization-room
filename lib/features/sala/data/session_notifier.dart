@@ -11583,7 +11583,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final eram = state.btTrechos;
     final life = _thisLife;
     final answer = await _room.takesOf(sessionId);
-    if (_endedSince(life) || state.sessionId != sessionId) return;
+    if (_endedSince(life)) return;
+    if (answer is! SessionGone && state.sessionId != sessionId) return;
     final List<TakeView> guardadas;
     switch (answer) {
       case Answered(value: final listadas):
