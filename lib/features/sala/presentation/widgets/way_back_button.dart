@@ -18,6 +18,9 @@ class WayBackButton extends ConsumerWidget {
     if (session.stage != stage) return const SizedBox.shrink();
     final disabled = session.wayBackIsDisabled;
     final notifier = ref.read(salaSessionProvider.notifier);
+    final leave = stage == SalaStage.retro
+        ? notifier.leaveTheBackTranslation
+        : notifier.leaveTheRecording;
 
     return Positioned(
       left: 14,
@@ -30,11 +33,7 @@ class WayBackButton extends ConsumerWidget {
           ref.watch(roomLanguageProvider),
         ),
         child: GestureDetector(
-          onTap: disabled
-              ? null
-              : stage == SalaStage.retro
-              ? notifier.leaveTheBackTranslation
-              : notifier.leaveTheRecording,
+          onTap: disabled ? null : leave,
           behavior: HitTestBehavior.opaque,
           child: const SizedBox(
             width: 46,

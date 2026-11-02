@@ -7411,8 +7411,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final part = _thePartBeingRecorded;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) {
-      if (path == null || _gone) return;
-      if (part != null &&
+      if (path != null &&
+          part != null &&
           !_endedSince(life) &&
           _goneSessions.contains(sessionId) &&
           !_anAccidentalTap(path)) {
@@ -7423,7 +7423,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           life,
         );
       } else {
-        unawaited(_recorder.delete(path));
+        _dropTheAbandoned(path);
       }
       return;
     }
@@ -7437,6 +7437,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     _pendingTakePath = path;
     state = state.copyWith(ensaio: EnsaioStatus.recorded);
+  }
+
+  void _dropTheAbandoned(String? path) {
+    if (path != null && !_gone) unawaited(_recorder.delete(path));
   }
 
   void takeKeep() => _gesture(() => _takeKeep());
@@ -10251,7 +10255,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool largada() => _abandoned(generation) || vez != _regravacoes;
     final path = (await _closeTheMicrophone()).take;
     if (largada()) {
-      if (path != null && !_gone) unawaited(_recorder.delete(path));
+      _dropTheAbandoned(path);
       return;
     }
     if (path == null || _anAccidentalTap(path)) {
@@ -10833,7 +10837,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) {
-      if (path != null && !_gone) unawaited(_recorder.delete(path));
+      _dropTheAbandoned(path);
       return false;
     }
     final sessionId = state.sessionId;
@@ -10917,7 +10921,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     switch (sent) {
       case Answered(:final value):
         if (_abandoned(generation)) {
-          if (!_endedSince(life)) {
+          if (!_endedSince(life) && state.sessionId == sessionId) {
             unawaited(_readTheStretchesBack(sessionId, _generation));
           }
           return;
