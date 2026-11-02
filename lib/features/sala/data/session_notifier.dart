@@ -7516,12 +7516,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final passadas = _passadasDaSala;
     if (passadas != null) _passadasDaSala = _aindaPorGravar(passadas, {numero});
-    state = state.copyWith(
-      ensaio: EnsaioStatus.idle,
-      keptTakes: [...state.keptTakes, nova],
-    );
-    _deixarOInteiroDeLado();
-    _weighTheRehearsal();
     unawaited(
       _guard(
         path,
@@ -7532,19 +7526,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: numero,
       ),
     );
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      keptTakes: [...state.keptTakes, nova],
+    );
+    _deixarOInteiroDeLado();
+    _weighTheRehearsal();
     _rememberWhereTheyAre(const Ensaio());
   }
 
   /// The first recording of a passage recorded whole: no scene's part, no number.
   void _keepTheWhole(String path) {
-    state = state.copyWith(
-      ensaio: EnsaioStatus.idle,
-      keptTakes: [
-        ...state.keptTakes,
-        KeptTake(scopeId: KeptScope.whole, path: path, pass: 1),
-      ],
-    );
-    _weighTheRehearsal();
     unawaited(
       _guard(
         path,
@@ -7554,6 +7546,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: 1,
       ),
     );
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      keptTakes: [
+        ...state.keptTakes,
+        KeptTake(scopeId: KeptScope.whole, path: path, pass: 1),
+      ],
+    );
+    _weighTheRehearsal();
     _rememberWhereTheyAre(const Ensaio());
   }
 
@@ -7584,8 +7584,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final escopo = state.partes[parte].scopeId;
     final numero = KeptScope.numberOf(escopo);
     final passada = state.partes[parte].pass + 1;
-    _aParteNoLugar(parte, path, passada: passada);
-    unawaited(_medirAParteRegravada(path, _generation));
     unawaited(
       _guard(
         path,
@@ -7596,6 +7594,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: numero,
       ),
     );
+    _aParteNoLugar(parte, path, passada: passada);
+    unawaited(_medirAParteRegravada(path, _generation));
     _rememberWhereTheyAre(const Ensaio());
   }
 
@@ -7726,6 +7726,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!await audio.exists()) {
         if (!_endedSince(life)) {
           _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
+          await _countedFromNow(life);
         }
         return null;
       }
@@ -7743,6 +7744,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } on Object {
         if (_endedSince(life)) return null;
         _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+        await _countedFromNow(life);
         return null;
       }
       kept = linha.id;
@@ -8055,6 +8057,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         for (final scope in tally.unsentParts.keys) ?KeptScope.numberOf(scope),
       },
       joinsOnTheirWay: {for (final scope in tally.joining) ?state.rowOf(scope)},
+      outboxCounted: true,
     );
     _weighTheRehearsal();
     _appliedCount = counting;

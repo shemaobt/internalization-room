@@ -541,6 +541,10 @@ class SalaSessionState {
   /// tablet, and the door waits for it.
   final Set<int> joinsOnTheirWay;
 
+  /// Whether this life has counted the Outbox yet: before its first count a part with
+  /// no name may still be owed, so it holds the door as one that waits.
+  final bool outboxCounted;
+
   final Machine machine;
   final DateTime? recorderStartedAt;
 
@@ -717,6 +721,7 @@ class SalaSessionState {
     this.unsentParts = const {},
     this.heldScenes = const {},
     this.joinsOnTheirWay = const {},
+    this.outboxCounted = false,
     this.machine = const Machine(),
     this.recorderStartedAt,
     this.cenaDaGravacao,
@@ -830,7 +835,8 @@ class SalaSessionState {
 
   bool _waitsToGoUp(KeptTake take) =>
       take.takeId == null &&
-      (unsentParts.containsKey(rowOf(take.scopeId)) ||
+      (!outboxCounted ||
+          unsentParts.containsKey(rowOf(take.scopeId)) ||
           joinsOnTheirWay.contains(rowOf(take.scopeId)));
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
@@ -1998,6 +2004,7 @@ class SalaSessionState {
     Map<int, UnsentPart>? unsentParts,
     Set<int>? heldScenes,
     Set<int>? joinsOnTheirWay,
+    bool? outboxCounted,
     Machine? machine,
     DateTime? recorderStartedAt,
     bool clearRecorderStartedAt = false,
@@ -2164,6 +2171,7 @@ class SalaSessionState {
       unsentParts: unsentParts ?? this.unsentParts,
       heldScenes: heldScenes ?? this.heldScenes,
       joinsOnTheirWay: joinsOnTheirWay ?? this.joinsOnTheirWay,
+      outboxCounted: outboxCounted ?? this.outboxCounted,
       machine: machine ?? this.machine,
       recorderStartedAt: clearRecorderStartedAt
           ? null
