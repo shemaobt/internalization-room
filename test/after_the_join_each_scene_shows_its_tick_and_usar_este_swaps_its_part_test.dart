@@ -358,6 +358,19 @@ class _Room {
       .flagsCollection
       .isSelected;
 
+  bool focused(Finder target) =>
+      tester
+          .getSemantics(target)
+          .getSemanticsData()
+          .flagsCollection
+          .isFocused ==
+      Tristate.isTrue;
+
+  List<String?> focusedLabels() => [
+    for (final node in tester.semantics.simulatedAccessibilityTraversal())
+      if (node.flagsCollection.isFocused == Tristate.isTrue) node.label,
+  ];
+
   bool enabled(Finder target) =>
       tester
           .getSemantics(target)
@@ -587,6 +600,85 @@ void main() {
       await it.openTheSheet(2, _swap);
       expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
       expect(it.use(s2a), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the way back closes the home sheet onto the «trocar o ensaio desta cena» '
+    'of the row that opened it, where VoiceOver lands, not at the top of the home',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+      await it.settle();
+
+      expect(it.door(2, _swap), findsOneWidget);
+      expect(
+        it.focused(it.door(2, _swap)),
+        isTrue,
+        reason:
+            'fechada a folha, o VoiceOver caía no topo da casa, não no botão '
+            'que a abriu, como no dela',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap that lands closes the sheet onto the door of its row, now reading '
+    '«trocar o ensaio desta cena», where VoiceOver lands',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      await it.swapIn(s2b);
+      await it.swapLands();
+
+      expect(it.door(2, _swap), findsOneWidget);
+      expect(
+        it.focused(it.door(2, _swap)),
+        isTrue,
+        reason:
+            'a troca fechava a folha e deixava o VoiceOver no topo da casa, '
+            'não no botão da cena trocada, como no dela',
+      );
+      for (final n in [1, 3]) {
+        expect(it.door(n, _swap), findsNothing, reason: 'cena $n');
+      }
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a row whose only rehearsal becomes its part has no door left when the '
+    'sheet closes, and nothing on the home is focused or thrown',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s3a], sent: false);
+      await it.joined(
+        listed: const [s1a, s2a, s2b],
+        onTheTablet: const [s1a, s2a, s2b, s3a],
+      );
+
+      await it.openTheSheet(3, _useScene);
+      await it.tapThe(it.useUnsent(s3a));
+      await it.swapLands();
+
+      expect(it.door(3, _useScene), findsNothing);
+      expect(it.door(3, _swap), findsNothing);
+      expect(
+        it.focusedLabels(),
+        isEmpty,
+        reason: 'sem botão para voltar, o foco não é pedido a ninguém',
+      );
       semantics.dispose();
     },
   );
