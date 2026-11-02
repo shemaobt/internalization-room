@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -18,16 +19,16 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
+import 'support/temp.dart';
 
 void main() {
   late Directory home;
   late FakeRecorder recorder;
 
   setUp(() {
-    home = Directory.systemTemp.createTempSync('fila-tomadas');
+    home = aTempDir('fila-tomadas');
     recorder = FakeRecorder();
   });
-  tearDown(() => home.deleteSync(recursive: true));
 
   var clock = DateTime(2026, 8, 12, 9);
 
@@ -72,9 +73,7 @@ void main() {
 
   /// The tablet comes back from a backup under a container prefix it has never had.
   void theContainerIsRenamed() {
-    final restored = Directory.systemTemp.createTempSync(
-      'fila-tomadas-restaurada',
-    );
+    final restored = aTempDir('fila-tomadas-restaurada');
     Directory(
       '${home.path}/guardadas',
     ).renameSync('${restored.path}/guardadas');
@@ -212,6 +211,43 @@ void main() {
       expect(inTheFolder(), ['fila.json']);
     });
 
+    test('a withdrawn copy the disk will not delete does not stop the rows '
+        'behind it', () async {
+      final room = FakeRoom()..holdNextTake('parte-2');
+      final queue = queueOn(room);
+      final row = (await queue.enqueueTheJoin(
+        File('${home.path}/parte-2-junta-ensaio-2.wav')
+          ..writeAsBytesSync(aWavTake()),
+        sessionId: 'sessao-1',
+        number: 2,
+        passNumber: 1,
+        origin: 'ensaio-2',
+      ))!;
+      final behind = await keep(queue, 'inteira', 'sessao-1');
+      queue.tapped(row.id);
+      queue.tapped(behind.id);
+      final outside = Zone.current;
+      final flushed = IOOverrides.runZoned(
+        queue.flush,
+        createFile: (path) {
+          final real = outside.run(() => File(path));
+          return path == row.path ? _ACopyTheDiskWillNotDelete(real) : real;
+        },
+      );
+      await room.untilTakeHeld();
+      expect(await queue.withdrawEvenInTheAir(row), isTrue);
+      room.finishHeldTake();
+      await flushed;
+
+      expect(
+        room.takesKept,
+        ['ensaio/parte-2', 'ensaio/inteira'],
+        reason:
+            'a cópia que o disco recusava apagar saía do catch do envio, e a '
+            'fila parava antes da linha seguinte',
+      );
+    });
+
     test('the open sweep leaves the link, the resume point and the current '
         'session in their folder', () async {
       final folder = Directory('${home.path}/guardadas')..createSync();
@@ -234,6 +270,41 @@ void main() {
         'vinculo.json',
       ]);
     });
+
+    test(
+      'the open sweep goes on past a copy the disk will not delete',
+      () async {
+        final folder = Directory('${home.path}/guardadas')..createSync();
+        final orphans = [
+          for (final n in [1, 2, 3])
+            '${folder.path}/ensaio-parte-$n-176173000000000$n-0.m4a',
+        ];
+        for (final orphan in orphans) {
+          File(orphan).writeAsStringSync('a equipe contou a passagem');
+        }
+        var refusals = 0;
+        final outside = Zone.current;
+        await IOOverrides.runZoned(
+          queueOn(FakeRoom()).sweepTheCopiesLeftBehind,
+          createFile: (path) {
+            final real = outside.run(() => File(path));
+            if (!orphans.contains(path)) return real;
+            return _ACopyTheDiskWillNotDelete(
+              real,
+              whenRefused: () => refusals++,
+            );
+          },
+        );
+
+        expect(
+          refusals,
+          3,
+          reason:
+              'a primeira cópia que o disco recusava apagar parava a varredura, '
+              'e as órfãs atrás dela ficavam na pasta',
+        );
+      },
+    );
 
     test(
       'a take being kept while the Outbox opens keeps its copy and its row',
@@ -3016,6 +3087,91 @@ void main() {
       expect(sent, 0);
     });
   });
+
+  test('an enqueue still reading its take when the Outbox is drained lands its '
+      'row first', () async {
+    final queue = queueOn(FakeRoom()..reachable = false);
+    final take = _ATakeWhoseDateIsHeld(aTake('nova'));
+
+    final keeping = queue.enqueue(
+      take,
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'inteira',
+    );
+    final drained = queue.drained();
+    take.release.complete();
+    await drained.timeout(const Duration(seconds: 5), onTimeout: () {});
+    final landed = await queueOn(FakeRoom()).entries();
+    final row = await keeping;
+
+    expect([for (final entry in landed) entry.id], [row.id]);
+  });
+
+  test(
+    'a withdraw nobody awaits is on disk once the Outbox is drained',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      final row = await keep(queue, 'nova', 'sessao-1');
+
+      unawaited(queue.withdraw(row));
+      await queue.drained().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {},
+      );
+
+      expect(await queueOn(FakeRoom()).entries(), isEmpty);
+    },
+  );
+
+  test('a read of an Outbox whose folder does not exist returns empty and '
+      'leaves no folder', () async {
+    final queue = queueOn(FakeRoom());
+
+    final read = [
+      ...await queue.entries(),
+      ...await queue.pending(),
+      ...await queue.waiting(),
+    ];
+
+    expect(read, isEmpty);
+    expect(Directory('${home.path}/guardadas').existsSync(), isFalse);
+  });
+
+  test(
+    'an enqueue still copying when the container is disposed lands its row '
+    'once the Outbox is drained, and the deleted folder is not made again',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      final container = ProviderContainer(
+        overrides: [takeUploadQueueProvider.overrideWithValue(queue)],
+      );
+      final gravada = File('${aTempDir('sala-gravacao').path}/nova.m4a')
+        ..writeAsStringSync('a equipe contou a passagem');
+      final take = _ATakeWhoseCopyIsHeld(gravada);
+
+      final keeping = container
+          .read(takeUploadQueueProvider)
+          .enqueue(
+            take,
+            sessionId: 'sessao-1',
+            kind: 'ensaio',
+            scope: 'inteira',
+          );
+      await take.copied.future;
+      container.dispose();
+      final drained = queue.drained();
+      take.release.complete();
+      await drained.timeout(const Duration(seconds: 5), onTimeout: () {});
+
+      final landed = await queueOn(FakeRoom()).entries();
+      home.deleteSync(recursive: true);
+      final row = await keeping;
+
+      expect([for (final entry in landed) entry.id], [row.id]);
+      expect(home.existsSync(), isFalse);
+    },
+  );
 }
 
 final class _Plain extends IOOverrides {}
@@ -3159,6 +3315,74 @@ class _ATakeWhoseCopyIsHeld implements File {
     await release.future;
     return made;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ACopyTheDiskWillNotDelete implements File {
+  final File _real;
+  final void Function() whenRefused;
+
+  _ACopyTheDiskWillNotDelete(this._real, {this.whenRefused = _nothing});
+
+  static void _nothing() {}
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  bool existsSync() => _real.existsSync();
+
+  @override
+  Future<int> length() => _real.length();
+
+  @override
+  int lengthSync() => _real.lengthSync();
+
+  @override
+  Uint8List readAsBytesSync() => _real.readAsBytesSync();
+
+  @override
+  Future<Uint8List> readAsBytes() => _real.readAsBytes();
+
+  @override
+  Stream<List<int>> openRead([int? start, int? end]) =>
+      _real.openRead(start, end);
+
+  @override
+  Future<FileSystemEntity> delete({bool recursive = false}) {
+    whenRefused();
+    return Future.error(const FileSystemException('o disco recusou'));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ATakeWhoseDateIsHeld implements File {
+  final File _real;
+  final release = Completer<void>();
+
+  _ATakeWhoseDateIsHeld(this._real);
+
+  @override
+  String get path => _real.path;
+
+  @override
+  Future<DateTime> lastModified() async {
+    await release.future;
+    return _real.lastModified();
+  }
+
+  @override
+  Future<bool> exists() => _real.exists();
+
+  @override
+  Future<File> copy(String newPath) => _real.copy(newPath);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

@@ -28,7 +28,9 @@ import 'scenario_helpers.dart'
         holdTheSession,
         intoTheBackTranslation,
         offTheRows,
-        thePersonSign;
+        thePersonSign,
+        voiceOverFocusLeaves;
+import 'support/temp.dart';
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -235,7 +237,7 @@ Future<void> _toTheConversation(_Home it) async {
 }
 
 SalaHarness _aHarness(String lingua, List<Scene> scenes) {
-  final home = Directory.systemTemp.createTempSync('sala-1405-traz');
+  final home = aTempDir('sala-1405-traz');
   return SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
@@ -297,8 +299,7 @@ Future<_Home> _inTheBackTranslation(
 }) async {
   const sessionId = 'sessao-antiga';
   final harness = _aHarness('pt', _threeScenes);
-  final folder = Directory.systemTemp.createTempSync('sala-1405-retro');
-  addTearDown(() => folder.deleteSync(recursive: true));
+  final folder = aTempDir('sala-1405-retro');
   if (heldSentence != null) {
     await tester.runAsync(
       () => harness.takes.enqueue(
@@ -727,6 +728,38 @@ void main() {
 
     expect(it.room.bringBacksAsked, isEmpty);
     expect(it.control(2, _bringBackArmed), findsOneWidget);
+    await it.wait(const Duration(seconds: 7));
+    semantics.dispose();
+  });
+
+  testWidgets('VoiceOver focus leaving the armed bring-back disarms it, and '
+      'the next tap only arms', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _onTheHome(tester);
+
+    await it.tapThe(it.control(2, _bringBack));
+    await it.wait(const Duration(seconds: 1));
+    expect(it.control(2, _bringBackArmed), findsOneWidget);
+
+    voiceOverFocusLeaves(tester, it.control(2, _bringBackArmed));
+    await it.wait(const Duration(milliseconds: 100));
+
+    expect(
+      it.control(2, _bringBack),
+      findsOneWidget,
+      reason: 'o trazer de volta seguia armado depois que o foco saiu dele',
+    );
+    expect(it.control(2, _bringBackArmed), findsNothing);
+
+    await it.tapThe(it.control(2, _bringBack));
+    await it.settle();
+
+    expect(it.control(2, _bringBackArmed), findsOneWidget);
+    expect(
+      it.room.bringBacksAsked,
+      isEmpty,
+      reason: 'o toque seguinte trazia de volta em vez de só armar',
+    );
     await it.wait(const Duration(seconds: 7));
     semantics.dispose();
   });

@@ -1081,6 +1081,84 @@ void main() {
   );
 
   testWidgets(
+    'the sheet opens with VoiceOver on «Cena 1 — A fome em Belém», announced '
+    'as a heading, not on two mute lines of text',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      final heading = byLabel('Cena 1 — A fome em Belém');
+      expect(
+        heading,
+        findsOneWidget,
+        reason: 'o título da folha era texto mudo, sem nome para o VoiceOver',
+      );
+      final data = tester.getSemantics(heading).getSemanticsData();
+      expect(
+        data.flagsCollection.isHeader,
+        isTrue,
+        reason: 'o título não era anunciado como cabeçalho, como o h1 dela',
+      );
+      expect(
+        data.flagsCollection.isFocused,
+        Tristate.isTrue,
+        reason: 'a folha abria sem levar o VoiceOver ao seu título',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the way back closes the sheet onto the «trocar o ensaio desta cena» of the '
+    'row that opened it, where VoiceOver lands, not at the top of the plan',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      await _tapLabel(tester, _back);
+
+      final door = byLabel('$_swap — Cena 1');
+      expect(door, findsOneWidget);
+      expect(
+        tester.getSemantics(door).getSemanticsData().flagsCollection.isFocused,
+        Tristate.isTrue,
+        reason:
+            'fechada a folha, o VoiceOver caía no topo do plano, não no botão '
+            'que a abriu, como no dela',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    '«usar este» closes the sheet onto the same «trocar o ensaio desta cena», '
+    'so VoiceOver hears the row it chose for, not the top of the plan',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _seeded(tester, _threeOnSceneOne);
+      await _openThePlan(tester);
+      await _openTheSheetOf(tester, 1);
+
+      await _useThe(tester, _sent(3));
+
+      final door = byLabel('$_swap — Cena 1');
+      expect(door, findsOneWidget);
+      expect(
+        tester.getSemantics(door).getSemanticsData().flagsCollection.isFocused,
+        Tristate.isTrue,
+        reason:
+            'escolhido o ensaio, o VoiceOver caía no topo do plano, não no '
+            'botão da cena, como no dela',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
     '6. a rehearsal with an untranslated stretch reads «tradução incompleta» '
     'on its line and can still be used',
     (tester) async {

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1965 (2026-10-30: a Knot left behind is swept at launch, and one still closing when the Station moves is sent)
 date: 2026-10-06
 amends: 0050
 ---
@@ -60,3 +60,11 @@ production team's call, and it would never be spoken.
 
 A room whose only failing door is the hand never learns that it is out of reach. The next
 real door that falls takes the room out of reach.
+
+## Amendment · 2026-10-30 (ENG-1965)
+
+A failed Knot's recording stays on the tablet only until the next launch: the launch sweep
+that deletes the scene frases and listener retellings a killed app left deletes the Knots too,
+since nothing will send them. A Knot whose microphone is still closing when the Station moves,
+as when the orange dot opens the recording, is still sent, as hers is (`app/page.tsx:358-364`,
+`:412`); only a Life that ends drops it.

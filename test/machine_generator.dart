@@ -17,6 +17,7 @@ class World {
   final bool serverHoldsAWarning;
   final bool playerBusy;
   final bool micOpen;
+  final MicOwner? micOwner;
   final bool looking;
 
   const World({
@@ -25,6 +26,7 @@ class World {
     this.serverHoldsAWarning = false,
     this.playerBusy = false,
     this.micOpen = false,
+    this.micOwner,
     this.looking = false,
   });
 
@@ -43,7 +45,11 @@ class World {
         !(event is MicAnswered &&
             event.generation != theOlderGeneration &&
             event.answer != MicAnswer.started &&
-            event.because == null);
+            event.because == null &&
+            (event.answer != MicAnswer.closed ||
+                event.owner == null ||
+                event.owner == micOwner));
+    var owner = micOwner;
     var looks =
         looking &&
         event is! LookFound &&
@@ -62,8 +68,9 @@ class World {
           busy = true;
         case SilenceTheRoom() || StopTheSound():
           busy = false;
-        case OpenTheMic():
+        case OpenTheMic(owner: final opened):
           mic = true;
+          owner = opened;
         case CloseAndDiscardTheMic():
           mic = false;
         case LookAtTheSession() || LookAgain():
@@ -77,6 +84,7 @@ class World {
       callOutstanding: calling,
       playerBusy: busy,
       micOpen: mic,
+      micOwner: mic ? owner : null,
       looking: looks,
       serverHoldsAWarning: switch (event) {
         TheAnswerWarned() => true,
@@ -314,6 +322,10 @@ String describeEvent(MachineEvent event) => switch (event) {
     'TheRehearsalWeighed($everySceneHasItsPart, $everyPartIsSent)',
   TheLeftPassageReturns(:final session, :final warned) =>
     'TheLeftPassageReturns($session, warned: $warned)',
+  TheEntryWaits(:final left) =>
+    'TheEntryWaits(${left.panorama ? 'Panorama' : 'passage'} ${left.pericope}, '
+        'session: ${left.session}, said: ${left.said})',
+  TheOpenBroughtNoSession() => 'TheOpenBroughtNoSession',
 };
 
 String describeLine(Line line) => '${line.kind.name}#${line.id}';
@@ -447,6 +459,8 @@ enum EventKind {
   theWayBackTaken,
   theRehearsalWeighed,
   theLeftPassageReturns,
+  theEntryWaits,
+  theOpenBroughtNoSession,
 }
 
 EventKind kindOf(MachineEvent event) => switch (event) {
@@ -530,6 +544,8 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   TheSessionLetGo() => EventKind.theSessionLetGo,
   TheWayBackTaken() => EventKind.theWayBackTaken,
   TheLeftPassageReturns() => EventKind.theLeftPassageReturns,
+  TheEntryWaits() => EventKind.theEntryWaits,
+  TheOpenBroughtNoSession() => EventKind.theOpenBroughtNoSession,
   TheRehearsalWeighed() => EventKind.theRehearsalWeighed,
 };
 
@@ -613,7 +629,9 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.theSessionLetGo ||
   EventKind.theWayBackTaken ||
   EventKind.theRehearsalWeighed ||
-  EventKind.theLeftPassageReturns => true,
+  EventKind.theLeftPassageReturns ||
+  EventKind.theEntryWaits ||
+  EventKind.theOpenBroughtNoSession => true,
 };
 
 Source _drawASource(Random random) => switch (random.nextInt(4)) {
@@ -837,7 +855,9 @@ MachineEvent _draw(
     _servedPanoramas[random.nextInt(_servedPanoramas.length)],
   ),
   EventKind.theSceneRehearsalOpened => const TheSceneRehearsalOpened(),
-  EventKind.theSceneRehearsalLeft => const TheSceneRehearsalLeft(),
+  EventKind.theSceneRehearsalLeft => TheSceneRehearsalLeft(
+    keepsTheReply: random.nextBool(),
+  ),
   EventKind.theExternalCheckOpened => TheExternalCheckOpened(
     1 + random.nextInt(3),
   ),
@@ -859,6 +879,8 @@ MachineEvent _draw(
   ),
   EventKind.theSessionLetGo => TheSessionLetGo(_drawASession(random)),
   EventKind.theWayBackTaken => TheWayBackTaken(_drawAnEntryLeft(random)),
+  EventKind.theEntryWaits => TheEntryWaits(_drawAnEntryLeft(random)),
+  EventKind.theOpenBroughtNoSession => const TheOpenBroughtNoSession(),
   EventKind.theLeftPassageReturns => TheLeftPassageReturns(
     _drawASession(random),
     warned: world.serverHoldsAWarning,

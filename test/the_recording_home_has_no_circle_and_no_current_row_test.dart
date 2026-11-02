@@ -21,6 +21,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _cenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -46,7 +47,7 @@ void _umIpadEmPe(WidgetTester tester) {
 }
 
 SalaHarness _umaSala() =>
-    SalaHarness(filaEmMemoria: true, takesHome: aTempHome('sala-1872'))
+    SalaHarness(filaEmMemoria: true, takesHome: aTempDir('sala-1872'))
       ..room.passageScenes = _cenas;
 
 Future<ProviderContainer> _naCasaDoEnsaio(
@@ -264,6 +265,21 @@ void main() {
     },
   );
 
+  testWidgets('while a row records its line reads «gravando · m:ss» and '
+      'leaves when the take stops', (tester) async {
+    final container = await _naCasaDoEnsaio(tester, _umaSala());
+
+    await _tocar(tester, _naLinha(2, _gravar));
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.text('gravando · 0:03'), findsOneWidget);
+
+    await _tocar(tester, _naLinha(2, _parar));
+    await _guardar(tester, container, partes: 1);
+
+    expect(find.textContaining('gravando'), findsNothing);
+  });
+
   testWidgets('while one row records, another row\'s record does nothing', (
     tester,
   ) async {
@@ -358,7 +374,7 @@ void main() {
     tester,
   ) async {
     _umIpadEmPe(tester);
-    final casa = aTempHome('sala-1872-aviso');
+    final casa = aTempDir('sala-1872-aviso');
     final gravada = File('${casa.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
     final harness = _umaSala()
       ..room.serverStatus = 'needs_person'

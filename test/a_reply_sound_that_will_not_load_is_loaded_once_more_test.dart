@@ -81,7 +81,7 @@ void main() {
   test('a reply whose sound fails to load once plays about 1.5 s later and '
       'nothing else shows', () {
     fakeAsync((clock) {
-      final harness = SalaHarness(soundReload: null);
+      final harness = SalaHarness(soundReload: null)..onAFakeClock();
       ProviderContainer? container;
       unawaited(inConversa(harness).then((opened) => container = opened));
       clock.elapse(const Duration(seconds: 1));

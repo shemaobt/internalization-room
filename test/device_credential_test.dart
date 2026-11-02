@@ -16,11 +16,13 @@ import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_client.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _oneSecond = Duration(seconds: 1);
 const _quickPoll = Duration(milliseconds: 20);
@@ -162,8 +164,10 @@ ProviderContainer _tablet({
   required LinkedTeam ledger,
   HandInboxRepository? inbox,
   Duration? linkPoll,
+  TakeUploadQueue? takes,
 }) => ProviderContainer(
   overrides: [
+    if (takes != null) takeUploadQueueProvider.overrideWithValue(takes),
     roomRepositoryProvider.overrideWithValue(room),
     recordingRepositoryProvider.overrideWithValue(FakeRecorder()),
     linkedTeamProvider.overrideWithValue(ledger),
@@ -186,8 +190,7 @@ HandInboxRepository _inboxSeenBy(List<http.BaseRequest> seen) {
 }
 
 LinkedTeam _ledgerOnDisk() {
-  final home = Directory.systemTemp.createTempSync('sala-credencial');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-credencial');
   return LinkedTeam(home: () async => home, vault: FakeCredentialVault());
 }
 
@@ -206,7 +209,7 @@ void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
-    _support = Directory.systemTemp.createTempSync('sala-aparelho');
+    _support = aTempDir('sala-aparelho');
     _recording = File('${_support.path}/ensaio.m4a')
       ..writeAsBytesSync([1, 2, 3]);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -215,8 +218,6 @@ void main() {
           (call) async => _support.path,
         );
   });
-
-  tearDownAll(() => _support.deleteSync(recursive: true));
 
   group('once the tablet holds a credential', () {
     for (final entry in _everyRequest.entries) {
@@ -477,6 +478,105 @@ void main() {
     },
   );
 
+  for (final refusal in [RefusalCode.credentialTaken, RefusalCode.notFound]) {
+    test(
+      'a $refusal answer ends the tablet\'s life before the new link starts',
+      () async {
+        final ledger = await _alreadyLinked();
+        final room = FakeRoom()
+          ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+          ..refuseCredentialWith = Refused(refusal);
+        final takes = FakeTakeQueue(room: room)..sweepFails = true;
+        final home = aTempDir('sala-vida');
+        await takes.enqueue(
+          File('${home.path}/parte.m4a')..writeAsBytesSync([1]),
+          sessionId: 's',
+          kind: 'x',
+          scope: 'p',
+        );
+        final container = _tablet(room: room, ledger: ledger, takes: takes);
+        addTearDown(container.dispose);
+
+        await container.read(deviceLinkProvider.notifier).findTheTeam();
+        await settle();
+
+        expect(
+          room.codesAskedFor,
+          isEmpty,
+          reason: 'a vida antiga ainda não terminou; o vínculo novo não começa',
+        );
+
+        takes.sweepFails = false;
+        await waitFor(
+          'um código novo aparecer',
+          () => container.read(deviceLinkProvider).code != null,
+        );
+        expect(takes.rows, isEmpty);
+      },
+    );
+  }
+
+  test(
+    'a refusal that lands after the tablet was put down still forgets the link',
+    () async {
+      final ledger = await _alreadyLinked();
+      final room = FakeRoom()
+        ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialTaken)
+        ..holdingTheCredential = Completer<void>();
+      final container = _tablet(room: room, ledger: ledger);
+
+      unawaited(container.read(deviceLinkProvider.notifier).findTheTeam());
+      await waitFor(
+        'a credencial ser pedida',
+        () => room.credentialsCollected.isNotEmpty,
+      );
+      container.dispose();
+      room.holdingTheCredential!.complete();
+      await settle();
+
+      expect((await ledger.read()).team, isNull);
+    },
+  );
+
+  test(
+    'a link the room forgot while the credential was not yet ready ends the life and forgets the team',
+    () async {
+      final ledger = await _alreadyLinked();
+      final room = FakeRoom()
+        ..linkedTo = const TeamLink(projectId: 'equipe-terena')
+        ..refuseCredentialWith = const Refused(RefusalCode.credentialNotYet)
+        ..refuseLinkWith = const Refused(RefusalCode.notFound);
+      final takes = FakeTakeQueue(room: room)..sweepFails = true;
+      final home = aTempDir('sala-vida');
+      await takes.enqueue(
+        File('${home.path}/parte.m4a')..writeAsBytesSync([1]),
+        sessionId: 's',
+        kind: 'x',
+        scope: 'p',
+      );
+      final container = _tablet(
+        room: room,
+        ledger: ledger,
+        takes: takes,
+        linkPoll: _quickPoll,
+      );
+      addTearDown(container.dispose);
+
+      await container.read(deviceLinkProvider.notifier).findTheTeam();
+      await settle();
+      expect(room.codesAskedFor, isEmpty);
+
+      takes.sweepFails = false;
+      await waitFor(
+        'um código novo aparecer',
+        () => container.read(deviceLinkProvider).code != null,
+      );
+      expect(takes.rows, isEmpty);
+      expect((await ledger.read()).team, isNull);
+    },
+  );
+
   test(
     'a tablet linked before the credential existed collects one on its next start',
     () async {
@@ -651,8 +751,7 @@ void main() {
     'a revoked answer to an old credential leaves the new link alone',
     () async {
       final vault = FakeCredentialVault();
-      final home = Directory.systemTemp.createTempSync('sala-credencial');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-credencial');
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
@@ -732,8 +831,7 @@ void main() {
     'alone',
     () async {
       final vault = FakeCredentialVault();
-      final home = Directory.systemTemp.createTempSync('sala-credencial');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-credencial');
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
@@ -818,8 +916,7 @@ void main() {
     'device credential',
     () async {
       final vault = FakeCredentialVault();
-      final home = Directory.systemTemp.createTempSync('sala-credencial');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-credencial');
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
       await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
@@ -903,8 +1000,7 @@ void main() {
   test(
     'a revoked credential the vault could not keep yet is not written back',
     () async {
-      final home = Directory.systemTemp.createTempSync('sala-credencial');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-credencial');
       final vault = FakeCredentialVault()..keepUnavailable = true;
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
@@ -953,8 +1049,7 @@ void main() {
       })
     >
     tabletWithoutACredential() async {
-      final home = Directory.systemTemp.createTempSync('sala-credencial');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-credencial');
       final vault = FakeCredentialVault()..keepUnavailable = true;
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-1');
@@ -979,8 +1074,7 @@ void main() {
       })
     >
     tabletHoldingACredential() async {
-      final home = Directory.systemTemp.createTempSync('sala-credencial');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-credencial');
       final vault = FakeCredentialVault();
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       await ledger.rememberDevice('aparelho-0');
@@ -1171,8 +1265,7 @@ void main() {
       String? deviceId,
       FakeCredentialVault vault,
     ) async {
-      final home = Directory.systemTemp.createTempSync('sala-par');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-par');
       final ledger = LinkedTeam(home: () async => home, vault: vault);
       if (deviceId == null) return ledger;
       await ledger.rememberDevice(deviceId);

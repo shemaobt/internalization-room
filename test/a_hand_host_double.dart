@@ -14,7 +14,6 @@ class AHandHost implements HandHost {
   String? stationSessionId = 'sessao-1';
   bool atTheTeamsIdleTurn = true;
   bool aQuestionRecords = false;
-  int? noteOnItsWay;
 
   final List<String> written = [];
   final List<List<HandReply>> shown = [];
@@ -32,7 +31,6 @@ class AHandHost implements HandHost {
     atTheTeamsIdleTurn: atTheTeamsIdleTurn,
     aQuestionRecords: aQuestionRecords,
     oldestUnheardReply: replies.where((reply) => reply.offered).firstOrNull,
-    noteOnItsWay: noteOnItsWay,
   );
 
   @override
@@ -75,19 +73,6 @@ class AHandHost implements HandHost {
   }
 
   @override
-  void markNoteOnItsWay(int note) {
-    written.add('markNoteOnItsWay:$note');
-    noteMode = false;
-    noteOnItsWay = note;
-  }
-
-  @override
-  void clearNoteOnItsWay() {
-    written.add('clearNoteOnItsWay');
-    noteOnItsWay = null;
-  }
-
-  @override
   bool gone = false;
 
   @override
@@ -103,13 +88,10 @@ class AHandHost implements HandHost {
   int get waitOnTheGeneration => 0;
 
   @override
-  Duration get listenedFor => Duration.zero;
-
-  @override
   String stamp() => 'carimbo';
 
   @override
-  bool theGuardKeeps(String path, Duration listenedFor) => true;
+  bool theGuardKeeps(String path) => true;
 
   @override
   void dispatch(MachineEvent event) {}

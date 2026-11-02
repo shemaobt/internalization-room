@@ -48,6 +48,7 @@ class _Escutada {
 /// is left out of it: listening with no subject is evidence about no recording.
 class EscutaDasPartes {
   final Map<String, _Escutada> _partes = {};
+  final Map<String, int> _desde = {};
 
   /// Start listening to [arquivo] at [de], a position inside that file.
   void abrir(String arquivo, int de) {
@@ -77,7 +78,47 @@ class EscutaDasPartes {
     if (quanto > 0) parte.faixas.add([0, quanto]);
   }
 
-  void esquecerTudo() => _partes.clear();
+  void esquecerTudo() {
+    _partes.clear();
+    _desde.clear();
+  }
+
+  void contarDaqui() {
+    for (final entrada in _partes.entries) {
+      _desde[entrada.key] = entrada.value.faixas.length;
+    }
+  }
+
+  bool ouvidaInteira(String arquivo, int tamanho, Duration folga) =>
+      tamanho > 0 &&
+      _partes.containsKey(arquivo) &&
+      trechoOuvido(faixasOuvidas(arquivo), 0, tamanho, folga);
+
+  List<List<int>> faixasOuvidas(String arquivo) {
+    final escutada = _partes[arquivo];
+    if (escutada == null) return const [];
+    return _unidas([...escutada.faixas.skip(_desde[arquivo] ?? 0)]);
+  }
+
+  static bool trechoOuvido(
+    List<List<int>> faixas,
+    int de,
+    int ate,
+    Duration folga,
+  ) {
+    final tamanho = ate - de;
+    if (tamanho <= 0) return true;
+    var ouvido = 0;
+    for (final faixa in _unidas(faixas)) {
+      final inicio = faixa[0] < de ? de : faixa[0];
+      final fim = faixa[1] > ate ? ate : faixa[1];
+      if (fim > inicio) ouvido += fim - inicio;
+    }
+    final folgaMs = folga.inMilliseconds < tamanho ~/ 2
+        ? folga.inMilliseconds
+        : tamanho ~/ 2;
+    return tamanho - ouvido <= folgaMs;
+  }
 
   /// The report, one entry per part the team has heard something of and the room can name.
   ///

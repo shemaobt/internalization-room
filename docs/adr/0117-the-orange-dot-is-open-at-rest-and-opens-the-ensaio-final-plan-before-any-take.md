@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes)
+status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes); amended by ENG-2103 (2026-10-30: the whole-passage arm reads the room's grain only); amended by ENG-2104 (2026-10-30: the notice's «enviar agora» rests while a take of the session goes up or a join, a swap or a bring-back runs)
 date: 2026-10-22
 amends: 0014
 ---
@@ -96,3 +96,33 @@ A take sent from there that reaches the room opens the recording home of the gra
 lists it under, from the grain choice too, as her screen turns to the draft's once the draft
 holds it. A part the home words as gone or refused is not offered there, by the same rule as
 the home's rows. A take of the other grain stays on the tablet, unoffered.
+
+## Amendment · 2026-10-30 (ENG-2103)
+
+Her frozen app is the rule (João, 2026-10-26). «The whole passage in force» in ENG-1828's
+amendment is the room's grain only: hers reads `draft.grain`, the room's word, and holds no
+grain of its own (`efScreen`, ensaioFinal.ts:79 at 18fa7c4). **A grain read off the takes the
+tablet holds never decides the plan's whole-passage arm:** a whole-passage take kept only on
+the tablet, over a passage with scenes and a room naming no grain, opens the plan, as any
+passage with no take in the room does, with that take offered on top under her notice
+(ENG-1861). A grain remembered on the tablet from an earlier visit is let go when the room's
+listing names none (ADR 0134, amended by ENG-2103), so it reaches neither this arm nor the
+grain choice's.
+
+## Amendment · 2026-10-30 (ENG-2104)
+
+Her frozen app is the rule (João, 2026-10-26). Her pending notice's send is
+`disabled={sending || phaseBusy}` (Drafting.tsx:2209 at 18fa7c4): a take sending, a join, a
+swap, a bring-back, the arrival's import or a splice resume rests it; a grain switch does not
+(`grainBusy` is not in `phaseBusy`, :2132; on her grain pick :2289-2293 only the two grain
+buttons rest). **Every «… — enviar agora» the notice draws, on the plan and on the grain
+choice, rests while a part take of the session is in the air or being kept, or a join, the
+home's swap or a bring-back runs**: it is dimmed, reads as disabled to VoiceOver and takes no
+tap. The notice's own gesture (`enviarDoAviso`) refuses the phase — a join, the home's
+swap, a bring-back (`phaseBusy`) — as the plan's gestures do under `planBusy`; a take going
+up is drawn only, as her button is the whole gate. The home's Scene row keeps its own
+`enviarACena` as it was: its «falhou — toque para tentar de novo» tap under another send
+reads «enviando…» at once (0131), and nothing on the home draws that row resting during a
+swap. A grain switch leaves it as it is. The arrival's import and the splice
+have no counterpart here (0121). The refusal while a take records (ENG-2058's `ensaio ==
+recording` guard in the notifier) is not this amendment's: hers keeps the send enabled then.

@@ -58,6 +58,30 @@ class SegmentView {
   );
 }
 
+class RerecordedSentence {
+  final String takeId;
+  final int startsMs;
+  final int endsMs;
+
+  const RerecordedSentence({
+    required this.takeId,
+    required this.startsMs,
+    required this.endsMs,
+  });
+
+  static List<RerecordedSentence> listFrom(Map<String, dynamic> json) => [
+    for (final raw in (json['rerecorded_sentences'] as List? ?? const []))
+      if (raw is Map) RerecordedSentence.fromJson(raw.cast<String, dynamic>()),
+  ];
+
+  factory RerecordedSentence.fromJson(Map<String, dynamic> json) =>
+      RerecordedSentence(
+        takeId: json['take_id'] as String? ?? '',
+        startsMs: json['starts_ms'] as int? ?? 0,
+        endsMs: json['ends_ms'] as int? ?? 0,
+      );
+}
+
 /// One recording the room is holding for a session.
 ///
 /// [ordinal] is the number the server holds for the take, which is the part of the
@@ -184,18 +208,22 @@ class BackTranslationProgress {
   final bool checked;
   final String? findingSegmentId;
   final List<BtFinding> findings;
+  final BtFinding? namedNuance;
   final String? awaitingSegmentId;
   final List<SegmentView> stale;
   final List<int> bringBack;
+  final List<RerecordedSentence> rerecordedSentences;
 
   const BackTranslationProgress({
     this.segments = const [],
     this.checked = false,
     this.findingSegmentId,
     this.findings = const [],
+    this.namedNuance,
     this.awaitingSegmentId,
     this.stale = const [],
     this.bringBack = const [],
+    this.rerecordedSentences = const [],
   });
 
   factory BackTranslationProgress.fromJson(Map<String, dynamic> json) =>
@@ -204,12 +232,14 @@ class BackTranslationProgress {
         checked: json['checked'] as bool? ?? false,
         findingSegmentId: json['finding_segment_id'] as String?,
         findings: BtFinding.listFrom(json),
+        namedNuance: BtFinding.namedNuanceFrom(json),
         awaitingSegmentId: json['awaiting_segment_id'] as String?,
         stale: SegmentView.staleFrom(json),
         bringBack: [
           for (final n in json['bring_back'] as List<dynamic>? ?? const [])
             n as int,
         ],
+        rerecordedSentences: RerecordedSentence.listFrom(json),
       );
 
   bool get nothingTold => segments.isEmpty;

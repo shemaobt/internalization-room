@@ -32,6 +32,7 @@ import 'scenario_helpers.dart'
         relaunch,
         settle,
         thePersonSign;
+import 'support/temp.dart';
 
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _openEnsaioFinal = 'Abrir o Ensaio Final';
@@ -241,8 +242,7 @@ TakeView _roomPart(int n, {required int pass, String? origin}) => TakeView(
 
 /// Part 1 of the passage waits in the Outbox for a room that cannot take it.
 void _partOneWaitsInTheOutbox(SalaHarness harness) {
-  final waiting = Directory.systemTemp.createTempSync('sala-1382-fila');
-  addTearDown(() => waiting.deleteSync(recursive: true));
+  final waiting = aTempDir('sala-1382-fila');
   final audio = File('${waiting.path}/ensaio-parte-1.m4a')
     ..writeAsBytesSync([1, 2, 3, 4]);
   harness.room.unreachableTake = 'ensaio/${KeptScope.parte(1)}';
@@ -260,8 +260,7 @@ void _partOneWaitsInTheOutbox(SalaHarness harness) {
 }
 
 void _theWholeWaitsInTheOutbox(SalaHarness harness) {
-  final waiting = Directory.systemTemp.createTempSync('sala-2078-inteira');
-  addTearDown(() => waiting.deleteSync(recursive: true));
+  final waiting = aTempDir('sala-2078-inteira');
   final audio = File('${waiting.path}/ensaio-inteiro.m4a')
     ..writeAsBytesSync([1, 2, 3, 4]);
   harness.room.unreachableTake = 'ensaio/${KeptScope.whole}';
@@ -531,8 +530,7 @@ Future<_Home> _reopenOverTheWholeSetAside(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1382-inteiro');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-1382-inteiro');
   final guardadas = Directory('${home.path}/guardadas')..createSync();
   final harness = SalaHarness(takesHome: home)
     ..room.passageScenes = _threeScenes
@@ -828,8 +826,8 @@ void main() {
   );
 
   testWidgets(
-    'a touch on the dot while a sent note\'s microphone still closes does '
-    'nothing, and the note reaches the facilitator',
+    'a touch on the dot while a sent note\'s microphone still closes opens the '
+    'plan, and the note reaches the facilitator and leaves the tablet',
     (tester) async {
       final (harness, container) = await _atRest(tester);
       harness.recorder.holdNextStop();
@@ -839,94 +837,86 @@ void main() {
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
 
-      expect(container.read(salaSessionProvider).stage, SalaStage.conversa);
+      expect(
+        find.text(_planLine),
+        findsOneWidget,
+        reason: 'o toque no ponto enquanto o microfone fechava não fazia nada',
+      );
       harness.recorder.finishStop();
       await _theAnswerSettles(tester);
       expect(
         harness.inbox.questionsSent,
         hasLength(1),
-        reason:
-            'o toque no ponto enquanto o microfone fechava perdia a pergunta',
+        reason: 'a pergunta se perdeu quando o ponto mudou de tela',
+      );
+      expect(
+        harness.recorder.deleted,
+        contains(harness.recorder.lastPath),
+        reason: 'a pergunta enviada ficou no disco do tablet',
       );
     },
   );
 
   testWidgets(
-    'a touch on the dot while a second note records, the first still going '
-    'out, throws the second away and opens the plan',
+    'a scene recorded from the dot\'s home while a sent note\'s microphone '
+    'still closes keeps its take, and the note still goes out',
     (tester) async {
-      final (harness, container) = await _atRest(tester);
-      final notifier = container.read(salaSessionProvider.notifier);
-      harness.inbox.holdNextQuestion();
-      await sendANote(tester, container);
-      notifier.handTap();
-      await tester.pump(const Duration(milliseconds: 300));
-      notifier.conversaTap();
-      await _pumpUntil(
+      final (harness, container) = await _reopenedOverPartOne(
         tester,
-        () => container.read(salaSessionProvider).voice == VoiceState.listening,
+        origin: null,
       );
-      await tester.pump(const Duration(seconds: 2));
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
-      final discards = harness.sounds
-          .where((sound) => sound == 'recorder:discard')
-          .length;
-
-      await _tapTheDot(tester);
-      await _theAnswerSettles(tester);
-
-      expect(
-        find.text(_planLine),
-        findsOneWidget,
-        reason: 'o toque no ponto não fazia nada com a segunda nota gravando',
-      );
-      expect(
-        harness.sounds.where((sound) => sound == 'recorder:discard').length,
-        greaterThan(discards),
-      );
-      harness.inbox.finishHeldQuestion();
-      await _theAnswerSettles(tester);
-      expect(harness.inbox.questionsSent, hasLength(1));
-    },
-  );
-
-  testWidgets(
-    'an earlier note that reaches the facilitator while a later one\'s '
-    'microphone still closes does not free the dot\'s touch, and the later '
-    'note still goes out',
-    (tester) async {
-      final (harness, container) = await _atRest(tester);
-      harness.inbox
-        ..holdNextQuestion()
-        ..holdNextQuestion();
-      await sendANote(tester, container);
       harness.recorder.holdNextStop();
       await sendANote(tester, container);
-      harness.inbox.finishHeldQuestion();
-      await _theAnswerSettles(tester);
-      expect(harness.inbox.questionsSent, hasLength(1));
-
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
+      expect(find.text(_homeLine), findsOneWidget);
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.gravarACena(2);
+      await _theAnswerSettles(tester);
 
-      expect(
-        container.read(salaSessionProvider).stage,
-        SalaStage.conversa,
-        reason:
-            'a primeira nota, ao chegar, soltava o toque enquanto o microfone '
-            'da segunda fechava',
-      );
       harness.recorder.finishStop();
       await _theAnswerSettles(tester);
-      await _tapTheDot(tester);
+      final scene = harness.recorder.starts.last;
+      notifier.gravarACena(2);
       await _theAnswerSettles(tester);
-      expect(find.text(_planLine), findsOneWidget);
-      harness.inbox.finishHeldQuestion();
-      await _theAnswerSettles(tester);
+
       expect(
-        harness.inbox.questionsSent,
-        hasLength(2),
-        reason: 'a segunda nota se perdeu no toque do ponto',
+        harness.recorder.deleted.where((path) => path.contains(scene)),
+        isEmpty,
+        reason:
+            'o fecho da pergunta fechou o microfone da cena e o take se perdeu',
+      );
+      expect(
+        harness.recorder.starts.last,
+        scene,
+        reason: 'o toque para parar a cena abriu outro microfone',
+      );
+      expect(harness.inbox.questionsSent, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'a revocation while a sent note\'s microphone still closes sends nothing '
+    'and leaves no note on the tablet',
+    (tester) async {
+      final (harness, container) = await _atRest(tester);
+      harness.recorder.holdNextStop();
+      await sendANote(tester, container);
+      harness.room.failWith = const Refused(RefusalCode.deviceRevoked);
+      unawaited(container.read(salaSessionProvider.notifier).abrirEscolha());
+      await _pumpUntil(
+        tester,
+        () => !container.read(deviceLinkProvider).linked,
+      );
+
+      harness.recorder.finishStop();
+      await _theAnswerSettles(tester);
+
+      expect(harness.inbox.questionsSent, isEmpty);
+      expect(
+        harness.recorder.deleted,
+        contains(harness.recorder.lastPath),
+        reason: 'a pergunta de um tablet revogado ficou no disco',
       );
     },
   );
@@ -1352,8 +1342,7 @@ void main() {
         tester,
         roomTakes: const [],
         before: (harness) {
-          final waiting = Directory.systemTemp.createTempSync('sala-1861-home');
-          addTearDown(() => waiting.deleteSync(recursive: true));
+          final waiting = aTempDir('sala-1861-home');
           final audio = File('${waiting.path}/ensaio-inteiro.m4a')
             ..writeAsBytesSync([1, 2, 3, 4]);
           harness.room
@@ -1424,10 +1413,7 @@ void main() {
         tester,
         roomTakes: const [],
         before: (harness) {
-          final waiting = Directory.systemTemp.createTempSync(
-            'sala-1861-whole',
-          );
-          addTearDown(() => waiting.deleteSync(recursive: true));
+          final waiting = aTempDir('sala-1861-whole');
           final audio = File('${waiting.path}/ensaio-inteiro.m4a')
             ..writeAsBytesSync([1, 2, 3, 4]);
           harness.room

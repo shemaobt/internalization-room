@@ -194,7 +194,12 @@ void main() {
     await tocar(tester, antes);
     await tocar(tester, ouvir);
 
-    expect(harness.playback.ranges.last, endsWith('-2800'));
+    expect(
+      harness.playback.playedFrom.last,
+      s(2.8),
+      reason: 'o play tocava o trecho até a pausa movida em vez de seguir dela',
+    );
+    expect(container.read(salaSessionProvider).btCortado, isFalse);
     closeTheRoom(container);
   });
 

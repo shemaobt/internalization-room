@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -23,7 +24,8 @@ import 'package:path/path.dart' as p;
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, relaunch;
+import 'scenario_helpers.dart' show byLabel, relaunch, voiceOverFocusLeaves;
+import 'support/temp.dart';
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -228,6 +230,29 @@ class _Room {
     }
   }
 
+  Future<void> aHandTakeGivenUp(int n) async {
+    room.unreachableTake = 'ensaio/${KeptScope.parte(n)}';
+    final audio = File('${harness.takesHome.path}/a-mao-$n.m4a')
+      ..writeAsBytesSync([1, 2, 3, 4]);
+    await tester.runAsync(() async {
+      await harness.takes.enqueue(
+        audio,
+        sessionId: sessionId,
+        kind: 'ensaio',
+        scope: KeptScope.parte(n),
+        passNumber: 1,
+        chunkIndex: n,
+      );
+      while (!(await harness.takes.entries()).any(
+        (row) => row.scope == KeptScope.parte(n) && row.exhausted,
+      )) {
+        await harness.takes.flush();
+      }
+    });
+    unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+    await settle();
+  }
+
   Future<void> openThePlan() async {
     await tester.tap(_dot);
     await until(
@@ -358,6 +383,19 @@ class _Room {
       .flagsCollection
       .isSelected;
 
+  bool focused(Finder target) =>
+      tester
+          .getSemantics(target)
+          .getSemanticsData()
+          .flagsCollection
+          .isFocused ==
+      Tristate.isTrue;
+
+  List<String?> focusedLabels() => [
+    for (final node in tester.semantics.simulatedAccessibilityTraversal())
+      if (node.flagsCollection.isFocused == Tristate.isTrue) node.label,
+  ];
+
   bool enabled(Finder target) =>
       tester
           .getSemantics(target)
@@ -487,7 +525,7 @@ Future<_Room> _atRest(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = aTempHome('sala-1407-troca');
+  final home = aTempDir('sala-1407-troca');
   final harness = SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
@@ -587,6 +625,128 @@ void main() {
       await it.openTheSheet(2, _swap);
       expect(it.onLine(s2b, find.text(_inUse)), findsOneWidget);
       expect(it.use(s2a), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'the way back closes the home sheet onto the «trocar o ensaio desta cena» '
+    'of the row that opened it, where VoiceOver lands, not at the top of the home',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      await it.tapThe(byLabel(_back));
+      await it.until('a casa voltar', it.showsTheHome);
+      await it.settle();
+
+      expect(it.door(2, _swap), findsOneWidget);
+      expect(
+        it.focused(it.door(2, _swap)),
+        isTrue,
+        reason:
+            'fechada a folha, o VoiceOver caía no topo da casa, não no botão '
+            'que a abriu, como no dela',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a swap that lands closes the sheet onto the door of its row, now reading '
+    '«trocar o ensaio desta cena», where VoiceOver lands',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+
+      await it.openTheSheet(2, _swap);
+      await it.swapIn(s2b);
+      await it.swapLands();
+
+      expect(it.door(2, _swap), findsOneWidget);
+      expect(
+        it.focused(it.door(2, _swap)),
+        isTrue,
+        reason:
+            'a troca fechava a folha e deixava o VoiceOver no topo da casa, '
+            'não no botão da cena trocada, como no dela',
+      );
+      for (final n in [1, 3]) {
+        expect(it.door(n, _swap), findsNothing, reason: 'cena $n');
+      }
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'a row whose only rehearsal becomes its part has no door left when the '
+    'sheet closes, and nothing on the home is focused or thrown',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.list(const [s3a], sent: false);
+      await it.joined(
+        listed: const [s1a, s2a, s2b],
+        onTheTablet: const [s1a, s2a, s2b, s3a],
+      );
+
+      await it.openTheSheet(3, _useScene);
+      await it.tapThe(it.useUnsent(s3a));
+      await it.swapLands();
+
+      expect(it.door(3, _useScene), findsNothing);
+      expect(it.door(3, _swap), findsNothing);
+      expect(
+        it.focusedLabels(),
+        isEmpty,
+        reason: 'sem botão para voltar, o foco não é pedido a ninguém',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'an armed «usar este» is announced as pressed, and at rest as not '
+    'pressed, as her aria-pressed',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.joined();
+      await it.openTheSheet(2, _swap);
+
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: false),
+        reason: '«usar este» em repouso não carregava o estado de pressionado',
+      );
+      await it.tapThe(it.use(s2b));
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: true),
+        reason:
+            'armado, «usar este» só mudava de cor: o VoiceOver não ouvia o '
+            'primeiro toque armar',
+      );
+      expect(
+        it.enabled(it.use(s2b)),
+        isFalse,
+        reason: 'acordando, desabilitado',
+      );
+      await it.wait(const Duration(seconds: 1));
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: true),
+        reason: 'acordado, segue pressionado até o segundo toque',
+      );
+      await it.wait(const Duration(seconds: 7));
+      expect(
+        tester.getSemantics(it.use(s2b)),
+        isSemantics(hasToggledState: true, isToggled: false),
+        reason: 'caducado, volta a não pressionado',
+      );
       semantics.dispose();
     },
   );
@@ -839,6 +999,45 @@ void main() {
         await it.wait(const Duration(seconds: 7));
         expect(it.received(2), hasLength(before));
         expect(it.use(s2b), findsOneWidget, reason: 'o toque armado caducou');
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'VoiceOver focus leaving the armed «usar este» disarms it, and the next '
+      'tap only arms',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        await it.joined(listed: const [s1a, s2a, s3a, s2b, s2c]);
+        it.room.approvedDraft = const ApprovedDraft(version: 1);
+        await it.relaunchOnTheHome();
+        final before = it.received(2).length;
+        await it.openTheSheet(2, _swap);
+        await it.tapThe(it.use(s2b));
+        await it.wait(const Duration(seconds: 1));
+        expect(it.use(s2b, _reopenArmed), findsOneWidget);
+
+        voiceOverFocusLeaves(tester, it.use(s2b, _reopenArmed));
+        await it.wait(const Duration(milliseconds: 100));
+
+        expect(
+          it.use(s2b),
+          findsOneWidget,
+          reason: 'o usar este seguia armado depois que o foco saiu dele',
+        );
+        expect(it.use(s2b, _reopenArmed), findsNothing);
+
+        await it.tapThe(it.use(s2b));
+        await it.wait(const Duration(seconds: 1));
+
+        expect(it.use(s2b, _reopenArmed), findsOneWidget);
+        expect(
+          it.received(2),
+          hasLength(before),
+          reason: 'o toque seguinte trocava o ensaio em vez de só armar',
+        );
+        await it.wait(const Duration(seconds: 7));
         semantics.dispose();
       },
     );
@@ -1401,6 +1600,51 @@ void main() {
     },
   );
 
+  testWidgets('a late swap is adopted though a take of another scene went up '
+      'while the room was asked', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+
+    await it.openTheSheet(2, _swap);
+    it.holdTheTake('parte-2');
+    await it.swapIn(s2b);
+    await it.theHeldTakeArrives();
+    await it.wait(const Duration(seconds: 71));
+    expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+    await it.tapThe(byLabel(_back));
+    await it.settle();
+
+    it.room.holdNextTakesList();
+    it.room.finishHeldTake();
+    await it.until('a fila perguntar à sala', () => it.room.aTakesListIsHeld);
+    it.room.holdNextTakesList();
+    it.room.finishHeldTakesList();
+    await it.until('a troca perguntar à sala', () => it.room.aTakesListIsHeld);
+
+    it.holdTheTake('parte-3');
+    await it.recordAgainAndKeep(3);
+    await it.theHeldTakeArrives();
+    final before = it.container.read(salaSessionProvider);
+    expect(before.homeBusy, isTrue, reason: 'a take of scene 3 is in the air');
+
+    it.room.finishHeldTakesList();
+    await it.settle();
+    await it.wait(const Duration(seconds: 2));
+
+    expect(it.takesOf(2).last.origin, it.idOf(s2b));
+    final after = it.container.read(salaSessionProvider);
+    final index = after.partIndexOf(2)!;
+    expect(
+      after.partes[index].origin,
+      it.idOf(s2b),
+      reason: 'the room holds the swap; the tablet kept the old part',
+    );
+    it.room.finishHeldTake();
+    await it.settle();
+    semantics.dispose();
+  });
+
   testWidgets(
     'a swap answered after the team recorded the scene by hand leaves the hand '
     'take the part',
@@ -1648,6 +1892,45 @@ void main() {
     },
   );
 
+  testWidgets('while a take is in the air, a row\'s sheet door opens nothing', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+    it.holdTheTake('parte-1');
+    await it.recordAgainAndKeep(1);
+    await it.theHeldTakeArrives();
+
+    await it.tapThe(it.door(2, _swap));
+    await it.wait(const Duration(seconds: 1));
+
+    expect(
+      it.showsTheSheet(),
+      isFalse,
+      reason: 'a porta da folha abria com uma gravação no ar',
+    );
+    it.room.finishHeldTake();
+    await it.settle();
+    semantics.dispose();
+  });
+
+  test('the home rests while anything of her noRec or grainBusy runs', () {
+    const rests = <String, SalaSessionState>{
+      'a take records': SalaSessionState(ensaio: EnsaioStatus.recording),
+      'a take is kept': SalaSessionState(ensaio: EnsaioStatus.recorded),
+      'a swap runs': SalaSessionState(swapping: 'ensaio-2'),
+      'a bring-back runs': SalaSessionState(bringingBack: 2),
+      'a join runs': SalaSessionState(joining: 1),
+      'a grain switch runs': SalaSessionState(grainSwitching: true),
+    };
+    for (final MapEntry(:key, :value) in rests.entries) {
+      expect(value.homeBusy, isTrue, reason: key);
+      expect(value.homeBusy, value.nothingStartsNow, reason: key);
+    }
+    expect(const SalaSessionState().homeBusy, isFalse);
+  });
+
   testWidgets('while a swap runs nothing else starts', (tester) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);
@@ -1702,46 +1985,41 @@ void main() {
     },
   );
 
-  testWidgets(
-    'while a bring-back runs, «gravar esta cena de novo» on the home\'s sheet '
-    'opens nothing',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      final it = await _atRest(tester);
-      await it.joined();
-      it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
-      final notifier = it.container.read(salaSessionProvider.notifier);
-      notifier.goEnsaio();
-      await it.until(
-        'a casa oferecer a volta das traduções',
-        () => it.door(2, _bringBack).evaluate().isNotEmpty,
-      );
-      it.room.holdBringBack();
-      await it.tapThe(it.door(2, _bringBack));
-      await it.wait(const Duration(milliseconds: 700));
-      await it.tapThe(it.door(2, _bringBackArmed));
-      await it.until(
-        'a volta das traduções ficar no ar',
-        () => it.container.read(salaSessionProvider).bringingBack == 2,
-      );
+  testWidgets('while a bring-back runs, the home\'s sheet opens nothing', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+    it.room.retroSoFar = const BackTranslationProgress(bringBack: [2]);
+    final notifier = it.container.read(salaSessionProvider.notifier);
+    notifier.goEnsaio();
+    await it.until(
+      'a casa oferecer a volta das traduções',
+      () => it.door(2, _bringBack).evaluate().isNotEmpty,
+    );
+    it.room.holdBringBack();
+    await it.tapThe(it.door(2, _bringBack));
+    await it.wait(const Duration(milliseconds: 700));
+    await it.tapThe(it.door(2, _bringBackArmed));
+    await it.until(
+      'a volta das traduções ficar no ar',
+      () => it.container.read(salaSessionProvider).bringingBack == 2,
+    );
 
-      notifier.openTheHomeSheet(2);
-      await it.until('a folha da cena 2 abrir', it.showsTheSheet);
-      await it.tapThe(find.text(_recordAgain));
-      await it.wait(const Duration(seconds: 1));
+    notifier.openTheHomeSheet(2);
+    await it.wait(const Duration(seconds: 1));
 
-      expect(
-        byLabel(_question),
-        findsNothing,
-        reason: 'a volta das traduções no ar ainda deixava sair para gravar',
-      );
-      expect(it.showsTheSheet(), isTrue);
+    expect(
+      it.showsTheSheet(),
+      isFalse,
+      reason: 'a volta das traduções no ar ainda deixava abrir a folha',
+    );
 
-      it.room.finishHeldBringBack();
-      await it.settle();
-      semantics.dispose();
-    },
-  );
+    it.room.finishHeldBringBack();
+    await it.settle();
+    semantics.dispose();
+  });
 
   testWidgets(
     'while a Rehearsal swap is in the air on the home, «gravar esta cena de '
@@ -2140,6 +2418,41 @@ void main() {
         it.pressed(it.listen(s2b)),
         Tristate.isFalse,
         reason: 'e a folha voltava em pausa sobre o silêncio',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "the home row's send asked of the notifier while a swap runs still sends "
+    'its part, as before',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.aHandTakeGivenUp(3);
+      await it.joined(listed: const [s1a, s2a, s2b]);
+      expect(it.received(3), isEmpty);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-2');
+      await it.openTheSheet(2, _swap);
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+
+      it.container.read(salaSessionProvider.notifier).enviarACena(3);
+      await it.beat();
+      it.room.finishHeldTake();
+      await it.swapLands();
+      await it.until(
+        'a parte 3 chegar pelo toque da linha',
+        () => it.received(3).isNotEmpty,
+      );
+
+      expect(
+        it.received(3),
+        isNotEmpty,
+        reason:
+            'o toque da linha 3 na casa, no meio de uma troca, deixava de mandar '
+            'a parte, e nada na casa desenhava a linha em repouso',
       );
       semantics.dispose();
     },

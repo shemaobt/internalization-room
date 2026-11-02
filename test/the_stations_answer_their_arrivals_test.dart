@@ -428,6 +428,54 @@ void main() {
     expect(effects, isEmpty);
   });
 
+  test('the way back from the Scene rehearsal carries the turn in flight and '
+      'its look to the Canvas', () {
+    for (final sending in [
+      _at(const SceneRehearsal()).copyWith(inFlight: _aGivenUpTurn),
+      _lookingAt(_at(const SceneRehearsal())),
+    ]) {
+      final (machine, _) = reduce(sending, const TheSceneRehearsalLeft());
+
+      expect(machine.station, isA<Canvas>());
+      expect(machine.generation, _generation);
+      expect(machine.inFlight, sending.inFlight);
+      expect(machine.look, sending.look);
+    }
+  });
+
+  test('the scene screen closing over its reply keeps the generation, and a '
+      'halt raised during the flash lands at the close and silences the line, '
+      'as any halt on the Canvas', () {
+    const reply = Line(LineKind.guide, 1, url: '/voice/resposta');
+    final (flashing, _) = reduce(
+      _at(const SceneRehearsal()).copyWith(channel: const GuideSpeaking(reply)),
+      const RoomRaisedAHalt(),
+    );
+
+    final (closed, _) = reduce(
+      flashing,
+      const TheSceneRehearsalLeft(keepsTheReply: true),
+    );
+
+    expect(closed.station, isA<Canvas>());
+    expect(closed.generation, _generation);
+    expect(closed.halt, isA<Blocking>());
+    expect(closed.channel, isA<Silence>());
+  });
+
+  test('the scene screen closing over its reply with no halt keeps the line '
+      'playing', () {
+    const reply = Line(LineKind.guide, 1, url: '/voice/resposta');
+
+    final (closed, _) = reduce(
+      _at(const SceneRehearsal()).copyWith(channel: const GuideSpeaking(reply)),
+      const TheSceneRehearsalLeft(keepsTheReply: true),
+    );
+
+    expect(closed.generation, _generation);
+    expect(closed.channel, isA<GuideSpeaking>());
+  });
+
   test('the sign held on the scene screen shows when the team is back on the '
       'Canvas', () {
     final (held, heldEffects) = reduce(

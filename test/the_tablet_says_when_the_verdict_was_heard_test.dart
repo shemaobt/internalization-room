@@ -188,8 +188,8 @@ void main() {
     },
   );
 
-  test('a verdict whose first load fails and whose reload plays is reported '
-      'heard once', () async {
+  test('a verdict whose load fails is not loaded again, and is never reported '
+      'heard', () async {
     final harness = SalaHarness();
     harness.voice.failsToLoad[falaDoVeredito] = 1;
     final (_, notifier) = await _inConversa(harness);
@@ -199,9 +199,11 @@ void main() {
 
     expect(
       harness.voice.played.where((url) => url == falaDoVeredito),
-      hasLength(2),
+      hasLength(1),
+      reason:
+          'o veredito era carregado de novo 1,5 s depois; o dela toca uma vez',
     );
-    expect(harness.room.heardStamps, [_stamp]);
+    expect(harness.room.heardStamps, isEmpty);
   });
 
   test('a verdict the player fails on is never reported heard', () async {

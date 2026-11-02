@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -29,6 +28,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
 const _soOuvirEn =
@@ -298,7 +298,7 @@ Future<(SalaHarness, ProviderContainer)> _naConversaComTresCenas(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1408-junta');
+  final home = aTempDir('sala-1408-junta');
   final harness = SalaHarness(takesHome: home)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = const Moment(
@@ -1154,6 +1154,47 @@ void main() {
     expect(it.estado.needsPerson, isFalse);
   });
 
+  test('an automatic check whose verdict will not sound leaves her «não deu '
+      'para conferir» on the telling and calls nobody', () async {
+    final it = await _juntadaNaCasa();
+    _frasesTrazidas(it);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    var conferiu = false;
+    it.harness.voice.refuses.add(falaDoVeredito);
+    it.harness.room
+      ..listeningAutomaticCheck = true
+      ..listeningFixedLine = 'N1'
+      ..duranteOVeredito = () => conferiu = true;
+
+    await _ouvirAte(it, desde: 2);
+    await waitFor(
+      'a conferência sozinha voltar',
+      () =>
+          conferiu &&
+          !it.estado.btConferindo &&
+          it.estado.btPhase != BtPhase.thinking,
+    );
+    await settle();
+
+    expect(
+      it.estado.btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason:
+          'a conferência sozinha cujo veredito não soava deixava a tela sem '
+          'linha e uma chamada por pessoa esperando a conversa',
+    );
+    expect(
+      it.harness.voice.played.where((url) => url == falaDoVeredito),
+      hasLength(1),
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
+    expect(it.estado.machine.aHaltWaitsForTheCanvas, isNull);
+    expect(it.estado.needsPerson, isFalse);
+  });
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();
@@ -1383,7 +1424,8 @@ void main() {
   );
 
   testWidgets(
-    'a part that fails to play says so, calls nobody, and the next tap plays it',
+    'a part that fails to play says so, calls nobody, and the next tap plays it '
+    'under the same line',
     (tester) async {
       final it = await _naTela(tester, _juntadaNaCasa);
       await _ate(tester, () async {
@@ -1405,7 +1447,7 @@ void main() {
         ),
       );
 
-      expect(find.text(_naoDeuParaConferir), findsNothing);
+      expect(find.text(_naoDeuParaConferir), findsOneWidget);
       expect(it.harness.playback.played.last, it.partes[0].path);
       closeTheRoom(it.container);
     },
@@ -1565,6 +1607,31 @@ void main() {
         microfones,
         reason: 'só ouvir: microfone fechado',
       );
+    },
+  );
+
+  test(
+    'on entry, a recording no join touched whose unheard list names only takes from another tablet starts the listen with P0 and the whole passage',
+    () async {
+      final it = await umEnsaioDeTresPartesGravado();
+      it.harness.room.listeningUnheardTakeIds = const ['de-outro-tablet'];
+      final linhas = it.harness.voice.fixedLines.length;
+      final tocadas = it.harness.playback.played.length;
+      final desde = it.harness.playback.playedFrom.length;
+
+      await _oDisco(it);
+      expect(it.harness.voice.fixedLines.skip(linhas), [('P0', testLanguage)]);
+      await _ouvirAte(it);
+
+      expect(
+        it.harness.playback.played.skip(tocadas),
+        _caminhos(it, [0, 1, 2]),
+      );
+      expect(it.harness.playback.playedFrom.skip(desde), [
+        Duration.zero,
+        Duration.zero,
+        Duration.zero,
+      ]);
     },
   );
 

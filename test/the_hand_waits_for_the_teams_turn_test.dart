@@ -365,6 +365,44 @@ void main() {
     }
   });
 
+  testWidgets('While a question uploads a tap on the circle does nothing, and '
+      'once it lands the circle opens the turn\'s microphone', (tester) async {
+    final room = await _inConversa(tester);
+    room.sala.handTap();
+    await room.beat();
+    room.sala.conversaTap();
+    await room.until(
+      'a pergunta abrir o microfone',
+      () => room.estado.voice == VoiceState.listening,
+    );
+    room.harness.inbox.holdNextQuestion();
+    room.sala.conversaTap();
+    await room.until(
+      'o microfone fechar',
+      () => room.estado.voice != VoiceState.listening,
+    );
+    await room.beat(1400);
+    final starts = room.harness.recorder.starts.length;
+
+    room.sala.conversaTap();
+    await room.beat(600);
+
+    expect(room.harness.recorder.starts.length, starts);
+    expect(room.estado.voice, VoiceState.invite);
+
+    room.harness.inbox.finishHeldQuestion();
+    await room.until(
+      'a pergunta chegar',
+      () => room.harness.inbox.questionsSent.isNotEmpty,
+    );
+    await room.beat(600);
+    room.sala.conversaTap();
+    await room.until(
+      'o microfone do turno abrir',
+      () => room.estado.voice == VoiceState.listening,
+    );
+  });
+
   testWidgets('After a Knot is sent the hand looks exactly as it did before', (
     tester,
   ) async {
@@ -556,6 +594,53 @@ void main() {
     );
   });
 
+  testWidgets(
+    'While a reply plays that the desk no longer lists as unheard the hand is '
+    'named for a question, not for the reply',
+    (tester) async {
+      final room = await _inConversaWithAReply(tester);
+      room.harness.voice.holdNextLine();
+      room.sala.handTap();
+      await room.until(
+        'a resposta tocar',
+        () => room.estado.playingReplyId != null,
+      );
+      room.harness.inbox.replies = const [];
+      room.sala.lookForReplies();
+      await room.until('a lista esvaziar', () => !room.estado.hasUnheardReply);
+
+      expect(room.estado.playingReplyId, isNotNull);
+      expect(room.handLabel, _raise);
+      room.harness.voice.finishHeldLine();
+    },
+  );
+
+  testWidgets(
+    'A tap on the hand while a sent question is still going out arms nothing',
+    (tester) async {
+      final room = await _inConversa(tester);
+      room.harness.inbox.holdNextQuestion();
+      room.sala.handTap();
+      await room.beat(300);
+      room.sala.conversaTap();
+      await room.until(
+        'o microfone abrir',
+        () => room.estado.voice == VoiceState.listening,
+      );
+      await room.beat(2000);
+      room.sala.conversaTap();
+      await room.beat(300);
+
+      room.sala.handTap();
+      await room.beat(300);
+
+      expect(room.estado.noteMode, isFalse);
+      room.harness.inbox.finishHeldQuestion();
+      await room.beat(300);
+      expect(room.harness.inbox.questionsSent, hasLength(1));
+    },
+  );
+
   testWidgets('While a reply plays the hand stays drawn', (tester) async {
     final room = await _inConversa(
       tester,
@@ -655,36 +740,40 @@ void main() {
     },
   );
 
-  testWidgets(
-    'A Knot stopped before the guard\'s duration is dropped even when the '
-    'recorder is slow to stop',
-    (tester) async {
-      final room = await _inConversa(
-        tester,
-        SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
-      );
-      room.sala.handTap();
-      await room.beat();
-      room.sala.conversaTap();
-      await room.until(
-        'a pergunta abrir o microfone',
-        () => room.estado.voice == VoiceState.listening,
-      );
-      await room.beat(450);
-      room.harness.recorder.holdNextStop();
-      room.sala.conversaTap();
-      await room.beat(300);
-      room.harness.recorder.finishStop();
-      await room.until(
-        'o microfone fechar',
-        () => room.harness.recorder.lastPath != null,
-      );
-      await room.beat(300);
+  testWidgets('A Knot stopped before the guard\'s window is sent even when the '
+      'recorder is slow to stop: a question is held to no time floor', (
+    tester,
+  ) async {
+    final room = await _inConversa(
+      tester,
+      SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
+    );
+    room.sala.handTap();
+    await room.beat();
+    room.sala.conversaTap();
+    await room.until(
+      'a pergunta abrir o microfone',
+      () => room.estado.voice == VoiceState.listening,
+    );
+    await room.beat(450);
+    room.harness.recorder.holdNextStop();
+    room.sala.conversaTap();
+    await room.beat(300);
+    room.harness.recorder.finishStop();
+    await room.until(
+      'a pergunta chegar à mesa',
+      () => room.harness.inbox.questionsSent.isNotEmpty,
+    );
 
-      expect(room.harness.inbox.questionsSent, isEmpty);
-      expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
-    },
-  );
+    expect(
+      room.harness.inbox.questionsSent,
+      ['sessao-1'],
+      reason:
+          'uma pergunta parada antes dos 0,7 s era apagada; a dela só cai '
+          'abaixo de 800 bytes',
+    );
+    expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
+  });
 
   testWidgets(
     'a Panorama the room could not open leaves the team on the Choice, with no '

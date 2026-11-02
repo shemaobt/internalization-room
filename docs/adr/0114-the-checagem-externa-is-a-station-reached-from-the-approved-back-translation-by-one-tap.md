@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0166
 date: 2026-10-23
 amends: 0014 (her Checagem externa screen is a named exception)
 ---
