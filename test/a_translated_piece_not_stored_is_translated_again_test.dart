@@ -7,13 +7,12 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:path/path.dart' as p;
 
-import 'a_parte_da_volta_ganha_nome_test.dart' show gravarSemEsperarNome;
+import 'a_parte_da_volta_ganha_nome_test.dart' show pousarComOAppFechado;
 import 'a_scene_room.dart';
 import 'a_wav_take.dart';
 import 'an_empty_telling_keeps_the_pause_and_shows_her_line_test.dart'
@@ -336,9 +335,7 @@ void main() {
     () async {
       final antes = SalaHarness();
       final primeira = await aRetomadaNoEnsaio(antes, traduzidasAte: [30000]);
-      antes.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
-      await gravarSemEsperarNome(primeira, 2);
-      await settle();
+      await pousarComOAppFechado(antes, primeira, 2);
       final (harness, container) = await relaunch(antes, primeira);
       final notifier = container.read(salaSessionProvider.notifier);
       await notifier.openTheRoom();
@@ -355,12 +352,6 @@ void main() {
             container.read(salaSessionProvider).stage == SalaStage.ensaio &&
             container.read(salaSessionProvider).keptTakes.length == 2,
       );
-      await waitFor(
-        'a contagem do Outbox ver a parte 2',
-        () => container.read(salaSessionProvider).unsentParts.containsKey(2),
-      );
-      harness.room.unreachableTake = null;
-      notifier.enviarACena(2);
       await waitFor(
         'a parte 2 chegar à sala',
         () => container.read(salaSessionProvider).everyPartIsSent,

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
@@ -26,6 +27,32 @@ Future<void> gravarSemEsperarNome(ProviderContainer container, int cena) async {
     () => container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
   );
   notifier.takeKeep();
+}
+
+/// Part [cena] recorded and its send held, the app closed, and the send landing with the
+/// app closed while the room's listing fails: it comes back nameless and off the
+/// Outbox (ADR 0163).
+Future<void> pousarComOAppFechado(
+  SalaHarness harness,
+  ProviderContainer container,
+  int cena,
+) async {
+  final scope = KeptScope.parte(cena);
+  harness.room.holdNextTake(scope);
+  await gravarSemEsperarNome(container, cena);
+  await harness.room.untilTakeHeld().timeout(const Duration(seconds: 10));
+  container.dispose();
+  harness.room
+    ..failTakesWith = const NetworkFailed('sem rede')
+    ..finishHeldTake();
+  await waitFor(
+    'a parte $cena chegar à sala com o app fechado',
+    () => harness.room.takesKept.contains('ensaio/$scope'),
+  );
+  await harness.takes.writingEnds();
+  for (final row in await harness.takes.pending()) {
+    if (row.scope == scope) await harness.takes.withdraw(row);
+  }
 }
 
 void main() {
@@ -187,9 +214,7 @@ void main() {
 
     final t3take = await gravarMaisUmaParte(daVolta, 3);
 
-    antes.room.unreachableTake = 'ensaio/${KeptScope.parte(4)}';
-    await gravarSemEsperarNome(daVolta, 4);
-    await settle();
+    await pousarComOAppFechado(antes, daVolta, 4);
     final (harness, container) = await relaunch(antes, daVolta);
     final notifier = container.read(salaSessionProvider.notifier);
     await notifier.abrirEscolha();
@@ -206,12 +231,6 @@ void main() {
           container.read(salaSessionProvider).stage == SalaStage.ensaio &&
           container.read(salaSessionProvider).keptTakes.length == 4,
     );
-    await waitFor(
-      'a contagem do Outbox ver a parte 4',
-      () => container.read(salaSessionProvider).unsentParts.containsKey(4),
-    );
-    harness.room.unreachableTake = null;
-    notifier.enviarACena(4);
     await waitFor(
       'a parte 4 chegar à sala',
       () => container.read(salaSessionProvider).everyPartIsSent,
