@@ -1468,7 +1468,12 @@ class SalaSessionState {
 
   bool _btCadaFraseNovaOuvida(int parte) {
     final take = partes[parte];
-    final ouvido = btFaixasOuvidasAqui[take.path] ?? const <List<int>>[];
+    final ouvido = [
+      ...?btFaixasOuvidasAqui[take.path],
+      for (final trecho in btTrechos)
+        if (trecho.parte == parte && trecho.contado)
+          [trecho.lugarFrom.inMilliseconds, trecho.lugarTo.inMilliseconds],
+    ];
     return btFrasesNovas.every(
       (frase) =>
           frase.takeId != take.takeId ||
