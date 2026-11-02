@@ -158,7 +158,7 @@ void main() {
   });
 
   test('a tap on the Panorama\'s circle after its line could not be played '
-      'asks the opening again in the same session', () async {
+      'opens the team\'s microphone and asks no opening', () async {
     final harness = SalaHarness()..room.passages = _theBook;
     harness.voice.succeeds = false;
     final container = harness.container();
@@ -175,22 +175,15 @@ void main() {
 
     notifier.panoramaTap();
     await waitFor(
-      'the opening to be asked again',
-      () => harness.room.sessionsSpokenTo.length == 2,
+      'the microphone to open',
+      () => read().voice == VoiceState.listening,
     );
 
-    expect(
-      harness.room.sessionsSpokenTo,
-      everyElement(harness.room.sessionIds.single),
-    );
-    expect(
-      harness.room.calls.where((call) => call == 'createSession'),
-      hasLength(1),
-    );
+    expect(harness.room.turnIdsAsked, hasLength(1));
   });
 
-  test('a refused Panorama opening rests with no sign, and the circle asks it '
-      'again', () async {
+  test('a refused Panorama opening rests with no sign, and the circle opens '
+      'the team\'s microphone', () async {
     final harness = SalaHarness()
       ..room.passages = _theBook
       ..room.failHeldTurnWith = const Refused('BAD_REQUEST');
@@ -209,15 +202,111 @@ void main() {
 
     notifier.panoramaTap();
     await waitFor(
-      'the opening to be asked again',
-      () => harness.room.turnIdsAsked.length == 2,
+      'the microphone to open',
+      () => read().voice == VoiceState.listening,
     );
 
-    expect(read().station, isA<Panorama>());
+    expect(read().needsPerson, isFalse);
+    expect(harness.room.turnIdsAsked, hasLength(1));
+  });
+
+  test('the team\'s turn recorded before the Panorama\'s line played goes to '
+      'the Panorama\'s session and its reply is said', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    harness.voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the opening to end unsaid',
+      () =>
+          harness.room.sessionsSpokenTo.isNotEmpty &&
+          read().voice == VoiceState.invite,
+    );
+    harness.voice.succeeds = true;
+
+    notifier.panoramaTap();
+    await waitFor(
+      'the microphone to open',
+      () => read().voice == VoiceState.listening,
+    );
+    await settle();
+    notifier.panoramaTap();
+    await waitFor(
+      'the reply to be said',
+      () => read().panoramaSaid && read().voice == VoiceState.invite,
+    );
+
+    expect(harness.room.turnIdsSent, hasLength(1));
+    expect(harness.room.sessionsSpokenTo.last, harness.room.sessionIds.single);
     expect(
       harness.room.calls.where((call) => call == 'createSession'),
       hasLength(1),
     );
+  });
+
+  test('no tap on the Panorama\'s circle asks its opening again', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    harness.voice.succeeds = false;
+    final container = harness.container();
+    addTearDown(container.dispose);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the opening to end unsaid',
+      () =>
+          harness.room.sessionsSpokenTo.isNotEmpty &&
+          read().voice == VoiceState.invite,
+    );
+    harness.voice.succeeds = true;
+
+    notifier.panoramaTap();
+    await waitFor(
+      'the microphone to open',
+      () => read().voice == VoiceState.listening,
+    );
+    await settle();
+    notifier.panoramaTap();
+    await waitFor(
+      'the reply to be said',
+      () => read().panoramaSaid && read().voice == VoiceState.invite,
+    );
+    notifier.panoramaTap();
+    await waitFor(
+      'the microphone to open again',
+      () => read().voice == VoiceState.listening,
+    );
+
+    expect(harness.room.turnIdsAsked, hasLength(1));
+  });
+
+  test('a tap on the Panorama\'s circle while its opening is in flight opens '
+      'no microphone and asks nothing', () async {
+    final harness = SalaHarness()..room.passages = _theBook;
+    harness.room.holdNextTurn();
+    final container = harness.container();
+    addTearDown(() {
+      harness.room.finishHeldTurn();
+      container.dispose();
+    });
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    await enterThePanorama(notifier, read);
+    await waitFor(
+      'the opening to be in the air',
+      () =>
+          harness.room.turnIdsAsked.isNotEmpty &&
+          read().voice == VoiceState.thinking,
+    );
+
+    notifier.panoramaTap();
+    await settle();
+
+    expect(read().voice, VoiceState.thinking);
+    expect(harness.room.turnIdsAsked, hasLength(1));
   });
 
   testWidgets('the team can leave the Panorama for the passage choice', (

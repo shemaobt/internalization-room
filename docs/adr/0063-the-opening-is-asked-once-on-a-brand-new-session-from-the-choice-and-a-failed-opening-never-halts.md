@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320); amended by 0097 (ENG-1372: the say-it-again carries a turn id and is looked at; an Opening found after a wait rests silent); amended by 0106, 0152
+status: accepted, amended by the one-reply Opening (2026-10-12: the Opening is her single reply, with no two-movement script; ENG-1303, shema-api #712, this app's #320); amended by 0097 (ENG-1372: the say-it-again carries a turn id and is looked at; an Opening found after a wait rests silent); amended by 0106, 0152; amended by ENG-1902 (2026-11-02: the Panorama's circle records the team's turn before its line plays and never asks the Opening, as hers)
 date: 2026-10-07
 amends: 0053, 0048 (in part: the halt over an opening and the lift's re-ask), 0044 (in part: what a lift replays over an opening)
 ---
@@ -79,3 +79,11 @@ no line on the tablet; the room says its last line as it built it for a team wal
 - A tablet mid-halt over an Opening at the upgrade lifts with nothing asked; the next open
   from the Choice asks.
 - A reload never asks an Opening: only the Choice's door does.
+
+## Amendment · 2026-11-02 (ENG-1902)
+
+The bullet «…and its circle still asks it again before its line plays» no longer holds. As on a
+passage after a quiet failure, a tap on the Panorama's circle at the invite records a team turn,
+whether or not the Opening played. The Opening is asked only from the Choice's door, by the way
+back, and by ADR 0152's one reload, never by a tap. Her app does the same: at the invite the
+circle always starts the team's recording (`app/page.tsx:876-893`).

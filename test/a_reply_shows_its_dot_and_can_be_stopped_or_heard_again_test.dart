@@ -429,7 +429,7 @@ void main() {
 
   testWidgets(
     'Tapping the circle on the Panorama before its first line was heard stops '
-    'a playing reply before the room is asked',
+    'a playing reply and opens the team\'s microphone',
     (tester) async {
       const panorama = Passagem(
         pericope: 'panorama',
@@ -460,6 +460,8 @@ void main() {
 
       expect(harness.voice.stops, greaterThan(stops), reason: 'parou');
       expect(harness.inbox.heard, isEmpty);
+      expect(room.estado.voice, VoiceState.listening);
+      expect(harness.room.turnIdsAsked, hasLength(1));
     },
   );
 
