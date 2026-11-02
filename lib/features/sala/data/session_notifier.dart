@@ -4318,9 +4318,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       reopensTheApprovedDraft: reopens,
     );
     if (_endedSince(life)) return;
-    state = state.copyWith(
-      grainSwitching: answer is NetworkFailed && !_abandoned(generation),
-    );
+    state = state.copyWith(grainSwitching: false);
     if (_abandoned(generation)) return;
     switch (answer) {
       case Answered(value: final listing):
@@ -4335,6 +4333,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _applyTheSessionRead(read, sent);
         }
       case final NetworkFailed failure:
+        state = state.copyWith(grainSwitching: true);
         _decideAt(failure, rule: RefusalRule.passes);
         final listed = await _room.takesListingOf(sessionId);
         if (_endedSince(life)) return;
