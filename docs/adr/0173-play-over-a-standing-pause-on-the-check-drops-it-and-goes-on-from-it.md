@@ -31,8 +31,10 @@ tap marks a new pause at the head and never opens the microphone on the dropped 
 pause within 50 ms of the part's measured length, the scene's own margin (ADR 0172), play
 plays the 1.5 s before it with the part held beneath and the pause stays, as the ticket settles
 it; her code there drops the cut and her chain, having ended, starts the passage over, which
-she avoids in the sibling branch with «ouvir a pausa». A retell with a moved pause keeps
-ADR 0169: play goes on from the pause and the retell stays.
+she avoids in the sibling branch with «ouvir a pausa». A frase told again with its pause on
+the move is not this case and keeps ADR 0169: play there still replays the retold frase up to
+the moved pause, the retell and the pause stay, and after «manter a tradução de antes» play
+goes on from the moved pause.
 
 ## Consequences
 
