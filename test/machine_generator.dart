@@ -225,6 +225,8 @@ String describeEvent(MachineEvent event) => switch (event) {
   AKeepBegan(:final part) => 'AKeepBegan(${part.session}, ${part.scope})',
   AKeepEnded(:final part, :final row) =>
     'AKeepEnded(${part.session}, ${part.scope}, $row)',
+  TheTapSent(:final part, :final row) =>
+    'TheTapSent(${part.session}, ${part.scope}, $row)',
   StopTapped(:final keep) =>
     'StopTapped(${keep.session}, ${keep.kind}, ${keep.scope})',
   TheRoomAnswered() => 'TheRoomAnswered',
@@ -388,6 +390,7 @@ enum EventKind {
   aTakeSettled,
   aKeepBegan,
   aKeepEnded,
+  theTapSent,
   stopTapped,
   theRoomAnswered,
   outboxChanged,
@@ -474,6 +477,7 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   ATakeSettled() => EventKind.aTakeSettled,
   AKeepBegan() => EventKind.aKeepBegan,
   AKeepEnded() => EventKind.aKeepEnded,
+  TheTapSent() => EventKind.theTapSent,
   StopTapped() => EventKind.stopTapped,
   TheRoomAnswered() => EventKind.theRoomAnswered,
   OutboxChanged() => EventKind.outboxChanged,
@@ -571,6 +575,7 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.aTakeSettled ||
   EventKind.aKeepBegan ||
   EventKind.aKeepEnded ||
+  EventKind.theTapSent ||
   EventKind.stopTapped ||
   EventKind.lineArrived ||
   EventKind.micOpened ||
@@ -709,6 +714,10 @@ MachineEvent _draw(
     session: _drawASession(random),
     scope: _drawAScope(random),
   ), row: random.nextBool() ? 'linha-${random.nextInt(3)}' : null),
+  EventKind.theTapSent => TheTapSent((
+    session: _drawASession(random),
+    scope: _drawAScope(random),
+  ), 'linha-${random.nextInt(3)}'),
   EventKind.stopTapped => StopTapped((
     session: _drawASession(random),
     kind: const ['ensaio', 'cena'][random.nextInt(2)],

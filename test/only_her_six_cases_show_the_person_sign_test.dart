@@ -184,7 +184,7 @@ Future<_Room> _aCheckedPassage(SalaHarness harness) async {
   await room.sala.finishBackTranslation();
   await waitFor(
     'a passagem ser conferida',
-    () => room.state.btPhase == BtPhase.conferida,
+    () => room.state.btPhase == BtPhase.conferida && room.state.btVeredito,
   );
   return room;
 }

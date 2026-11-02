@@ -247,7 +247,9 @@ void main() {
     sala.startRetro();
     await waitFor(
       'a conferida voltar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => tester.pump(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(milliseconds: 600));

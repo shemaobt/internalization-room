@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -232,4 +233,189 @@ void main() {
     );
     expect(harness.voice.fixedLines.skip(falas), isEmpty);
   });
+
+  test('re-entering a checked passage shows the check at once, and the marks '
+      'are drawn when the read answers', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    final trechos = [
+      for (final (n, one) in it.harness.room.segments.indexed)
+        SegmentView(
+          segmentId: one.segmentId,
+          takeId: one.takeId,
+          startsMs: one.startsMs,
+          endsMs: one.endsMs,
+          told: one.told,
+          frase: n + 1,
+        ),
+    ];
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..retroSoFar = BackTranslationProgress(
+        segments: trechos,
+        checked: true,
+        findings: [
+          BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: 2,
+            segmentId: trechos[1].segmentId,
+          ),
+        ],
+      )
+      ..holdNextState();
+
+    it.sala.startRetro();
+    await waitFor('a tradução abrir', () => it.estado.stage == SalaStage.retro);
+    await settle();
+
+    expect(
+      it.estado.btPhase,
+      BtPhase.conferida,
+      reason: 'a passagem conferida mostrava «pensando» enquanto a sala lia',
+    );
+    expect(it.estado.btVeredito, isFalse);
+
+    it.harness.room.finishHeldState();
+    await waitFor('o veredito chegar', () => it.estado.btVeredito);
+
+    expect(it.estado.btPhase, BtPhase.conferida);
+    expect(
+      [for (final f in it.estado.btFindings) f.kind],
+      [BtFindingKind.unclear],
+    );
+  });
+
+  Future<Sala> reenteredWhileTheReadIsInTheAir() async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    it.harness.room
+      ..listeningUnheardTakeIds = const []
+      ..holdNextState();
+    it.sala.startRetro();
+    await waitFor('a tradução abrir', () => it.estado.stage == SalaStage.retro);
+    await settle();
+    return it;
+  }
+
+  test(
+    'while the re-entry read is in the air the gestures act on the last '
+    'restored verdict, and the room\'s refusal is shown as it is today',
+    () async {
+      final it = await reenteredWhileTheReadIsInTheAir();
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+
+      await it.sala.aprovarRascunhoFinal();
+      await settle();
+
+      expect(it.harness.room.releasesAsked, hasLength(1));
+      expect(it.estado.btRecusa, CheckRefusal.notConferida);
+
+      final tocadas = it.harness.playback.played.length;
+      it.sala.ouvirGravacao();
+      await settle();
+
+      expect(it.harness.playback.played.length, tocadas + 1);
+      it.harness.room.finishHeldState();
+      await settle();
+    },
+  );
+
+  test('a frase retold while the re-entry read is in the air keeps its open '
+      'microphone when the read lands, and the circle closes it', () async {
+    final it = await reenteredWhileTheReadIsInTheAir();
+    it.sala.traduzirAFraseDeNovo(1);
+    await settle();
+    it.sala.retroTap();
+    await settle();
+    expect(it.estado.channel, isA<Microphone>());
+
+    it.harness.room.finishHeldState();
+    await settle();
+
+    expect(
+      it.estado.channel,
+      isA<Microphone>(),
+      reason: 'a leitura que pousou fechou o microfone sem a frase subir',
+    );
+    expect(
+      it.estado.btPhase,
+      BtPhase.capturing,
+      reason: 'a leitura tomava a fase de debaixo do microfone aberto',
+    );
+    it.sala.retroTap();
+    await settle();
+    expect(it.estado.channel, isNot(isA<Microphone>()));
+  });
+
+  test('a read that names an unheard part never lets the guide speak over a '
+      'screen standing as the verdict', () async {
+    final it = await _conferidaEDeixadaPelaVolta();
+    it.harness.room.listeningUnheardTakeIds = [it.estado.partes.first.takeId!];
+    it.harness.voice.holdNextLine();
+    final fases = <BtPhase>[];
+    it.container.listen<SalaSessionState>(salaSessionProvider, (_, s) {
+      if (s.channel is GuideSpeaking) fases.add(s.btPhase);
+    });
+
+    it.sala.startRetro();
+    await waitFor('a sala falar', () => it.estado.channel is GuideSpeaking);
+    await settle();
+
+    expect(fases, isNotEmpty);
+    expect(
+      fases,
+      everyElement(isNot(BtPhase.conferida)),
+      reason: 'a tela já dizia conferida enquanto a sala convidava a ouvir',
+    );
+    it.harness.voice.finishHeldLine();
+    await settle();
+  });
+
+  test('a read that no longer counts the passage as checked corrects the '
+      'screen while the listening report is still in the air', () async {
+    final it = await reenteredWhileTheReadIsInTheAir();
+    it.harness.room
+      ..retroSoFar = BackTranslationProgress(
+        segments: [...it.harness.room.segments],
+      )
+      ..holdNextListening();
+
+    it.harness.room.finishHeldState();
+    await waitFor(
+      'o relato da escuta sair',
+      () => it.harness.room.listeningReports.isNotEmpty,
+    );
+    await settle();
+
+    expect(it.estado.btPhase, BtPhase.playing);
+    expect(it.estado.btVeredito, isFalse);
+    it.harness.room.finishHeldListening();
+    await settle();
+  });
+
+  for (final checked in [true, false]) {
+    test(
+      'keeping the old translation after a retell made while the read was in the air ends '
+      'on the verdict when the room says checked: $checked',
+      () async {
+        final it = await reenteredWhileTheReadIsInTheAir();
+        if (!checked) {
+          it.harness.room.retroSoFar = BackTranslationProgress(
+            segments: [...it.harness.room.segments],
+          );
+        }
+        it.sala.traduzirAFraseDeNovo(1);
+        await settle();
+
+        it.harness.room.finishHeldState();
+        await settle();
+        it.sala.manterATraducaoDeAntes();
+        await settle();
+
+        expect(
+          it.estado.btPhase,
+          checked ? BtPhase.conferida : BtPhase.playing,
+        );
+        expect(it.estado.btVeredito, checked);
+      },
+    );
+  }
 }

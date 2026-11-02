@@ -294,7 +294,9 @@ void main() {
         await cena.sala.finishBackTranslation();
         await waitFor(
           'o veredito limpo chegar',
-          () => _estado(cena).btPhase == BtPhase.conferida,
+          () =>
+              _estado(cena).btPhase == BtPhase.conferida &&
+              _estado(cena).btVeredito,
         );
         // A última escuta que o veredito limpo convida.
         cena.sala.ouvirGravacao();

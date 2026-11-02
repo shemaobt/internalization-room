@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it), and in place on 2026-10-28 (ENG-1777: only a tap sends, and the resting place is the row), and in place on 2026-10-29 (ENG-2012: no copy without its row, no row without its copy)
+status: accepted, amended by 0104 (2026-10-20: the scene take announces its recording time, length and fingerprint) and 0103 (2026-10-20: a take refused for good is told by its row, not the voice), and 0131 (2026-10-22: a take is confirmed only when the room's list holds it), and in place on 2026-10-28 (ENG-1777: only a tap sends, and the resting place is the row), and in place on 2026-10-29 (ENG-2012: no copy without its row, no row without its copy), and in place on 2026-11-02 (ENG-2014: the scene keep waits for its own row)
 date: 2026-10-16
 amends: 0083, 0025
 ---
@@ -29,6 +29,10 @@ across failures and relaunches. It also kept every row the room had stored, for 
   (ENG-1424, 22 October). A scene take recorded during a pass goes first on the next one;
   the pass is not re-sorted after each upload. Holding is unchanged: a scene take waits only behind an
   earlier scene take of its session, and a part never waits behind a scene take.
+- **The scene screen waits for its own take:** «guardando o ensaio da cena…» lasts until
+  that row lands, is refused for good or fails on its pass, and the rest of the pass goes
+  on behind it. A take kept while a pass runs waits for that pass, then goes first on the
+  next.
 - **The confirmation is the keep door's answer with the rehearsal.** The tablet announces
   no size or duration: the room measures the take, checks the bytes it stored, and gives
   the same bytes sent twice the same rehearsal, so a resend after a lost answer never mints
