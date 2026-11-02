@@ -627,7 +627,7 @@ class SalaSessionState {
   final Set<int> theRoomJoinedParts;
   final List<int> toBringBack;
   final int? bringingBack;
-  final ({int cena, bool cannotEnter})? bringBackFailed;
+  final Map<int, bool> bringBackFailed;
 
   /// The takes of a whole rehearsal set aside behind the scenes' parts that only the room
   /// holds.
@@ -749,7 +749,7 @@ class SalaSessionState {
     this.theRoomJoinedParts = const {},
     this.toBringBack = const [],
     this.bringingBack,
-    this.bringBackFailed,
+    this.bringBackFailed = const {},
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
@@ -988,6 +988,13 @@ class SalaSessionState {
           saved: saved.contains(scopeOfRow(number)),
           recording: cenaDaGravacao == number && ensaio != EnsaioStatus.idle,
           playing: _numberAt(playing) == number,
+          retelling: switch ((recordsTheWhole, scenes, beyondTheScenes)) {
+            (true, _, _) => keptRetellingOf('whole'),
+            (false, ScenesHad(scenes: [_, ...]), false) => keptRetellingOf(
+              'S$number',
+            ),
+            _ => null,
+          },
         ),
     ];
   }
@@ -1410,6 +1417,17 @@ class SalaSessionState {
   }
 
   bool get keptRetellingsAreAway => wayOutIsHidden || noteMode;
+
+  KeptRetelling? keptRetellingOf(String scope) =>
+      keptRetellings.where((kept) => kept.scope == scope).lastOrNull;
+
+  KeptRetelling? get wholeRetellingUnderTheRows =>
+      recordsTheWhole ? null : keptRetellingOf('whole');
+
+  bool get keptRetellingsRest =>
+      keptRetellingsAreAway ||
+      ensaio == EnsaioStatus.recording ||
+      bringingBack != null;
 
   bool get warning => halt is Warning;
 
@@ -2020,7 +2038,7 @@ class SalaSessionState {
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
-    ({int cena, bool cannotEnter})? bringBackFailed,
+    Map<int, bool>? bringBackFailed,
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
   }) {
@@ -2186,7 +2204,7 @@ class SalaSessionState {
           ? null
           : (bringingBack ?? this.bringingBack),
       bringBackFailed: clearBringBackFailed
-          ? null
+          ? const {}
           : (bringBackFailed ?? this.bringBackFailed),
       wholeHeldByTheRoom: wholeHeldByTheRoom ?? this.wholeHeldByTheRoom,
     );
@@ -2210,6 +2228,7 @@ class SceneRow {
 
   /// The part in the air, playing or held.
   final bool playing;
+  final KeptRetelling? retelling;
 
   const SceneRow({
     required this.number,
@@ -2221,6 +2240,7 @@ class SceneRow {
     required this.saved,
     required this.recording,
     required this.playing,
+    required this.retelling,
   });
 
   /// Whether «Ouvir» would play the take that is gone: the room's own part, which carries
