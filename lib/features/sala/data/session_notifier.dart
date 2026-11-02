@@ -1781,12 +1781,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
-      if (endsTheConversation &&
-          answer is RoomFailure &&
-          _endOf(endedSession) == (line: null)) {
-        _setTheEnd(endedSession, before);
+      switch (answer) {
+        case Answered():
+          return;
+        case _:
+          if (endsTheConversation && _endOf(endedSession) == (line: null)) {
+            _setTheEnd(endedSession, before);
+          }
+          return;
       }
-      return;
     }
     if (answer case final RoomFailure lost
         when FailurePolicy.theAnswerWasLost(lost.result, rule)) {
