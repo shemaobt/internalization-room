@@ -40,6 +40,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         parte,
         tocar,
         tocarNoCirculo;
+import 'support/temp.dart';
 
 const _quatroFrases = [
   SegmentView(
@@ -218,8 +219,7 @@ Future<ProviderContainer> _voltaATraducao(
   bool comACena1 = false,
 }) async {
   _telaAlta(tester);
-  final pasta = Directory.systemTemp.createTempSync('sala-1205');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1205');
   final partes = [
     if (inteira)
       KeptTake(

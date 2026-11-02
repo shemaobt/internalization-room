@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
@@ -29,6 +28,7 @@ import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 const _soOuvir = 'Primeiro, só ouvir: a passagem inteira, do começo ao fim.';
 const _soOuvirEn =
@@ -298,7 +298,7 @@ Future<(SalaHarness, ProviderContainer)> _naConversaComTresCenas(
     ..physicalSize = const Size(820, 1180)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final home = Directory.systemTemp.createTempSync('sala-1408-junta');
+  final home = aTempDir('sala-1408-junta');
   final harness = SalaHarness(takesHome: home)
     ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
     ..room.nextMoment = const Moment(
