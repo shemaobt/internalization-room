@@ -3448,6 +3448,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theNamesWereAdopted() {
     _weighTheRehearsal();
     _rememberWhereTheyAre(_aLinhaDiz ?? state.station);
+    _dispatch(const APartWasNamed());
   }
 
   /// The room's current parts, kept on a tablet that no longer holds them.
@@ -9793,6 +9794,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final sessionId = state.sessionId;
     if (state.station is! Retro || sessionId == null) return;
     if (!state.aBackTranslationGestureActs) return;
+    if (state.aStretchWaitsForItsPart) return;
     if (state.btPhase == BtPhase.capturing ||
         state.btPhase == BtPhase.thinking) {
       return;
@@ -11079,9 +11081,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
 
     final gravacao = _parteNoAr?.takeId;
-    if (gravacao == null) {
-      return _theStretchWasNotStored(const TheStretchHasNoPartYet());
-    }
+    if (gravacao == null) return _theStretchWaitsForItsPart(sessionId);
 
     final RoomAnswer<BackTranslationChunk> sent;
     try {
@@ -11196,13 +11196,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(decidedOnTheTablet(failure, _failureContext(door: Door.telling)));
   }
 
+  void _theStretchWaitsForItsPart(String sessionId) {
+    _leaveThinking();
+    state = state.copyWith(awaitingTheGuide: false);
+    _dispatch(
+      decidedOnTheTablet(
+        const TheStretchHasNoPartYet(),
+        _failureContext(door: Door.telling),
+      ),
+    );
+    unawaited(_adoptTheNames(_takes, _thisLife));
+    unawaited(_adoptTheNamesTheRoomLists(sessionId, _thisLife));
+  }
+
   void _letThePendingTranslationGo() {
     final path = state.btTraducaoPendente;
+    final emprestada = state.btTraducaoPendenteEmprestada;
     state = state.copyWith(
       clearTraducaoPendente: true,
       awaitingTheGuide: false,
     );
-    if (path != null) unawaited(_recorder.delete(path));
+    if (path != null && !emprestada) unawaited(_recorder.delete(path));
   }
 
   void _descartarATraducaoPendente() {
@@ -11210,6 +11224,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (path == null) return;
     final emprestada = state.btTraducaoPendenteEmprestada;
     state = state.copyWith(clearTraducaoPendente: true);
+    _dispatch(const ThePendingTranslationWasLetGo());
     if (!emprestada) unawaited(_recorder.delete(path));
   }
 
@@ -12431,6 +12446,10 @@ class _NotifierHost implements StationHost {
   @override
   void hearThePendingTranslationLetGo() =>
       _notifier._letThePendingTranslationGo();
+
+  @override
+  void hearTheHeldStretchGo() =>
+      _notifier._handOff(_notifier._confirmarTraducao());
 
   @override
   void hearThePassageRefused() => _notifier._refuseThePassage();
