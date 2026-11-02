@@ -108,6 +108,20 @@ void main() {
     closeTheRoom(container);
   });
 
+  testWidgets('while a take records on an approved home, the (v1) badge '
+      'stays, with «Checagem externa» drawn and resting', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaCasa(tester, harness);
+    container.read(salaSessionProvider.notifier).gravarACena(1);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_sala(container).microphoneOpen, isTrue);
+
+    expect(find.text(_badge), findsOneWidget);
+    expect(byLabel(_checagem), findsOneWidget);
+    expect(_aberto(tester), isFalse);
+    closeTheRoom(container);
+  });
+
   testWidgets('while a scene records, no lit «Checagem externa» stands on the '
       'home and the open asks the room nothing', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

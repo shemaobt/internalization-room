@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0138, amended by 0150, amended by 0151, amended by ENG-1910 (2026-10-30: a refused approval on the home keeps its button))
+status: accepted (amended by 0138, amended by 0150, amended by 0151, amended by ENG-1910 (2026-10-30: a refused approval on the home keeps its button), amended by ENG-1909 (2026-11-02: the approve button stays drawn and rests while a take records or waits; the badge stands whenever a release does))
 date: 2026-10-26
 amends: 0106 (in part: the approved badge also stands on the recording home), 0112 (in part: the approval is offered, refused and saved from the recording home too), 0116 (in part: the external check opened from the home leaves to the home)
 ---
@@ -38,3 +38,10 @@ As hers (`Drafting.tsx:709-717`), which refreshes nothing after a refused approv
 - A refusal because the telling is not conferida writes «para aprovar, a tradução precisa estar conferida» and the offer stays: the button and «✓ traduzida e conferida» are no longer withdrawn by the refusal. Only a Session read that says the passage is not checked takes them away.
 - An approval from the home lost on the network writes «não deu para conferir agora — tentem de novo» and the Failure policy decides it at the approval's own door: her line only, no person.
 - A gone session and a refused request still take the Failure policy.
+
+## Amendment · 2026-11-02 (ENG-1909)
+
+As hers (`Drafting.tsx:2547-2548`), which draws the button on conferida and the release alone, disabled while busy, and the badge on the release alone:
+
+- The button is offered when the room calls the passage checked, the approval is still open and nothing is saved. It acts only when the home is idle, nothing waits in the Outbox and no approval or open is in the air; otherwise it stays drawn and rests, and a press sends nothing.
+- The approved badge, the listeners line and «Checagem externa» stand on the home whenever the passage has a release, while a take records or waits in the Outbox too. «Checagem externa» still rests while the microphone is open.

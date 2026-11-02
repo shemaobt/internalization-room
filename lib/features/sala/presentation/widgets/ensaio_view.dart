@@ -198,7 +198,12 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                   ),
                   if (session.approveOffered) ...[
                     const SizedBox(height: 12),
-                    ApproveButton(live: session.canApprove && !frozen),
+                    ApproveButton(
+                      live:
+                          session.approveActsOnTheHome &&
+                          session.canApprove &&
+                          !frozen,
+                    ),
                   ],
                   if (session.btRecusa case final recusa?
                       when session.stage == SalaStage.ensaio) ...[

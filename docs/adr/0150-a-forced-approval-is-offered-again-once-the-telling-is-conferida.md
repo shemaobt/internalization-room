@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by ENG-2028, by ENG-2110)
+status: accepted (amended by ENG-2028, by ENG-2110, by ENG-1909)
 date: 2026-10-28
 amends: 0106 (in part: over a forced version the approve button stands, with the badge under it), 0136 (in part: the recording home offers the approval over a forced version too)
 ---
@@ -53,3 +53,5 @@ passage the team did check. The room hid the button over any approved draft, for
 Amended by ENG-2110: the checked phase is also entered from the tablet's last restored verdict
 before the re-entry read answers, and the approve over it is held by the room's gate (ADR 0101 of
 the API): a refusal with `not_conferida` is shown as it is today.
+
+Amended by ENG-1909: over a forced version, the home's button and badge stay drawn while a take records or waits, and the button rests (ADR 0136).
