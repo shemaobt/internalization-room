@@ -1574,6 +1574,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptRetellings: snapshot.keptRetellings,
       toBringBack: snapshot.backTranslation.bringBack,
       btChecked: snapshot.backTranslation.checked,
+      btFrasesNovas: snapshot.backTranslation.rerecordedSentences,
       btRascunhoAprovado: snapshot.approved,
       clearBtRascunhoAprovado: snapshot.approved == null,
     );
@@ -6206,7 +6207,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(scene: shown.copyWith(clearPausa: true));
       _translateOnFrom(pausa);
     } else {
-      _translateOnFrom(rehearsal.frontier);
+      final stopped = state.sceneStoppedAt;
+      final end = state.scene.takeEnd;
+      _translateOnFrom(
+        stopped == null
+            ? rehearsal.frontier
+            : end != null && isAtTheEnd(stopped, end)
+            ? Duration.zero
+            : stopped,
+      );
     }
   }
 
@@ -8603,6 +8612,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             if (_escuta.ouvidaInteira(parte.path, tamanho, folgaDoFimDaParte))
               parte.path,
       },
+      btFaixasOuvidasAqui: {
+        for (final parte in state.partes)
+          parte.path: _escuta.faixasOuvidas(parte.path),
+      },
     );
   }
 
@@ -10371,6 +10384,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         btFraseQueAguarda: aguardando,
         clearBtFraseQueAguarda: aguardando == null,
+        btFrasesNovas: lida.backTranslation.rerecordedSentences,
       );
       return _oferecidas(lida.backTranslation);
     }
