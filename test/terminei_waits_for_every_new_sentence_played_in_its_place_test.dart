@@ -214,4 +214,63 @@ void main() {
       );
     },
   );
+
+  test('a quarter of a second missing inside a sentence of four tenths is a '
+      'hole, never bridged, and keeps terminei dark', () async {
+    final it = await _umaParteComAFraseNova(startsMs: 2000, endsMs: 2400);
+    await traduzirUmTrecho(it, const Duration(seconds: 1));
+    await waitFor(
+      'a equipe voltar ao círculo',
+      () => it.estado.btPhase == BtPhase.playing,
+    );
+    await theClipOpens(it.harness);
+    await waitFor('a parte seguir', () => it.harness.playback.sounding);
+
+    await _pausarEm(it, const Duration(seconds: 2));
+    await _seguirDe(it, const Duration(milliseconds: 2250));
+    await _pausarEm(it, const Duration(milliseconds: 9800));
+    await settle();
+
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isFalse,
+      reason:
+          'uma ponte de 250 ms fechava o buraco de 250 ms dentro de uma frase '
+          'de 400 ms, cuja folga é metade dela: 200 ms',
+    );
+
+    await _seguirDe(it, const Duration(seconds: 2));
+    await _pausarEm(it, const Duration(milliseconds: 2250));
+    await settle();
+    expect(it.estado.canAdvanceToTheVerdict, isTrue);
+  });
+
+  test('a sentence the room lists on a take that is no part of this '
+      'rehearsal asks nothing of terminei', () async {
+    final it = await _umaParteComAFraseNova(
+      startsMs: 2000,
+      endsMs: 2500,
+      noTake: 'gravacao-9',
+    );
+    await traduzirUmTrecho(it, const Duration(seconds: 1));
+    await waitFor(
+      'a equipe voltar ao círculo',
+      () => it.estado.btPhase == BtPhase.playing,
+    );
+    await theClipOpens(it.harness);
+    await waitFor('a parte seguir', () => it.harness.playback.sounding);
+
+    await _pausarEm(it, const Duration(seconds: 2));
+    await _seguirDe(it, const Duration(milliseconds: 2500));
+    await _pausarEm(it, const Duration(milliseconds: 9800));
+    await settle();
+
+    expect(
+      it.estado.canAdvanceToTheVerdict,
+      isTrue,
+      reason:
+          'uma frase assentada numa gravação que não é parte deste ensaio '
+          'apagava o terminei de uma parte ouvida inteira',
+    );
+  });
 }
