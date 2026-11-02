@@ -1795,6 +1795,9 @@ class SalaSessionState {
       btFraseDevida != null &&
       btRegravacao?.passo == PassoDaRegravacao.enviando;
 
+  bool get wayBackIsDisabled =>
+      station is Retro && btRegravacao?.passo == PassoDaRegravacao.enviando;
+
   /// Whether an approval may still be won over what the room holds: no approved version,
   /// or a forced one, which a conferida telling approves again as the next (ADR 0150).
   bool get approvalStillOpen => btRascunhoAprovado?.forced ?? true;

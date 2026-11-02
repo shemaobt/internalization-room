@@ -1235,6 +1235,9 @@ class FakeRoom implements RoomRepository {
   int _turnCount = 0;
 
   final List<String> calls = [];
+
+  /// The session each read of the room's state asked for, in order.
+  final List<String> statesRead = [];
   final Map<String, Object> throwOn = {};
   final List<String?> pericopesAsked = [];
   final List<String> languagesSent = [];
@@ -2646,6 +2649,7 @@ class FakeRoom implements RoomRepository {
 
   @override
   Future<RoomAnswer<SessionSnapshot>> fetchState(String sessionId) async {
+    statesRead.add(sessionId);
     if (_guard('fetchState') case final failure?) {
       final wait = failedReadsLandAfter;
       if (wait == null) return failure;
