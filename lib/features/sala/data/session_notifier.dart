@@ -10886,8 +10886,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (verdict.refusal == CheckRefusal.partUnheard) {
       state = state.copyWith(btRecusa: verdict.refusal, btOuvidaInteira: false);
     }
-    if (verdict.refusal == CheckRefusal.fraseAwaiting &&
-        verdict.fixedLine.isEmpty) {
+    if (verdict.refusal == CheckRefusal.fraseAwaiting) {
+      await _dizer(verdict.fixedLine.isEmpty ? null : verdict.fixedLine);
+      if (_abandoned(generation)) return;
       await _readTheStretchesBack(sessionId, generation);
       if (_abandoned(generation) || state.needsPerson) return;
       if (verdict.untoldSegmentId case final aguardando?) {
