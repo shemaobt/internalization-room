@@ -7183,7 +7183,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void leaveTheBackTranslation() => _gesture(() => _leaveTheBackTranslation());
 
   void _leaveTheBackTranslation() {
-    if (state.station is! Retro || state.aFraseDevidaEmBusca) return;
+    if (state.station is! Retro || state.wayBackIsDisabled) return;
     _voltarAoEnsaio();
     _descartarATraducaoPendente();
   }
@@ -7396,8 +7396,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final part = _thePartBeingRecorded;
     final path = (await _closeTheMicrophone()).take;
     if (_abandoned(generation)) {
-      if (path != null &&
-          part != null &&
+      if (path == null || _gone) return;
+      if (part != null &&
           !_endedSince(life) &&
           _goneSessions.contains(sessionId) &&
           !_anAccidentalTap(path)) {
@@ -7407,6 +7407,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           passage,
           life,
         );
+      } else {
+        unawaited(_recorder.delete(path));
       }
       return;
     }
@@ -10206,7 +10208,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final vez = _regravacoes;
     bool largada() => _abandoned(generation) || vez != _regravacoes;
     final path = (await _closeTheMicrophone()).take;
-    if (largada()) return;
+    if (largada()) {
+      if (path != null && !_gone) unawaited(_recorder.delete(path));
+      return;
+    }
     if (path == null || _anAccidentalTap(path)) {
       if (path != null) unawaited(_recorder.delete(path));
       state = state.copyWith(
@@ -10269,7 +10274,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ),
       clearBtFraseGuardada: true,
     );
-    if (File(guardada.path).lengthSync() > largestSentenceTheRoomTakes) {
+    if (_bytesAt(guardada.path) > largestSentenceTheRoomTakes) {
       return _largarAFrase(guardada, PassoDaRegravacao.longaDemais);
     }
     final resposta = await _room.reRecordTheSentence(
@@ -10785,7 +10790,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
     _watchBusyState();
     final path = (await _closeTheMicrophone()).take;
-    if (_abandoned(generation)) return false;
+    if (_abandoned(generation)) {
+      if (path != null && !_gone) unawaited(_recorder.delete(path));
+      return false;
+    }
     final sessionId = state.sessionId;
 
     if (path != null && !_hasAudio(path)) {
@@ -10820,6 +10828,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     state = state.copyWith(clearAviso: true);
     final generation = _waitOnTheGeneration;
+    final life = _thisLife;
     _silenceTheRoom(holdTheClip: true);
     state = state.copyWith(
       btPhase: BtPhase.thinking,
@@ -10865,7 +10874,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final String? nome;
     switch (sent) {
       case Answered(:final value):
-        if (_abandoned(generation)) return;
+        if (_abandoned(generation)) {
+          if (!_endedSince(life)) {
+            unawaited(_readTheStretchesBack(sessionId, _generation));
+          }
+          return;
+        }
         unawaited(_relatarASala(sessionId, const []));
         frase = value.frase;
         nome = value.segmentId;
@@ -11019,6 +11033,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
 
     final generation = _waitOnTheGeneration;
+    final life = _thisLife;
     final pressedFrom = state.btPhase;
     state = state.copyWith(
       btPhase: BtPhase.thinking,
@@ -11044,7 +11059,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sessionId,
       playedByTake: _escuta.relato(state.partes),
     );
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) {
+      if (!_endedSince(life)) unawaited(_readWhatComesBack());
+      return;
+    }
     state = state.copyWith(btConferindo: false);
     switch (asked) {
       case Answered(value: final answer):
@@ -11891,6 +11909,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       awaitingTheGuide: false,
       ensaio: EnsaioStatus.idle,
       btPhase: BtPhase.playing,
+      btConferindo: false,
       clearFindingSegment: true,
       peerCue: false,
       btSoOuvir: false,

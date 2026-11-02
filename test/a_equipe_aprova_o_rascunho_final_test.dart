@@ -1279,17 +1279,16 @@ void main() {
     'a halt raised on the retro\'s checked screen leaves the way back standing',
     (tester) async {
       final it = await _ateAConferida(tester);
-      double passageButton() => tester
-          .widget<AnimatedOpacity>(
-            find.descendant(
-              of: find.byType(WayBackButton),
-              matching: find.byType(AnimatedOpacity),
-            ),
-          )
-          .opacity;
+      bool passageButton() => isDrawn(
+        tester,
+        find.descendant(
+          of: find.byType(WayBackButton),
+          matching: find.byType(GestureDetector),
+        ),
+      );
       expect(
         passageButton(),
-        1,
+        isTrue,
         reason: 'na tela conferida, sem parada, a saída da passagem aparece',
       );
 
@@ -1298,7 +1297,7 @@ void main() {
 
       expect(
         passageButton(),
-        1,
+        isTrue,
         reason: 'a parada escondia a saída da passagem na tela conferida',
       );
       closeTheRoom(it.container);

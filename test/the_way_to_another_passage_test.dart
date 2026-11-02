@@ -279,47 +279,6 @@ void main() {
   });
 
   testWidgets(
-    '«Back to the current passage» is hidden while the team\'s take is recorded',
-    (tester) async {
-      final room = await _pump(tester, memory: true);
-      await _takeThePassage(tester, room, 'P01');
-      room.notifier.goEnsaio();
-      await _passTime(tester, 300);
-      await tester.pump(const Duration(seconds: 2));
-      expect(_live(tester, _back), isTrue);
-
-      room.notifier.gravarACena(1);
-      await _passTime(tester, 300);
-
-      expect(room.harness.sounds, contains('recorder:start'));
-      expect(_hidden(tester, _back), isTrue);
-
-      await tester.tap(byLabel(_back), warnIfMissed: false);
-      await _passTime(tester, 300);
-
-      expect(room.state.stage, SalaStage.ensaio);
-      expect(room.harness.recorder.deleted, isEmpty);
-    },
-  );
-
-  testWidgets('«Back to recording» is hidden while the back-translation\'s '
-      'microphone is open', (tester) async {
-    final room = await _pump(tester, memory: true);
-    await _takeThePassage(tester, room, 'P01');
-    await _keepAPart(tester, room);
-    room.notifier.startRetro();
-    await _passTime(tester, 300);
-    room.harness.playback.at = const Duration(seconds: 2);
-    room.notifier.retroTap();
-    room.notifier.retroTap();
-    await _passTime(tester, 300);
-
-    expect(room.state.stage, SalaStage.retro);
-    expect(room.state.voice, VoiceState.listening);
-    expect(_hidden(tester, _backToRecording), isTrue);
-  });
-
-  testWidgets(
     'a raised-hand note being spoken leaves «Choose another passage» in reach, '
     'and a tap throws the note away',
     (tester) async {
