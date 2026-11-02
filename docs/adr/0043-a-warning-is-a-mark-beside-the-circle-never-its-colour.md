@@ -1,9 +1,14 @@
 ---
-status: accepted, amended by ENG-1831
+status: accepted, amended by ENG-1831, ENG-1839
 date: 2026-09-25
 ---
 
 # A warning is a mark beside the circle, never its colour
+
+Amended by ENG-1839 (2026-11-02): «the room has no text on screen» below is read with ADR
+0014's register. The circle still writes nothing, and the canvas around it now does: the mic
+clock «m:ss» above it while the team holds the microphone (ENG-1821) and «pensando…» under it
+while the voice thinks (ENG-1925), both as hers (`app/page.tsx:1005-1006`).
 
 Amended by ENG-1831 (2026-10-27, João's rule of 26 October: Marcia's frozen app 18fa7c4 wins):
 the mark is gone too. Her team screen shows nothing for a warning (`app/page.tsx:996-1062`),

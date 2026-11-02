@@ -156,3 +156,130 @@ screen (`widgets/ouvir_tudo_view.dart`) that writes her title, «A gravação de
 parte por parte.», and ends with «fim da gravação», as hers does. It is an exception under
 the existing reason, her words the team reads; the button on the home is already inside her
 recording home's exception.
+
+Amended by ENG-1839 (2026-11-02): the parity sweep of 26–30 October wrote words on five
+screens, and each sweep PR left this record untouched so that none collided on it; this
+block collects them, with her lines at 18fa7c4 (`app/lib/strings.ts`, pt then en, unless
+another file is named). None is new to `facilitator_script.dart`: every one was already
+among her labels, spoken by VoiceOver, and is now written where hers writes it.
+
+The conversation and the Panorama: while the team holds the microphone the mic clock writes
+«m:ss» above the circle (`widgets/mic_clock.dart`, ENG-1821), telha from four minutes, as
+her `fmtClock` does (`app/page.tsx:38`, `:1006`; `app/globals.css:78-81`); it is digits and
+not a word, a named exception under the numerals' reason. While the voice thinks,
+«pensando…» / «thinking…» (`:391` / `:256`; `app/page.tsx:1005`, `app/globals.css:217`) is
+written under the circle (`widgets/thinking_note.dart`, ENG-1925), a named exception under
+the moment label's reason, her words the team reads. ADR 0043's «the room has no text on
+screen» (ENG-1141, after ENG-1078) is read with them: the circle itself still writes
+nothing, and the canvas around it writes these two.
+
+The check screen (`widgets/retro_view.dart`, already named; `widgets/part_strips.dart`,
+`widgets/status_lines.dart`, `widgets/pause_adjust_row.dart` and
+`widgets/approve_button.dart` join it): beside each part's strip «parte N» / «part N»
+(`:292` / `:157`) or «A passagem inteira» / «The whole passage» (`:268` / `:133`; her
+`app/components/Drafting.tsx:2316`, ENG-1882), with « ·» after the label of a part the room
+still counts unheard or whose take has not reached it, in telha, a glyph and not a word
+(`app/globals.css:436`, ENG-2040); beside play, her listening lines (ENG-1832; hers
+`Drafting.tsx:2367-2369`): «ouvindo a gravação de vocês…» / «listening to your recording…»
+(`:287` / `:152`), «pausado — toque no círculo para marcar onde a frase acaba» / «paused —
+tap the circle to mark where the sentence ends» (`:287` / `:152`), «a pausa ficou aqui —
+ouçam, ajustem se precisar e toquem no círculo para traduzir» / «the pause is here — listen,
+move it if you need to, then tap the circle to translate» (`:346` / `:211`), «a pausa ficou
+no toque — toquem no círculo para traduzir» / «the pause is at your tap — tap the circle to
+translate» (`:347` / `:212`), «fim da gravação» / «end of the recording» (`:291` / `:156`),
+and the place «parte N · m:ss / m:ss», or the clock alone after a retell (ENG-2062); under
+«terminei» the lines «ainda falta ouvir um trecho da gravação» / «there is still a part of
+the recording to listen to» (`:285` / `:150`) and «falta traduzir um trecho — ouçam e
+traduzam, depois toquem em 'terminei'» / «one stretch has no translation — listen,
+translate, then tap 'done'» (`:377` / `:242`; hers `Drafting.tsx:2467`, ENG-1888); the pause
+controls «um pouco antes», «ouvir a pausa», «um pouco depois» / «a little earlier», «hear
+the pause», «a little later» (`:345` / `:210`; hers `Drafting.tsx:2399`, ENG-1881); her
+approve button «Aprovar como rascunho final» / «Approve as the final draft» (`:301` /
+`:166`; hers `Drafting.tsx:2468`, ENG-1838), written where it was spoken only; and on the
+check of a joined recording «gravar a passagem inteira de uma vez» / «record the whole
+passage in one go» (`:382` / `:247`; hers `Drafting.tsx:2242`) with its armed «toquem de
+novo: as cenas e as traduções ficam guardadas» / «tap again: the scenes and the translations
+are kept» (`:382` / `:247`) and «toquem de novo: isto abre de novo o rascunho aprovado» /
+«tap again: this re-opens the approved draft» (`:383` / `:248`, ENG-1876). Words that left
+the check: «parte N» on the frase rows of a whole-passage recording (ENG-1877), «✓ traduzida
+e conferida» (ENG-1885), and the listeners' count with the «Checagem externa» button
+(ENG-2052), which stay on the home as hers draws them (`Drafting.tsx:2552-2553`), so the
+ENG-1260 amendment above is read for the home.
+
+The recording home (`widgets/ensaio_view.dart`, already named; `widgets/listeners_line.dart`
+and `widgets/external_check_button.dart` join it): «✓ traduzida e conferida» / «✓ translated
+and checked» (`:285` / `:150`; hers `Drafting.tsx:2543`), and on its rows «regravada —
+traduzam de novo» / «re-recorded — translate again» (`:292` / `:157`) and «regravada —
+traduzam esta frase» / «re-recorded — translate this sentence» (`:388` / `:253`; hers
+`Drafting.tsx:2497`, ENG-1824); «checagem externa: 1 ouvinte» / «external check: 1 listener»
+and «checagem externa: {n} ouvintes» / «external check: {n} listeners» (`:329` / `:194`;
+hers `Drafting.tsx:2552`, ENG-1833) with the «Checagem externa» / «External check» button
+(`:326` / `:191`; `:2553`); «Aprovar como rascunho final» (ENG-1838; hers
+`Drafting.tsx:2547`); under its title, while a re-recorded sentence is owed, «não deu para
+guardar a frase — tentar de novo» / «the sentence could not be saved — try again» (`:389` /
+`:254`; hers `Drafting.tsx:2135`, ENG-2061); and on a scene row whose bring-back the room
+refused, «este ensaio não pode entrar — ensaiem esta cena de novo» / «this rehearsal cannot
+be used — rehearse this scene again» (`:375` / `:240`; hers `Drafting.tsx:2037`, ENG-1916).
+So «the rest of that screen stays wordless» (ENG-1406, above) is no longer read alone: the
+home writes these too.
+
+The Ensaio Final plan and the grain choice (`widgets/ensaio_final_plan_view.dart` and
+`widgets/grain_choice_view.dart`, already named; `widgets/unsent_notice.dart` joins them): a
+take still on the tablet is offered under her notice, «Uma gravação ainda está neste
+computador e não foi enviada.» / «A recording is still on this computer and has not been
+sent.» (`:319` / `:184`; hers `Drafting.tsx:2207`), «Cena N · m:ss — enviar agora» / «Scene
+N · m:ss — send it now» (`:269`, `:319` / `:134`, `:184`; `:2210`, ENG-1861) or «A passagem
+inteira · m:ss — enviar agora» (`:268`, `:319` / `:133`, `:184`, ENG-2078), with the
+button's spoken name «Enviar a gravação» / «Send the recording» (`:319` / `:184`). They were
+the home's words already (ENG-1774, above).
+
+The scene rehearsal (`widgets/scene_translate_step.dart`, already named;
+`widgets/stage_heading.dart` and `widgets/scene_take_state.dart` join it): on every step the
+title «Ensaio da cena» / «Scene rehearsal» (`:352` / `:217`; her
+`app/components/Rehearsal.tsx:798`) and this session's list, «ensaios da cena desta sessão»
+/ «scene rehearsals of this session» (`:357` / `:222`; `:789`) with, per rehearsal, its
+number, «cena N» / «scene N» (`:367` / `:232`; `:794`), its clock HH:MM, «{k} · frases
+traduzidas» and «enviado» / «não enviado» — «sent» / «not sent» (`:360` / `:225`; `:803`,
+ENG-1825). On the record step (ENG-1834, ADR 0155): «Toquem no círculo para gravar o ensaio
+da cena; toquem de novo para parar.» / «Tap the circle to record the scene rehearsal; tap
+again to stop.» (`:358` / `:223`; `:846`), «gravem o ensaio da cena na língua materna;
+toquem para parar» / «record the scene rehearsal in your own language; tap to stop» (`:353`
+/ `:218`; `:841`), «gravando · m:ss» / «recording · m:ss» (`:317` / `:182`) and «guardando o
+ensaio da cena…» / «keeping the scene rehearsal…» (`:362` / `:227`). On the translate step
+(ENG-1823): «frases traduzidas» / «translated sentences» (`:292` / `:157`; `:802`) over the
+frase rows, drawn in capitals as hers (`app/globals.css:440`); «recomeçar a tradução» /
+«start the translation over» and its armed «toque de novo para apagar as {n} frases
+traduzidas» / «tap again to discard the {n} translated sentences» (`:349` / `:214`; `:926`);
+the restart's answers «tradução recomeçada — o ensaio da cena ficou» / «translation started
+over — the scene rehearsal stays» (`:364` / `:229`; `:733`) and «não deu para recomeçar
+agora — tentem de novo» / «couldn't start over right now — try again» (`:351` / `:216`;
+`:736`), and the disk word of ADR 0129; the pause lines carry « — m:ss / m:ss» (ENG-1981).
+On places unknown: «as frases já traduzidas não estão neste computador — toquem em terminei
+para enviar, ou recomecem a tradução» / «the phrases already translated are not on this
+computer — tap done to send them, or start the translation over» (`:394` / `:259`; `:910`),
+her instruction «Ouçam o ensaio da cena; toquem no círculo para pausar onde a frase acaba, e
+de novo para traduzir só aquela frase.» / «Listen to the scene rehearsal; tap the circle to
+pause where the phrase ends, and again to translate only that phrase.» (`:359` / `:224`;
+`:879`, ENG-1840), «terminei» / «done» (`:355` / `:220`; `:929`), «enviando a tradução do
+ensaio da cena para a voz…» / «sending the translation of the scene rehearsal to the voice…»
+(`:356` / `:221`; `:929`, also beside play, ENG-2083) and «gravar o ensaio da cena de novo»
+/ «record the scene rehearsal again» (`:354` / `:219`; `:930`). On the sent step (ENG-1825):
+her line «A tradução deste ensaio da cena já foi para a voz. Toquem numa frase para ouvir o
+ensaio naquela parte, e no alto-falante para ouvir a tradução de vocês.» / «This scene
+rehearsal's translation already went to the voice. Tap a phrase to hear the rehearsal there,
+and the speaker to hear your translation of it.» (`:366` / `:231`; `:879`), «ouvindo o
+ensaio da cena… — m:ss / m:ss» / «listening to the scene rehearsal… — m:ss / m:ss» (`:363` /
+`:228`; `:870`), «frases traduzidas», each frase's number and «frase N» / «phrase N» (`:360`
+/ `:225`; `:915`), «gravar o ensaio da cena de novo», and in listen mode also «pausado —
+toque no círculo para marcar onde a frase acaba» and «fim do ensaio da cena» / «end of the
+scene rehearsal» (`:363` / `:228`; `:872`, ENG-1922). So «The rest of that screen stays
+wordless» (ENG-1344, above) is no longer read: every step writes. «The strip beside them
+stays wordless» (ENG-1348, above) still holds of the strip, which draws no word
+(`widgets/scene_strip.dart`); the translate step's words are the ones here, not only the
+four ENG-1348 named.
+
+Not written, only spoken by VoiceOver, so no exception is named: the hand's and the reply's
+names in English and the circle at rest, «Toque para falar» (`:266`, ENG-1950); «Voltar para
+a gravação» / «Back to recording» (`:274` / `:139`) on every Back-translation screen
+(ENG-1835); «Hear that again» (`:131`, ENG-1948); and the person sign's label, which leaves
+(ENG-1894).
