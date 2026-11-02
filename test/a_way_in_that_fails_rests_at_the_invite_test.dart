@@ -164,7 +164,7 @@ void main() {
       expect(_read(sala).needsPerson, isFalse);
 
       sala.harness.room.reachable = true;
-      _notifier(sala).escolhaTap();
+      unawaited(_notifier(sala).abrirEscolha());
       await _until(
         sala,
         'the books to be listed',

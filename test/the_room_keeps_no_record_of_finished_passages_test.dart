@@ -14,6 +14,7 @@ import 'a_station_host_double.dart';
 import 'fake_ports.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +26,7 @@ void main() {
     late Directory home;
 
     setUp(() {
-      home = Directory.systemTemp.createTempSync('sala-casa');
+      home = aTempDir('sala-casa');
       messenger.setMockMethodCallHandler(
         pathProvider,
         (call) async => home.path,
@@ -34,7 +35,6 @@ void main() {
 
     tearDown(() {
       messenger.setMockMethodCallHandler(pathProvider, null);
-      home.deleteSync(recursive: true);
     });
 
     test('closing a passage writes nothing about it on the tablet', () async {

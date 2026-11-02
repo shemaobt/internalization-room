@@ -8,6 +8,8 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 
+import 'support/temp.dart';
+
 void main() {
   setUpAll(() {
     dotenv.testLoad(fileInput: 'BACKEND_URL=http://sala.local');
@@ -93,8 +95,7 @@ void main() {
   );
 
   test('a 404 at a question names the session gone', () async {
-    final casa = Directory.systemTemp.createTempSync('sala-pergunta');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-pergunta');
     final audio = File('${casa.path}/p.m4a')..writeAsBytesSync([0, 1, 2]);
 
     expect(

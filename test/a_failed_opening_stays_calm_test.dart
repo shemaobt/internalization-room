@@ -316,7 +316,8 @@ void main() {
   test('an opening whose sound arrives after the busy watchdog gave up on it '
       'stays silent over the team turn, and only the turn\'s reply plays', () {
     fakeAsync((clock) {
-      final harness = SalaHarness(busyCeiling: const Duration(seconds: 30));
+      final harness = SalaHarness(busyCeiling: const Duration(seconds: 30))
+        ..onAFakeClock();
       final container = harness.container();
       addTearDown(container.dispose);
       final notifier = container.read(salaSessionProvider.notifier);

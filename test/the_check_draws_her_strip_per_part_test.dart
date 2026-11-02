@@ -31,6 +31,7 @@ import 'the_pause_snaps_to_silence_test.dart'
         tocarOCirculo,
         traduzirEConfirmar,
         umaLacunaAos3;
+import 'support/temp.dart';
 
 const _duasFrasesNaParteUm = [
   SegmentView(
@@ -63,8 +64,7 @@ Future<ProviderContainer> _voltaAoConferir(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1882');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1882');
   String arquivo(String nome) => (File(
     '${pasta.path}/$nome',
   )..writeAsBytesSync(fala ?? Uint8List.fromList([1, 2, 3]))).path;
