@@ -4677,7 +4677,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool get _thePartsMayMove =>
-      !state.homeBusy && state.ensaio == EnsaioStatus.idle;
+      state.swapping == null && state.ensaio == EnsaioStatus.idle;
 
   Future<void> _thePartsTheRoomHolds(
     String sessionId,
