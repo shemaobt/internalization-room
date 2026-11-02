@@ -8766,6 +8766,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _holdClip();
       return;
     }
+    if (!conferida && state.thePauseStands) {
+      _seguirDaPausa();
+      return;
+    }
     if (state.btTrechoPausada || state.btRetroPausada) {
       _letTheClipRun();
       return;
@@ -9597,6 +9601,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       beneath: segurada,
     );
   }
+
+  void _seguirDaPausa() =>
+      _tocarParteDaRetro(_parteTocando, noCursor: true, desde: _trechoEnd);
 
   Duration get _cabeca {
     if (state.btParteFronteira || state.btClipEnded) {
