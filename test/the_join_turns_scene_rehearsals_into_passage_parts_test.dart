@@ -40,6 +40,10 @@ const _retry = 'não deu para juntar esta cena — toquem para tentar de novo';
 const _retryEn = 'this scene could not be joined — tap to try again';
 const _tick = '✓';
 const _enviarAGravacao = 'Enviar a gravação';
+const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
+const _backToJoin = 'Ensaio Final: juntar os ensaios das cenas';
+const _reopenArmed = 'toquem de novo: isto abre de novo o rascunho aprovado';
+const _thinking = 'pensando…';
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -231,6 +235,20 @@ class _Room {
     );
     await settle();
   }
+
+  /// The plan answered «gravar a passagem inteira de uma vez»: the team on the empty
+  /// whole-passage home, offered the way back to the join.
+  Future<void> toTheEmptyWholeHome() async {
+    await openThePlan();
+    await tapJoin(_wholeAtOnce);
+    await until(
+      'a casa da passagem inteira oferecer a volta à junta',
+      () => find.text(_backToJoin).evaluate().isNotEmpty,
+    );
+    await settle();
+  }
+
+  bool get firstListenSpoken => harness.voice.fixedLines.contains(('N0', 'pt'));
 
   Future<void> tapJoin([String label = _join]) async {
     await tester.ensureVisible(byLabel(label));
@@ -2027,4 +2045,300 @@ void main() {
       semantics.dispose();
     },
   );
+
+  group('«Ensaio Final: juntar os ensaios das cenas»', () {
+    testWidgets(
+      'one tap on «Ensaio Final: juntar os ensaios das cenas» switches to scene '
+      'by scene and joins without «juntar as cenas e ouvir»',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        it.holdTheTake('parte-1');
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a cena 1 juntar sem «juntar as cenas e ouvir»',
+          () => find.text('juntando a cena 1 de 3…').evaluate().isNotEmpty,
+        );
+
+        expect(it.room.grainSwitches.last, (
+          grain: Grain.scene,
+          reopens: false,
+        ));
+        expect(find.text(_planLine), findsOneWidget);
+        it.room.finishHeldTake();
+        await _theJoinEnds(it);
+        closeTheRoom(it.container);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'a join row that stops after «Ensaio Final: juntar os ensaios das cenas» '
+      "leaves the team on the plan with that row's retry",
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        it.holdTheTake('parte-2');
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a cena 2 juntar sem «juntar as cenas e ouvir»',
+          () => find.text('juntando a cena 2 de 3…').evaluate().isNotEmpty,
+        );
+        await it.until('a parte 2 chegar à porta', () => it.theHeldTakeArrived);
+        await it.wait(const Duration(seconds: 70));
+        await it.settle();
+
+        expect(it.onRow(2, find.text(_retry)), findsOneWidget);
+        expect(it.ticked(1), isTrue);
+        expect(it.partsReceived, isNot(contains('parte-3')));
+        expect(find.text(_planLine), findsOneWidget);
+        expect(it.firstListenSpoken, isFalse);
+        it.room.finishHeldTake();
+        await it.settle();
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'a join after «Ensaio Final: juntar os ensaios das cenas» that leaves a '
+      'scene without a part lands on the recording home',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed([1, 2]);
+        await it.toTheEmptyWholeHome();
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a parte 1 chegar sem «juntar as cenas e ouvir»',
+          () => it.partsReceived.isNotEmpty,
+        );
+        await _theJoinEnds(it);
+
+        expect(it.partsReceived, ['parte-1', 'parte-2']);
+        expect(find.text(_homeLine), findsOneWidget);
+        expect(it.firstListenSpoken, isFalse);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'over an approved draft the armed second tap on «Ensaio Final: juntar os '
+      'ensaios das cenas» re-opens it and joins',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        it.room.approvedDraft = const ApprovedDraft(version: 1);
+        await it.tapJoin(_backToJoin);
+        await it.settle();
+        expect(it.partsReceived, isEmpty);
+
+        await it.tapJoin(_backToJoin);
+        expect(find.text(_reopenArmed), findsOneWidget);
+        await tester.pump(const Duration(seconds: 2));
+        await it.tapJoin(_reopenArmed);
+        await it.until(
+          'a parte 1 chegar sem «juntar as cenas e ouvir»',
+          () => it.partsReceived.isNotEmpty,
+        );
+        await _theJoinEnds(it);
+
+        expect(it.room.grainSwitches.last, (grain: Grain.scene, reopens: true));
+        expect(it.partsReceived, ['parte-1', 'parte-2', 'parte-3']);
+        closeTheRoom(it.container);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'the parts «Ensaio Final: juntar os ensaios das cenas» joins reach the room '
+      'from the Outbox with no further tap',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a parte 1 chegar sem «juntar as cenas e ouvir»',
+          () => it.partsReceived.isNotEmpty,
+        );
+        await _theJoinEnds(it);
+
+        final parts = [
+          for (final take in it.room.takesReceivedWhole)
+            if (take.kind == 'ensaio') take,
+        ];
+        expect(
+          [for (final take in parts) take.scope],
+          ['parte-1', 'parte-2', 'parte-3'],
+        );
+        for (final (i, take) in parts.indexed) {
+          final n = i + 1;
+          expect(take.origin, it.idOf(n), reason: 'a origem da parte $n');
+          expect(take.bytes, _bytesOf(n), reason: 'os bytes da parte $n');
+          expect(take.sha256, _fingerprintOf(_bytesOf(n)));
+        }
+        final pending = (await tester.runAsync(it.harness.takes.pending))!;
+        expect(pending.where((row) => row.sessionId == it.sessionId), isEmpty);
+        closeTheRoom(it.container);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'leaving the plan while it is read after «Ensaio Final: juntar os ensaios '
+      'das cenas» joins nothing',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        final sala = it.container.read(salaSessionProvider.notifier);
+        it.room.holdNextSceneList();
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a porta do grão responder e o plano ser lido',
+          () =>
+              it.room.grainSwitches.last.grain == Grain.scene &&
+              find.text(_thinking).evaluate().isNotEmpty,
+        );
+        sala.goEnsaio();
+        await it.beat();
+        sala.leaveTheRecording();
+        await it.beat();
+        await tester.tap(_dot);
+        await it.until(
+          'o plano abrir de novo pelo ponto',
+          () => find.text(_planLine).evaluate().isNotEmpty,
+        );
+        it.room.finishHeldSceneList();
+        await it.settle();
+
+        expect(it.partsReceived, isEmpty);
+        expect(find.textContaining('juntando'), findsNothing);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      "the join after the switch takes each scene's rehearsal from the plan as "
+      'the room lists it then',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        final newer = SceneRehearsalRecord(
+          rehearsalId: '${it.sessionId}-ensaio-4',
+          sessionId: it.sessionId,
+          n: 4,
+          scene: 'S2',
+          recordedAt: DateTime.utc(2026, 10, 22, 14),
+          sentAt: '2026-10-22T11:00:00+00:00',
+          durationMs: 6000,
+          frases: const [
+            SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 3000),
+            SceneFrase(fraseId: 'frase-b', startsMs: 3000, endsMs: 6000),
+          ],
+          verified: true,
+          sha256: _fingerprintOf(_bytesOf(7)),
+        );
+        it.room.sceneRehearsals.add(newer);
+        it.room.sceneAudioOf[newer.rehearsalId] = _bytesOf(7);
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a parte 2 chegar sem «juntar as cenas e ouvir»',
+          () => it.partsReceived.contains('parte-2'),
+        );
+        await _theJoinEnds(it);
+
+        final part2 = it.room.takesReceivedWhole.singleWhere(
+          (take) => take.scope == 'parte-2',
+        );
+        expect(part2.origin, newer.rehearsalId);
+        expect(part2.bytes, _bytesOf(7));
+        closeTheRoom(it.container);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'a second tap on «Ensaio Final: juntar os ensaios das cenas» while a lost '
+      "door's listing is read reaches no door and joins each scene once",
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        final before = it.room.grainSwitches.length;
+        it.room.holdTheGrainSwitch();
+
+        await it.tapJoin(_backToJoin);
+        await it.until(
+          'a porta do grão receber o pedido',
+          () => it.room.grainSwitches.length == before + 1,
+        );
+        it.room
+          ..loseTheNextGrainAnswer = true
+          ..holdNextTakesList()
+          ..finishTheGrainSwitch();
+        await it.until(
+          'a leitura da sala depois da porta perdida ficar no ar',
+          () => it.room.aTakesListIsHeld,
+        );
+        await it.tapJoin(_backToJoin);
+        it.room.finishHeldTakesList();
+        await it.until(
+          'a parte 1 chegar sem «juntar as cenas e ouvir»',
+          () => it.partsReceived.isNotEmpty,
+        );
+        await _theJoinEnds(it);
+
+        expect(it.room.grainSwitches.skip(before), [
+          (grain: Grain.scene, reopens: false),
+        ]);
+        expect(it.partsReceived, ['parte-1', 'parte-2', 'parte-3']);
+        closeTheRoom(it.container);
+        semantics.dispose();
+      },
+    );
+
+    testWidgets(
+      'a plan read again after «Ensaio Final: juntar os ensaios das cenas» with '
+      'nothing to join lands on the recording home',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _atRest(tester);
+        it.seed();
+        await it.toTheEmptyWholeHome();
+        it.room.sceneRehearsals.clear();
+
+        await it.tapJoin(_backToJoin);
+        await it.until('a leitura do plano depois da troca terminar', () {
+          final estado = it.container.read(salaSessionProvider);
+          return estado.grainInForce == Grain.scene &&
+              estado.ensaioFinalPlan is! PlanAwaited;
+        });
+        await it.settle();
+
+        expect(it.room.grainSwitches.last.grain, Grain.scene);
+        expect(find.text(_homeLine), findsOneWidget);
+        expect(find.text(_planLine), findsNothing);
+        expect(it.partsReceived, isEmpty);
+        semantics.dispose();
+      },
+    );
+  });
 }
