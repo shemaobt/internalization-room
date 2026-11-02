@@ -96,6 +96,38 @@ Future<ProviderContainer> quatroFrasesEmWav(
   return container;
 }
 
+Future<ProviderContainer> _duasPartesNumaFraseCada(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  tester.view
+    ..physicalSize = const Size(820, 2400)
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  harness.recorder.rehearsalSpeaks = aSpokenWav(length: parte);
+  final container = await entrarNaTraducao(tester, harness);
+  for (var contada = 1; contada <= 2; contada++) {
+    harness.playback.at = parte;
+    await _traduzir(tester);
+    await waitFor(
+      'a parte $contada ficar contada numa frase só',
+      () =>
+          container
+              .read(salaSessionProvider)
+              .btTrechos
+              .where((trecho) => trecho.contado)
+              .length ==
+          contada,
+      step: () => _passo(tester),
+    );
+    harness.playback.at = parte;
+    harness.playback.finishPlayback();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+  await _passo(tester);
+  return container;
+}
+
 const _aParteComAFraseDeitada = Duration(milliseconds: 7200);
 
 const _daSala = [
@@ -1824,6 +1856,45 @@ void main() {
       aceso(tester, 'terminei'),
       isTrue,
       reason: 'terminei seguia fechado depois de traduzirem a frase nova',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a last part whose untold tail a frase replay covers is heard '
+      'here the moment the replay ends, and the line under «terminei» clears '
+      'with no other gesture', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    harness.room.listeningUnheardTakeIds = const [];
+    final container = await _duasPartesNumaFraseCada(tester, harness);
+    harness.playback.measured = _aParteComAFraseDeitada;
+    harness.room.sentenceLaysInAs = const Duration(seconds: 6);
+    await gravarAFrase(tester, harness, 2);
+    await tester.tap(naLinha('usar esta'));
+    await _passo(tester);
+    await _passo(tester);
+    await _passo(tester);
+    final nova = container.read(salaSessionProvider).partes.last.path;
+    expect(harness.playback.ranges.last, '0-7200');
+    expect(container.read(salaSessionProvider).btAindaFaltaOuvir, isTrue);
+
+    harness.playback.finishPlayback();
+    await _passo(tester);
+
+    final estado = container.read(salaSessionProvider);
+    expect(
+      estado.btPartesOuvidasAqui,
+      contains(nova),
+      reason:
+          'a frase nova tocada até o fim da parte nova fechava a escuta no '
+          'livro e ninguém relia as partes ouvidas aqui até o toque seguinte',
+    );
+    expect(
+      estado.btAindaFaltaOuvir,
+      isFalse,
+      reason:
+          'a linha «ainda falta ouvir» ficava debaixo do terminei com a parte '
+          'inteira já tocada, até o próximo toque ou fim de parte; a dela '
+          'relê a cada tick',
     );
     closeTheRoom(container);
   });

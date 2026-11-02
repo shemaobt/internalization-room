@@ -10340,6 +10340,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         if (_tamanhoDaParteMs[path] case final medido?) {
           _escuta.medida(path, medido);
         }
+        _anotarAsPartesOuvidasAqui();
       },
       onFailed: quiet,
     );
