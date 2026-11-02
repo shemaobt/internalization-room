@@ -21,7 +21,6 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         contarAteOFimDaParte,
         entrarNaTraducao,
         gravarATraducao,
-        terminar,
         tocar,
         tocarNoCirculo;
 import 'the_team_re_records_one_whole_sentence_test.dart'
@@ -375,7 +374,7 @@ void main() {
     _sala(container).traduzirAFraseDeNovo(0);
     await tester.pump(const Duration(milliseconds: 300));
     await tocarNoCirculo(tester);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await waitFor(
       'a frase traduzida de novo assentar',
       () =>

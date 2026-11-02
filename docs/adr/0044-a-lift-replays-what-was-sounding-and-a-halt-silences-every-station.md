@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0063, 0160
+status: accepted, amended by 0063, 0160, ENG-1884
 date: 2026-09-25
 amends: 0029
 ---
@@ -96,6 +96,10 @@ landing opens right on the cursor, so the time left to reach it is almost always
 and the deadline is armed for at least `_umInstanteOuvido` (400 ms). When it fires it writes
 the fact true unconditionally — a hold or a stop cancels it first, so it only ever fires
 over a clip that has actually run that long.
+
+Amended by ENG-1884 (2026-11-02): the circle's label no longer reads this fact. The check names
+the circle «Toque para traduzir esta frase», or «gravem a frase inteira» while a sentence is
+recorded again, as hers does.
 
 ## Consequences
 

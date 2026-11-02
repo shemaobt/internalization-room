@@ -8,9 +8,7 @@ const _retroViewPath = 'lib/features/sala/presentation/widgets/retro_view.dart';
 const _conversaViewPath = 'lib/features/sala/domain/facilitator_script.dart';
 
 const _rotulosDeTraduzir = {
-  'Tocar para gravar a tradução deste trecho',
-  'Tocar para gravar a tradução de novo',
-  'Ouvir a tradução',
+  'Toque para traduzir esta frase',
   'traduzida e conferida',
   'não entendi — traduzam de novo esse pedaço',
   'a pausa ficou aqui — ouçam, ajustem se precisar e toquem no círculo para traduzir',
