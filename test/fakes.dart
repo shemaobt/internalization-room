@@ -4098,6 +4098,7 @@ class FakeTakeQueue implements TakeUploadQueue {
     String? fingerprint,
     String? overTake,
     bool reopensTheApprovedDraft = false,
+    bool swap = false,
   }) async {
     final held = crypto.sha256.convert(audio.readAsBytesSync()).toString();
     if (fingerprint != null && held != fingerprint) return null;
@@ -4112,6 +4113,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       sha256: held,
       origin: origin,
       reopensTheApprovedDraft: reopensTheApprovedDraft,
+      swap: swap,
     );
     rows.add(entry);
     return entry;
