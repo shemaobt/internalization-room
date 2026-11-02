@@ -219,7 +219,8 @@ Future<ProviderContainer> _voltaAUmaTraducao(
     () =>
         container.read(salaSessionProvider).btTrechos.length == 2 &&
         container.read(salaSessionProvider).btPhase ==
-            (conferida ? BtPhase.conferida : BtPhase.playing),
+            (conferida ? BtPhase.conferida : BtPhase.playing) &&
+        (!conferida || container.read(salaSessionProvider).btVeredito),
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await _passo(tester);

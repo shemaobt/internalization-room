@@ -106,7 +106,7 @@ The Desk's page for one session, with a tab for the Conversation, one for the pa
 _Avoid_: session detail, session view, página da sessão in English prose
 
 **Channel**:
-What the room hears or sounds at one moment: silence, an open microphone and whose it is, the Guide speaking, a part or a stretch playing, or a pause. One thing at a time (ADR 0046).
+What the room hears or sounds at one moment: silence, an open microphone and whose it is, the Guide speaking, a part, a stretch or a Kept retelling playing, or a pause. One thing at a time (ADR 0046).
 _Avoid_: audio state, voice (the Circle's colour), player
 
 **Microphone owner**:
@@ -333,7 +333,7 @@ The scene rehearsal's wordless picture of its take while translating. The loudne
 _Avoid_: waveform, timeline, ruler (the Ensaio's)
 
 **Scene row**:
-One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N. A row with a take shows «✓»; a row offers its Rehearsal sheet with «trocar o ensaio desta cena» when its part is joined and its scene has another rehearsal, or «usar o ensaio desta cena» when none of its takes came from a join and a Usable rehearsal exists.
+One row of the Rehearsal per Scene of the passage, in passage order, reading «Cena N» and the scene's title, holding that scene's Part with its record, listen and record-again controls and, before them, its scene's Kept retelling when the room kept one, hidden while its part is going up or failed. Part N is Scene N: a recording made from row N is kept as part N, and a part the room holds under number N shows on row N. A row with a take shows «✓»; a row offers its Rehearsal sheet with «trocar o ensaio desta cena» when its part is joined and its scene has another rehearsal, or «usar o ensaio desta cena» when none of its takes came from a join and a Usable rehearsal exists.
 _Avoid_: bead (the Back-translation's), clip row, part row, linha
 
 **Joined recording** (`origin`):
@@ -395,6 +395,10 @@ _Avoid_: pointer, last session, sessão atual
 **Station's session**:
 The session the team is in where it stands: the Panorama's at the Panorama Station, the passage's anywhere else, none on the Choice. Any other session the room still holds is an earlier one (ADR 0092).
 _Avoid_: current session (that is the relaunch record), active session
+
+**Kept retelling**:
+The team's own telling of a Part (`S<N>`) or of the whole passage (`whole`), in the session language, that the room kept when the Guide approved it. The Conversation offers them as numbered buttons once every part has one; the recording home offers each on its Scene row, before its record or listen control, and the whole one under the rows on a scene-by-scene home. A tap plays it alone on the Channel; it is never a Part of the Rehearsal.
+_Avoid_: kept take (a Part's recording), ensaio (her store's name)
 
 **Listener's retelling**:
 The outside listener's own telling of the passage after hearing it whole, recorded on the Checagem externa and stored the moment it stops; never transcribed, never sent to a model.
