@@ -11586,16 +11586,19 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final life = _thisLife;
     final answer = await _room.takesOf(sessionId);
     if (_endedSince(life)) return;
-    if (answer is! SessionGone && state.sessionId != sessionId) return;
+    final elsewhere = state.sessionId != sessionId;
     final List<TakeView> guardadas;
     switch (answer) {
       case Answered(value: final listadas):
+        if (elsewhere) return;
         guardadas = listadas;
       case NetworkFailed():
+        if (elsewhere) return;
         return _theNetworkFailedIn(Door.stretches, life);
       case SessionGone():
         return _theSessionIsGoneIn(sessionId, life);
       case Refused():
+        if (elsewhere) return;
         debugPrint(
           'A sessão $sessionId tem trechos numa gravação que este tablet não '
           'tem, e as gravações dela não puderam ser lidas',
