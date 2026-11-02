@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -182,6 +184,35 @@ void main() {
     expect(find.text(_badge(2)), findsOneWidget);
     expect(byLabel(_aprovar), findsNothing);
     closeTheRoom(container);
+  });
+
+  testWidgets('over a forced version on a checked home, while a take '
+      'records, the button rests and the badge stays under it', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaConferida(
+      tester,
+      harness,
+      approved: _forcada,
+    );
+    await _naCasa(tester, harness, container);
+    final semantics = tester.ensureSemantics();
+
+    container.read(salaSessionProvider.notifier).gravarACena(1);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(container.read(salaSessionProvider).microphoneOpen, isTrue);
+    expect(find.text(_badge(1)), findsOneWidget);
+    expect(byLabel(_aprovar), findsOneWidget);
+    expect(
+      tester
+          .getSemantics(byLabel(_aprovar))
+          .getSemanticsData()
+          .flagsCollection
+          .isEnabled,
+      Tristate.isFalse,
+    );
+    closeTheRoom(container);
+    semantics.dispose();
   });
 
   testWidgets('a room that answers with the forced version itself approved '

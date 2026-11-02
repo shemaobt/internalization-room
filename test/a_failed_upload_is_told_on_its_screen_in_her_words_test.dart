@@ -558,8 +558,8 @@ void main() {
   );
 
   testWidgets(
-    'a sentence held from a gone session keeps the approval from being '
-    'offered until it is sent',
+    'a sentence held from a gone session keeps the approval resting until it '
+    'is sent',
     (tester) async {
       final casa = await _naCasa(tester);
       casa.room.retroSoFar = const BackTranslationProgress(checked: true);
@@ -581,14 +581,18 @@ void main() {
         await settle();
       });
 
-      expect(_aprovar, findsNothing);
+      expect(_aprovar, findsOneWidget);
+      expect(casa.estado.approveActsOnTheHome, isFalse);
 
       await casa.emTempoReal(() async {
         await casa.harness.takes.withdraw(frase);
         await casa.sala.refreshUnsent();
         await settle();
       });
-      await casa.ateVer(_aprovar);
+      await casa.ate(
+        'a aprovação voltar a agir',
+        () => casa.estado.approveActsOnTheHome,
+      );
 
       expect(_aprovar, findsOneWidget);
     },

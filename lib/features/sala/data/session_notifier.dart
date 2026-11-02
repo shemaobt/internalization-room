@@ -11490,7 +11490,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _gestureThen(() => _aprovarRascunhoFinal());
 
   Future<void> _aprovarRascunhoFinal() async {
-    final fromTheHome = state.approveOffered;
+    final fromTheHome = state.approveActsOnTheHome;
     if (!fromTheHome &&
         (state.station is! Retro || !state.approveActsOnTheCheck)) {
       return;
