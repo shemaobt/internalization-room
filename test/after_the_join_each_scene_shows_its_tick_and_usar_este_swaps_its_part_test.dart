@@ -1749,6 +1749,43 @@ void main() {
     },
   );
 
+  testWidgets('a swap the tablet was closed on leaves the Outbox when the dot '
+      'opens the plan, and is never the join «juntar» sends', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.room.rehearsalsGone.add(it.idOf(s3a));
+    await it.joined(onTheTablet: const [s1a, s2a, s2b]);
+    it.room.sceneAudioOf.remove(it.idOf(s3a));
+    it.list(const [s3b]);
+    await it.held(const [s3b]);
+    await it.relaunchOnTheConversation();
+    it.container.read(salaSessionProvider.notifier).goEnsaio();
+    await it.until('a casa voltar', it.showsTheHome);
+    await it.settle();
+    await it.openTheSheet(3, _useScene);
+    it.holdTheTake('parte-3');
+    await it.tapThe(it.use(s3b));
+    await it.theHeldTakeArrives();
+    it.room
+      ..unreachableTake = 'ensaio/parte-3'
+      ..finishHeldTake();
+    await it.settle();
+    await it.relaunchOnTheConversation();
+    it.room.unreachableTake = null;
+
+    await it.openThePlan();
+    await it.theOutboxLetsGoOf(s3b);
+    await it.wait(const Duration(seconds: 5));
+
+    expect(find.text(_planLine), findsOneWidget);
+    expect(
+      it.container.read(salaSessionProvider).ensaioFinalPlan,
+      isA<PlanRead>().having((read) => read.waiting, 'waiting', isEmpty),
+    );
+    expect(it.received(3), isEmpty);
+    semantics.dispose();
+  });
+
   testWidgets('on the arrival at the home only the swap leaves the Outbox: an '
       'ordinary join on its way and a recorded take stay', (tester) async {
     final it = await _atRest(tester);

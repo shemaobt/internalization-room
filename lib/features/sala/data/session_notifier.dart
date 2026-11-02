@@ -4097,11 +4097,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
     }
+    await _theSwapsLeftBehindGo(sessionId, outbox);
+    if (_abandoned(generation)) return;
     final rows = [
       for (final entry in outbox)
         if (entry.sessionId == sessionId &&
             entry.kind == partTakeKind &&
             entry.origin != null &&
+            !entry.swap &&
             (state.grain == null || state.rowOf(entry.scope) != null))
           entry,
     ];
@@ -4690,22 +4693,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
     int? life,
   ) async {
-    final left = [
-      for (final row in await _takes.pending())
-        if (row.sessionId == sessionId && row.swap) row,
-    ];
+    final outbox = await _takes.pending();
     if (_left(generation, life) || !_thePartsMayMove) return;
-    if (left.isEmpty &&
+    final left = await _theSwapsLeftBehindGo(sessionId, outbox);
+    if (!left &&
         !read.rehearsals.any((rehearsal) => rehearsal.sessionId == sessionId)) {
       return;
-    }
-    for (final row in left) {
-      await _takes.withdraw(row);
     }
     if (_left(generation, life)) return;
     await _countUnsent();
     if (_left(generation, life)) return;
     await _thePartsTheRoomHolds(sessionId, read, generation, life);
+  }
+
+  Future<bool> _theSwapsLeftBehindGo(
+    String sessionId,
+    List<PendingTake> outbox,
+  ) async {
+    if (!_thePartsMayMove) return false;
+    final left = [
+      for (final row in outbox)
+        if (row.sessionId == sessionId && row.swap) row,
+    ];
+    for (final row in left) {
+      await _takes.withdraw(row);
+    }
+    return left.isNotEmpty;
   }
 
   Future<int> _sendTheRow(String row) {
