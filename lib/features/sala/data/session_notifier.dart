@@ -460,6 +460,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// it runs the whole pipeline again instead of answering with what it already produced.
   late String? _openTurnId;
   late bool _openingOwed;
+  late _Flight? _flight;
   late TurnClock? _pendingClock;
   late TurnClock? _coverageClock;
 
@@ -539,6 +540,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late String? _startedReadIn;
 
   void _aNewLife() {
+    _flight = null;
     _heldSession = null;
     _endsOf = {};
     _timers = {};
@@ -1749,6 +1751,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     Kept keeps = const NothingKept(),
     RefusalRule rule = RefusalRule.aSpokenTurn,
     bool endsTheConversation = false,
+    bool restsOnAThrowingCall = false,
   }) async {
     final endedSession = state.stationSessionId;
     final before = _endOf(endedSession);
@@ -1765,7 +1768,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       ..[turn] = (play: heard, gestures: _chain);
     _dispatch(TurnSent(turn, keeps: keeps));
     if (endsTheConversation) _keepTheLastLine(null);
-    final answer = await _theTakeGoes(send);
+    final RoomAnswer<TurnResult> answer;
+    try {
+      answer = await _theTakeGoes(send);
+    } on Error catch (error, stack) {
+      if (!restsOnAThrowingCall) rethrow;
+      debugPrint('$error\n$stack');
+      if (_abandoned(generation) || state.machine.inFlight != turn) return;
+      _awaitedReplies.remove(turn);
+      _dispatch(TurnFailed(turn, generation: _generation));
+      return _registerUnplayableTurn();
+    }
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
       return;
@@ -2375,35 +2388,50 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void openTheEntry(Passagem entry) => _gesture(() => _openTheEntry(entry));
 
   void _openTheEntry(Passagem entry) {
+    if (_flight != null) return;
     if (!state.entriesOpen || !state.naRoda!.contains(entry)) return;
     _silenceTheRoom();
     state = state.copyWith(openingEntry: entry);
     if (entry.isPanorama) {
-      _leaveTheStepFor(Panorama(entry.pericope));
-      _clearAll();
-      _arriveAt(ThePanoramaChosen(entry.pericope));
       _handOff(
-        _openedFromTheChoice(() => _entrarNoPanoramaEscolhido(entry.pericope)),
+        _openedFromTheChoice((flight) {
+          _leaveTheStepFor(Panorama(entry.pericope));
+          _clearAll();
+          _arriveAt(ThePanoramaChosen(entry.pericope));
+          return _entrarNoPanoramaEscolhido(entry.pericope, flight);
+        }),
       );
       return;
     }
     _handOff(
       _gestureThen(
         () => _openedFromTheChoice(
-          () => _goConversa(book: entry.book, pericope: entry.pericope),
+          (flight) => _goConversa(
+            book: entry.book,
+            pericope: entry.pericope,
+            flight: flight,
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _openedFromTheChoice(Future<void> Function() open) async {
+  Future<void> _openedFromTheChoice(
+    Future<void> Function(_Flight flight) open,
+  ) async {
     final held = state.passageLeft?.session;
-    final opening = open().catchError(
-      (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
-      test: (error) => error is Error && _theOpenBroughtNoSession,
-    );
-    final generation = _generation;
-    await opening;
+    final flight = _flight = _Flight();
+    late int generation;
+    do {
+      flight.wayBack = flight.adopt = false;
+      final opening = open(flight).catchError(
+        (Object error, StackTrace stack) => debugPrint('$error\n$stack'),
+        test: (error) => error is Error && _theOpenBroughtNoSession,
+      );
+      generation = _generation;
+      await opening;
+    } while (flight.adopt && identical(_flight, flight));
+    if (identical(_flight, flight)) _flight = null;
     if (state.openingEntry != null) {
       state = state.copyWith(clearOpeningEntry: true);
     }
@@ -2472,10 +2500,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       () => _room.openSession(panorama, turnId: turnId),
       play: _restingOnAThrow(_voicePanorama, generation),
       failed: failed,
+      restsOnAThrowingCall: true,
     );
   }
 
-  Future<void> _entrarNoPanoramaEscolhido(String id) async {
+  Future<void> _entrarNoPanoramaEscolhido(String id, _Flight flight) async {
     _dispatch(ThePanoramaAsked(id, _lingua));
     _letGoOfTheCurrentSession();
     final generation = _waitOnTheGeneration;
@@ -2483,8 +2512,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final sent = ++_readsSent;
     final found = await _room.createSession(pericope: id, language: _lingua);
-    if (_abandoned(generation)) return;
     switch (found) {
+      case Answered() when _abandoned(generation):
+        flight.adopt = flight.wayBack;
+      case _ when _abandoned(generation):
+        return;
       case Answered(value: final session):
         _applyTheSessionRead(session, sent);
         _holdThePanorama(session.sessionId, id, _lingua);
@@ -2567,7 +2599,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> returnToTheLeftEntry() async => _gesture(_returnToTheLeftEntry);
 
   void _returnToTheLeftEntry() {
-    if (state.theWayBackIsLive) _returnTo(state.leftEntry!);
+    if (!state.theWayBackIsLive) return;
+    _flight?.wayBack = true;
+    _returnTo(state.leftEntry!);
   }
 
   void _returnTo(LeftEntry left) {
@@ -2857,6 +2891,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool fresh = false,
     SessionSnapshot? opened,
     String? language,
+    _Flight? flight,
   }) async {
     final speaking = language ?? _lingua;
     _sessionLanguage = speaking;
@@ -2934,7 +2969,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       openingClock.mark('session');
     }
     final room = created!;
-    if (_abandoned(generation)) return;
+    if (_abandoned(generation)) {
+      flight?.adopt = flight.wayBack;
+      return;
+    }
     final row = opened != null || waiting?.sessionId == room.sessionId
         ? waiting
         : null;
@@ -3190,6 +3228,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       () => _room.openSession(sessionId, turnId: turnId),
       play: _restingOnAThrow(play, generation),
       failed: failed,
+      restsOnAThrowingCall: true,
     );
   }
 
@@ -12147,3 +12186,8 @@ const JoinOutcome _joinLeftBehind = (
   row: JoinRow.retry,
   part: JoinedPart.nowhere,
 );
+
+class _Flight {
+  bool wayBack = false;
+  bool adopt = false;
+}
