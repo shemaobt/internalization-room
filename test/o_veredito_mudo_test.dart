@@ -9,6 +9,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
 
 const _verdictUrl = '/api/internalization-room/voice/veredito';
+const _stamp = '2026-10-19T19:58:13.123456Z';
 
 Future<ProviderContainer> _inConversa(SalaHarness harness) async {
   final container = harness.container();
@@ -243,5 +244,192 @@ void main() {
 
     expect(read().needsPerson, isFalse);
     expect(harness.voice.played, contains(_verdictUrl));
+  });
+
+  test('a verdict heard once, then replayed by a player that fails twice in a '
+      'row, never halts the machine, and the check stays on its phase with no '
+      'person sign', () async {
+    final harness = SalaHarness();
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    Iterable<String> verdictPlays() =>
+        harness.voice.played.where((url) => url == _verdictUrl);
+
+    await _toTheVerdict(harness, notifier);
+    expect(verdictPlays(), hasLength(1));
+    final phase = read().btPhase;
+
+    harness.voice.refuses.add(_verdictUrl);
+    notifier.ouvirARespostaDeNovo();
+    await waitFor(
+      'o veredito tentar soar de novo',
+      () => verdictPlays().length == 2,
+    );
+    await settle(const Duration(milliseconds: 200));
+
+    expect(
+      verdictPlays(),
+      hasLength(2),
+      reason:
+          'o toque carregava o veredito mais uma vez 1,5 s depois; o '
+          'replayVerdict dela toca uma vez e volta ao repouso',
+    );
+
+    notifier.ouvirARespostaDeNovo();
+    await waitFor(
+      'o veredito tentar soar de novo',
+      () => verdictPlays().length == 3,
+    );
+    await settle(const Duration(milliseconds: 200));
+
+    expect(verdictPlays(), hasLength(3));
+    expect(
+      read().machine.aHaltWaitsForTheCanvas,
+      isNull,
+      reason:
+          'a segunda falha do tocador deixava uma chamada por pessoa esperando '
+          'a conversa, por um replay que o dela nunca conta',
+    );
+    expect(read().needsPerson, isFalse);
+    expect(
+      read().btPhase,
+      phase,
+      reason:
+          'a conferência saía da sua fase por um veredito que já foi ouvido',
+    );
+  });
+
+  test('«ouvir a resposta de novo» whose player refuses the kept verdict tries '
+      'once, writes no line and rests, as her replayVerdict does', () async {
+    final harness = SalaHarness();
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    Iterable<String> verdictPlays() =>
+        harness.voice.played.where((url) => url == _verdictUrl);
+
+    await _toTheVerdict(harness, notifier);
+    final before = read();
+
+    harness.voice.refuses.add(_verdictUrl);
+    notifier.ouvirARespostaDeNovo();
+    await waitFor(
+      'o veredito tentar soar de novo',
+      () => verdictPlays().length == 2,
+    );
+    await settle(const Duration(milliseconds: 200));
+
+    expect(
+      verdictPlays(),
+      hasLength(2),
+      reason: 'o veredito era carregado mais uma vez 1,5 s depois do toque',
+    );
+    expect(
+      read().voice,
+      before.voice,
+      reason: 'a sala ficava pensando à espera do recarregamento',
+    );
+    expect(read().canHearTheVerdictAgain, isTrue);
+    expect(
+      read().btRecusa,
+      before.btRecusa,
+      reason:
+          'o replayVerdict dela não escreve linha nenhuma quando o tocador '
+          'falha: só volta ao repouso',
+    );
+    expect(read().btPhase, before.btPhase);
+    expect(read().needsPerson, before.needsPerson);
+    expect(read().machine.aHaltWaitsForTheCanvas, isNull);
+  });
+
+  test('«ouvir a resposta de novo» whose clip left the tablet, and the room '
+      'refuses or drops as it is brought down again, tries once, writes no line '
+      'and rests, like a player that fails', () async {
+    for (final failure in const [
+      Refused('HTTP_500'),
+      NetworkFailed('fala cortada'),
+    ]) {
+      final harness = SalaHarness();
+      final container = await _inConversa(harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      Iterable<String> verdictPlays() =>
+          harness.voice.played.where((url) => url == _verdictUrl);
+
+      await _toTheVerdict(harness, notifier);
+      final before = read();
+
+      harness.voice
+        ..missing.add(_verdictUrl)
+        ..roomFailsWith = failure;
+      notifier.ouvirARespostaDeNovo();
+      await waitFor(
+        'o veredito tentar soar de novo',
+        () => verdictPlays().length == 2,
+      );
+      await settle(const Duration(milliseconds: 200));
+
+      expect(
+        verdictPlays(),
+        hasLength(2),
+        reason: 'a falha da sala ($failure) era recarregada 1,5 s depois',
+      );
+      expect(
+        read().voice,
+        before.voice,
+        reason:
+            'a falha ($failure) escapava do replay e a conferência ficava '
+            'pensando para sempre',
+      );
+      expect(read().canHearTheVerdictAgain, isTrue);
+      expect(read().btRecusa, before.btRecusa);
+      expect(read().btPhase, before.btPhase);
+      expect(read().needsPerson, before.needsPerson);
+      expect(read().machine.aHaltWaitsForTheCanvas, isNull);
+    }
+  });
+
+  test('after a replay that would not sound, the kept verdict is still offered, '
+      'and the next tap tries once more and is heard', () async {
+    final harness = SalaHarness()..room.verdictCheckAt = _stamp;
+    final container = await _inConversa(harness);
+    final notifier = container.read(salaSessionProvider.notifier);
+    SalaSessionState read() => container.read(salaSessionProvider);
+    Iterable<String> verdictPlays() =>
+        harness.voice.played.where((url) => url == _verdictUrl);
+
+    await _toTheVerdict(harness, notifier);
+    expect(harness.room.heardStamps, [_stamp]);
+
+    harness.voice.refuses.add(_verdictUrl);
+    notifier.ouvirARespostaDeNovo();
+    await waitFor(
+      'o veredito tentar soar de novo',
+      () => verdictPlays().length == 2,
+    );
+    await settle(const Duration(milliseconds: 200));
+    expect(
+      read().canHearTheVerdictAgain,
+      isTrue,
+      reason:
+          'o replay que falhou levava a conferência ao sinal, que toma o toque',
+    );
+
+    harness.voice.refuses.remove(_verdictUrl);
+    notifier.ouvirARespostaDeNovo();
+    await waitFor('o veredito soar', () => verdictPlays().length == 3);
+    await settle(const Duration(milliseconds: 200));
+
+    expect(verdictPlays(), hasLength(3));
+    expect(
+      harness.room.heardStamps,
+      [_stamp, _stamp],
+      reason:
+          'o replayVerdict dela avisa a sala a cada vez que o veredito chega '
+          'ao fim',
+    );
+    expect(read().machine.aHaltWaitsForTheCanvas, isNull);
+    expect(read().needsPerson, isFalse);
   });
 }
