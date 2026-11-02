@@ -110,7 +110,8 @@ final class ExternalCheckScreen {
 }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
-/// answered it, its take as a file on this tablet and the take's measured length, and
+/// answered it, its take as a file on this tablet and the take's length (the room's
+/// until the take comes down after the step opened, then as measured here), and
 /// whether a call this screen made is in the air. On the record step it also holds the
 /// scene the team picked, the scene of the rehearsal recorded again, and when the
 /// question appeared and when the pick was made. On the translate step it holds
@@ -199,6 +200,28 @@ final class SceneScreen {
   );
 
   SceneScreen get asWaiting => copyWith(waiting: true);
+
+  /// The screen with its take come down after the step opened, and the take's length as
+  /// this tablet measured it.
+  SceneScreen withTheTake(String take, Duration? length) => SceneScreen(
+    step: step,
+    rehearsal: rehearsal,
+    take: take,
+    length: length,
+    waiting: waiting,
+    label: label,
+    keep: keep,
+    picked: picked,
+    again: again,
+    askedAt: askedAt,
+    pickedAt: pickedAt,
+    pausa: pausa,
+    listened: listened,
+    notUnderstood: notUnderstood,
+    translatingAgain: translatingAgain,
+    wentToTheVoice: wentToTheVoice,
+    heard: heard,
+  );
 
   /// The screen with nothing asked again: her «não entendi» gone and no frase being
   /// translated again.

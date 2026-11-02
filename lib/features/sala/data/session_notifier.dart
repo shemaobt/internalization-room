@@ -452,6 +452,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
   late Map<String, Future<Envelope?>> _sceneLoudnessReads;
+  late Map<String, Future<String?>> _sceneTakesComing;
+  late Set<String> _sceneTakesMissed;
+
+  /// This Life's scene rehearsals as last read, kept past the screen's way back for an
+  /// open the room cannot answer.
+  late List<SceneRehearsalRecord> _sceneRehearsalsRead;
   late EscutaDasPartes _escuta;
   late int _desdeMs;
 
@@ -578,6 +584,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _partLoudnessReads = Future<void>.value();
     _envelopes = {};
     _sceneLoudnessReads = {};
+    _sceneTakesComing = {};
+    _sceneTakesMissed = {};
+    _sceneRehearsalsRead = const [];
     _frases = _FraseKeep(_recorder.delete, (held) {
       if (!_gone) state = state.copyWith(sceneFrasesHeld: held);
     });
@@ -650,6 +659,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(_takes.sweepTheCopiesLeftBehind());
     listenSelf((before, now) {
+      if (now.sceneRehearsals.isNotEmpty) {
+        _sceneRehearsalsRead = now.sceneRehearsals;
+      }
       if (now.anArmedKnotLapsed) state = now.copyWith(noteMode: false);
       if (before != null &&
           _aTakeIsOpenOnTheHome(before) &&
@@ -2685,6 +2697,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId != null) {
       _goneSessions.add(sessionId);
       _frases.letGoOfTheSession(sessionId);
+      _sceneRehearsalsRead = [
+        for (final rehearsal in _sceneRehearsalsRead)
+          if (rehearsal.sessionId != sessionId) rehearsal,
+      ];
       _dispatch(TheSessionLetGo(sessionId));
     }
     if (unchecked != null) {
@@ -4984,7 +5000,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final path = await _fetchTheSceneTake(
       rehearsal,
       () => _abandoned(generation) || !stillAsked(),
-      generation,
+      () => _abandoned(generation),
     );
     void heardOut() {
       if (stillAsked()) state = state.copyWith(clearPlanListening: true);
@@ -5531,25 +5547,37 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _handOff(_openTheScreen(sessionId, reopensTheUnsent: again == null));
   }
 
-  /// The record step shows nothing until this session's rehearsals and the scene list
-  /// have answered, or [sceneListWait] has passed since the open. A list that answers
-  /// later is still taken.
+  /// This session's rehearsals are read first, however long they take: the newest unsent
+  /// one opens on its step at once and takes the scene list whenever it lands. Only when
+  /// nothing reopens does the record step wait for the scene list, at most
+  /// [sceneListWait] from the open. A list that answers later is still taken.
   Future<void> _openTheScreen(
     String sessionId, {
     required bool reopensTheUnsent,
   }) async {
     final generation = _waitOnTheGeneration;
     final first = _room.scenesOf(sessionId);
-    RoomAnswer<List<Scene>>? answered;
     final gate = Completer<void>();
     _after('sceneList', sceneListWait, gate.complete);
-    await Future.any([
-      Future.wait([
-        _reopenTheUnsent(sessionId, reopensTheUnsent: reopensTheUnsent),
-        first.then((answer) => answered = answer),
-      ]),
-      gate.future,
-    ]);
+    final reopened = await _reopenTheUnsent(
+      sessionId,
+      reopensTheUnsent: reopensTheUnsent,
+    );
+    if (_abandoned(generation)) return;
+    if (reopened) {
+      _timers.remove('sceneList')?.cancel();
+      unawaited(
+        first.then((late) {
+          if (!_theScenesAnswered(late, generation) &&
+              !_abandoned(generation)) {
+            _theScenesMissed(0);
+          }
+        }),
+      );
+      return;
+    }
+    RoomAnswer<List<Scene>>? answered;
+    await Future.any([first.then((answer) => answered = answer), gate.future]);
     if (_abandoned(generation)) return;
     _timers.remove('sceneList')?.cancel();
     final answer = answered;
@@ -5669,20 +5697,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       !identical(state.scene, asked) ||
       state.channel is Microphone;
 
-  /// A take waiting in the Outbox always comes back to the screen; the room's newest
-  /// unsent rehearsal only when [reopensTheUnsent], never for a scene asked again.
-  Future<void> _reopenTheUnsent(
+  /// A take waiting in the Outbox always comes back to the screen, without waiting for
+  /// the room's list; the room's newest unsent rehearsal only when [reopensTheUnsent],
+  /// never for a scene asked again, and with the room unreachable only when this tablet
+  /// holds its take or a frase of it. Whether a rehearsal reopened.
+  Future<bool> _reopenTheUnsent(
     String sessionId, {
     required bool reopensTheUnsent,
   }) async {
     final generation = _waitOnTheGeneration;
-    var asked = state.scene;
+    final asked = state.scene;
     final waiting = await _takes.sceneWaitingIn(
       sessionId,
       passage: _thePassage,
     );
     if (waiting != null) {
-      if (_theSceneMovedOn(asked, generation)) return;
+      if (_theSceneMovedOn(asked, generation)) return false;
       state = state.copyWith(
         scene: SceneScreen(
           label: waiting.scene,
@@ -5690,12 +5720,35 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           keep: NotKept(row: waiting.id, why: waiting.failure),
         ),
       );
-      asked = state.scene;
+      unawaited(_listTheSceneRehearsals(sessionId, generation));
+      return false;
     }
+    final listed = await _listTheSceneRehearsals(sessionId, generation);
+    if (!reopensTheUnsent || _theSceneMovedOn(asked, generation)) return false;
+    final unsent = SceneRehearsalRecord.toReopen(
+      listed is NetworkFailed ? _sceneRehearsalsRead : state.sceneRehearsals,
+      sessionId,
+    );
+    final reopens = switch (listed) {
+      _ when unsent == null => false,
+      Answered() => true,
+      NetworkFailed() => await _theTabletHolds(unsent),
+      _ => false,
+    };
+    if (!reopens || _theSceneMovedOn(asked, generation)) return false;
+    await _showTheRehearsal(unsent!, asked, generation, opening: true);
+    return state.scene.rehearsal?.rehearsalId == unsent.rehearsalId;
+  }
+
+  Future<RoomAnswer<List<SceneRehearsalRecord>>> _listTheSceneRehearsals(
+    String sessionId,
+    int generation,
+  ) async {
     final listed = await _room.sceneRehearsalsOf(sessionId);
+    if (_abandoned(generation)) return listed;
     switch (listed) {
       case Answered(:final value):
-        if (_abandoned(generation) || state.station is! SceneRehearsal) return;
+        if (state.station is! SceneRehearsal) return listed;
         state = state.copyWith(
           sceneRehearsals: SceneRehearsalRecord.listedOver(
             state.sceneRehearsals,
@@ -5703,59 +5756,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             sessionId,
           ),
         );
-        final unsent = SceneRehearsalRecord.toReopen(
-          state.sceneRehearsals,
-          sessionId,
-        );
-        if (waiting != null ||
-            unsent == null ||
-            !reopensTheUnsent ||
-            _theSceneMovedOn(asked, generation)) {
-          return;
-        }
-        final take = await _fetchTheSceneTake(
-          unsent,
-          () => _theSceneMovedOn(asked, generation),
-          generation,
-        );
-        if (take == null || state.scenes is! ScenesAwaited) return;
-        await _showTheRehearsal(
-          unsent,
-          asked,
-          generation,
-          take: take,
-          whileTheOpenWaits: true,
-        );
       case final RoomFailure failure:
-        if (!_abandoned(generation)) {
-          _decideAt(failure, door: Door.sceneRehearsal);
-        }
+        _decideAt(failure, door: Door.sceneRehearsal);
     }
+    return listed;
   }
 
+  Future<bool> _theTabletHolds(SceneRehearsalRecord rehearsal) async =>
+      _frases.of(rehearsal.rehearsalId) != null ||
+      await _heldOnTheTablet('cena-${rehearsal.rehearsalId}') != null;
+
+  /// The screen shows [rehearsal] on its step. Its take is the one given, the one the
+  /// screen already shows, or the one on this tablet; otherwise the step is chosen from
+  /// the room's length and the take comes down behind it. A rehearsal the room never
+  /// measured waits for its take, and one whose take cannot be had opens without it only
+  /// when the red microphone is [opening] it, so the record step never shows.
   Future<void> _showTheRehearsal(
     SceneRehearsalRecord rehearsal,
     SceneScreen asked,
     int generation, {
     String? take,
-    bool whileTheOpenWaits = false,
+    bool opening = false,
   }) async {
+    final measured = rehearsal.durationMs;
     final here =
         take ??
         (asked.rehearsal?.rehearsalId == rehearsal.rehearsalId
             ? asked.take
             : null) ??
-        await _fetchTheSceneTake(
-          rehearsal,
-          () => _theSceneMovedOn(asked, generation),
-          generation,
-        );
-    if (here == null || _theSceneMovedOn(asked, generation)) return;
-    final length = await _playback.howLong(here);
-    if (_theSceneMovedOn(asked, generation) ||
-        (whileTheOpenWaits && state.scenes is! ScenesAwaited)) {
-      return;
-    }
+        await _heldOnTheTablet('cena-${rehearsal.rehearsalId}') ??
+        (measured == null
+            ? await _theSceneTake(
+                rehearsal,
+                movedOn: () => _theSceneMovedOn(asked, generation),
+              )
+            : null);
+    if (_theSceneMovedOn(asked, generation)) return;
+    if (here == null && measured == null && !opening) return;
+    final length = here != null
+        ? await _playback.howLong(here)
+        : measured == null
+        ? null
+        : Duration(milliseconds: measured);
+    if (_theSceneMovedOn(asked, generation)) return;
     final step = switch (rehearsal) {
       SceneRehearsalRecord(unsent: false) => SceneStep.sent,
       _ when rehearsal.placesKnownIn(length) => SceneStep.translate,
@@ -5792,7 +5835,95 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       sceneRehearsals: _listedWith(rehearsal),
       clearSceneStoppedAt: !listened,
     );
-    _handOff(_readTheLoudness(here));
+    if (here != null) {
+      _handOff(_readTheLoudness(here));
+    } else if (measured != null) {
+      _handOff(_theTakeBehindTheStep(rehearsal, generation));
+    }
+  }
+
+  /// The rehearsal's take, come down once for this Life however many ask for it; what
+  /// fails is told while the first asker has not [movedOn], by default while the screen
+  /// still shows the rehearsal. A take that could not be had is asked for again only by
+  /// a tap, never by the screen laid again.
+  Future<String?> _theSceneTake(
+    SceneRehearsalRecord rehearsal, {
+    bool Function()? movedOn,
+    bool again = false,
+  }) {
+    final id = rehearsal.rehearsalId;
+    final coming = _sceneTakesComing;
+    final missed = _sceneTakesMissed;
+    if (coming[id] case final take?) return take;
+    if (missed.contains(id) && !again) return Future.value();
+    missed.remove(id);
+    final life = _thisLife;
+    return coming[id] =
+        _fetchTheSceneTake(
+          rehearsal,
+          movedOn ??
+              () =>
+                  _endedSince(life) ||
+                  state.station is! SceneRehearsal ||
+                  state.scene.rehearsal?.rehearsalId != id,
+          () => _endedSince(life),
+        ).then((take) {
+          coming.remove(id);
+          if (take == null) missed.add(id);
+          return take;
+        });
+  }
+
+  Future<void> _theTakeBehindTheStep(
+    SceneRehearsalRecord rehearsal,
+    int generation,
+  ) async {
+    final take = await _theSceneTake(rehearsal);
+    if (take != null) {
+      await _layTheTake(rehearsal.rehearsalId, take, generation);
+    }
+  }
+
+  bool _stillShows(String rehearsalId, int generation) =>
+      !_abandoned(generation) &&
+      state.station is SceneRehearsal &&
+      state.scene.rehearsal?.rehearsalId == rehearsalId;
+
+  /// The one writer of a take that came down after its step opened: it lands only on a
+  /// screen that still shows its rehearsal with no take. Whether that screen is still
+  /// there.
+  Future<bool> _layTheTake(
+    String rehearsalId,
+    String take,
+    int generation,
+  ) async {
+    final length = await _playback.howLong(take);
+    if (!_stillShows(rehearsalId, generation)) return false;
+    if (state.scene.take == null) {
+      state = state.copyWith(scene: state.scene.withTheTake(take, length));
+      _handOff(_readTheLoudness(take));
+    }
+    return true;
+  }
+
+  /// A tap that needs the take before it came down waits for it on the screen marked
+  /// waiting, then does what it asked if the screen is still the one tapped.
+  void _theTakeFirst(SceneRehearsalRecord rehearsal, void Function() gesture) {
+    state = state.copyWith(scene: state.scene.asWaiting);
+    _handOff(_theTapWaitsForTheTake(rehearsal, gesture));
+  }
+
+  Future<void> _theTapWaitsForTheTake(
+    SceneRehearsalRecord rehearsal,
+    void Function() gesture,
+  ) async {
+    final generation = _waitOnTheGeneration;
+    final id = rehearsal.rehearsalId;
+    final take = await _theSceneTake(rehearsal, again: true);
+    final laid = take != null && await _layTheTake(id, take, generation);
+    if (!_stillShows(id, generation) || !state.scene.waiting) return;
+    state = state.copyWith(scene: state.scene.copyWith(waiting: false));
+    if (laid) gesture();
   }
 
   Future<void> _readTheLoudness(String take) async {
@@ -5834,7 +5965,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<String?> _fetchTheSceneTake(
     SceneRehearsalRecord rehearsal,
     bool Function() movedOn,
-    int generation,
+    bool Function() abandoned,
   ) => _fetchASceneClip(
     'cena-${rehearsal.rehearsalId}',
     RoomRepository.sceneRehearsalAudioUrl(
@@ -5842,21 +5973,23 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       rehearsal.rehearsalId,
     ),
     movedOn,
-    generation,
-    failed: (failure) => _decideAt(failure, door: Door.sceneRehearsal),
+    abandoned,
+    failed: (failure) {
+      if (!movedOn()) _decideAt(failure, door: Door.sceneRehearsal);
+    },
   );
 
   Future<String?> _fetchASceneClip(
     String name,
     String url,
     bool Function() movedOn,
-    int generation, {
+    bool Function() abandoned, {
     required void Function(RoomFailure failure) failed,
   }) async {
     final held = await _heldOnTheTablet(name);
-    if (held != null || _abandoned(generation)) return held;
+    if (held != null || abandoned()) return held;
     final clip = await _room.fetchClip(url);
-    if (_abandoned(generation)) return null;
+    if (abandoned()) return null;
     switch (clip) {
       case Answered(:final value) when value.isNotEmpty:
         try {
@@ -6174,12 +6307,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final shown = state.scene;
     if (state.station is! SceneRehearsal ||
         shown.step != SceneStep.translate ||
-        shown.take == null ||
         shown.rehearsal == null ||
         shown.waiting ||
         state.theSceneIsSending ||
         state.needsPerson) {
       return;
+    }
+    if (shown.take == null) {
+      return _theTakeFirst(shown.rehearsal!, _tapTheTranslateCircle);
     }
     _theRefusalLineGoes();
     switch (state.channel) {
@@ -6220,12 +6355,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.theSceneIsSending ||
         state.channel is Microphone ||
         (step != SceneStep.translate && step != SceneStep.sent) ||
-        take == null ||
         rehearsal == null) {
       return;
     }
     final playing =
         soundingAtTheTap ?? _theSceneTakeThatSounds(state.machine) != null;
+    if (take == null) {
+      return _theTakeFirst(
+        rehearsal,
+        () => _playTheSceneRehearsal(soundingAtTheTap: playing),
+      );
+    }
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
@@ -6547,10 +6687,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final take = shown.take;
     final frase = _theFraseShown(fraseId, on: const {SceneStep.translate});
     if (frase == null ||
-        take == null ||
         !frase.placedIn(shown.length) ||
         _frases.of(shown.rehearsal!.rehearsalId) != null) {
       return;
+    }
+    if (take == null) {
+      return _theTakeFirst(
+        shown.rehearsal!,
+        () => _translateTheFraseAgain(fraseId),
+      );
     }
     _silenceTheRoom();
     _theRefusalLineGoes();
@@ -6784,9 +6929,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void playTheFrase(String fraseId) => _gesture(() => _playTheFrase(fraseId));
 
   void _playTheFrase(String fraseId) {
-    final SceneScreen(:take, :length) = state.scene;
+    final SceneScreen(:take, :length, :rehearsal) = state.scene;
     final frase = _theFraseShown(fraseId, on: const {SceneStep.sent});
-    if (frase == null || take == null || !frase.placedIn(length)) return;
+    if (frase == null || !frase.placedIn(length)) return;
+    if (take == null) {
+      return _theTakeFirst(rehearsal!, () => _playTheFrase(fraseId));
+    }
     _silenceTheRoom();
     state = state.copyWith(
       scene: state.scene.copyWith(heard: SceneHeard.partly),
@@ -6848,7 +6996,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         frase.fraseId,
       ),
       movedOn,
-      generation,
+      () => _abandoned(generation),
       failed: (_) {},
     );
     if (movedOn()) return;
@@ -6996,6 +7144,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       return;
     }
     _silenceTheRoom();
+    _sceneTakesMissed.remove(rehearsalId);
     final waiting = shown.asWaiting;
     state = state.copyWith(
       scene: waiting,
