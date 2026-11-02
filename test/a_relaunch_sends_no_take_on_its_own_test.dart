@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/device_link_notifier.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/linked_team.dart';
+import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 
@@ -103,5 +104,38 @@ void main() {
           'a parte da vida revogada subiria com a credencial de uma equipe '
           'que talvez não seja a dela',
     );
+  });
+
+  test('a relaunch sends a take of its team on its tap', () async {
+    final harness = SalaHarness(
+      linkedAs: const RememberedLink(
+        deviceId: 'aparelho-1',
+        team: TeamLink(projectId: 'equipe-1'),
+        credential: 'credencial-1',
+      ),
+    );
+    final before = TakeUploadQueue(
+      room: harness.room,
+      home: () async => harness.takesHome,
+      recordings: () => harness.recorder,
+    );
+    await before.beginALife(team: 'equipe-1');
+    File('${harness.takesHome.path}/parte.m4a').writeAsBytesSync([1, 2, 3]);
+    await before.enqueue(
+      File('${harness.takesHome.path}/parte.m4a'),
+      sessionId: 'sessao-1',
+      kind: 'ensaio',
+      scope: 'passagem',
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    for (final row in await harness.takes.pending()) {
+      harness.takes.tapped(row.id);
+    }
+    await harness.takes.flush();
+
+    expect(harness.room.takeSessions, ['sessao-1']);
   });
 }

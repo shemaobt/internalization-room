@@ -106,7 +106,7 @@ void main() {
       keep(queue, 'tardia', 'sessao-1'),
       throwsA(isA<TheLifeEnded>()),
     );
-    queue.beginALife();
+    await queue.beginALife(team: 'equipe-1');
     await keep(queue, 'nova', 'sessao-3');
     expect(await queue.entries(), hasLength(1));
   });
@@ -3225,6 +3225,153 @@ void main() {
       expect(home.existsSync(), isFalse);
     },
   );
+
+  group('an Outbox row belongs to the team that recorded it', () {
+    const passage = 'Genesis/P01/pt';
+
+    Future<PendingTake> aPart(TakeUploadQueue queue, String? session) =>
+        queue.enqueue(
+          aTake('parte-$session'),
+          sessionId: session,
+          passage: passage,
+          kind: 'ensaio',
+          scope: 'parte-1',
+          passNumber: 1,
+          chunkIndex: 1,
+        );
+
+    Future<PendingTake> aScene(TakeUploadQueue queue, String name) =>
+        queue.enqueue(
+          aTake(name),
+          sessionId: null,
+          passage: passage,
+          kind: 'cena',
+          scope: 'cena',
+        );
+
+    Future<int> onTheHomeOf(TakeUploadQueue queue, String session) async {
+      final tally = await queue.tally(sessionId: session, passage: passage);
+      return tally.unsentTakes;
+    }
+
+    void anOlderAppWrote(String rows) {
+      final dir = Directory('${home.path}/guardadas')
+        ..createSync(recursive: true);
+      for (final id in ['1700000000000000-0', '1700000000000000-1']) {
+        File('${dir.path}/ensaio-antiga-$id.m4a').writeAsStringSync('antes');
+      }
+      File('${dir.path}/fila.json').writeAsStringSync(rows);
+    }
+
+    String anOldRow(String id, String? session) =>
+        '{"id":"$id","name":"ensaio-antiga-$id.m4a","session_id":'
+        '${session == null ? 'null' : '"$session"'},"passage":"$passage",'
+        '"kind":"ensaio","scope":"parte-1","pass_number":1,"chunk_index":1,'
+        '"stored":false,"lost":false,"attempts":0,"waits":0}';
+
+    test("no take of another team is sent, listed or let go into the new "
+        "team's session of its passage", () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await queue.beginALife(team: 'equipe-1');
+      final theirs = await aPart(queue, 'sessao-1');
+      final theirScene = await aScene(queue, 'cena-a');
+
+      await queue.beginALife(team: 'equipe-2');
+      final ours = await aScene(queue, 'cena-b');
+      queue.tapped(theirs.id);
+      await queue.flush();
+      await queue.letGoOfTheSession('sessao-1', passage: passage);
+      await queue.dueAgain(theirScene.id, intoTheSession: 'sessao-9');
+      await queue.keepTheScene(ours.id, intoTheSession: 'sessao-9');
+
+      expect(room.takeSessions, isEmpty);
+      expect(room.scenesKept, ['sessao-9']);
+      expect(await onTheHomeOf(queue, 'sessao-9'), 0);
+      expect(await queue.pending(), isEmpty);
+
+      await queue.beginALife(team: 'equipe-1');
+      await aTapOnEveryRow(queue);
+      expect(room.takeSessions, ['sessao-1']);
+      expect(room.scenesKept, ['sessao-9']);
+    });
+
+    test(
+      "another team's row survives the new team's open sweep and flush",
+      () async {
+        final room = FakeRoom();
+        final first = queueOn(room);
+        await first.beginALife(team: 'equipe-1');
+        final ours = await aPart(first, 'sessao-1');
+
+        final relaunched = queueOn(room);
+        await relaunched.beginALife(team: 'equipe-2');
+        await relaunched.sweepTheCopiesLeftBehind();
+        await aPart(relaunched, null);
+        await relaunched.flush();
+        expect(File(ours.path).existsSync(), isTrue);
+
+        await relaunched.beginALife(team: 'equipe-1');
+        relaunched.tapped(ours.id);
+        await relaunched.flush();
+        expect(room.takeSessions, ['sessao-1']);
+      },
+    );
+
+    test('a life whose team is not known sends and lists nothing', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await queue.beginALife(team: null);
+      await aPart(queue, 'sessao-1');
+
+      await queue.flush();
+
+      expect(room.takeSessions, isEmpty);
+      expect(await onTheHomeOf(queue, 'sessao-1'), 0);
+    });
+
+    test('a row an older app left with no session is the team unknown\'s, '
+        'never sent nor listed, and kept', () async {
+      anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await queue.beginALife(team: 'equipe-1');
+
+      await queue.dueAgain('1700000000000000-0', intoTheSession: 'sessao-1');
+      await queue.flush();
+      final relaunched = queueOn(room);
+      await relaunched.beginALife(team: 'equipe-2');
+      await relaunched.sweepTheCopiesLeftBehind();
+      await relaunched.beginALife(team: 'equipe-1');
+      await aTapOnEveryRow(relaunched);
+
+      expect(room.takeSessions, isEmpty);
+      expect(await onTheHomeOf(relaunched, 'sessao-1'), 0);
+      expect(inTheFolder(), contains('ensaio-antiga-1700000000000000-0.m4a'));
+    });
+
+    test('a row an older app left in a session is the current team\'s, and a '
+        'session-less row of the new build stays its team\'s at the next '
+        'launch', () async {
+      anOlderAppWrote('[${anOldRow('1700000000000000-1', 'sessao-1')}]');
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.beginALife(team: 'equipe-1');
+      await queue.letGoOfTheSession('sessao-1', passage: passage);
+      await aPart(queue, null);
+
+      final relaunched = queueOn(room);
+      await relaunched.beginALife(team: 'equipe-1');
+
+      expect(await onTheHomeOf(relaunched, 'sessao-2'), 2);
+      for (final row in await relaunched.pending()) {
+        await relaunched.dueAgain(row.id, intoTheSession: 'sessao-2');
+      }
+      room.reachable = true;
+      await relaunched.flush();
+      expect(room.takeSessions, ['sessao-2', 'sessao-2']);
+    });
+  });
 }
 
 final class _Plain extends IOOverrides {}

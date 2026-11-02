@@ -4089,7 +4089,7 @@ class FakeTakeQueue implements TakeUploadQueue {
   }
 
   @override
-  void beginALife() => _lifeEnded = false;
+  Future<void> beginALife({required String? team}) async => _lifeEnded = false;
 
   @override
   Future<void> sweepTheCopiesLeftBehind() async {}
