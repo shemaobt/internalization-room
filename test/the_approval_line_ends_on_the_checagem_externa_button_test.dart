@@ -296,7 +296,9 @@ void main() {
     container.read(salaSessionProvider.notifier).startRetro();
     await waitFor(
       'a retrotradução aprovada voltar conferida',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     harness.room.readsChecked = false;
