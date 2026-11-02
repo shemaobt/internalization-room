@@ -26,6 +26,7 @@ import 'scenario_helpers.dart'
     show
         byLabel,
         holdTheSession,
+        inTheHome,
         intoTheBackTranslation,
         offTheRows,
         thePersonSign,
@@ -852,6 +853,34 @@ void main() {
         () => it.harness.playback.played.length > played,
       );
       it.room.unreachableTake = null;
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    'while a scene\'s translations are brought back, the advance button is '
+    'disabled though every part is in the room',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      bool live() =>
+          tester.getSemantics(inTheHome(_conferir)).flagsCollection.isEnabled ==
+          Tristate.isTrue;
+      expect(
+        live(),
+        isTrue,
+        reason: 'com toda parte na sala o botão está vivo',
+      );
+      it.room.holdBringBack();
+
+      await _bringBackTwice(it, 2);
+      expect(live(), isFalse);
+      await it.tapThe(find.text(_conferir));
+      expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+
+      it.room.finishHeldBringBack();
+      await it.settle();
+      expect(live(), isTrue);
       semantics.dispose();
     },
   );

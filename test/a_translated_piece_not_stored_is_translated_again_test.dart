@@ -23,7 +23,7 @@ import 'an_empty_telling_keeps_the_pause_and_shows_her_line_test.dart'
 import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show entrarNaTraducao, tocar, terminar;
+    show entrarNaTraducao, tocarNoCirculo;
 import 'support/temp.dart';
 
 const _notUnderstood = 'não entendi — traduzam de novo esse pedaço';
@@ -228,7 +228,7 @@ void main() {
         await pausarEAbrir(tester, harness);
         harness.room.chunkAnswersFirst.add(const NetworkFailed('HTTP 502'));
 
-        await tocar(tester, terminar);
+        await tocarNoCirculo(tester);
         await tester.pump(const Duration(milliseconds: 300));
         await _theDiskAnswers(tester);
 
@@ -273,7 +273,7 @@ void main() {
 
         for (var time = 0; time < 3; time++) {
           if (time > 0) await tocarOCirculo(tester);
-          await tocar(tester, terminar);
+          await tocarNoCirculo(tester);
           await tester.pump(const Duration(milliseconds: 300));
         }
 
@@ -293,7 +293,7 @@ void main() {
         final received = harness.room.takesReceived.length;
         await pausarEAbrir(tester, harness);
         harness.room.chunkAnswersFirst.add(const NetworkFailed('HTTP 502'));
-        await tocar(tester, terminar);
+        await tocarNoCirculo(tester);
         await tester.pump(const Duration(milliseconds: 300));
 
         await _theDiskAnswers(tester);
@@ -315,7 +315,7 @@ void main() {
         await pausarEAbrir(tester, harness);
         harness.room.chunkThrows = const FileSystemException('o disco falhou');
 
-        await tocar(tester, terminar);
+        await tocarNoCirculo(tester);
         await tester.pump(const Duration(milliseconds: 300));
         await _theDiskAnswers(tester);
 

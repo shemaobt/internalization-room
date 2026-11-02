@@ -540,6 +540,14 @@ class SalaSessionState {
   final Map<int, UnsentPart> unsentParts;
   final Set<int> heldScenes;
 
+  /// The scenes whose joined part is still in the Outbox: never a take left on the
+  /// tablet, and the door waits for it.
+  final Set<int> joinsOnTheirWay;
+
+  /// Whether this life has counted the Outbox yet: before its first count a part with
+  /// no name may still be owed, so it holds the door as one that waits.
+  final bool outboxCounted;
+
   final Machine machine;
   final DateTime? recorderStartedAt;
 
@@ -715,6 +723,8 @@ class SalaSessionState {
     this.unsentChunks = 0,
     this.unsentParts = const {},
     this.heldScenes = const {},
+    this.joinsOnTheirWay = const {},
+    this.outboxCounted = false,
     this.machine = const Machine(),
     this.recorderStartedAt,
     this.cenaDaGravacao,
@@ -827,7 +837,10 @@ class SalaSessionState {
   );
 
   bool _waitsToGoUp(KeptTake take) =>
-      take.takeId == null && unsentParts.containsKey(rowOf(take.scopeId));
+      take.takeId == null &&
+      (!outboxCounted ||
+          unsentParts.containsKey(rowOf(take.scopeId)) ||
+          joinsOnTheirWay.contains(rowOf(take.scopeId)));
 
   /// Whether every Scene has its Part. A passage the room answered with no scenes needs
   /// one part; a scene list still awaited or missing is never covered.
@@ -1991,6 +2004,8 @@ class SalaSessionState {
     int? unsentChunks,
     Map<int, UnsentPart>? unsentParts,
     Set<int>? heldScenes,
+    Set<int>? joinsOnTheirWay,
+    bool? outboxCounted,
     Machine? machine,
     DateTime? recorderStartedAt,
     bool clearRecorderStartedAt = false,
@@ -2156,6 +2171,8 @@ class SalaSessionState {
       unsentChunks: unsentChunks ?? this.unsentChunks,
       unsentParts: unsentParts ?? this.unsentParts,
       heldScenes: heldScenes ?? this.heldScenes,
+      joinsOnTheirWay: joinsOnTheirWay ?? this.joinsOnTheirWay,
+      outboxCounted: outboxCounted ?? this.outboxCounted,
       machine: machine ?? this.machine,
       recorderStartedAt: clearRecorderStartedAt
           ? null

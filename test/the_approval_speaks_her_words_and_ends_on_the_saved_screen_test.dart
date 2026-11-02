@@ -12,6 +12,8 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -19,7 +21,7 @@ import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
-const _ouvir = 'Ouvir a gravação';
+const _tocarOuPausar = 'Tocar ou pausar a gravação';
 const _traduzir = 'Traduzir a gravação';
 
 const _faltaOuvir = 'ainda falta ouvir um trecho da gravação';
@@ -167,6 +169,28 @@ Finder _recomecoArmado() => find.byWidgetPredicate(
       ),
 );
 
+void _inHerOrder(WidgetTester tester, List<(String, Finder)> pieces) {
+  for (final (name, finder) in pieces) {
+    expect(finder, findsOneWidget, reason: '«$name» is drawn once');
+  }
+  for (var i = 1; i < pieces.length; i++) {
+    expect(
+      tester.getRect(pieces[i - 1].$2).bottom,
+      lessThanOrEqualTo(tester.getRect(pieces[i].$2).top + 0.01),
+      reason: '«${pieces[i - 1].$1}» stands above «${pieces[i].$1}»',
+    );
+  }
+}
+
+Finder _naCasa(String words) =>
+    find.descendant(of: find.byType(EnsaioView), matching: find.text(words));
+
+Future<void> _deVoltaACasa(WidgetTester tester, _Sala it) async {
+  it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+  it.container.read(salaSessionProvider.notifier).goEnsaio();
+  await _assentar(tester);
+}
+
 void main() {
   for (final caso in const [
     (codigo: 'playback_did_not_cover_the_clip', texto: _faltaOuvir),
@@ -241,6 +265,37 @@ void main() {
       },
     );
   }
+
+  testWidgets('once conferida, «$_traduzir» stands between «$_conferida» and '
+      '«$_aprovar»', (tester) async {
+    final it = await _ateAConferida(tester);
+    await _deVoltaACasa(tester, it);
+
+    _inHerOrder(tester, [
+      ('Ouvir tudo', _naCasa('Ouvir tudo')),
+      ('✓ traduzida e conferida', _naCasa(_conferida)),
+      ('Traduzir a gravação', inTheHome(_traduzir)),
+      ('Aprovar como rascunho final', inTheHome(_aprovar)),
+      ('the grain switch', inTheHome('Gravar a passagem inteira')),
+    ]);
+    closeTheRoom(it.container);
+  });
+
+  testWidgets('a refused approval\'s line stands under the approve button and '
+      'above the grain switch', (tester) async {
+    final it = await _ateAConferida(tester);
+    await _deVoltaACasa(tester, it);
+    it.harness.room.releaseBlockers = const ['playback_did_not_cover_the_clip'];
+
+    await _tocar(tester);
+
+    _inHerOrder(tester, [
+      ('Aprovar como rascunho final', inTheHome(_aprovar)),
+      ('the refusal', _naCasa(_faltaOuvir)),
+      ('the grain switch', inTheHome('Gravar a passagem inteira')),
+    ]);
+    closeTheRoom(it.container);
+  });
 
   testWidgets('the server cannot answer: «$_naoDeu»', (tester) async {
     final it = await _ateAConferida(tester);
@@ -338,7 +393,7 @@ void main() {
       expect(find.text(_aprovado(1)), findsOneWidget);
       expect(byLabel(_pronto), findsOneWidget);
       expect(byLabel(_aprovar), findsNothing);
-      expect(byLabel(_ouvir), findsNothing);
+      expect(byLabel(_tocarOuPausar), findsNothing);
       expect(find.text(_traduzir), findsNothing);
 
       final falasAntesDoPronto = it.harness.voice.fixedLines.length;
@@ -676,7 +731,7 @@ void main() {
       await _tocar(tester);
       final tocadas = it.harness.playback.playedFrom.length;
 
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(it.harness.playback.playedFrom, hasLength(tocadas));
@@ -719,7 +774,13 @@ void main() {
       sala.startRetro();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text(_traduzir), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(RetroView),
+          matching: find.text(_traduzir),
+        ),
+        findsOneWidget,
+      );
       expect(find.text(_aprovado(1)), findsNothing);
       closeTheRoom(it.container);
     },
@@ -774,7 +835,7 @@ void main() {
       it.harness.voice.holdNextLine();
       await _tocar(tester);
 
-      expect(_humor(tester, _ouvir), ButtonMood.dimmed);
+      expect(_humor(tester, _tocarOuPausar), ButtonMood.dimmed);
       expect(
         tester
             .getSemantics(byLabel(_recomecar))
@@ -858,7 +919,7 @@ void main() {
       await _saiEVoltaAConferida(tester, it);
 
       final tocadas = it.harness.playback.playedFrom.length;
-      await tester.tap(byLabel(_ouvir));
+      await tester.tap(byLabel(_tocarOuPausar));
       await tester.pump(const Duration(milliseconds: 300));
       expect(it.harness.playback.playedFrom, hasLength(tocadas + 1));
 
@@ -912,7 +973,7 @@ void main() {
     final it = await _ateAConferida(tester);
 
     expect(
-      tester.getCenter(byLabel(_ouvir)).dx,
+      tester.getCenter(byLabel(_tocarOuPausar)).dx,
       400,
       reason: 'o espaço do botão que saiu empurrava o ouvir para a esquerda',
     );

@@ -5,7 +5,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
-    show ouvir, parte, pausar, tocar;
+    show parte, tocar, tocarOuPausar;
 import 'the_pause_snaps_to_silence_test.dart'
     show
         depois,
@@ -26,7 +26,7 @@ void main() {
     await pausarAos(tester, harness, s(4.0));
     expect(container.read(salaSessionProvider).btCorte, s(4.0));
 
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
 
     final state = container.read(salaSessionProvider);
     expect(
@@ -51,7 +51,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await entrarComAFala(tester, harness, _umaLacunaAos4e4);
     await pausarAos(tester, harness, s(4.0));
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
 
     await pausarAos(tester, harness, s(6.0));
 
@@ -79,10 +79,10 @@ void main() {
     await pausarAos(tester, harness, s(4.0));
     await tocar(tester, ouvirAPausa);
     expect(harness.playback.ranges.last, '2500-4000');
-    await tocar(tester, pausar);
+    await tocar(tester, tocarOuPausar);
     expect(container.read(salaSessionProvider).btTrechoPausada, isTrue);
 
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
 
     expect(
       harness.playback.playedFrom.last,
@@ -103,7 +103,7 @@ void main() {
     await tocarOCirculo(tester);
     expect(container.read(salaSessionProvider).btCorte, parte);
 
-    await tocar(tester, ouvir);
+    await tocar(tester, tocarOuPausar);
 
     expect(
       harness.playback.ranges.lastOrNull,
@@ -138,7 +138,7 @@ void main() {
     await tocar(tester, depois);
     expect(container.read(salaSessionProvider).btCorte, s(4.6));
 
-    await tocar(tester, 'Ouvir a tradução');
+    await tocar(tester, tocarOuPausar);
 
     final state = container.read(salaSessionProvider);
     expect(

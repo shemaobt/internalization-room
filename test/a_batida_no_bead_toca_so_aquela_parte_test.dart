@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
@@ -342,8 +343,13 @@ void main() {
     expect(harness.playback.played, [partes[0].path]);
     expect(
       _linhas(tester)[0].label,
-      'Cena 1, tocando',
-      reason: 'soando, o bead diz que soa',
+      'Cena 1',
+      reason: 'soando, a linha segue lida como ela é, sem «tocando»',
+    );
+    expect(
+      find.byIcon(LucideIcons.pause),
+      findsWidgets,
+      reason: 'soando, o bead mostra o pause',
     );
 
     notifier.ouvirACena(1);

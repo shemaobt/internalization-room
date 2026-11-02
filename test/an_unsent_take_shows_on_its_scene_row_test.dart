@@ -22,6 +22,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/ensaio_v
 import 'package:internalization_room/features/sala/presentation/widgets/unsent_notice.dart';
 import 'package:internalization_room/main.dart';
 
+import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show byLabel, intoTheRecordingHome, offTheRows, relaunch, settle;
@@ -221,14 +222,8 @@ Future<void> _lancar(ProviderContainer container) async {
   await sala.openTheRoom();
 }
 
-ButtonMood _oDisco(WidgetTester tester) => tester
-    .widget<RoundActionButton>(
-      find.ancestor(
-        of: offTheRows(_traduzir),
-        matching: find.byType(RoundActionButton),
-      ),
-    )
-    .mood;
+bool _oDisco(WidgetTester tester) =>
+    tester.widget<Semantics>(offTheRows(_traduzir)).properties.enabled == true;
 
 ButtonMood _aMadeira(WidgetTester tester) => tester
     .widget<RoundActionButton>(
@@ -600,7 +595,7 @@ void main() {
   });
 
   testWidgets(
-    'after a join the advance disc reads «ouvir e conferir o Ensaio Final»',
+    'after a join the advance button reads «ouvir e conferir o Ensaio Final»',
     (tester) async {
       await _retomarComAParte1(tester, origin: 'ensaio-da-cena-1');
 
@@ -609,7 +604,7 @@ void main() {
     },
   );
 
-  testWidgets('without a join the advance disc reads «Traduzir a gravação»', (
+  testWidgets('without a join the advance button reads «Traduzir a gravação»', (
     tester,
   ) async {
     await _retomarComAParte1(tester, origin: null);
@@ -1195,14 +1190,14 @@ void main() {
   });
 
   testWidgets(
-    'a part still in the Outbox keeps the advance disc dark, as her translate '
+    'a part still in the Outbox keeps the advance button dark, as her translate '
     'button waits for the room to hold every part',
     (tester) async {
       await _comAQuartaNaFila(tester);
 
       expect(
         _oDisco(tester),
-        ButtonMood.dimmed,
+        isFalse,
         reason:
             'o disco acenava com a cena 4 ainda na fila, e o botão dela fica '
             'desligado até a sala ter todas as partes',
@@ -1247,7 +1242,7 @@ void main() {
       expect(casa.estado.everyPartIsSent, isTrue);
       expect(
         _oDisco(tester),
-        ButtonMood.beckoning,
+        isTrue,
         reason: 'a cena 4 chegou à sala e o disco ficava apagado',
       );
 
@@ -1336,12 +1331,12 @@ void main() {
   );
 
   testWidgets(
-    'a keep the Outbox has taken but not yet counted keeps the advance disc '
+    'a keep the Outbox has taken but not yet counted keeps the advance button '
     'dark',
     (tester) async {
       final (casa, contagem) = await _aQuartaGuardadaComAContaPresa(tester);
 
-      expect(_oDisco(tester), ButtonMood.dimmed, reason: 'a cena 4 sem conta');
+      expect(_oDisco(tester), isFalse, reason: 'a cena 4 sem conta');
       casa.sala.startRetro();
       await tester.pump(const Duration(milliseconds: 200));
       expect(casa.estado.stage, SalaStage.ensaio);
@@ -1351,7 +1346,7 @@ void main() {
         await waitFor('a cena 4 chegar à porta', () => casa.room.takeHeld);
         await settle();
       });
-      expect(_oDisco(tester), ButtonMood.dimmed, reason: 'a cena 4 subindo');
+      expect(_oDisco(tester), isFalse, reason: 'a cena 4 subindo');
       casa.sala.startRetro();
       await tester.pump(const Duration(milliseconds: 200));
       expect(casa.estado.stage, SalaStage.ensaio);
@@ -1364,7 +1359,7 @@ void main() {
           limit: const Duration(seconds: 30),
         );
       });
-      expect(_oDisco(tester), ButtonMood.beckoning);
+      expect(_oDisco(tester), isTrue);
     },
   );
 
@@ -1545,6 +1540,41 @@ void main() {
             findsNothing,
           );
         }
+      },
+    );
+
+    testWidgets(
+      'a join of an earlier visit still in the Outbox is never listed under '
+      'the home\'s notice: only the take recorded on this tablet is',
+      (tester) async {
+        final casa = await _naCasa(tester);
+        casa.room.unreachableTake = 'ensaio/parte-2';
+        await casa.guardar(2);
+        await casa.relancar();
+        final sessionId = casa.estado.sessionId!;
+        await casa.emTempoReal(() async {
+          final pasta = aTempDir('sala-2079-junta-na-casa');
+          await casa.harness.takes.enqueueTheJoin(
+            File('${pasta.path}/parte-3-junta.wav')
+              ..writeAsBytesSync(aWavTake()),
+            sessionId: sessionId,
+            number: 3,
+            passNumber: 1,
+            origin: 'ensaio-da-cena-3',
+          );
+        });
+        await casa.emTempoReal(() async {
+          await casa.sala.refreshUnsent();
+          await settle();
+        });
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          casa.noAviso(find.text(_enviarAgora(2, '0:48'))),
+          findsOneWidget,
+        );
+        expect(casa.noAviso(find.textContaining('Cena 3')), findsNothing);
+        expect(find.textContaining('Cena 3 ·'), findsNothing);
       },
     );
 

@@ -142,7 +142,7 @@ void main() {
     expect(find.text(_naoDeuParaConferir), findsOneWidget);
     final tocadas = harness.playback.played.length;
 
-    await tocar(tester, 'Ouvir a gravação');
+    await tocar(tester, 'Tocar ou pausar a gravação');
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.playback.played.length, greaterThan(tocadas));
@@ -164,7 +164,7 @@ void main() {
     expect(find.text(_naoDeuParaConferir), findsOneWidget);
     final tocadas = harness.playback.played.length;
 
-    await tocar(tester, 'Ouvir a gravação');
+    await tocar(tester, 'Tocar ou pausar a gravação');
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(harness.playback.played.length, greaterThan(tocadas));

@@ -19,7 +19,7 @@ The station where the team describes the passage out loud, and what the team tou
 _Avoid_: conversa in prose (`conversa` is the enum value), telling, narration
 
 **Rehearsal** (`ensaio`):
-The station where the team records the passage scene by scene in the mother tongue, one Scene row per scene, listens and records again; the advance disc opens the Back-translation, and «Ouvir tudo» plays the whole recording, only once every scene has its part and the room holds every part.
+The station where the team records the passage scene by scene in the mother tongue, one Scene row per scene, listens and records again; the advance button opens the Back-translation, and «Ouvir tudo» plays the whole recording, only once every scene has its part and the room holds every part.
 _Avoid_: ensaio in prose (`ensaio` is the enum value), passage recording (the recording itself is the take)
 
 **Back-translation** (`retro`):
@@ -271,7 +271,7 @@ The room's control on every station but the recording home, whose Scene rows rec
 _Avoid_: círculo, facilitator circle, record circle, button, esfera
 
 **Advance disc**:
-The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it lights only once every scene has its part, every part is on the tablet, and the room holds every part, from the keep tap on.
+The wood disc with no glyph that leads from one station to the next: to the Back-translation from the Rehearsal, to the verdict from the Back-translation; it lights only when nothing is pending and pulses while the room beckons; on the Rehearsal it is instead her written button «Traduzir a gravação» («ouvir e conferir o Ensaio Final» on a joined recording), with no pulse, and it lights only once every scene has its part, every part is on the tablet, and the room holds every part, from the keep tap on.
 _Avoid_: next button, continue, seguir, microphone (it never wears one)
 
 **Knot**:

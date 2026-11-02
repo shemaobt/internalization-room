@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by ENG-1914)
+status: accepted (amended by ENG-1914, and by ENG-2079)
 date: 2026-10-23
 extends: 0087
 ---
@@ -42,3 +42,22 @@ The Definer settled the rules on ENG-1385 (Definition of 22 October; answers Q34
 ## Consequences
 
 ENG-1405 lays frases on these rows' landing; ENG-1407's «usar este» writes the same kind of row over a part; ENG-1408 starts its first listen on the home the join lands on. An older server, with no sha256 on its listing, gets the bytes' own hash as the fingerprint and so cannot refuse a different file.
+
+## Amendment · 2026-11-02 (ENG-2079)
+
+Her join is the server's; nothing of a join ever waits on her computer, and her pending notice
+lists only takes the team recorded (Drafting.tsx:2204-2214 at 18fa7c4). So a join row in the
+Outbox is never a take left on the tablet: it is never offered «enviar agora», never counted
+among the unsent takes, and never decides the dot's screen, which reads the room's listing
+alone; ENG-1914's notice lists only takes the team recorded. «A row given up for no answer goes up only on
+the notice's «enviar agora»» (ENG-1914's wording of the line above) changes:
+**it is that scene's join in progress on the plan, and «juntar» sends it again**. The retro door
+still waits for it. A join row spent by its attempts, which only a disk failure does, is no
+longer that scene's join in progress: the scene is one to join again.
+
+A swap the tablet was closed on («usar este», ENG-1407) leaves the Outbox with its copy when
+the recording home is next reached: the room's part stays on the row and «trocar o ensaio
+desta cena» (or «usar o ensaio desta cena» over a row with no part) is offered again (Definer,
+2 November). The home's swap marks its row (`swap`), the only word the Outbox row carries for
+it, and only this session's rows so marked leave; a row an older app wrote has none and stays
+as a join of the plan (Definer, 2 November, on ENG-2125).

@@ -10,14 +10,13 @@ import 'resto_da_historia_test.dart' show aHistoriaSemOFim;
 import 'scenario_helpers.dart';
 import 'the_translation_is_recorded_over_until_the_check_test.dart'
     show aceso, olhar, tocar;
+import 'the_back_translation_is_told_by_beads_test.dart'
+    show tocarNoCirculo, tocarOuPausar;
 
 const microfoneDeMadeira = 'voltar e regravar uma parte';
 const continuarOEnsaio = 'Continuar o ensaio';
 
-const gravarATraducaoDeNovo = 'Tocar para gravar a tradução de novo';
-const terminar = 'Tocar ao terminar';
 const pararAGravacao = 'Parar';
-const ouvirATraducao = 'Ouvir a tradução';
 const tesoura = 'Pausar onde a frase acaba';
 const conferir = 'terminei';
 
@@ -153,17 +152,17 @@ void main() {
     expect(aceso(tester, conferir), isFalse);
     expect(harness.room.replacesAsked, isEmpty);
 
-    await tocar(tester, ouvirATraducao);
+    await tocar(tester, tocarOuPausar);
     expect(harness.playback.played.last, antiga);
     expect(await olhar(tester), 'telha soando');
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tocar(tester, gravarATraducaoDeNovo);
+    await tocarNoCirculo(tester);
     expect(estadoDe(container).btPhase, BtPhase.capturing);
     expect(estadoDe(container).btTrechoTraduzidoDeNovo?.segmentId, 'trecho-1');
     harness.room.verdictChecked = true;
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 300));
     final nova = harness.recorder.lastPath!;
     await tester.pump(const Duration(milliseconds: 600));
@@ -206,8 +205,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, gravarATraducaoDeNovo);
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 300));
     expect(harness.recorder.deleted, isNot(contains(antiga)));
 
@@ -301,9 +300,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     harness.playback.finishPlayback();
     await tester.pump(const Duration(milliseconds: 300));
-    await tocar(tester, gravarATraducaoDeNovo);
+    await tocarNoCirculo(tester);
     harness.room.failFinishWith = const NetworkFailed('timeout');
-    await tocar(tester, terminar);
+    await tocarNoCirculo(tester);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 600));
 

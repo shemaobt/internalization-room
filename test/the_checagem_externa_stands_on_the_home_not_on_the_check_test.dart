@@ -34,6 +34,19 @@ Future<void> _tocarNaChecagem(WidgetTester tester) async {
 SalaSessionState _sala(ProviderContainer container) =>
     container.read(salaSessionProvider);
 
+void _inHerOrder(WidgetTester tester, List<(String, Finder)> pieces) {
+  for (final (name, finder) in pieces) {
+    expect(finder, findsOneWidget, reason: '«$name» is drawn once');
+  }
+  for (var i = 1; i < pieces.length; i++) {
+    expect(
+      tester.getRect(pieces[i - 1].$2).bottom,
+      lessThanOrEqualTo(tester.getRect(pieces[i].$2).top + 0.01),
+      reason: '«${pieces[i - 1].$1}» stands above «${pieces[i].$1}»',
+    );
+  }
+}
+
 void main() {
   testWidgets('after approval with two listeners, the check draws the (v1) '
       'badge and neither the listeners nor «Checagem externa», as hers draws '
@@ -171,6 +184,42 @@ void main() {
     expect(byLabel(_checagem), findsNothing);
     expect(find.text(_badge), findsNothing);
     expect(find.byType(CodigoView), findsNothing);
+    closeTheRoom(container);
+  });
+
+  testWidgets('on an approved draft the badge, the listeners\' count and '
+      '«Checagem externa» follow the advance in that order, then the grain '
+      'switch', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaCasa(
+      tester,
+      harness,
+      approved: const ApprovedDraft(version: 1, listeners: 2),
+    );
+
+    _inHerOrder(tester, [
+      ('Traduzir a gravação', byLabel('Traduzir a gravação')),
+      ('the badge', find.text(_badge)),
+      ('the listeners line', find.text(_doisOuvintes)),
+      ('Checagem externa', byLabel(_checagem)),
+      ('the grain switch', byLabel('Gravar a passagem inteira')),
+    ]);
+    closeTheRoom(container);
+  });
+
+  testWidgets('a Checagem externa that would not open says so under its '
+      'button', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaCasa(tester, harness);
+    harness.room.failExternalCheckOnceWith = const NetworkFailed('sem rede');
+
+    await _tocarNaChecagem(tester);
+
+    _inHerOrder(tester, [
+      ('Checagem externa', byLabel(_checagem)),
+      ('the line that it would not open', find.text(_naoDeu)),
+      ('the grain switch', byLabel('Gravar a passagem inteira')),
+    ]);
     closeTheRoom(container);
   });
 
