@@ -7,7 +7,14 @@ import 'fakes.dart';
 import 'the_back_translation_is_told_by_beads_test.dart'
     show ouvir, parte, pausar, tocar;
 import 'the_pause_snaps_to_silence_test.dart'
-    show entrarComAFala, ouvirAPausa, pausarAos, s, tocarOCirculo;
+    show
+        depois,
+        entrarComAFala,
+        ouvirAPausa,
+        pausarAos,
+        s,
+        tocarOCirculo,
+        traduzirEConfirmar;
 
 final _umaLacunaAos4e4 = aSpokenWav(gaps: [(s(4.4), s(4.8))]);
 
@@ -110,6 +117,37 @@ void main() {
       isTrue,
       reason: 'a pausa no fim da gravação caía com o play',
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('play during a frase told again with its pause moved keeps the '
+      'retell and the moved pause', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await entrarComAFala(tester, harness, _umaLacunaAos4e4);
+    await pausarAos(tester, harness, s(4.0));
+    await traduzirEConfirmar(tester);
+    await waitFor(
+      'a frase chegar à sala',
+      () => container
+          .read(salaSessionProvider)
+          .btTrechos
+          .any((trecho) => trecho.contado),
+      step: () => tester.pump(const Duration(milliseconds: 100)),
+    );
+    await tocar(tester, 'Ouvir esta frase de novo e traduzir de novo — 1');
+    await tocar(tester, depois);
+    expect(container.read(salaSessionProvider).btCorte, s(4.6));
+
+    await tocar(tester, 'Ouvir a tradução');
+
+    final state = container.read(salaSessionProvider);
+    expect(
+      state.btTrechoTraduzidoDeNovo,
+      isNotNull,
+      reason:
+          'o play derrubava a frase traduzida de novo como se fosse uma pausa',
+    );
+    expect(state.btCorte, s(4.6), reason: 'a pausa movida caía com o play');
     closeTheRoom(container);
   });
 }
