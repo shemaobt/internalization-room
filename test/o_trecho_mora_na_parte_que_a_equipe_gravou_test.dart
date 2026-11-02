@@ -170,6 +170,11 @@ void main() {
       _Onde.naEscolha,
     ),
     (
+      'answering session-gone',
+      (SalaHarness h) => h.room.forgetTheSession('sessao-antiga'),
+      _Onde.naOutra,
+    ),
+    (
       'lost on the network',
       (SalaHarness h) => h.room.failTakesWith = const NetworkFailed('sem rede'),
       _Onde.ficou,
@@ -232,6 +237,7 @@ void main() {
             expect(it.estado.sessionId, sessao);
           case _Onde.naEscolha:
             expect(it.estado.passageLeft, isNull);
+            expect(it.estado.leftEntry, isNull);
             expect(it.estado.sessionId, sessao);
         }
       },
