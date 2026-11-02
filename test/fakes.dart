@@ -1488,6 +1488,8 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
 
+  final List<RerecordedSentence> rerecordedSentences = [];
+
   /// The approval the room says the session's draft stands under, on the open and on
   /// every read.
   ApprovedDraft? approvedDraft;
@@ -2636,6 +2638,7 @@ class FakeRoom implements RoomRepository {
           segments: _numbered,
           checked: readsChecked,
           awaitingSegmentId: awaitingSegmentId,
+          rerecordedSentences: rerecordedSentences,
         ),
     approved: approvedDraft,
   );

@@ -479,7 +479,12 @@ void main() {
     await tocarNoCirculo(tester);
     await tocar(tester, ouvir);
 
-    expect(harness.playback.ranges.last, '4000-7000');
+    expect(
+      harness.playback.playedFrom.last,
+      const Duration(seconds: 7),
+      reason:
+          'a tesoura cortava onde a frase contada parou, não na cabeça de antes',
+    );
     closeTheRoom(container);
   });
 

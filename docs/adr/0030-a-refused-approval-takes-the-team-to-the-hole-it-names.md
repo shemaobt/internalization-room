@@ -62,6 +62,13 @@ earlier day stays dark on a fresh screen until the parts play here in the tellin
 reopened checked passage is lit at once because its told frases cover every part. The line under *terminei*
 follows the same two terms. The silent landing's `btRestoPorOuvir` stays.
 
+Amended by ENG-2134 (2026-11-02, the same rule): a third term, her `sentencesPlayed`
+(`Drafting.tsx:907`): every sentence the room laid into a part's current take must have been
+played here in its place since the telling began, within her slack of 750 ms or half the
+sentence and with no bridge over a gap, or lie under a told frase. A part played around a
+re-recorded sentence stays dark until the sentence plays, and the line under *terminei* follows
+the same three terms.
+
 ## Context
 
 The **Approval** had one outcome the room knew how to draw. The server answered a refusal

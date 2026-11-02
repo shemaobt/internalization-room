@@ -1574,6 +1574,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       keptRetellings: snapshot.keptRetellings,
       toBringBack: snapshot.backTranslation.bringBack,
       btChecked: snapshot.backTranslation.checked,
+      btFrasesNovas: snapshot.backTranslation.rerecordedSentences,
       btRascunhoAprovado: snapshot.approved,
       clearBtRascunhoAprovado: snapshot.approved == null,
     );
@@ -8598,6 +8599,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             if (_escuta.ouvidaInteira(parte.path, tamanho, folgaDoFimDaParte))
               parte.path,
       },
+      btFaixasOuvidasAqui: {
+        for (final parte in state.partes)
+          parte.path: _escuta.faixasOuvidas(parte.path),
+      },
     );
   }
 
@@ -8777,6 +8782,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (state.needsPerson || !state.aBackTranslationGestureActs) return;
     if (state.btTrechoTocando || state.btRetroTocando) {
       _holdClip();
+      return;
+    }
+    if (!conferida && state.thePauseStands) {
+      _seguirDaPausa();
       return;
     }
     if (state.btTrechoPausada || state.btRetroPausada) {
@@ -9598,6 +9607,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (!state.canAdjustThePause) return;
     final parte = _parteNoAr;
     if (parte == null) return;
+    _tocarOMomentoAntesDaPausa(parte);
+  }
+
+  void _tocarOMomentoAntesDaPausa(KeptTake parte) {
     final segurada = _tirarAParteDoPlayer();
     _play(
       StretchSound(
@@ -9609,6 +9622,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       onFailed: _quietTheStretch,
       beneath: segurada,
     );
+  }
+
+  void _seguirDaPausa() {
+    final parte = _parteNoAr;
+    if (parte == null) return;
+    final pausa = _trechoEnd;
+    if (_oTamanhoDa(parte) case final tamanho?
+        when isAtTheEnd(pausa, tamanho)) {
+      _tocarOMomentoAntesDaPausa(parte);
+      return;
+    }
+    _tocarParteDaRetro(_parteTocando, noCursor: true, desde: pausa);
   }
 
   Duration get _cabeca {
@@ -10361,6 +10386,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(
         btFraseQueAguarda: aguardando,
         clearBtFraseQueAguarda: aguardando == null,
+        btFrasesNovas: lida.backTranslation.rerecordedSentences,
       );
       return _oferecidas(lida.backTranslation);
     }
