@@ -330,6 +330,10 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
     String said(String control) => ensaioFinalPlanLabelFor(control, language);
     bool armed(SceneRehearsalRecord rehearsal) =>
         session.armedTap?.control == swapControl(plan.scene.sceneId, rehearsal);
+    final sceneCount = switch (session.ensaioFinalPlan) {
+      PlanRead(:final scenes) => scenes.length,
+      _ => plan.number,
+    };
     return RehearsalSheet(
       number: plan.number,
       title: plan.scene.title,
@@ -346,9 +350,19 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
           said(cannotEnter ? 'cannotEnter' : 'joinRetry'),
         _ => null,
       },
-      useLabelOf: (rehearsal) => armed(rehearsal) && session.overAnApprovedDraft
-          ? retroLabelFor('reopenArmed', language)
-          : said('useThis'),
+      useLabelOf: (rehearsal) => switch (rehearsal.rehearsalId) {
+        final id when id == session.swapping => ensaioFinalPlanLabelFor(
+          'joining',
+          language,
+          i: plan.number,
+          k: sceneCount,
+        ),
+        _ when armed(rehearsal) && session.overAnApprovedDraft => retroLabelFor(
+          'reopenArmed',
+          language,
+        ),
+        _ => said('useThis'),
+      },
       armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
