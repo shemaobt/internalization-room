@@ -187,16 +187,10 @@ class RecordingRepository {
   /// again. [session] null is a launch holding none.
   Future<void> sweepTheKeptRetellingsOutside(String? session) async {
     try {
-      final dir = await _recordingsDir();
-      await for (final entry in dir.list()) {
-        if (entry is! File) continue;
-        final name = p.basename(entry.path);
-        if (name.startsWith('kept-') &&
-            (session == null || !name.startsWith('kept-$session-'))) {
-          await entry.delete();
-        }
-      }
-    } on Exception {
+      await sweepTheKeptRetellingsIn(await _recordingsDir(), session);
+    } on FileSystemException {
+      return;
+    } on MissingPlatformDirectoryException {
       return;
     }
   }
@@ -261,6 +255,26 @@ class RecordingRepository {
   }
 
   Future<void> dispose() => _recorder.dispose();
+}
+
+/// A kept telling is `kept-<session>-<scope>-<turn>`; a scope never holds a dash, so a
+/// session whose id begins with another's does not pass for it.
+Future<void> sweepTheKeptRetellingsIn(Directory dir, String? keeping) async {
+  final mine = keeping == null
+      ? null
+      : RegExp(
+          '^kept-${RegExp.escape(keeping)}-[^-]+-\\d+\\.[^.]+(\\.part)?\$',
+        );
+  await for (final entry in dir.list()) {
+    if (entry is! File) continue;
+    final name = p.basename(entry.path);
+    if (!name.startsWith('kept-') || (mine?.hasMatch(name) ?? false)) continue;
+    try {
+      await entry.delete();
+    } on PathNotFoundException {
+      continue;
+    }
+  }
 }
 
 bool _isWav(Uint8List bytes) =>
