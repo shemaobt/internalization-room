@@ -6123,7 +6123,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void playTheSceneRehearsal() => _gesture(() => _playTheSceneRehearsal());
 
-  void _playTheSceneRehearsal() {
+  void _playTheSceneRehearsal({bool? soundingAtTheTap}) {
     final SceneScreen(
       :step,
       :take,
@@ -6141,7 +6141,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         rehearsal == null) {
       return;
     }
-    final playing = _theSceneTakeThatSounds(state.machine) != null;
+    final playing =
+        soundingAtTheTap ?? _theSceneTakeThatSounds(state.machine) != null;
     if (step == SceneStep.sent) {
       _silenceTheRoom();
       if (!playing) {
@@ -6164,7 +6165,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
-    if (_theListFirst(_playTheSceneRehearsal)) return;
+    if (_theListFirst(
+      () => _playTheSceneRehearsal(soundingAtTheTap: playing),
+    )) {
+      return;
+    }
     if (translatingAgain != null && pausa != null) {
       final end = state.scene.takeEnd;
       if (playing) {
@@ -6231,9 +6236,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// tap for a take with no loudness to read, but never within 0.2 s of the last pausa
   /// (ADR 0076, as amended).
   void _markThePausa() {
-    final tap = _playback.position;
-    _silenceTheRoom();
     final shown = state.scene;
+    final tap = _theSceneTakeThatSounds(state.machine) != null
+        ? _playback.position
+        : state.sceneStoppedAt ?? shown.rehearsal!.frontier;
+    _silenceTheRoom();
     final pausa = _thePausaAt(tap, shown);
     if (pausa != null) {
       state = state.copyWith(scene: shown.copyWith(pausa: pausa));
@@ -6318,7 +6325,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final shown = state.scene;
     final waiting = shown.asWaiting;
-    _theTranslationAsked = null;
+    _silenceTheRoom();
     state = state.copyWith(scene: waiting);
     return _sendTheSceneFrase(frase, shown, waiting, generation);
   }
@@ -6652,7 +6659,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final unseen = state.sceneTranslationsUnseen[told?.rehearsalId];
     if (sessionId == null || told == null || unseen == null) return true;
     final waiting = shown.asWaiting;
-    _theTranslationAsked = null;
+    _silenceTheRoom();
     state = state.copyWith(scene: waiting);
     final generation = _waitOnTheGeneration;
     final listed = await _room.sceneRehearsalsOf(sessionId);
