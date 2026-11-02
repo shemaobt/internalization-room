@@ -26,6 +26,8 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         tocar,
         tocarNoCirculo;
 
+const _naoDeuParaConferir = 'não deu para conferir agora — tentem de novo';
+
 Future<ProviderContainer> _ateAConferida(
   WidgetTester tester,
   SalaHarness harness,
@@ -126,6 +128,46 @@ void main() {
       find.text('não deu para conferir agora — tentem de novo'),
       findsOneWidget,
     );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a play after a check the room cannot make over a checked '
+      'telling leaves her line standing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room.verdictRefusal = CheckRefusal.checkUnavailable;
+    await tocar(tester, conferir);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text(_naoDeuParaConferir), findsOneWidget);
+    final tocadas = harness.playback.played.length;
+
+    await tocar(tester, 'Ouvir a gravação');
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.playback.played.length, greaterThan(tocadas));
+    expect(
+      find.text(_naoDeuParaConferir),
+      findsOneWidget,
+      reason: 'o play apagava a linha da conferência que não rodou',
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets('a play after an approval the room could not take leaves her '
+      'line standing', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await _ateAConferida(tester, harness);
+    harness.room.failReleaseWith = const NetworkFailed('sem rede');
+    await tocar(tester, aprovar);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text(_naoDeuParaConferir), findsOneWidget);
+    final tocadas = harness.playback.played.length;
+
+    await tocar(tester, 'Ouvir a gravação');
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(harness.playback.played.length, greaterThan(tocadas));
+    expect(find.text(_naoDeuParaConferir), findsOneWidget);
     closeTheRoom(container);
   });
 
