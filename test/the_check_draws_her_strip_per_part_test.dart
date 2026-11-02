@@ -1136,8 +1136,7 @@ void main() {
     harness.playback
       ..measured = parte
       ..length = parte;
-    final pasta = Directory.systemTemp.createTempSync('sala-parte-sem-nome');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-parte-sem-nome');
     await holdTheSession(
       harness,
       ResumePoint(

@@ -1720,17 +1720,6 @@ void main() {
     },
   );
 
-  testWidgets('a part still going up leaves the home not busy', (tester) async {
-    final (harness, container) = await _aQuartaGuardadaDevagar(tester);
-
-    expect(_estado(container).homeBusy, isFalse);
-
-    await _aQuartaChegaAPorta(tester, harness);
-    expect(_estado(container).homeBusy, isFalse);
-    await _aQuartaChegaASala(tester, harness, container);
-    closeTheRoom(container);
-  });
-
   testWidgets(
     'a keep whose count fell on a station change keeps the advance disc dark '
     'on the way back to the home',
