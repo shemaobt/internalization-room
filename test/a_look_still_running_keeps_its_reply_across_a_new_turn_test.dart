@@ -12,30 +12,48 @@ import 'session_notifier_test.dart' show inConversa;
 const _t0Url = '/api/internalization-room/voice/t0';
 const _t1Url = '/api/internalization-room/voice/t1';
 
+typedef _Room = ({
+  SalaSessionNotifier sala,
+  SalaSessionState Function() state,
+  FakeRoom room,
+  FakeVoice voice,
+});
+
+Future<void> _theTeamSpeaks(_Room it, String replyUrl) async {
+  it.room.replyUrl = replyUrl;
+  it.sala.conversaTap();
+  await settle();
+  it.sala.conversaTap();
+  await waitFor(
+    'the team to hear the reply to its turn',
+    () =>
+        it.voice.played.contains(replyUrl) &&
+        it.state().voice == VoiceState.invite &&
+        !it.state().awaitingTheGuide,
+  );
+  await settle();
+}
+
+Future<_Room> _theTeamHeard(String replyUrl) async {
+  final harness = SalaHarness();
+  final container = await inConversa(harness);
+  addTearDown(container.dispose);
+  final _Room it = (
+    sala: container.read(salaSessionProvider.notifier),
+    state: () => container.read(salaSessionProvider),
+    room: harness.room,
+    voice: harness.voice,
+  );
+  await _theTeamSpeaks(it, replyUrl);
+  return it;
+}
+
 void main() {
   test(
     'a turn the team spoke while «ouvir de novo» checked the tablet plays its reply when its look lands, and «ouvir de novo» asks the room nothing',
     () async {
-      final harness = SalaHarness();
-      final container = await inConversa(harness);
-      addTearDown(container.dispose);
-      final sala = container.read(salaSessionProvider.notifier);
-      SalaSessionState state() => container.read(salaSessionProvider);
-      final room = harness.room;
-      final voice = harness.voice;
-
-      room.replyUrl = _t0Url;
-      sala.conversaTap();
-      await settle();
-      sala.conversaTap();
-      await waitFor(
-        'the team to hear the reply to its turn',
-        () =>
-            voice.played.contains(_t0Url) &&
-            state().voice == VoiceState.invite &&
-            !state().awaitingTheGuide,
-      );
-      await settle();
+      final it = await _theTeamHeard(_t0Url);
+      final (:sala, :state, :room, :voice) = it;
 
       voice.missing.add(_t0Url);
       room
@@ -79,6 +97,41 @@ void main() {
         room.turnIdsAsked,
         hasLength(askedBefore),
         reason: '«ouvir de novo» sends nothing over the team’s newer turn',
+      );
+    },
+  );
+
+  test(
+    'a turn the team spoke and heard whole while «ouvir de novo» checked the tablet is not followed by the older line',
+    () async {
+      final it = await _theTeamHeard(_t0Url);
+      final (:sala, :room, :voice, state: _) = it;
+      addTearDown(voice.finishHeldLook);
+      voice.holdNextLook();
+      final askedBefore = room.turnIdsAsked.length;
+
+      unawaited(sala.hearAgain());
+      await waitFor(
+        '«ouvir de novo» to check the tablet for the line',
+        () => voice.aLookIsPending,
+      );
+      await _theTeamSpeaks(it, _t1Url);
+      voice.finishHeldLook();
+      await waitFor(
+        'the tablet to answer the check',
+        () => !voice.aLookIsPending,
+      );
+      await settle();
+
+      expect(
+        voice.played.where((url) => url == _t0Url),
+        hasLength(1),
+        reason: 'the older line is not replayed over the team’s newer turn',
+      );
+      expect(
+        room.turnIdsAsked,
+        hasLength(askedBefore),
+        reason: '«ouvir de novo» asks the room nothing',
       );
     },
   );
