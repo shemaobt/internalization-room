@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
@@ -47,4 +48,38 @@ void main() {
       );
     },
   );
+
+  for (final (name, failure) in <(String, RoomFailure)>[
+    ('fails', const NetworkFailed('a rede caiu')),
+    ('is refused', const Refused('BAD_REQUEST')),
+  ]) {
+    test(
+      'a turn the team left and that then $name leaves the end it found',
+      () async {
+        final harness = SalaHarness();
+        final container = await inConversa(harness);
+        addTearDown(container.dispose);
+        final notifier = container.read(salaSessionProvider.notifier);
+        final session = container.read(salaSessionProvider).sessionId!;
+        final ledger = harness.currentSession;
+        final before = await ledger.endOf(session);
+        expect(before?.line, isNotNull, reason: 'the Guide spoke last');
+
+        harness.room
+          ..holdNextTurn()
+          ..failHeldTurnWith = failure;
+        notifier.conversaTap();
+        await settle();
+        notifier.conversaTap();
+        await waitFor('a vez ficar no ar', () => harness.room.turnsSent > 0);
+        notifier.leaveThePassage();
+        await settle();
+
+        harness.room.finishHeldTurn();
+        await settle();
+
+        expect((await ledger.endOf(session))?.line, before!.line);
+      },
+    );
+  }
 }
