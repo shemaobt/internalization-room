@@ -47,8 +47,9 @@ measures the parts behind it, and the part that has just played.
 ## Consequences
 
 The first clip now starts behind the measuring rather than in the same call that asked for
-it. The room stands in its thinking state across that wait, which is the honest answer for
-a tablet that is busy, and the gestures that wait on it were already written for a wait
+it. The room stands in its thinking state across that wait for a passage not yet checked
+(narrowed by ENG-2110: a checked passage stands on its check across it), which is the honest
+answer for a tablet that is busy, and the gestures that wait on it were already written for a wait
 that could happen — it happened whenever anything had been told back. What is new is that
 it happens every time, so a cut landing inside it is now an ordinary case rather than a
 rare one.
