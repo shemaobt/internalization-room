@@ -3557,18 +3557,6 @@ class FakeRoom implements RoomRepository {
   /// that refused nothing, which is what a mint looks like from here.
   List<String> releaseBlockers = const [];
 
-  /// Which current parts this room says carry nobody's words, when `untold_part` is among
-  /// the holes above. Its own field, as on the wire, and read only for its own blocker.
-  List<String> releaseUntoldTakeIds = const [];
-
-  /// Which parts this room says the team's report does not cover, when
-  /// `playback_did_not_cover_the_clip` is among them.
-  List<String> releaseUnheardTakeIds = const [];
-
-  /// Which stretch this room says was recorded and never told back, when `untold_stretch`
-  /// is among them.
-  String? releaseUntoldSegmentId;
-
   Completer<void>? _holdingState;
 
   /// Holds a read of the room's state in flight, so a test can press again while the room
@@ -3621,14 +3609,7 @@ class FakeRoom implements RoomRepository {
       await held.future;
     }
     if (releaseBlockers.isEmpty) return Answered(release);
-    return Answered(
-      ApprovalAnswer(
-        blockers: releaseBlockers,
-        untoldTakeIds: releaseUntoldTakeIds,
-        unheardTakeIds: releaseUnheardTakeIds,
-        untoldSegmentId: releaseUntoldSegmentId,
-      ),
-    );
+    return Answered(ApprovalAnswer(blockers: releaseBlockers));
   }
 
   final List<String> externalChecksOpened = [];
