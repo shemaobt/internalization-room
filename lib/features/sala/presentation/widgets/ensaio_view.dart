@@ -572,9 +572,9 @@ class _SceneRowView extends StatelessWidget {
               ],
             ),
             ?_takeState(recording, cena, colors),
+            ?_sheetDoor(cena, colors),
             ?_bringBackControl(cena, colors),
             ?_bringBackFailed(colors),
-            ?_sheetDoor(cena, colors),
           ],
         ),
       ),
@@ -680,11 +680,7 @@ class _SceneRowView extends StatelessWidget {
 
   Widget? _sheetDoor(String cena, SalaColors colors) {
     final home = this.home;
-    if (home == null ||
-        !(home.swap || home.useScene) ||
-        session.ensaio != EnsaioStatus.idle) {
-      return null;
-    }
+    if (home == null || !(home.swap || home.useScene)) return null;
     final label = ensaioFinalPlanLabelFor(
       home.swap ? 'swap' : 'useScene',
       language,
