@@ -6200,7 +6200,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(scene: shown.copyWith(clearPausa: true));
       _translateOnFrom(pausa);
     } else {
-      _translateOnFrom(rehearsal.frontier);
+      _translateOnFrom(state.sceneStoppedAt ?? rehearsal.frontier);
     }
   }
 

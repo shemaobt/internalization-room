@@ -2291,4 +2291,31 @@ void main() {
       expect(room.harness.playback.played, hasLength(1));
     },
   );
+
+  test(
+    'play on a take paused 20 ms after the frontier, where no pausa fits, resumes from the pause, not from the frontier',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 9900)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = const Duration(milliseconds: 9920);
+      room.sala.playTheSceneRehearsal();
+      await waitFor('o take pausar', () => room.state.channel is! PartPlaying);
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        const Duration(milliseconds: 9920),
+        reason:
+            'o play voltava à fronteira em vez de retomar onde o take pausou',
+      );
+    },
+  );
 }
