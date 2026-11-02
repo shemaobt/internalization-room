@@ -87,7 +87,8 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
         candidates: sheet.candidates,
         inUseId: sheet.chosen?.rehearsalId,
         language: language,
-        busy: session.planBusy,
+        busy: session.planBusy || session.homeBusy,
+        backRests: session.planBusy,
         offersToUse: sheet.offersToUse,
         onRecordAgain: notifier.rehearseThisSceneAgain,
       );
@@ -181,7 +182,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                   rehearsal: unlabelled,
                   scenes: read.scenes,
                   language: language,
-                  busy: session.planBusy,
+                  busy: session.planBusy || session.homeBusy,
                   playing:
                       session.planListening?.rehearsalId ==
                       unlabelled.rehearsalId,
@@ -228,7 +229,7 @@ class _EnsaioFinalPlanViewState extends ConsumerState<EnsaioFinalPlanView> {
                 onFocusLeft: notifier.accessibilityFocusLeft,
               ),
               TextButton(
-                onPressed: idle && !session.grainSwitching
+                onPressed: idle && !session.homeBusy
                     ? notifier.recordSceneByScene
                     : null,
                 child: Text(

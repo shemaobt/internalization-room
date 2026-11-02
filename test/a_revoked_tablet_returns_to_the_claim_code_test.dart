@@ -22,6 +22,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/escolha_
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _linked = RememberedLink(
   deviceId: 'aparelho-1',
@@ -107,8 +108,7 @@ void _theLinkIsForgotten(_Tablet tablet) {
 }
 
 File _aRecording() {
-  final home = Directory.systemTemp.createTempSync('sala-revogada');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-revogada');
   return File('${home.path}/parte.m4a')..writeAsBytesSync([1, 2, 3]);
 }
 

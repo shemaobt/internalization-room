@@ -2380,20 +2380,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(comecadas: comecadas);
   }
 
-  void escolhaTap() => _gesture(() => _escolhaTap());
-
-  void _escolhaTap() {
-    if (state.station is! Menu) return;
-    if (state.needsPerson) return;
-    if (state.voice != VoiceState.invite) return;
-    final roda = state.naRoda;
-    if (roda == null || roda.isEmpty) {
-      // The wheel never loaded, or offers nothing. There is nothing to say and nothing to
-      // enter, so the touch is the retry — otherwise this screen has no live gesture at all.
-      _handOff(abrirEscolha());
-    }
-  }
-
   void openTheEntry(Passagem entry) => _gesture(() => _openTheEntry(entry));
 
   void _openTheEntry(Passagem entry) {
@@ -4442,7 +4428,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   void closeTheRehearsalSheet() => _gesture(() {
     if (state.homeSheet != null) {
-      if (state.homeBusy) return;
+      if (state.swapping != null) return;
       _silenceTheRoom();
       state = state.copyWith(clearHomeSheet: true, clearSwapLine: true);
       return;
@@ -4698,7 +4684,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   bool get _thePartsMayMove =>
-      !state.homeBusy && state.ensaio == EnsaioStatus.idle;
+      state.swapping == null && state.ensaio == EnsaioStatus.idle;
 
   Future<void> _thePartsTheRoomHolds(
     String sessionId,
@@ -11608,22 +11594,27 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // list and nowhere else yet.
     final eram = state.btTrechos;
     final life = _thisLife;
+    final answer = await _room.takesOf(sessionId);
+    if (_endedSince(life)) return;
+    final elsewhere = state.sessionId != sessionId;
     final List<TakeView> guardadas;
-    switch (await _room.takesOf(sessionId)) {
+    switch (answer) {
       case Answered(value: final listadas):
+        if (elsewhere) return;
         guardadas = listadas;
       case NetworkFailed():
+        if (elsewhere) return;
         return _theNetworkFailedIn(Door.stretches, life);
       case SessionGone():
         return _theSessionIsGoneIn(sessionId, life);
       case Refused():
+        if (elsewhere) return;
         debugPrint(
           'A sessão $sessionId tem trechos numa gravação que este tablet não '
           'tem, e as gravações dela não puderam ser lidas',
         );
         return;
     }
-    if (_endedSince(life) || state.sessionId != sessionId) return;
     final naParte = <String, int>{};
     for (final guardada in guardadas) {
       if (!faltando.contains(guardada.takeId) &&

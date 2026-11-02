@@ -25,6 +25,7 @@ import 'the_back_translation_is_told_by_beads_test.dart'
         parte,
         tocar,
         tocarNoCirculo;
+import 'support/temp.dart';
 
 const _naoDeuParaConferir = 'não deu para conferir agora — tentem de novo';
 
@@ -269,8 +270,7 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true)
       ..playback.length = parte
       ..playback.measured = parte;
-    final casa = Directory.systemTemp.createTempSync('sala-conferida');
-    addTearDown(() => casa.deleteSync(recursive: true));
+    final casa = aTempDir('sala-conferida');
     await holdTheSession(
       harness,
       ResumePoint(

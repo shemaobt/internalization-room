@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _rememberedSession = 'sessao-lembrada';
 
@@ -294,8 +295,7 @@ void main() {
     'a stored Rehearsal whose ask to the room fell with the network goes back to '
     'the Choice, and opened again lands on its conversation',
     () async {
-      final home = Directory.systemTemp.createTempSync('sala-ensaio-lembrado');
-      addTearDown(() => home.deleteSync(recursive: true));
+      final home = aTempDir('sala-ensaio-lembrado');
       final part = File('${home.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
       final harness = SalaHarness();
       harness.emAberto.rows['Ruth/P01/pt'] = ResumePoint(

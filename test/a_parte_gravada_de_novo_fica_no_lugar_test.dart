@@ -16,6 +16,7 @@ import 'fakes.dart';
 import 'resto_da_historia_test.dart' as resto;
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _pronto = 'Pronto';
@@ -641,8 +642,7 @@ void main() {
           Scene(sceneId: 'S2', title: 'Cena dois'),
           Scene(sceneId: 'S3', title: 'Cena tres'),
         ];
-      final casa = Directory.systemTemp.createTempSync('sala-passada-guardada');
-      addTearDown(() => casa.deleteSync(recursive: true));
+      final casa = aTempDir('sala-passada-guardada');
       KeptTake guardada(String scope, String takeId) => KeptTake(
         scopeId: scope,
         path: (File(
