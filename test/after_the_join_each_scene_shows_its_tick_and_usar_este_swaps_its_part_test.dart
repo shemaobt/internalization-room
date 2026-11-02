@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
@@ -226,6 +227,29 @@ class _Room {
         ),
       );
     }
+  }
+
+  Future<void> aHandTakeGivenUp(int n) async {
+    room.unreachableTake = 'ensaio/${KeptScope.parte(n)}';
+    final audio = File('${harness.takesHome.path}/a-mao-$n.m4a')
+      ..writeAsBytesSync([1, 2, 3, 4]);
+    await tester.runAsync(() async {
+      await harness.takes.enqueue(
+        audio,
+        sessionId: sessionId,
+        kind: 'ensaio',
+        scope: KeptScope.parte(n),
+        passNumber: 1,
+        chunkIndex: n,
+      );
+      while (!(await harness.takes.entries()).any(
+        (row) => row.scope == KeptScope.parte(n) && row.exhausted,
+      )) {
+        await harness.takes.flush();
+      }
+    });
+    unawaited(container.read(salaSessionProvider.notifier).refreshUnsent());
+    await settle();
   }
 
   Future<void> openThePlan() async {
@@ -2192,6 +2216,41 @@ void main() {
         it.pressed(it.listen(s2b)),
         Tristate.isFalse,
         reason: 'e a folha voltava em pausa sobre o silêncio',
+      );
+      semantics.dispose();
+    },
+  );
+
+  testWidgets(
+    "the home row's send asked of the notifier while a swap runs still sends "
+    'its part, as before',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      await it.aHandTakeGivenUp(3);
+      await it.joined(listed: const [s1a, s2a, s2b]);
+      expect(it.received(3), isEmpty);
+      it.room.unreachableTake = null;
+      it.holdTheTake('parte-2');
+      await it.openTheSheet(2, _swap);
+      await it.swapIn(s2b);
+      await it.theHeldTakeArrives();
+
+      it.container.read(salaSessionProvider.notifier).enviarACena(3);
+      await it.beat();
+      it.room.finishHeldTake();
+      await it.swapLands();
+      await it.until(
+        'a parte 3 chegar pelo toque da linha',
+        () => it.received(3).isNotEmpty,
+      );
+
+      expect(
+        it.received(3),
+        isNotEmpty,
+        reason:
+            'o toque da linha 3 na casa, no meio de uma troca, deixava de mandar '
+            'a parte, e nada na casa desenhava a linha em repouso',
       );
       semantics.dispose();
     },
