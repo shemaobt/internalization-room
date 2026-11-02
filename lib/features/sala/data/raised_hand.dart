@@ -79,6 +79,8 @@ class RaisedHand {
 
   bool _sendingAQuestion = false;
 
+  bool get sendingAQuestion => _sendingAQuestion;
+
   final _failures = <(String, String), int>{};
 
   HandView get _state => host.view;
