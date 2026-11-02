@@ -59,6 +59,12 @@ import 'work_in_progress.dart';
 
 typedef _Passage = ({String book, String? pericope});
 
+/// A scene take on its way down, and whether each screen that asked for it has moved on.
+typedef _ASceneTakeComing = ({
+  Future<String?> take,
+  List<bool Function()> askers,
+});
+
 typedef _HeldFrase = ({
   String sessionId,
   String path,
@@ -456,7 +462,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late Future<void> _partLoudnessReads;
   late Map<String, Envelope?> _envelopes;
   late Map<String, Future<Envelope?>> _sceneLoudnessReads;
-  late Map<String, Future<String?>> _sceneTakesComing;
+  late Map<String, _ASceneTakeComing> _sceneTakesComing;
   late Set<String> _sceneTakesMissed;
 
   /// This Life's scene rehearsals as last read, kept past the screen's way back for an
@@ -5853,40 +5859,49 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   /// The rehearsal's take, come down once for this Life however many ask for it; what
-  /// fails is told while the first asker has not [movedOn], by default while the screen
-  /// still shows the rehearsal. A take that could not be had is asked for again only by
-  /// a tap, never by the screen laid again.
+  /// fails is told once, while a screen that asked for it has not [movedOn], by default
+  /// while the screen still shows the rehearsal. A take that could not be had is asked
+  /// for again only by a tap, never by the screen laid again.
   Future<String?> _theSceneTake(
     SceneRehearsalRecord rehearsal, {
     bool Function()? movedOn,
     bool again = false,
   }) {
     final id = rehearsal.rehearsalId;
-    final coming = _sceneTakesComing;
-    final missed = _sceneTakesMissed;
-    if (coming[id] case final take?) return take;
-    if (missed.contains(id) && !again) return Future.value();
-    missed.remove(id);
     final life = _thisLife;
-    final movedAway =
+    final asker =
         movedOn ??
         () =>
             _endedSince(life) ||
             state.station is! SceneRehearsal ||
             state.scene.rehearsal?.rehearsalId != id;
-    return coming[id] =
+    final coming = _sceneTakesComing;
+    final missed = _sceneTakesMissed;
+    if (coming[id] case final comingAlready?) {
+      comingAlready.askers.add(asker);
+      return comingAlready.take;
+    }
+    if (missed.contains(id) && !again) return Future.value();
+    missed.remove(id);
+    final askers = [asker];
+    bool everyAskerMovedOn() => askers.every((movedOn) => movedOn());
+    final take =
         _fetchTheSceneTake(
           rehearsal,
-          movedAway,
+          everyAskerMovedOn,
           () => _endedSince(life),
           failed: (failure) {
-            if (!movedAway()) _decideAt(failure, door: Door.sceneRehearsal);
+            if (!everyAskerMovedOn()) {
+              _decideAt(failure, door: Door.sceneRehearsal);
+            }
           },
         ).then((take) {
           coming.remove(id);
           if (take == null) missed.add(id);
           return take;
         });
+    coming[id] = (take: take, askers: askers);
+    return take;
   }
 
   /// A screen marked waiting belongs to the call that marked it, which compares it by

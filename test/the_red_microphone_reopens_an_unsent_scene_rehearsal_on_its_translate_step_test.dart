@@ -764,6 +764,36 @@ void main() {
     );
 
     test(
+      'a take the room no longer has, asked for by an open and joined by the '
+      'next one, is told once to the open still waiting for it',
+      () async {
+        final room = await _aRoom(rehearsals: [_rehearsal(durationMs: null)]);
+        room.harness.room.holdNextClip();
+        room.sala.openTheSceneRehearsal();
+        await waitFor('o take ser pedido', () => _takesAskedOf(room, 1) == 1);
+        await _leaves(room);
+        room.sala.openTheSceneRehearsal();
+        await waitFor(
+          'a reabertura ler a lista',
+          () => room.asked('sceneRehearsalsOf') == 2,
+        );
+        await settle();
+
+        room.harness.room
+          ..failClipWith = const Refused(RefusalCode.notFound)
+          ..finishHeldClip();
+        await waitFor(
+          'a lista ser lida de novo',
+          () => room.asked('sceneRehearsalsOf') == 3,
+        );
+        await settle(const Duration(milliseconds: 400));
+
+        expect(room.asked('sceneRehearsalsOf'), 3);
+        expect(_takesAskedOf(room, 1), 1);
+      },
+    );
+
+    test(
       'a listed row the room never measured whose take cannot be had gives up, '
       'and the screen stays where it was',
       () async {
