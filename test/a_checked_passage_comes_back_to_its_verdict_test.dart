@@ -370,17 +370,52 @@ void main() {
   });
 
   test('a read that no longer counts the passage as checked corrects the '
-      'screen it stood in as the verdict', () async {
+      'screen while the listening report is still in the air', () async {
     final it = await reenteredWhileTheReadIsInTheAir();
-    it.harness.room.retroSoFar = BackTranslationProgress(
-      segments: [...it.harness.room.segments],
-    );
+    it.harness.room
+      ..retroSoFar = BackTranslationProgress(
+        segments: [...it.harness.room.segments],
+      )
+      ..holdNextListening();
 
     it.harness.room.finishHeldState();
-    await waitFor('a leitura pousar', () => !it.estado.awaitingTheGuide);
+    await waitFor(
+      'o relato da escuta sair',
+      () => it.harness.room.listeningReports.isNotEmpty,
+    );
     await settle();
 
     expect(it.estado.btPhase, BtPhase.playing);
     expect(it.estado.btVeredito, isFalse);
+    it.harness.room.finishHeldListening();
+    await settle();
   });
+
+  for (final checked in [true, false]) {
+    test(
+      'keeping the old translation after a retell made while the read was in the air ends '
+      'on the verdict when the room says checked: $checked',
+      () async {
+        final it = await reenteredWhileTheReadIsInTheAir();
+        if (!checked) {
+          it.harness.room.retroSoFar = BackTranslationProgress(
+            segments: [...it.harness.room.segments],
+          );
+        }
+        it.sala.traduzirAFraseDeNovo(1);
+        await settle();
+
+        it.harness.room.finishHeldState();
+        await settle();
+        it.sala.manterATraducaoDeAntes();
+        await settle();
+
+        expect(
+          it.estado.btPhase,
+          checked ? BtPhase.conferida : BtPhase.playing,
+        );
+        expect(it.estado.btVeredito, checked);
+      },
+    );
+  }
 }

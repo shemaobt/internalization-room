@@ -8239,14 +8239,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       oferecidas = await _readWhatAwaits(sessionId, generation);
       if (_abandoned(generation) || _endedSince(life)) return;
     }
-    // A gesture made while the read was in the air took the screen off the verdict it stood
-    // in. The landing then only keeps the marks: taking the phase back would strand an open
-    // microphone, and playing on would run over what the team started.
     if (stoodAsTheVerdict && state.btPhase != BtPhase.conferida) {
-      if (achados case final lidos?) {
+      if (conferida) {
         state = state.copyWith(
-          btFindings: _osAchadosQueFicam(lidos, state.btTrechos),
+          btVeredito: true,
+          btFindings: _osAchadosQueFicam(
+            achados ?? state.btFindings,
+            state.btTrechos,
+          ),
         );
+      } else if (_faseAntesDeTraduzirDeNovo == BtPhase.conferida) {
+        _faseAntesDeTraduzirDeNovo = BtPhase.playing;
       }
       return;
     }
@@ -8513,9 +8516,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // one would open the check over an empty back translation.
       return false;
     }
-    // Measuring waits on the player, and the screen it waits under is the retro with its
-    // buttons up: a cut landing inside the wait opened the microphone over a clip about to
-    // start, with the cursor at nought. Busy is the honest state for it.
     state = state.copyWith(
       btPhase: conferida ? BtPhase.conferida : BtPhase.thinking,
       btVeredito: conferida ? false : null,
