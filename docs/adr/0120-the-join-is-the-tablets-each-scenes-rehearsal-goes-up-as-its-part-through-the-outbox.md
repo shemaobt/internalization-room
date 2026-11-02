@@ -51,12 +51,5 @@ Outbox is never a take left on the tablet: it is never offered «enviar agora»,
 among the unsent takes, and never decides the dot's screen, which reads the room's listing
 alone. «A row given up for no answer goes up only on its scene row's «enviar agora»» changes:
 **it is that scene's join in progress on the plan, and «juntar» sends it again**. The retro door
-still waits for it. A swap the tablet was closed on («usar este», ENG-1407) leaves the Outbox
-with its copy when the recording home is next reached: the room's part stays on the row and
-«trocar o ensaio desta cena» is offered again (Definer, 2 November). Only rows above the part
-the home holds leave; a join on its way and a recorded take stay.
-The home's swap marks its row (`swap`), the only word the Outbox row carries for it, and
-only rows so marked leave on arrival; a row an older app wrote has none and stays as a join
-of the plan (Definer, 2 November, on ENG-2125). A join row spent by its attempts, which only
-a disk failure does, is no longer that scene's join in progress: the scene is one to join
-again.
+still waits for it. A join row spent by its attempts, which only a disk failure does, is no
+longer that scene's join in progress: the scene is one to join again.
