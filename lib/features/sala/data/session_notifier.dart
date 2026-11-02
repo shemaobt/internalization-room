@@ -2243,6 +2243,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final station = state.station;
     if (station is! Panorama) return;
     if (state.needsPerson) return;
+    if (_hand.sendingAQuestion) return;
     if (state.noteMode) {
       _hand.noteTap();
       return;
@@ -3636,6 +3637,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       }
       return;
     }
+    if (_hand.sendingAQuestion) return;
     if (state.noteMode) {
       _hand.noteTap();
       return;
