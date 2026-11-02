@@ -206,6 +206,10 @@ void main() {
           container.read(salaSessionProvider).stage == SalaStage.ensaio &&
           container.read(salaSessionProvider).keptTakes.length == 4,
     );
+    await waitFor(
+      'a contagem do Outbox ver a parte 4',
+      () => container.read(salaSessionProvider).unsentParts.containsKey(4),
+    );
     harness.room.unreachableTake = null;
     notifier.enviarACena(4);
     await waitFor(
