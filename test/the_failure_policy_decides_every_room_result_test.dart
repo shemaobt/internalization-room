@@ -256,10 +256,34 @@ void main() {
       expect(machine.halt, const NoHalt());
     });
 
-    test('a stretch over a part the room has not named yet is a telling not '
-        'understood, never a halt', () {
+    test('a stretch over a part the room has not named yet waits for its '
+        'part, never a telling not understood', () {
       _decidesOnTheTablet(
         const TheStretchHasNoPartYet(),
+        _notATurn(door: Door.telling),
+        const TheTellingWaitsForItsPart(generation: 4),
+      );
+    });
+
+    for (final code in const [
+      RefusalCode.unauthorized,
+      RefusalCode.forbidden,
+      RefusalCode.deviceRevoked,
+    ]) {
+      test('a telling refused with $code is turned away, never a telling not '
+          'understood', () {
+        _decides(
+          RoomRefused(code),
+          _notATurn(door: Door.telling),
+          const TheTellingWasTurnedAway(generation: 4),
+        );
+      });
+    }
+
+    test('a wordless telling at the telling door is still a telling not '
+        'understood', () {
+      _decides(
+        const RoomRefused(RefusalCode.wordlessTelling),
         _notATurn(door: Door.telling),
         const TheTellingCameBackEmpty(generation: 4),
       );
