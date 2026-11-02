@@ -1319,7 +1319,9 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
-  PlayerFailed(sound: PartSound() || StretchSound(telling: false))
+  PlayerFailed(
+    sound: PartSound() || StretchSound(telling: false) || KeptRetellingSound(),
+  )
       when machine.station is Retro =>
     _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
