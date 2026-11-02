@@ -2318,4 +2318,31 @@ void main() {
       );
     },
   );
+
+  test(
+    'play on a take that played to its end with no pausa left starts it from the start, as hers, not from the end',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(frases: [_frase('f1', 0, 9900)]),
+      );
+      await _listening(room);
+      room.harness.playback.at = const Duration(seconds: 10);
+      room.harness.playback.finishPlayback();
+      await waitFor('o take acabar', () => room.state.channel is! PartPlaying);
+      expect(room.state.scene.pausa, isNull);
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'o ensaio da cena tocar de novo',
+        () => room.state.channel is PartPlaying,
+      );
+
+      expect(
+        room.harness.playback.playedFrom.last,
+        Duration.zero,
+        reason:
+            'o play de um take acabado sem pausa tocava do fim e calava na hora',
+      );
+    },
+  );
 }
