@@ -1070,11 +1070,11 @@ void main() {
     );
     expect(
       tester
-          .widget<AnimatedOpacity>(
+          .widget<Opacity>(
             find
                 .descendant(
                   of: inTheHome('Traduzir a gravação'),
-                  matching: find.byType(AnimatedOpacity),
+                  matching: find.byType(Opacity),
                 )
                 .first,
           )

@@ -18,6 +18,7 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/ensaio_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/listen_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/scene_question.dart';
 import 'package:internalization_room/main.dart';
@@ -26,7 +27,14 @@ import 'package:path/path.dart' as p;
 import 'a_wav_take.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
-    show byLabel, enabledFlagOf, isDrawn, relaunch, voiceOverFocusLeaves;
+    show
+        byLabel,
+        enabledFlagOf,
+        isDrawn,
+        onAScreen,
+        relaunch,
+        voiceOverFocusLeaves,
+        withRealLetters;
 import 'support/temp.dart';
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
@@ -566,6 +574,45 @@ void main() {
       }
       expect(byLabel(_listenAndCheck), findsOneWidget);
       semantics.dispose();
+    },
+  );
+
+  testWidgets('on a joined recording the advance button is written '
+      '«ouvir e conferir o Ensaio Final»', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+
+    final words = find.descendant(
+      of: find.byType(EnsaioView),
+      matching: find.text(_listenAndCheck),
+    );
+    expect(words, findsOneWidget);
+    expect(
+      find.descendant(of: byLabel(_listenAndCheck), matching: words),
+      findsOneWidget,
+    );
+    expect(find.text('Traduzir a gravação'), findsNothing);
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'on the iPhone SE the joined advance button «listen to and check the '
+    'Final Rehearsal» stays inside the screen',
+    (tester) async {
+      await tester.runAsync(withRealLetters);
+      final it = await _atRest(tester, lingua: 'en', scenes: _threeScenesEn);
+      await it.joined();
+      onAScreen(tester, const Size(375, 667), bar: 20);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      const words = 'listen to and check the Final Rehearsal';
+      await tester.ensureVisible(byLabel(words));
+      await tester.pump();
+      final button = tester.getRect(byLabel(words));
+      final letters = tester.getRect(find.text(words));
+      expect(button.left >= 0 && button.right <= 375, isTrue);
+      expect(button.intersect(letters), letters);
     },
   );
 

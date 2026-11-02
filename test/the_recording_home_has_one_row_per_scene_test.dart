@@ -133,11 +133,11 @@ bool _discoAceso(WidgetTester tester) =>
     tester.widget<Semantics>(inTheHome(_irParaATraducao)).properties.enabled ==
         true &&
     tester
-            .widget<AnimatedOpacity>(
+            .widget<Opacity>(
               find
                   .descendant(
                     of: inTheHome(_irParaATraducao),
-                    matching: find.byType(AnimatedOpacity),
+                    matching: find.byType(Opacity),
                   )
                   .first,
             )
