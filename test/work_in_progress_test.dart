@@ -230,6 +230,35 @@ void main() {
     expect(antiga.grain, isNull);
   });
 
+  test('a resume point keeps the offer to hear the new scene through '
+      'toJson/fromJson, and a row without it offers nothing', () async {
+    const linha = ResumePoint(
+      sessionId: 'sessao-1',
+      stage: SalaStage.ensaio,
+      hearNewScene: true,
+    );
+    const semEla = '{"session_id":"sessao-1","stage":"ensaio","takes":[]}';
+
+    final volta = ResumePoint.fromJson(linha.toJson(), folder: '/gravacoes')!;
+    final antiga = ResumePoint.fromJson(
+      jsonDecode(semEla) as Map<String, Object?>,
+      folder: '/gravacoes',
+    )!;
+    final home = aTempDir('sala-em-curso-oferta');
+    final gravacoes = Directory('${home.path}/recordings')
+      ..createSync(recursive: true);
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => gravacoes,
+    );
+    await ledger.remember('Ruth', 'P03', 'pt', linha);
+    final doDisco = await ledger.of('Ruth', 'P03', 'pt');
+
+    expect(volta.hearNewScene, isTrue);
+    expect(antiga.hearNewScene, isFalse);
+    expect(doDisco!.hearNewScene, isTrue);
+  });
+
   test('a row written with or without the part being recorded again reopens '
       'alike, with no part marked', () {
     const semAMarca =

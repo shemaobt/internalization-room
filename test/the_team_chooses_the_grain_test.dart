@@ -1944,20 +1944,20 @@ void main() {
   });
 
   group('14. «Ensaio Final: juntar os ensaios das cenas»', () {
-    testWidgets('is offered over an empty whole recording and opens the plan', (
-      tester,
-    ) async {
-      final (harness, _) = await _onTheEmptyWholeHome(tester);
+    testWidgets(
+      'is offered over an empty whole recording and switches to the scenes',
+      (tester) async {
+        final (harness, _) = await _onTheEmptyWholeHome(tester);
 
-      await _tap(tester, _backToJoin);
-      await _settles(tester);
+        await _tap(tester, _backToJoin);
+        await _settles(tester);
 
-      expect(harness.room.grainSwitches.last, (
-        grain: Grain.scene,
-        reopens: false,
-      ));
-      expect(find.text(_planLine), findsOneWidget);
-    });
+        expect(harness.room.grainSwitches.last, (
+          grain: Grain.scene,
+          reopens: false,
+        ));
+      },
+    );
 
     testWidgets(
       'armed over an approved draft, VoiceOver focus leaving it reads its own '

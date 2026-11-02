@@ -1,10 +1,12 @@
 ---
-status: accepted
+status: accepted, amended by ENG-2011 (2026-11-02: the offer survives a relaunch)
 date: 2026-10-23
 extends: 0102, 0120
 ---
 
 # The Rehearsal swap lays a scene rehearsal in as the part's next pass, and keeps the take it replaces
+
+Amended by ENG-2011 (2026-10-30): «ouçam a cena nova antes de conferir» is kept with the Resume point, so it stands across a relaunch until the team opens the check or leaves the passage; it is still set only once the room holds the swapped take.
 
 The Definer settled the rules on ENG-1407 (Definition of 22 October; answers Q38–Q43 of 23 October). After the join the team must be able to hear which rehearsal stands in each scene and put another one in its place, without losing the take it had and without an old take slipping back into the passage they approve.
 
@@ -14,7 +16,7 @@ The Definer settled the rules on ENG-1407 (Definition of 22 October; answers Q38
 - On the home the sheet's «usar este» is the Rehearsal swap: that rehearsal's bytes go up through the Outbox as the part's next pass, with `origin` and the rehearsal's fingerprint, under a file of the part's own named for that pass. The part is replaced in place only once the room names the take, exactly as a record-again replaces it: the stretches told over the old take leave the check as history, and the part starts unheard.
 - The swap takes the Armed tap over an approved draft, with her «toquem de novo: isto abre de novo o rascunho aprovado», and over a take already standing under the scene, with «usar este» dimmed until it wakes. A row with no part swaps on one tap.
 - A swap that cannot land changes nothing but its sheet line: «este ensaio não pode entrar — ensaiem esta cena de novo» when the room or the door says the rehearsal cannot be the part, else «não deu para juntar esta cena — toquem para tentar de novo» within the join's windows. Its row leaves the Outbox and its file is deleted; a refusal also re-reads the session, so a draft approved meanwhile arms the next tap.
-- «ouçam a cena nova antes de conferir» stands under the rows from a landed swap until the team taps the advance disc, and is not kept across a relaunch.
+- «ouçam a cena nova antes de conferir» stands under the rows from a landed swap until the team taps the advance disc or leaves the passage, and is kept with the Resume point across a relaunch.
 - While a swap runs nothing else on the home starts.
 - A swap decides only once the request in the air has answered. Given up after 70 s, its row leaves the Outbox at the give-up itself, so nothing sends it again, not even after a relaunch; a request still in the air keeps its file until it answers, and a row the room took then becomes the part as the room holds it, with the same «ouçam a cena nova antes de conferir»: the tablet follows the room rather than show a part the room no longer counts.
 - Each arrival at the recording home settles the swaps left behind (a relaunch or a leave between the row's writing and its landing): it sends what the Outbox still holds above a part, then a part whose current take in the room came from a scene rehearsal at a higher pass becomes that take, with «ouçam a cena nova antes de conferir».
