@@ -3,18 +3,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/current_session_ledger.dart';
 
+import 'support/temp.dart';
+
 void main() {
   late Directory home;
   late Directory folder;
   late CurrentSessionLedger ledger;
 
   setUp(() {
-    home = Directory.systemTemp.createTempSync('sala-sessao');
+    home = aTempDir('sala-sessao');
     folder = Directory('${home.path}/guardadas')..createSync();
     ledger = CurrentSessionLedger(home: () async => home);
   });
-
-  tearDown(() => home.deleteSync(recursive: true));
 
   void record(String text) =>
       File('${folder.path}/sessao_atual.json').writeAsStringSync(text);
