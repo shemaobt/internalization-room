@@ -17,6 +17,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle, throughTheOrangeDot;
+import 'support/temp.dart';
 
 /// Sends `sendChunk` through the real [RoomRepository] — the actual production decode, not
 /// a hand-picked failure — so a test using this room stays sensitive to a regression in
@@ -94,8 +95,7 @@ class _Retomada {
 /// three rehearsal parts: parts 1 and 2 are told, and part 3 is told up to four seconds,
 /// so the stretch the team tells next starts there.
 Future<_Retomada> _retomadaNaRetro(SalaHarness harness) async {
-  final casa = Directory.systemTemp.createTempSync('sala-trecho-recusado');
-  addTearDown(() => casa.deleteSync(recursive: true));
+  final casa = aTempDir('sala-trecho-recusado');
   final linha = ResumePoint(
     sessionId: _sessao,
     stage: SalaStage.retro,

@@ -18,6 +18,7 @@ import 'package:internalization_room/features/sala/presentation/widgets/escolha_
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show settle;
+import 'support/temp.dart';
 
 const _unclaimed = RememberedLink();
 
@@ -194,8 +195,7 @@ void main() {
   );
 
   test('a link it cannot read is never written over', () async {
-    final home = Directory.systemTemp.createTempSync('sala-vinculo');
-    addTearDown(() => home.deleteSync(recursive: true));
+    final home = aTempDir('sala-vinculo');
     final ledger = LinkedTeam(home: () async => home);
     await ledger.rememberTeam(const TeamLink(projectId: 'equipe-terena'));
 

@@ -28,6 +28,7 @@ import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio;
 import 'scenario_helpers.dart' show byLabel, relaunch, settle, umaParteInteira;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show entrarNaTraducao, tocar, terminar;
+import 'support/temp.dart';
 
 const _notUnderstood = 'não entendi — traduzam de novo esse pedaço';
 const _wentToTheVoice = 'a tradução deste ensaio da cena já foi para a voz';
@@ -397,8 +398,7 @@ void main() {
     late Directory home;
 
     setUp(() {
-      home = Directory.systemTemp.createTempSync('fila-de-um-app-antigo');
-      addTearDown(() => home.deleteSync(recursive: true));
+      home = aTempDir('fila-de-um-app-antigo');
     });
 
     test(

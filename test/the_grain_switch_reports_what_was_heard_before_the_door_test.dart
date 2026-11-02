@@ -14,6 +14,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart'
     show holdTheSession, intoTheRecordingHome, settle;
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 const _duasCenas = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
@@ -32,8 +33,7 @@ Future<Sala> _reabertaNaCasa(
   List<KeptTake> Function(Directory pasta) takes,
   List<TakeView> naSala,
 ) async {
-  final pasta = Directory.systemTemp.createTempSync('sala-2074');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-2074');
   final harness = SalaHarness(filaEmMemoria: true)
     ..room.passageScenes = _duasCenas
     ..room.takes.addAll(naSala);

@@ -5,11 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/look_ledger.dart';
 import 'package:path/path.dart' as p;
 
+import 'support/temp.dart';
+
 void main() {
   late Directory home;
 
-  setUp(() => home = Directory.systemTemp.createTempSync('sala-aparencia'));
-  tearDown(() => home.deleteSync(recursive: true));
+  setUp(() => home = aTempDir('sala-aparencia'));
 
   test('the Look the tablet chose is read back from its own file', () async {
     final first = await LookLedger.read(home: () async => home);
