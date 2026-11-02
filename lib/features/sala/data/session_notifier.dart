@@ -6303,7 +6303,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final generation = _waitOnTheGeneration;
     final shown = state.scene;
     final waiting = shown.asWaiting;
-    _theTranslationAsked = null;
+    _silenceTheRoom();
     state = state.copyWith(scene: waiting);
     return _sendTheSceneFrase(frase, shown, waiting, generation);
   }

@@ -2291,4 +2291,53 @@ void main() {
       expect(room.harness.playback.played, hasLength(1));
     },
   );
+
+  test(
+    'the circle that sends a held frase again stops the sounding take where it '
+    'is before the room sees the frase, and leaves it there through the answer',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f2');
+      await settle();
+      room.harness.room.sceneAnswersFirst.add(
+        const Refused(RefusalCode.sceneRehearsalSending),
+      );
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      await _listening(room);
+      room.harness.playback.at = _s(8.7);
+      room.harness.room.holdNextFrase();
+
+      room.sala.tapTheTranslateCircle();
+      await waitFor(
+        'a frase ir de novo para a sala',
+        () => room.harness.room.frasesKept.length > 1,
+      );
+
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'o ensaio da cena seguia soando enquanto a frase ia de novo',
+      );
+      expect(
+        room.state.sceneStoppedAt,
+        _s(8.7),
+        reason: 'o ensaio perdia onde estava quando a frase foi de novo',
+      );
+      room.harness.room.finishHeldFrase();
+      await settle();
+
+      expect(room.state.scene.translatingAgain, isNull);
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'a resposta da sala punha o ensaio a tocar sozinho',
+      );
+    },
+  );
 }
