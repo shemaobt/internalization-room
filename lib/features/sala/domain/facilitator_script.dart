@@ -681,8 +681,7 @@ String savedScreenLabelFor(String key, String language) =>
     savedScreenLabels[key]![language] ??
     savedScreenLabels[key]![floorLanguage]!;
 
-/// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4); the
-/// playing cue VoiceOver reads is the room's own.
+/// Her recording home's words, byte for byte from her app (`strings.ts` at 18fa7c4).
 const recordingHomeLabels = {
   'listenAll': {'pt': 'Ouvir tudo', 'en': 'Hear it all'},
   'listenAllAria': {
@@ -736,7 +735,6 @@ const recordingHomeLabels = {
   'listen': {'pt': 'Ouvir', 'en': 'Listen'},
   'recordAgain': {'pt': 'Gravar de novo', 'en': 'Record again'},
   'stop': {'pt': 'Parar', 'en': 'Stop'},
-  'playing': {'pt': 'tocando', 'en': 'playing'},
   'hearHowYouToldAria': {
     'pt': 'Ouvir como vocês contaram esta parte',
     'en': 'Hear how you told this part',

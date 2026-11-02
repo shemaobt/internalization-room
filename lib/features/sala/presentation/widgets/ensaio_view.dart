@@ -448,10 +448,7 @@ class _SceneRowView extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: [
-        named,
-        if (playing) recordingHomeLabelFor('playing', language),
-      ].join(', '),
+      label: named,
       value: row.part == null ? null : ['✓', ?mark].join(' '),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),

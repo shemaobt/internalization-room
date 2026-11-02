@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/scene_question.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
@@ -32,7 +33,6 @@ const _gravar = 'Gravar';
 const _ouvir = 'Ouvir';
 const _gravarDeNovo = 'Gravar de novo';
 const _parar = 'Parar';
-const _tocando = 'tocando';
 const _falhou = 'falhou — toque para tentar de novo';
 const _enviarAGravacao = 'Enviar a gravação';
 const _gravarAPassagemInteira = 'Gravar a passagem inteira';
@@ -95,12 +95,13 @@ Finder _naLinha(int n, String controle) =>
 Finder _textoNaLinha(int n, String texto) =>
     find.descendant(of: _linha(n), matching: find.text(texto));
 
-final _algumaLinhaTocando = find.byWidgetPredicate(
-  (widget) =>
-      widget is Semantics &&
-      (widget.properties.label?.startsWith('Cena ') ?? false) &&
-      widget.properties.label!.endsWith(', $_tocando'),
-);
+bool _algumaLinhaTocando() => [
+  for (var n = 1; n <= 4; n++)
+    find
+        .descendant(of: _linha(n), matching: find.byIcon(LucideIcons.pause))
+        .evaluate()
+        .isNotEmpty,
+].contains(true);
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -218,11 +219,7 @@ void main() {
     await _gravarEGuardar(tester, 1);
     await _aSalaNomear(tester, container, 1);
     await _tocar(tester, _naLinha(1, _ouvir));
-    await _ate(
-      tester,
-      'a parte 1 tocar',
-      () => _algumaLinhaTocando.evaluate().isNotEmpty,
-    );
+    await _ate(tester, 'a parte 1 tocar', () => _algumaLinhaTocando());
 
     await _tocar(tester, _naLinha(2, _comoContaram));
     await _ate(
@@ -233,15 +230,15 @@ void main() {
 
     expect(_tocaPorUltimo(harness, _s2), isTrue);
     expect(
-      byLabel('${_cena(1)}, $_tocando'),
+      find.descendant(of: _linha(1), matching: find.byIcon(LucideIcons.pause)),
       findsNothing,
-      reason: 'a linha 1 seguia «tocando» com o conto no ar',
+      reason: 'a linha 1 seguia tocando com o conto no ar',
     );
     closeTheRoom(container);
   });
 
   testWidgets(
-    'a kept retelling playing on the home is no part: no row reads «tocando», '
+    'a kept retelling playing on the home is no part: no row draws the pause, '
     'the wood play still reads «Ouvir», and «Gravar» on a row stops it and '
     'records',
     (tester) async {
@@ -256,7 +253,7 @@ void main() {
         () => _tocaPorUltimo(harness, _s2) && harness.playback.sounding,
       );
 
-      expect(_algumaLinhaTocando, findsNothing);
+      expect(_algumaLinhaTocando(), isFalse);
       expect(offTheRows(_ouvir), findsOneWidget);
       expect(offTheRows(_parar), findsNothing);
 
