@@ -6,7 +6,7 @@ amends: 0170 (in part: a refusal that carries its own route never writes her lin
 
 # A refusal that names a frase leads to it whatever its line did
 
-This amends ADR 0170 without editing its decision: it adds "amended by 0174" to its status
+This amends ADR 0170 without editing its decision: it adds "amended by 0175" to its status
 line. Her app is the bar, and it wins over our ADRs (João, 26 October). Settled on the ticket
 (ENG-2129).
 
