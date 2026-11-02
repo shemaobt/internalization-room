@@ -580,13 +580,10 @@ class FakeRecorder implements RecordingRepository {
 
   @override
   Future<void> sweepTheKeptRetellingsOutside(String? session) async {
-    for (final entry in home.listSync()) {
-      if (entry is! File) continue;
-      final name = entry.uri.pathSegments.last;
-      if (name.startsWith('kept-') &&
-          (session == null || !name.startsWith('kept-$session-'))) {
-        entry.deleteSync();
-      }
+    try {
+      await sweepTheKeptRetellingsIn(home, session);
+    } on FileSystemException {
+      return;
     }
   }
 

@@ -15,10 +15,13 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
 import 'package:internalization_room/features/sala/domain/passagem.dart';
 import 'package:internalization_room/features/sala/domain/scene_question.dart';
+import 'package:internalization_room/features/sala/domain/moment.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
+import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
+    show aKept;
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
@@ -243,6 +246,49 @@ void main() {
 
         expect(_theKeptOnThe(tablet), ['checagem-t1.m4a', mine, aTake]);
       });
+
+      test(
+        'and the held session\'s kept telling still plays, without a fetch',
+        () async {
+          final first = await _aTablet();
+          first.harness.room
+            ..nextMoment = const Moment(
+              at: MomentAt.articulation,
+              part: 3,
+              parts: 3,
+            )
+            ..keptRetellings = [aKept('S1', 1), aKept('S2', 2), aKept('S3', 3)];
+          await enterThePassage(first.notifier, () => first.state, 'P01');
+          await waitFor(
+            'the opening to be said',
+            () => first.state.voice == VoiceState.invite,
+          );
+          final session = first.state.sessionId!;
+          await _takeATurn(first);
+
+          final again = await _relaunch(first);
+          final kept = File(
+            '${again.harness.recorder.home.path}/kept-$session-S2-2.m4a',
+          )..writeAsBytesSync(List.filled(8, 32));
+          _leaveOnTheTablet(again, ['kept-sessao-largada-S1-1.m4a']);
+          await again.notifier.openTheRoom();
+          await _landsOn(again, session);
+          await waitFor(
+            'the sweep to finish',
+            () =>
+                !_theKeptOnThe(again).contains('kept-sessao-largada-S1-1.m4a'),
+          );
+
+          again.notifier.playKeptRetelling(2);
+          await waitFor(
+            'the kept telling to be played',
+            () => again.harness.playback.played.isNotEmpty,
+          );
+
+          expect(again.harness.playback.played, [kept.path]);
+          expect(again.harness.room.keptRetellingsFetched, isEmpty);
+        },
+      );
 
       test(
         'and an unreadable record of the held session sweeps nothing',

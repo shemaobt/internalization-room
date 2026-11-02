@@ -130,4 +130,67 @@ void main() {
       {'conversa_1760900000003.m4a'},
     );
   });
+  Set<String> after(Directory recordings) =>
+      recordings.listSync().map((entry) => entry.path.split('/').last).toSet();
+
+  test(
+    'a session whose id begins another\'s keeps only its own tellings',
+    () async {
+      final recordings = Directory('${documents.path}/recordings')
+        ..createSync(recursive: true);
+      for (final name in [
+        'kept-ab-S1-1.m4a',
+        'kept-ab-cd-S1-1.m4a',
+        'kept-ab-cd-whole-12.wav',
+      ]) {
+        File('${recordings.path}/$name').writeAsStringSync('áudio');
+      }
+      final recording = RecordingRepository();
+      addTearDown(recording.dispose);
+
+      await recording.sweepTheKeptRetellingsOutside('ab');
+      expect(after(recordings), {'kept-ab-S1-1.m4a'});
+
+      for (final name in ['kept-ab-cd-S1-1.m4a']) {
+        File('${recordings.path}/$name').writeAsStringSync('áudio');
+      }
+      await recording.sweepTheKeptRetellingsOutside('ab-cd');
+      expect(after(recordings), {'kept-ab-cd-S1-1.m4a'});
+    },
+  );
+
+  test('a file that vanished does not stop the sweep of the others', () async {
+    final recordings = Directory('${documents.path}/recordings')
+      ..createSync(recursive: true);
+    for (final name in ['kept-other-S1-1.m4a', 'checagem-t1.m4a']) {
+      File('${recordings.path}/$name').writeAsStringSync('áudio');
+    }
+    final gone = File('${recordings.path}/kept-gone-S1-1.m4a');
+
+    await sweepTheKeptRetellingsIn(
+      _ListingThatStartsWith(gone, recordings),
+      'nenhuma',
+    );
+
+    expect(after(recordings), {'checagem-t1.m4a'});
+  });
+}
+
+class _ListingThatStartsWith implements Directory {
+  final File vanished;
+  final Directory real;
+
+  _ListingThatStartsWith(this.vanished, this.real);
+
+  @override
+  Stream<FileSystemEntity> list({
+    bool recursive = false,
+    bool followLinks = true,
+  }) async* {
+    yield vanished;
+    yield* real.list();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
