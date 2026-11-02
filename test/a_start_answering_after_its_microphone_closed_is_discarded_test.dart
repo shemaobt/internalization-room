@@ -13,6 +13,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart'
     show holdTheSession, intoTheRecordingHome, settle, theHaltIsLifted;
 import 'session_notifier_test.dart' show inConversa;
+import 'support/temp.dart';
 
 /// What the recorder did once the start that was in the air answered: a start left
 /// running with no Channel holding it records the room until the app is closed.
@@ -42,10 +43,8 @@ void _expectTheLateStartDiscarded(
 Future<ProviderContainer> _inTheRehearsalWithAWarning(
   SalaHarness harness,
 ) async {
-  final gravada = File(
-    '${Directory.systemTemp.createTempSync('sala-1347').path}/p1.m4a',
-  )..writeAsBytesSync([1, 2, 3]);
-  addTearDown(() => gravada.parent.deleteSync(recursive: true));
+  final gravada = File('${aTempDir('sala-1347').path}/p1.m4a')
+    ..writeAsBytesSync([1, 2, 3]);
   harness.room.serverStatus = 'needs_person';
   harness.room.serverHalt = HaltKind.warning;
   await holdTheSession(

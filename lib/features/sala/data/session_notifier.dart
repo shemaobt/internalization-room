@@ -2380,20 +2380,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(comecadas: comecadas);
   }
 
-  void escolhaTap() => _gesture(() => _escolhaTap());
-
-  void _escolhaTap() {
-    if (state.station is! Menu) return;
-    if (state.needsPerson) return;
-    if (state.voice != VoiceState.invite) return;
-    final roda = state.naRoda;
-    if (roda == null || roda.isEmpty) {
-      // The wheel never loaded, or offers nothing. There is nothing to say and nothing to
-      // enter, so the touch is the retry — otherwise this screen has no live gesture at all.
-      _handOff(abrirEscolha());
-    }
-  }
-
   void openTheEntry(Passagem entry) => _gesture(() => _openTheEntry(entry));
 
   void _openTheEntry(Passagem entry) {

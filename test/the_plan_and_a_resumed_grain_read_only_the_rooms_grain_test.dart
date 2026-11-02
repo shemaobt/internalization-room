@@ -13,6 +13,7 @@ import 'package:internalization_room/features/sala/domain/station.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show holdTheSession, settle;
+import 'support/temp.dart';
 
 const _held = 'sessao-guardada';
 const _oneScene = [Scene(sceneId: 'S1', title: 'A fome em Belém')];
@@ -60,8 +61,7 @@ Future<ProviderContainer> _theDotTappedOnAReopenedPassage({
 }
 
 KeptTake _aWholeHere() {
-  final home = Directory.systemTemp.createTempSync('sala-inteiro-aqui');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-inteiro-aqui');
   return KeptTake(
     scopeId: KeptScope.whole,
     path: (File('${home.path}/inteiro.m4a')..writeAsBytesSync([1])).path,

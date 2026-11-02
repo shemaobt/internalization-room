@@ -21,6 +21,7 @@ import 'fakes.dart';
 import 'scenario_helpers.dart' show byLabel, settle;
 import 'the_scene_circles_are_her_check_ring_test.dart'
     show ripplesOf, theEdgeOf;
+import 'support/temp.dart';
 
 const _session = 'sessao-1';
 
@@ -445,7 +446,7 @@ void main() {
     );
 
     test('the take\'s loudness is read off the UI thread', () async {
-      final take = File('${aTempHome('sala-take').path}/cena.wav')
+      final take = File('${aTempDir('sala-take').path}/cena.wav')
         ..writeAsBytesSync(aSpokenWav(gaps: [(_s(3.0), _s(5.0))]));
       final container = ProviderContainer();
       addTearDown(container.dispose);

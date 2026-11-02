@@ -725,9 +725,9 @@ void main() {
 
       await notifier.abrirEscolha();
       await settle();
-      notifier.escolhaTap();
+      unawaited(notifier.abrirEscolha());
       await settle();
-      notifier.escolhaTap();
+      unawaited(notifier.abrirEscolha());
       await settle();
 
       expect(container.read(salaSessionProvider).needsPerson, isFalse);
