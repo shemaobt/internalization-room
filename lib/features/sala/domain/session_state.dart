@@ -477,6 +477,7 @@ class SalaSessionState {
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
+  final Map<String, int> btTamanhosDasPartesMs;
   final int btParteNoArMs;
   final int btOuvidoMs;
   final Duration btCursor;
@@ -673,6 +674,7 @@ class SalaSessionState {
     this.btPartesOuvidasAqui = const {},
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
+    this.btTamanhosDasPartesMs = const {},
     this.btParteNoArMs = 0,
     this.btOuvidoMs = 0,
     this.btCursor = Duration.zero,
@@ -1455,9 +1457,10 @@ class SalaSessionState {
 
   bool _btOuvidaAquiOuContada(int parte) {
     if (btPartesOuvidasAqui.contains(partes[parte].path)) return true;
-    final tamanho = btTamanhoDaParte(parte);
+    final tamanho = btTamanhosDasPartesMs[partes[parte].path];
     return tamanho == null ||
-        btChaoContadoDe(parte) + folgaDoFimDaParte >= tamanho;
+        btChaoContadoDe(parte) + folgaDoFimDaParte >=
+            Duration(milliseconds: tamanho);
   }
 
   bool get _btCadaParteOuvidaAqui =>
@@ -1876,6 +1879,7 @@ class SalaSessionState {
     Set<String>? btPartesOuvidasAqui,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
+    Map<String, int>? btTamanhosDasPartesMs,
     int? btParteNoArMs,
     int? btOuvidoMs,
     Duration? btCursor,
@@ -2029,6 +2033,8 @@ class SalaSessionState {
       btPartesOuvidasAqui: btPartesOuvidasAqui ?? this.btPartesOuvidasAqui,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
+      btTamanhosDasPartesMs:
+          btTamanhosDasPartesMs ?? this.btTamanhosDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
       btCursor: btCursor ?? this.btCursor,

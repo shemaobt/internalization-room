@@ -3535,7 +3535,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }) async {
     await _medirAsPartes(state.partes, generation);
     if (_abandoned(generation)) return;
-    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+    state = state.copyWith(
+      btFimDasPartesMs: _fimDaParteMs,
+      btTamanhosDasPartesMs: _tamanhosDasPartesMs,
+    );
     await _sayALine(
       LineKind.guide,
       fixedLine: (name: sentenceAwaitingLine, language: _inTheRoomsLanguage),
@@ -5404,7 +5407,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         keptTakes: [...state.keptTakes, ...novas],
         wholeHeldByTheRoom: {...state.wholeHeldByTheRoom, ...laid.deLado},
       );
-      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      state = state.copyWith(
+        btFimDasPartesMs: _fimDaParteMs,
+        btTamanhosDasPartesMs: _tamanhosDasPartesMs,
+      );
       _passadasDaSala = _aindaPorGravar(
         _passadasDaSala ?? const {},
         state.partNumbers,
@@ -7502,7 +7508,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final quanto = await _playback.howLong(arquivo);
     if (quanto == null || _abandoned(generation)) return;
     _marcarOFimDaParte(arquivo, quanto.inMilliseconds);
-    state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+    state = state.copyWith(
+      btFimDasPartesMs: _fimDaParteMs,
+      btTamanhosDasPartesMs: _tamanhosDasPartesMs,
+    );
   }
 
   /// Throw away a take that was recorded and never kept.
@@ -8380,6 +8389,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btParteFronteira: false,
       clearBtParteQueTocou: true,
       btFimDasPartesMs: const [],
+      btTamanhosDasPartesMs: const {},
       btParteNoArMs: 0,
       btOuvidoMs: 0,
     );
@@ -8405,6 +8415,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       // room out of a halt nobody at the desk had attended.
       awaitingTheGuide: false,
       btFimDasPartesMs: _fimDaParteMs,
+      btTamanhosDasPartesMs: _tamanhosDasPartesMs,
     );
   }
 
@@ -8468,6 +8479,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     return fins;
   }
+
+  Map<String, int> get _tamanhosDasPartesMs => Map.of(_tamanhoDaParteMs);
 
   /// Where [parte] begins along the rehearsal: what the parts before it add up to, as far as
   /// they have been measured. A part nobody has measured adds nothing, so this cannot
@@ -8733,6 +8746,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       btParteFronteira: faltaOutra || (!ultima && !ouvidas),
       clearBtRecusa: ouvidas && !state.btSoOuvir,
       btFimDasPartesMs: _fimDaParteMs,
+      btTamanhosDasPartesMs: _tamanhosDasPartesMs,
       btParteNoArMs: 0,
     );
     if (ouvidas && state.btSoOuvir) {
@@ -10294,7 +10308,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       );
       await _medirAsPartes(state.partes, generation);
       if (_abandoned(generation)) return false;
-      state = state.copyWith(btFimDasPartesMs: _fimDaParteMs);
+      state = state.copyWith(
+        btFimDasPartesMs: _fimDaParteMs,
+        btTamanhosDasPartesMs: _tamanhosDasPartesMs,
+      );
       return true;
     }
     return false;
