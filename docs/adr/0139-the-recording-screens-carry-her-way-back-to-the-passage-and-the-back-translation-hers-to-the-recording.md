@@ -1,10 +1,14 @@
 ---
-status: accepted, amended by 0142
+status: accepted, amended by 0142, amended by ENG-1848
 date: 2026-10-27
 amends: 0062 (in part: the ≡ is no longer on the recording screens nor on the Back-translation)
 ---
 
 # The recording screens carry her way back to the passage, and the Back-translation hers to the recording
+
+Amended by ENG-1848 (2026-11-02): «The visibility rule of ADR 0062 is unchanged here» no longer
+holds. Both chevrons are drawn and live in every state, as hers; «Voltar para a gravação» is inert only
+while a sentence recording is being sent. ADR 0062 records the rule.
 
 This amends ADR 0062 without editing its decision: it adds "amended by 0139" to its status line.
 Her app is the bar (João, 26 October: her frozen app wins over our ADRs), settled on the ticket

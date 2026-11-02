@@ -2920,6 +2920,35 @@ void main() {
       expect((segment.takeId, segment.endsMs), ('gravacao-3', 3200));
     });
 
+    test('a sentence whose recording is gone from the tablet comes back as '
+        'a failure of the room, not as a throw', () async {
+      var asked = false;
+      final repository = RoomRepository(
+        client: MockClient((request) async {
+          asked = true;
+          return http.Response('{}', 200);
+        }),
+        deviceId: () async => 'aparelho-1',
+      );
+      addTearDown(repository.dispose);
+      final gone = await _tempRecording(extension: 'wav', bytes: aWavTake());
+      gone.deleteSync();
+
+      final answer = await repository.reRecordTheSentence(
+        'sessao-1',
+        'trecho-3',
+        gone,
+        sentenceId: '1792447878466000-0',
+      );
+
+      expect(
+        answer,
+        isA<RoomFailure>(),
+        reason: 'o arquivo sumido estourava e a frase ficava «enviando…»',
+      );
+      expect(asked, isFalse);
+    });
+
     test(
       'the replace and sentence doors ask for the stale stretches too',
       () async {

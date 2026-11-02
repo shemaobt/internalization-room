@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0178
 date: 2026-10-28
 amends: 0068 (every result that leaves a telling not stored), 0101 (the frase door's timeout, found nothing and sent rehearsal), 0131 (the Back-translation leaves the Outbox)
 ---
