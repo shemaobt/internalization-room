@@ -1232,22 +1232,6 @@ void main() {
       expect(room.state.needsPerson, isFalse);
     });
 
-    test('the scene take\'s audio refused', () async {
-      final room = await atRest();
-      room.harness.room
-        ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
-        ..failClipWith = refused;
-
-      await theScreenOpens(room);
-      await waitFor(
-        'o áudio do ensaio ser pedido',
-        () => room.harness.room.clipsFetched.isNotEmpty,
-      );
-      await settle();
-
-      expect(room.state.scene.step, SceneStep.record);
-    });
-
     test('the keep refused', () async {
       final room = await atRest();
       await theScreenOpens(room);
@@ -1289,22 +1273,6 @@ void main() {
         'a sala voltar à Escolha',
         () => room.state.stage == SalaStage.escolha,
       );
-    });
-
-    test('an empty scene take fetched', () async {
-      final room = await atRest();
-      room.harness.room
-        ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
-        ..sceneAudio = Uint8List(0);
-
-      await theScreenOpens(room);
-      await waitFor(
-        'o áudio do ensaio ser pedido',
-        () => room.harness.room.clipsFetched.isNotEmpty,
-      );
-      await settle();
-
-      expect(room.state.scene.step, SceneStep.record);
     });
 
     test('an empty recording on stop', () async {
@@ -1355,4 +1323,41 @@ void main() {
       );
     });
   });
+
+  group(
+    'a take the room never measured and cannot be had opens on places unknown',
+    () {
+      test('the scene take\'s audio refused', () async {
+        final room = await atRest();
+        room.harness.room
+          ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
+          ..failClipWith = const Refused('HTTP_422');
+
+        await theScreenOpens(room);
+        await waitFor(
+          'o áudio do ensaio ser pedido',
+          () => room.harness.room.clipsFetched.isNotEmpty,
+        );
+        await settle();
+
+        expect(room.state.scene.step, SceneStep.placesUnknown);
+      });
+
+      test('an empty scene take fetched', () async {
+        final room = await atRest();
+        room.harness.room
+          ..sceneRehearsals.add(_rehearsal(frases: [_frase('f1', 0, 4000)]))
+          ..sceneAudio = Uint8List(0);
+
+        await theScreenOpens(room);
+        await waitFor(
+          'o áudio do ensaio ser pedido',
+          () => room.harness.room.clipsFetched.isNotEmpty,
+        );
+        await settle();
+
+        expect(room.state.scene.step, SceneStep.placesUnknown);
+      });
+    },
+  );
 }

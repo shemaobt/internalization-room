@@ -181,7 +181,7 @@ void main() {
   );
 
   test(
-    'an English Panorama left before it was heard is opened again in English, in its own session, on the next tap',
+    'an English Panorama left before it was heard keeps its English session, and the next tap opens the team\'s microphone',
     () async {
       final harness = SalaHarness(lingua: null)
         ..room.passages = const [
@@ -214,14 +214,14 @@ void main() {
 
       harness.room.reachable = true;
       it.sala.panoramaTap();
-      await waitFor('the Panorama to be said', () => it.estado.panoramaSaid);
+      await waitFor(
+        'the microphone to open',
+        () => it.estado.voice == VoiceState.listening,
+      );
 
       expect(harness.room.languagesSent, ['en']);
-      expect(harness.room.sessionsSpokenTo, isNotEmpty);
-      expect(
-        harness.room.sessionsSpokenTo,
-        everyElement(harness.room.sessionIds.first),
-      );
+      expect(harness.room.sessionIds, hasLength(1));
+      expect(harness.room.turnIdsAsked, hasLength(1));
     },
   );
 

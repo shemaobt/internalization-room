@@ -1,8 +1,17 @@
 ---
-status: accepted, amended by 0087 (2026-10-16: the scene take's keep goes through the Outbox), amended by 0088 (2026-10-16: the scenes door's failures change nothing), amended by 0089 (2026-10-16: a refused or failed scene microphone shows and says nothing)
+status: accepted, amended by 0087 (2026-10-16: the scene take's keep goes through the Outbox), amended by 0088 (2026-10-16: the scenes door's failures change nothing), amended by 0089 (2026-10-16: a refused or failed scene microphone shows and says nothing), amended by ENG-1874 (2026-11-02: until the take is here, places are measured against the room's length)
 date: 2026-10-14
 amends: 0053
 ---
+
+Amended by ENG-1874: places are measured against the take this tablet holds once it is here;
+until then, against the length the room measured (`duration_ms`), and the take comes down
+after the step opens. A tap that needs the take waits for it, and a take that cannot be had
+leaves the step as it is. A rehearsal the room never measured waits for its take on the
+loading state, and the red microphone opens it without one rather than on the record step.
+With the room unreachable, the newest unsent rehearsal this tablet last read reopens when the
+tablet holds its take or a frase of it; nothing else reopens offline, and after a relaunch the
+tablet names no rehearsal.
 
 # The scene rehearsal is a Station of its own over the Canvas, never stored
 

@@ -150,6 +150,10 @@ abstract final class FailurePolicy {
     RefusalCode.fraseOutOfPlace,
   };
 
+  /// A read the room could not be reached for: the tablet goes on from what it holds.
+  static bool theRoomWasUnreachable(RoomResult result) =>
+      result is RoomNetworkFailed;
+
   /// A turn's answer that never reached the tablet whole: the room may have acted on it,
   /// so the one look decides. For «terminei», an answer it could not read is one too.
   static bool theAnswerWasLost(RoomResult result, RefusalRule rule) =>
