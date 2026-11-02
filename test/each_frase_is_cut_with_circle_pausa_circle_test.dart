@@ -2456,4 +2456,62 @@ void main() {
       );
     },
   );
+
+  test(
+    'play that reads the room\'s list first marks the pausa where the take was '
+    'at the tap, not where the stopped player says it opened',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.harness.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      room.harness.room.frasesLandBeforeTheyFail = false;
+      await waitFor(
+        'a sala não saber se guardou',
+        () => room.state.sceneTranslationUnseen && !room.state.scene.waiting,
+      );
+      room.sala.translateTheFraseAgain('f2');
+      await settle();
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room, already: 1);
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      expect(room.state.scene.translatingAgain, isNull);
+      expect(room.state.sceneTranslationUnseen, isTrue);
+      await _circle(room);
+      await waitFor(
+        'o ensaio tocar da fronteira',
+        () => room.harness.playback.sounding,
+      );
+      room.harness.playback.at = _s(8.7);
+      final lists = room.asked('sceneRehearsalsOf');
+      room.harness.room.holdNextSceneList();
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'a lista ser pedida',
+        () => room.asked('sceneRehearsalsOf') > lists,
+      );
+      room.harness.room.finishHeldSceneList();
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      await settle();
+
+      expect(
+        room.state.scene.pausa,
+        _s(8.7),
+        reason:
+            'a pausa era lida de um tocador já parado pela leitura da lista, e '
+            'caía onde o ensaio abriu',
+      );
+      expect(room.harness.playback.sounding, isFalse);
+    },
+  );
 }

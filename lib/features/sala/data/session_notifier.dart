@@ -6221,9 +6221,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// tap for a take with no loudness to read, but never within 0.2 s of the last pausa
   /// (ADR 0076, as amended).
   void _markThePausa() {
-    final tap = _playback.position;
-    _silenceTheRoom();
     final shown = state.scene;
+    final tap = _theSceneTakeThatSounds(state.machine) != null
+        ? _playback.position
+        : state.sceneStoppedAt ?? shown.rehearsal!.frontier;
+    _silenceTheRoom();
     final pausa = _thePausaAt(tap, shown);
     if (pausa != null) {
       state = state.copyWith(scene: shown.copyWith(pausa: pausa));
