@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/bt_finding.dart';
 import 'package:internalization_room/features/sala/domain/grain.dart';
+import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'fakes.dart';
@@ -19,6 +21,7 @@ const _backToRecording = 'Voltar para a gravação';
 const _whole = 'A passagem inteira';
 const _conferindo = 'conferindo…';
 const _verdictLine = 'V1';
+const _unclear = 'não ficou claro';
 
 Finder _onTheWholeRow(String label) =>
     find.descendant(of: byLabel(_whole), matching: byLabel(label));
@@ -455,6 +458,62 @@ void main() {
       },
     );
   });
+
+  group(
+    'Acceptance 3b: the findings of a verdict that lands after the leave',
+    () {
+      testWidgets(
+        'a tap during «conferindo…» over a verdict not checked, with findings, '
+        'and a later entry shows those findings from the room',
+        (tester) async {
+          final (harness, container) = await _onTheBackTranslation(tester);
+          await _theTellingOpens(tester, harness, container);
+          _notifier(container).retroTap();
+          await _until(
+            tester,
+            'o trecho chegar à sala',
+            () =>
+                harness.room.chunkTakes.isNotEmpty &&
+                _state(container).btTrechos.isNotEmpty &&
+                _state(container).voice != VoiceState.thinking,
+          );
+          final told = _state(container).btTrechos.first;
+          final finding = BtFinding(
+            kind: BtFindingKind.unclear,
+            frase: told.frase,
+            segmentId: told.segmentId,
+          );
+          harness.room
+            ..verdictChecked = false
+            ..verdictFindings = [finding];
+          await _theCheckIsAsked(tester, harness, container);
+          harness.room.verdictChecked = false;
+
+          await tester.tap(byLabel(_backToRecording));
+          await settles(tester);
+          expect(_state(container).stage, SalaStage.ensaio);
+
+          harness.room.retroSoFar = BackTranslationProgress(
+            segments: [...harness.room.segments],
+            findings: [finding],
+          );
+          harness.room.finishHeldVerdict();
+          await _passTenSeconds(tester);
+
+          _notifier(container).startRetro();
+          await settles(tester);
+          await settles(tester);
+
+          expect(_state(container).stage, SalaStage.retro);
+          expect(
+            find.text(_unclear),
+            findsOneWidget,
+            reason: 'a volta perdia os achados do veredito que a sala deu',
+          );
+        },
+      );
+    },
+  );
 
   group('Acceptance 4: a tap discards what is open and sends nothing', () {
     testWidgets('a tap while a home take records discards it unsent', (

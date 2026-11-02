@@ -3903,7 +3903,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     unawaited(_readWhatComesBack());
   }
 
-  Future<void> _readWhatComesBack({int? laidOn}) async {
+  Future<void> _readWhatComesBack({
+    int? laidOn,
+    bool withTheVerdict = false,
+  }) async {
     final sessionId = state.sessionId;
     if (sessionId == null) return;
     final generation = _generation;
@@ -3914,6 +3917,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (read case Answered(value: final snapshot) when sent > _readsApplied) {
       _applyTheSessionRead(snapshot, sent);
       final told = snapshot.backTranslation;
+      if (withTheVerdict) {
+        state = state.copyWith(
+          btFindings: _osAchadosQueFicam([
+            ?told.namedNuance,
+            ...told.findings,
+          ], state.btTrechos),
+        );
+      }
       if (laidOn != null && !told.bringBack.contains(laidOn)) {
         state = state.copyWith(btTrechos: _trechosFrom(told.segments));
         unawaited(_relatarASala(sessionId, const []));
@@ -11121,7 +11132,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       playedByTake: _escuta.relato(state.partes),
     );
     if (_abandoned(generation)) {
-      if (!_endedSince(life)) unawaited(_readWhatComesBack());
+      if (!_endedSince(life) && state.sessionId == sessionId) {
+        unawaited(_readWhatComesBack(withTheVerdict: true));
+      }
       return;
     }
     state = state.copyWith(btConferindo: false);
