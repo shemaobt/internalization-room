@@ -313,13 +313,19 @@ void main() {
       },
       somProprio: 'voice:fixed',
     ),
-    _linha('terminei', _prontoParaTerminei, (cena) async {
-      await cena.sala.finishBackTranslation();
-      await waitFor(
-        'o veredito ser dito',
-        () => _estado(cena).btPhase != BtPhase.thinking,
-      );
-    }, somProprio: 'voice:line'),
+    _linha(
+      'terminei',
+      _prontoParaTerminei,
+      (cena) async {
+        await cena.sala.finishBackTranslation();
+        await waitFor(
+          'o veredito ser dito',
+          () => _estado(cena).btPhase != BtPhase.thinking,
+        );
+      },
+      segurando: true,
+      somProprio: 'voice:line',
+    ),
     _linha(
       'o círculo, capturando',
       () async {
@@ -440,6 +446,7 @@ void main() {
           () => cena.harness.voice.fixedLines.contains(('P2', testLanguage)),
         );
       },
+      segurando: true,
       somProprio: 'voice:fixed',
     ),
     _linha(

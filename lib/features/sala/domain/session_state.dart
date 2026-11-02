@@ -6,6 +6,7 @@ import 'spoken_line.dart';
 import 'session_snapshot.dart';
 import 'coverage.dart';
 import 'ensaio_final_plan.dart';
+import 'escuta_das_partes.dart';
 import 'grain.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
@@ -474,9 +475,12 @@ class SalaSessionState {
   final bool? btOuvidaInteira;
   final bool btRestoPorOuvir;
   final Set<String> btPartesOuvidasAqui;
+  final Map<String, List<List<int>>> btFaixasOuvidasAqui;
+  final List<RerecordedSentence> btFrasesNovas;
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
+  final Map<String, int> btTamanhosDasPartesMs;
   final int btParteNoArMs;
   final int btOuvidoMs;
   final Duration btCursor;
@@ -671,8 +675,11 @@ class SalaSessionState {
     this.btOuvidaInteira,
     this.btRestoPorOuvir = false,
     this.btPartesOuvidasAqui = const {},
+    this.btFaixasOuvidasAqui = const {},
+    this.btFrasesNovas = const [],
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
+    this.btTamanhosDasPartesMs = const {},
     this.btParteNoArMs = 0,
     this.btOuvidoMs = 0,
     this.btCursor = Duration.zero,
@@ -1036,6 +1043,14 @@ class SalaSessionState {
       joining != null ||
       bringingBack != null ||
       grainSwitching;
+
+  bool get phaseBusy =>
+      joining != null || swapping != null || bringingBack != null;
+
+  bool get sendNowRests =>
+      _theTakeInTheAirOf(partTakeKind) != null ||
+      machine.keeping.keys.any((part) => part.session == sessionId) ||
+      phaseBusy;
 
   /// Each Scene row's plan row and what it offers on the recording home, by number, from
   /// the scene-rehearsal listing the home last read.
@@ -1454,10 +1469,32 @@ class SalaSessionState {
   }
 
   bool _btOuvidaAquiOuContada(int parte) {
+    if (!_btCadaFraseNovaOuvida(parte)) return false;
     if (btPartesOuvidasAqui.contains(partes[parte].path)) return true;
-    final tamanho = btTamanhoDaParte(parte);
+    final tamanho = btTamanhosDasPartesMs[partes[parte].path];
     return tamanho == null ||
-        btChaoContadoDe(parte) + folgaDoFimDaParte >= tamanho;
+        btChaoContadoDe(parte) + folgaDoFimDaParte >=
+            Duration(milliseconds: tamanho);
+  }
+
+  bool _btCadaFraseNovaOuvida(int parte) {
+    final take = partes[parte];
+    final ouvido = [
+      ...?btFaixasOuvidasAqui[take.path],
+      for (final trecho in btTrechos)
+        if (trecho.parte == parte && trecho.contado)
+          [trecho.lugarFrom.inMilliseconds, trecho.lugarTo.inMilliseconds],
+    ];
+    return btFrasesNovas.every(
+      (frase) =>
+          frase.takeId != take.takeId ||
+          EscutaDasPartes.trechoOuvido(
+            ouvido,
+            frase.startsMs,
+            frase.endsMs,
+            folgaDoFimDaParte,
+          ),
+    );
   }
 
   bool get _btCadaParteOuvidaAqui =>
@@ -1874,8 +1911,11 @@ class SalaSessionState {
     bool? btOuvidaInteira,
     bool? btRestoPorOuvir,
     Set<String>? btPartesOuvidasAqui,
+    Map<String, List<List<int>>>? btFaixasOuvidasAqui,
+    List<RerecordedSentence>? btFrasesNovas,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
+    Map<String, int>? btTamanhosDasPartesMs,
     int? btParteNoArMs,
     int? btOuvidoMs,
     Duration? btCursor,
@@ -2027,8 +2067,12 @@ class SalaSessionState {
       btOuvidaInteira: btOuvidaInteira ?? this.btOuvidaInteira,
       btRestoPorOuvir: btRestoPorOuvir ?? this.btRestoPorOuvir,
       btPartesOuvidasAqui: btPartesOuvidasAqui ?? this.btPartesOuvidasAqui,
+      btFaixasOuvidasAqui: btFaixasOuvidasAqui ?? this.btFaixasOuvidasAqui,
+      btFrasesNovas: btFrasesNovas ?? this.btFrasesNovas,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
+      btTamanhosDasPartesMs:
+          btTamanhosDasPartesMs ?? this.btTamanhosDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
       btCursor: btCursor ?? this.btCursor,

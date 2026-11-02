@@ -34,6 +34,7 @@ class UnsentNotice extends StatelessWidget {
     ]..sort((a, b) => a.$1.compareTo(b.$1));
     if (unsent.isEmpty) return const SizedBox.shrink();
     final colors = SalaColors.of(context);
+    final rests = session.sendNowRests;
     String words(String key) => recordingHomeLabelFor(key, language);
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -52,15 +53,19 @@ class UnsentNotice extends StatelessWidget {
             for (final (scene, label) in unsent)
               Semantics(
                 button: true,
+                enabled: !rests,
                 label: words('sendAria'),
-                onTap: () => onSend(scene),
+                onTap: rests ? null : () => onSend(scene),
                 excludeSemantics: true,
-                child: TextButton(
-                  onPressed: () => onSend(scene),
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.telha, fontSize: 15),
+                child: Opacity(
+                  opacity: rests ? 0.5 : 1,
+                  child: TextButton(
+                    onPressed: rests ? null : () => onSend(scene),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.telha, fontSize: 15),
+                    ),
                   ),
                 ),
               ),

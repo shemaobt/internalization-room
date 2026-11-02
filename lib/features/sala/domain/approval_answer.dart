@@ -21,24 +21,10 @@ class ApprovalAnswer {
   /// the gate raised them — which is not the order the room reads them in.
   final List<String> blockers;
 
-  /// Which current parts carry nobody's words, when `untold_part` is among the blockers;
-  /// empty otherwise, never a list this tablet worked out for itself from a silence.
-  final List<String> untoldTakeIds;
-
-  /// Which parts of the rehearsal the team's report does not cover, when
-  /// `playback_did_not_cover_the_clip` is among the blockers.
-  final List<String> unheardTakeIds;
-
-  /// The stretch recorded and never told back, when `untold_stretch` is among them.
-  final String? untoldSegmentId;
-
   const ApprovalAnswer({
     this.releaseId,
     this.version,
     this.blockers = const [],
-    this.untoldTakeIds = const [],
-    this.unheardTakeIds = const [],
-    this.untoldSegmentId,
   });
 
   bool get minted => version != null;
@@ -58,14 +44,5 @@ class ApprovalAnswer {
       for (final codigo in json['blockers'] as List? ?? const [])
         codigo as String,
     ],
-    untoldTakeIds: [
-      for (final nome in json['untold_take_ids'] as List? ?? const [])
-        nome as String,
-    ],
-    unheardTakeIds: [
-      for (final nome in json['unheard_take_ids'] as List? ?? const [])
-        nome as String,
-    ],
-    untoldSegmentId: json['untold_segment_id'] as String?,
   );
 }

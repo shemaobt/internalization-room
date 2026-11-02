@@ -1,6 +1,6 @@
 # A gesture that moves the room silences it first, in one place
 
-Amended by 0067 (the interruption's stop is the machine's).
+Amended by 0067 (the interruption's stop is the machine's) and by 0174 («terminei» holds the clip).
 
 ## Context
 

@@ -318,4 +318,53 @@ void main() {
       );
     },
   );
+
+  test(
+    'a part after one the player cannot measure is still to hear here '
+    'until it plays, and the ruler keeps its break at the unmeasured one',
+    () async {
+      final it = await umEnsaioGravado(partesDoEnsaio);
+      it.harness.playback.semMedida.add(it.partes[1].path);
+      it.harness.room.listeningUnheardTakeIds = const [];
+      it.sala.startRetro();
+      await waitFor(
+        'a tradução começar a tocar a primeira parte',
+        () =>
+            it.estado.stage == SalaStage.retro &&
+            it.estado.btPhase == BtPhase.playing,
+      );
+      await traduzirUmTrecho(it, const Duration(seconds: 4));
+      await waitFor(
+        'a equipe voltar ao círculo',
+        () => it.estado.btPhase == BtPhase.playing,
+      );
+      await ouvirAteOFim(it, partesDoEnsaio[0]);
+      await theClipOpens(it.harness);
+      await waitFor(
+        'a segunda parte tocar',
+        () =>
+            it.harness.playback.sounding &&
+            it.harness.playback.played.last == it.partes[1].path,
+      );
+      it.harness.playback.at = const Duration(seconds: 2);
+      it.sala.ouvirGravacao();
+      await waitFor('a parte pausar', () => !it.harness.playback.sounding);
+      await settle();
+
+      expect(
+        it.estado.btFimDasPartesMs,
+        [10000],
+        reason: 'a régua acaba na parte que ninguém mede, e ali fica',
+      );
+      expect(it.estado.btPartesOuvidasAqui, contains(it.partes[0].path));
+      expect(
+        it.estado.canAdvanceToTheVerdict,
+        isFalse,
+        reason:
+            'a régua parava na parte sem medida e a terceira, nunca tocada '
+            'aqui, passava por ouvida sem medida nenhuma: o terminei acendia '
+            'com uma parte inteira por ouvir',
+      );
+    },
+  );
 }
