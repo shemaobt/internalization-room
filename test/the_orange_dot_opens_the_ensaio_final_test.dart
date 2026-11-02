@@ -1559,10 +1559,7 @@ void main() {
 
         await it.relaunchIt();
 
-        expect(
-          it.onRow(2, find.text('Cena 2 · 0:48 — enviar agora')),
-          findsOneWidget,
-        );
+        expect(find.text('Cena 2 · 0:48 — enviar agora'), findsOneWidget);
         expect(it.onRow(2, byLabel('Gravar')), findsNothing);
 
         it.room.unreachableTake = null;

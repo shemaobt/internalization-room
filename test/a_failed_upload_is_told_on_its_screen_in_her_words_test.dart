@@ -1576,7 +1576,10 @@ void main() {
     casa.room.unreachableTake = 'ensaio/parte-4';
     await casa.umaTomadaDeOutraVisita(4, pass: 1);
 
-    expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
+    expect(
+      find.textContaining(RegExp(r'Cena 4 · .*enviar agora')),
+      findsOneWidget,
+    );
     expect(_naQuarta(byLabel(_gravarNaLinha)), findsNothing);
   });
 
@@ -1588,7 +1591,10 @@ void main() {
       casa.room.unreachableTake = 'ensaio/parte-4';
       await casa.umaTomadaDeOutraVisita(4, pass: 2);
 
-      expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'Cena 4 · .*enviar agora')),
+        findsOneWidget,
+      );
       expect(_naQuarta(byLabel(_ouvirNaLinha)), findsNothing);
       expect(_naQuarta(byLabel(_gravarDeNovoNaLinha)), findsNothing);
     },
@@ -1620,7 +1626,7 @@ void main() {
       await casa.umaTomadaDeOutraVisita(4, pass: 2);
 
       casa.room.unreachableTake = null;
-      await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
+      await casa.tocar(find.textContaining(RegExp(r'Cena 4 · .*enviar agora')));
       await casa.ate(
         'as duas passadas subirem',
         () => casa.room.takePasses.length == 2,
@@ -1639,10 +1645,13 @@ void main() {
       casa.room.unreachableTake = 'ensaio/parte-4';
       await casa.umaTomadaDeOutraVisita(4, pass: 1);
       expect(_aQuarta, findsOneWidget);
-      expect(_naQuarta(find.textContaining('enviar agora')), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'Cena 4 · .*enviar agora')),
+        findsOneWidget,
+      );
 
       casa.room.unreachableTake = null;
-      await casa.tocar(_naQuarta(find.textContaining('enviar agora')));
+      await casa.tocar(find.textContaining(RegExp(r'Cena 4 · .*enviar agora')));
       await casa.ate(
         'a quarta subir e ficar salva',
         () =>

@@ -676,7 +676,7 @@ void main() {
 
   testWidgets(
     'a join row that failed on the network sends nothing after the app is '
-    "reopened, and only its scene row's enviar agora sends it, with its origin "
+    "reopened, and only the notice's enviar agora sends it, with its origin "
     'and fingerprint',
     (tester) async {
       final semantics = tester.ensureSemantics();
@@ -703,7 +703,7 @@ void main() {
       expect(it.room.takesAsked.skip(asked), isEmpty);
 
       await it.toTheRecordingHome();
-      final send = it.onRow(2, find.textContaining('enviar agora'));
+      final send = find.textContaining(RegExp(r'Cena 2 · .*enviar agora'));
       expect(send, findsOneWidget);
       await tester.tap(send);
       await it.until(

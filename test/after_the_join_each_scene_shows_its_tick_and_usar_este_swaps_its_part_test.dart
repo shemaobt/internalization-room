@@ -1685,7 +1685,7 @@ void main() {
   );
 
   testWidgets('a swap the tablet was closed on sends nothing after the '
-      "relaunch, and its scene row's enviar agora makes it the part", (
+      "relaunch, and the notice's enviar agora makes it the part", (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -1706,7 +1706,7 @@ void main() {
     expect(it.takesOf(2), hasLength(1));
     it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
     await it.until('a casa voltar', it.showsTheHome);
-    await it.tapThe(it.onRow(2, find.textContaining('enviar agora')));
+    await it.tapThe(find.textContaining(RegExp(r'Cena 2 · .*enviar agora')));
     await it.within(
       const Duration(seconds: 30),
       'a troca chegar à sala',
@@ -2268,7 +2268,9 @@ void main() {
         expect(it.takesOf(2), hasLength(1));
         expect(find.text(_hearNew), findsNothing);
 
-        await it.tapThe(it.onRow(2, find.textContaining('enviar agora')));
+        await it.tapThe(
+          find.textContaining(RegExp(r'Cena 2 · .*enviar agora')),
+        );
         await it.within(
           const Duration(seconds: 30),
           'a troca chegar à sala',
