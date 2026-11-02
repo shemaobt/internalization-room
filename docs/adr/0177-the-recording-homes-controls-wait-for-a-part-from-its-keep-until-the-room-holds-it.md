@@ -7,7 +7,7 @@ amends: 0154 (what counts as a part waiting), 0103 and 0131 (in part: the row of
 # The recording home's controls wait for a part from its keep until the room holds it
 
 This amends ADRs 0154, 0103 and 0131 without editing their decisions; it adds "amended by
-0166" to their status lines. The Definer settled it on the
+0177" to their status lines. The Definer settled it on the
 ticket (ENG-1985) on 29 October. Her frozen app wins: «Ouvir tudo» shows only once the server
 holds every part (`allRecorded`, `app/components/Drafting.tsx:795`, :2541, at 18fa7c4), and a
 take is held until its upload answers (:563-596), so a fresh part is never counted as sent.
