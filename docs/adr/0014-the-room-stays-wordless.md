@@ -236,7 +236,7 @@ the home's words already (ENG-1774, above).
 The scene rehearsal (`widgets/scene_translate_step.dart`, already named;
 `widgets/stage_heading.dart` and `widgets/scene_take_state.dart` join it): on every step the
 title «Ensaio da cena» / «Scene rehearsal» (`:352` / `:217`; her
-`app/components/Rehearsal.tsx:798`) and this session's list, «ensaios da cena desta sessão»
+`app/components/Rehearsal.tsx:813`) and this session's list, «ensaios da cena desta sessão»
 / «scene rehearsals of this session» (`:357` / `:222`; `:789`) with, per rehearsal, its
 number, «cena N» / «scene N» (`:367` / `:232`; `:794`), its clock HH:MM, «{k} · frases
 traduzidas» and «enviado» / «não enviado» — «sent» / «not sent» (`:360` / `:225`; `:803`,
@@ -246,7 +246,7 @@ again to stop.» (`:358` / `:223`; `:846`), «gravem o ensaio da cena na língua
 toquem para parar» / «record the scene rehearsal in your own language; tap to stop» (`:353`
 / `:218`; `:841`), «gravando · m:ss» / «recording · m:ss» (`:317` / `:182`) and «guardando o
 ensaio da cena…» / «keeping the scene rehearsal…» (`:362` / `:227`). On the translate step
-(ENG-1823): «frases traduzidas» / «translated sentences» (`:292` / `:157`; `:802`) over the
+(ENG-1823): «frases traduzidas» / «translated sentences» (`:292` / `:157`; `:912`) over the
 frase rows, drawn in capitals as hers (`app/globals.css:440`); «recomeçar a tradução» /
 «start the translation over» and its armed «toque de novo para apagar as {n} frases
 traduzidas» / «tap again to discard the {n} translated sentences» (`:349` / `:214`; `:926`);
