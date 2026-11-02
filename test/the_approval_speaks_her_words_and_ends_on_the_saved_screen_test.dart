@@ -12,6 +12,7 @@ import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/bead_styles.dart';
+import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
@@ -719,7 +720,13 @@ void main() {
       sala.startRetro();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text(_traduzir), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(RetroView),
+          matching: find.text(_traduzir),
+        ),
+        findsOneWidget,
+      );
       expect(find.text(_aprovado(1)), findsNothing);
       closeTheRoom(it.container);
     },

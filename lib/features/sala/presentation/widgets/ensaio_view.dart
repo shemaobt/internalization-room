@@ -251,21 +251,13 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                     const ExternalCheckButton(),
                   ],
                   const SizedBox(height: 24),
-                  FadeUp(
-                    child: RoundActionButton(
-                      size: 78,
-                      mood: session.ensaioDone && !frozen
-                          ? ButtonMood.beckoning
-                          : ButtonMood.dimmed,
-                      gradient: BeadStyles.wood,
-                      shadows: RoundActionButton.dropShadow,
-                      halo: ShemaBrand.wood,
-                      semanticLabel: recordingHomeLabelFor(
-                        session.joined ? 'listenAndCheck' : 'translate',
-                        language,
-                      ),
-                      onTap: notifier.startRetro,
+                  _AdvanceButton(
+                    words: recordingHomeLabelFor(
+                      session.joined ? 'listenAndCheck' : 'translate',
+                      language,
                     ),
+                    live: session.ensaioDone && !frozen,
+                    onTap: notifier.startRetro,
                   ),
                 ],
               ),
@@ -784,4 +776,50 @@ class _SceneRowView extends StatelessWidget {
     height: 14,
     decoration: BoxDecoration(color: ShemaBrand.branco, borderRadius: corners),
   );
+}
+
+class _AdvanceButton extends StatelessWidget {
+  final String words;
+  final bool live;
+  final VoidCallback onTap;
+
+  const _AdvanceButton({
+    required this.words,
+    required this.live,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SalaColors.of(context);
+    return Semantics(
+      button: true,
+      enabled: live,
+      label: words,
+      child: Opacity(
+        opacity: live ? 1 : 0.35,
+        child: GestureDetector(
+          onTap: live ? onTap : null,
+          child: ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 13),
+              decoration: BoxDecoration(
+                color: colors.telha,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                words,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.paper,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

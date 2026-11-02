@@ -65,18 +65,25 @@ Future<void> _confirmarAParte(WidgetTester tester) async {
   await letTheRehearsalReachTheRoom(tester);
 }
 
+double _opacidadeDe(WidgetTester tester, String label) {
+  final fade = find
+      .descendant(
+        of: offTheRows(label),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Opacity || widget is AnimatedOpacity,
+        ),
+      )
+      .first;
+  return switch (tester.widget(fade)) {
+    final Opacity opacity => opacity.opacity,
+    final AnimatedOpacity opacity => opacity.opacity,
+    _ => throw StateError('sem opacidade'),
+  };
+}
+
 (bool, double) _estadoDoBotao(WidgetTester tester, String label) => (
   tester.widget<Semantics>(offTheRows(label)).properties.enabled == true,
-  tester
-      .widget<AnimatedOpacity>(
-        find
-            .descendant(
-              of: offTheRows(label),
-              matching: find.byType(AnimatedOpacity),
-            )
-            .first,
-      )
-      .opacity,
+  _opacidadeDe(tester, label),
 );
 
 bool _aceso(WidgetTester tester, String label) =>

@@ -187,6 +187,34 @@ void main() {
     });
   }
 
+  for (final (language, words) in [
+    ('pt', 'Traduzir a gravação'),
+    ('en', 'Translate the recording'),
+  ]) {
+    testWidgets(
+      '$language: on the iPhone SE the advance button keeps its words inside '
+      'it',
+      (tester) async {
+        await tester.runAsync(withRealLetters);
+        onAScreen(tester, _se, bar: _seBar);
+        final container = await pumpSala(tester, SalaHarness(lingua: language));
+        final notifier = container.read(salaSessionProvider.notifier);
+        await notifier.goConversa(book: 'Ruth');
+        await tester.pump(const Duration(milliseconds: 300));
+        notifier.goEnsaio();
+        await tester.pump(const Duration(milliseconds: 1600));
+
+        await tester.ensureVisible(byLabel(words));
+        await tester.pump();
+        final button = tester.getRect(byLabel(words));
+        final letters = tester.getRect(find.text(words));
+        expect(button.left >= 0 && button.right <= _se.width, isTrue);
+        expect(button.intersect(letters), letters);
+        closeTheRoom(container);
+      },
+    );
+  }
+
   for (final language in ['pt', 'en']) {
     testWidgets('$language: on the iPhone SE her three written pause buttons '
         'stand whole inside the check, apart from each other and the ring', (
