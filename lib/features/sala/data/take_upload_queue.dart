@@ -977,6 +977,10 @@ class TakeUploadQueue {
   /// Each row's id once the room's answer to its request is written down.
   Stream<String> get rowsBack => _rowsBack.stream;
 
+  final StreamController<String> _rowsDone = StreamController<String>.broadcast(
+    sync: true,
+  );
+
   bool inTheAir(String row) => _inTheAir?.id == row;
 
   final Set<String> _moved = {};
@@ -1093,17 +1097,18 @@ class TakeUploadQueue {
     final held = <String>{};
     final leftInThisPass = <String, DateTime>{};
     for (final entry in rows) {
-      if (_turnedAway || _stopped) break;
       final part = _partOf(entry);
-      if (part != null && held.contains(part)) continue;
-      switch (await _landed(entry, leftInThisPass)) {
-        case _Landing.landed:
-          sent++;
-        case _Landing.held when part != null:
-          held.add(part);
-        case _Landing.held || _Landing.givenUp:
-          break;
+      if (!_turnedAway && !_stopped && (part == null || !held.contains(part))) {
+        switch (await _landed(entry, leftInThisPass)) {
+          case _Landing.landed:
+            sent++;
+          case _Landing.held when part != null:
+            held.add(part);
+          case _Landing.held || _Landing.givenUp:
+            break;
+        }
       }
+      _rowsDone.add(entry.id);
     }
     return sent;
   }
@@ -1486,33 +1491,56 @@ class TakeUploadQueue {
     String row, {
     String? intoTheSession,
   }) async {
-    await _mutate((written) {
-      final at = written.indexWhere((entry) => entry.id == row);
-      final kept = [
-        for (var i = 0; i < written.length; i++)
-          i == at ||
-                  i < at &&
-                      written[i].kind == sceneTakeKind &&
-                      written[i].sessionId == written[at].sessionId &&
-                      (written[i].sessionId != null ||
-                          written[i].passage == written[at].passage) &&
-                      written[i].refusal == null
-              ? switch (written[i].dueNow()) {
-                  final due when due.sessionId == null => due.inTheSession(
-                    intoTheSession,
-                  ),
-                  final due => due,
-                }
-              : written[i],
-      ];
-      for (var i = 0; i < kept.length; i++) {
-        if (!identical(kept[i], written[i])) tapped(kept[i].id);
-      }
-      return kept;
+    final done = Completer<void>();
+    final subscription = _rowsDone.stream.listen((id) {
+      if (id == row && !done.isCompleted) done.complete();
     });
-    await flush();
+    try {
+      await _dueWithTheScenesBeforeIt(row, intoTheSession);
+      flush().then(
+        (_) {
+          if (!done.isCompleted) done.complete();
+        },
+        onError: (Object error, StackTrace stack) {
+          if (done.isCompleted) {
+            Zone.current.handleUncaughtError(error, stack);
+          } else {
+            done.completeError(error, stack);
+          }
+        },
+      );
+      await done.future;
+    } finally {
+      await subscription.cancel();
+    }
     return keptSceneOf(row);
   }
+
+  Future<void> _dueWithTheScenesBeforeIt(String row, String? intoTheSession) =>
+      _mutate((written) {
+        final at = written.indexWhere((entry) => entry.id == row);
+        final kept = [
+          for (var i = 0; i < written.length; i++)
+            i == at ||
+                    i < at &&
+                        written[i].kind == sceneTakeKind &&
+                        written[i].sessionId == written[at].sessionId &&
+                        (written[i].sessionId != null ||
+                            written[i].passage == written[at].passage) &&
+                        written[i].refusal == null
+                ? switch (written[i].dueNow()) {
+                    final due when due.sessionId == null => due.inTheSession(
+                      intoTheSession,
+                    ),
+                    final due => due,
+                  }
+                : written[i],
+        ];
+        for (var i = 0; i < kept.length; i++) {
+          if (!identical(kept[i], written[i])) tapped(kept[i].id);
+        }
+        return kept;
+      });
 
   SceneRehearsalRecord? keptSceneOf(String row) => _keptScenes[row];
 
