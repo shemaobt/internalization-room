@@ -1592,6 +1592,32 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('the card\'s play is drawn disabled', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final container = await planWithATake(
+        tester,
+        (s) => [
+          _rehearsal(s, n: 1, scene: 'S1'),
+          _rehearsal(s, n: 4, scene: null),
+        ],
+      );
+      final play = find.byWidgetPredicate(
+        (widget) =>
+            widget is RoundActionButton &&
+            widget.semanticLabel.startsWith('Ouvir — '),
+      );
+      ButtonMood moodOfTheLast() =>
+          tester.widget<RoundActionButton>(play.last).mood;
+      expect(moodOfTheLast(), ButtonMood.lit);
+
+      (container.read(salaSessionProvider.notifier) as _PlanWithATake)
+          .aTakeRecords();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(moodOfTheLast(), ButtonMood.dimmed);
+      semantics.dispose();
+    });
+
     testWidgets('the sheet\'s play is drawn disabled', (tester) async {
       final semantics = tester.ensureSemantics();
       final container = await planWithATake(

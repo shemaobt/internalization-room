@@ -1599,6 +1599,51 @@ void main() {
     },
   );
 
+  testWidgets('a late swap is adopted though a take of another scene went up '
+      'while the room was asked', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    await it.joined();
+
+    await it.openTheSheet(2, _swap);
+    it.holdTheTake('parte-2');
+    await it.swapIn(s2b);
+    await it.theHeldTakeArrives();
+    await it.wait(const Duration(seconds: 71));
+    expect(it.onLine(s2b, find.text(_retry)), findsOneWidget);
+    await it.tapThe(byLabel(_back));
+    await it.settle();
+
+    it.room.holdNextTakesList();
+    it.room.finishHeldTake();
+    await it.until('a fila perguntar à sala', () => it.room.aTakesListIsHeld);
+    it.room.holdNextTakesList();
+    it.room.finishHeldTakesList();
+    await it.until('a troca perguntar à sala', () => it.room.aTakesListIsHeld);
+
+    it.holdTheTake('parte-3');
+    await it.recordAgainAndKeep(3);
+    await it.theHeldTakeArrives();
+    final before = it.container.read(salaSessionProvider);
+    expect(before.homeBusy, isTrue, reason: 'a take of scene 3 is in the air');
+
+    it.room.finishHeldTakesList();
+    await it.settle();
+    await it.wait(const Duration(seconds: 2));
+
+    expect(it.takesOf(2).last.origin, it.idOf(s2b));
+    final after = it.container.read(salaSessionProvider);
+    final index = after.partIndexOf(2)!;
+    expect(
+      after.partes[index].origin,
+      it.idOf(s2b),
+      reason: 'the room holds the swap; the tablet kept the old part',
+    );
+    it.room.finishHeldTake();
+    await it.settle();
+    semantics.dispose();
+  });
+
   testWidgets(
     'a swap answered after the team recorded the scene by hand leaves the hand '
     'take the part',
