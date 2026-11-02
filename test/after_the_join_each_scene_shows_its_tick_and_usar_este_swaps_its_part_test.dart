@@ -1751,7 +1751,9 @@ void main() {
   );
 
   testWidgets('a swap the tablet was closed on leaves the Outbox when the dot '
-      'opens the plan, and is never the join «juntar» sends', (tester) async {
+      'opens the plan, and the plan shows no join in progress for it', (
+    tester,
+  ) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);
     it.room.rehearsalsGone.add(it.idOf(s3a));
