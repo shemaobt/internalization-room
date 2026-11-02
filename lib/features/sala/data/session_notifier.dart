@@ -3595,7 +3595,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       final trechos = _trechosFrom(told.segments);
       state = state.copyWith(
         btTrechos: trechos,
-        btFindings: _osAchadosQueFicam(told.findings, trechos),
+        btFindings: _osAchadosQueFicam([
+          ?told.namedNuance,
+          ...told.findings,
+        ], trechos),
         btFraseQueAguarda: told.awaitingSegmentId,
         clearBtFraseQueAguarda: told.awaitingSegmentId == null,
       );
@@ -8182,7 +8185,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     bool entrando = false,
   }) async {
     final life = _thisLife;
-    if (!await _medirAsPartesDaRetro(generation)) return;
+    if (!await _medirAsPartesDaRetro(generation, conferida: conferida)) return;
     if (state.btFraseDevida != null) return _sairDaEspera();
     final juntada = state.joined;
     final sessionId = state.sessionId;
@@ -8432,7 +8435,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _ouvirAsPartes(falta.aFrente);
   }
 
-  Future<bool> _medirAsPartesDaRetro(int generation) async {
+  Future<bool> _medirAsPartesDaRetro(
+    int generation, {
+    bool conferida = false,
+  }) async {
     _trechoStart = Duration.zero;
     _trechoEnd = Duration.zero;
     _parteTocando = 0;
@@ -8458,7 +8464,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     // Measuring waits on the player, and the screen it waits under is the retro with its
     // buttons up: a cut landing inside the wait opened the microphone over a clip about to
     // start, with the cursor at nought. Busy is the honest state for it.
-    state = state.copyWith(btPhase: BtPhase.thinking, awaitingTheGuide: true);
+    state = state.copyWith(
+      btPhase: conferida ? BtPhase.conferida : BtPhase.thinking,
+      btVeredito: conferida ? false : null,
+      awaitingTheGuide: true,
+    );
     await _medirAsPartes(partes, generation);
     return !_abandoned(generation);
   }

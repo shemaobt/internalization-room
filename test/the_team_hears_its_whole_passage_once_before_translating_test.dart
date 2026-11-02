@@ -991,7 +991,7 @@ void main() {
       await _ouvirAte(it, desde: 2);
       await waitFor(
         'a conferência limpa',
-        () => it.estado.btPhase == BtPhase.conferida,
+        () => it.estado.btPhase == BtPhase.conferida && it.estado.btVeredito,
       );
       it.sala.goEnsaio();
       await waitFor('a casa', () => it.estado.stage == SalaStage.ensaio);
@@ -1018,6 +1018,7 @@ void main() {
         () =>
             it.estado.stage == SalaStage.retro &&
             it.estado.btPhase == BtPhase.conferida &&
+            it.estado.btVeredito &&
             !it.estado.awaitingTheGuide,
       );
       await settle();
@@ -1086,7 +1087,7 @@ void main() {
     await _ouvirAte(it, desde: 2);
     await waitFor(
       'a primeira conferência',
-      () => it.estado.btPhase == BtPhase.conferida,
+      () => it.estado.btPhase == BtPhase.conferida && it.estado.btVeredito,
     );
     it.sala.recomecarATraducao();
     await settle(const Duration(milliseconds: 700));

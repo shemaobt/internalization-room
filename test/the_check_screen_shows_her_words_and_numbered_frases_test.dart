@@ -1506,7 +1506,9 @@ void main() {
     );
     await waitFor(
       'a conferência limpa chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     final terceira = harness.room.chunkFiles[2];
@@ -1878,7 +1880,9 @@ void main() {
     );
     await waitFor(
       'a conferência limpa chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
 
@@ -2939,7 +2943,9 @@ void main() {
     await tocar(tester, 'terminei');
     await waitFor(
       'a conferência limpa chegar',
-      () => container.read(salaSessionProvider).btPhase == BtPhase.conferida,
+      () =>
+          container.read(salaSessionProvider).btPhase == BtPhase.conferida &&
+          container.read(salaSessionProvider).btVeredito,
       step: () => _passo(tester),
     );
     await _passo(tester);
