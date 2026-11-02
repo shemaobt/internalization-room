@@ -4109,11 +4109,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     for (final answer in [takes, rehearsals, scenes]) {
       if (answer case final SessionGone gone) return _decideTheFailure(gone);
     }
+    if (outbox.any((row) => row.sessionId == sessionId && row.swap)) {
+      await _theSwapsLeftBehindGo(sessionId, outbox);
+      if (_abandoned(generation)) return;
+    }
     final rows = [
       for (final entry in outbox)
         if (entry.sessionId == sessionId &&
             entry.kind == partTakeKind &&
             entry.origin != null &&
+            !entry.swap &&
             (state.grain == null || state.rowOf(entry.scope) != null))
           entry,
     ];
@@ -4583,6 +4588,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         above: index == null ? 0 : state.partes[index].pass,
         replacing: index == null ? null : state.partes[index].takeId,
         reopens: reopens,
+        swap: true,
       );
       if (_left(generation, life)) return;
       if (written == null) return _theSwapFailed(id, failed!);
@@ -4701,22 +4707,32 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int generation,
     int? life,
   ) async {
-    final left = [
-      for (final row in await _takes.pending())
-        if (row.sessionId == sessionId &&
-            row.kind == partTakeKind &&
-            row.origin != null &&
-            _aboveThePart(row))
-          row,
-    ];
+    final outbox = await _takes.pending();
     if (_left(generation, life) || !_thePartsMayMove) return;
-    if (left.isEmpty &&
+    final left = await _theSwapsLeftBehindGo(sessionId, outbox);
+    if (!left &&
         !read.rehearsals.any((rehearsal) => rehearsal.sessionId == sessionId)) {
       return;
     }
+    if (_left(generation, life)) return;
     await _countUnsent();
     if (_left(generation, life)) return;
     await _thePartsTheRoomHolds(sessionId, read, generation, life);
+  }
+
+  Future<bool> _theSwapsLeftBehindGo(
+    String sessionId,
+    List<PendingTake> outbox,
+  ) async {
+    if (!_thePartsMayMove) return false;
+    final left = [
+      for (final row in outbox)
+        if (row.sessionId == sessionId && row.swap) row,
+    ];
+    for (final row in left) {
+      await _takes.withdraw(row);
+    }
+    return left.isNotEmpty;
   }
 
   Future<int> _sendTheRow(String row) {
@@ -4819,12 +4835,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case _:
         return null;
     }
-  }
-
-  bool _aboveThePart(PendingTake row) {
-    final number = KeptScope.numberOf(row.scope);
-    final index = number == null ? null : state.partIndexOf(number);
-    return index != null && (row.passNumber ?? 0) > state.partes[index].pass;
   }
 
   void _theSwapFailed(String rehearsalId, JoinRow failed) {
@@ -5139,6 +5149,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     int above = 0,
     String? replacing,
     bool reopens = false,
+    bool swap = false,
   }) async {
     const leftBehind = (written: null, failed: null);
     var fromTheTablet = true;
@@ -5166,6 +5177,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           origin: rehearsal.rehearsalId,
           fingerprint: rehearsal.sha256,
           reopensTheApprovedDraft: reopens,
+          swap: swap,
           overTake: replacing ?? stands.live,
         );
       } on Exception {
@@ -7504,12 +7516,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     );
     final passadas = _passadasDaSala;
     if (passadas != null) _passadasDaSala = _aindaPorGravar(passadas, {numero});
-    state = state.copyWith(
-      ensaio: EnsaioStatus.idle,
-      keptTakes: [...state.keptTakes, nova],
-    );
-    _deixarOInteiroDeLado();
-    _weighTheRehearsal();
     unawaited(
       _guard(
         path,
@@ -7520,19 +7526,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: numero,
       ),
     );
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      keptTakes: [...state.keptTakes, nova],
+    );
+    _deixarOInteiroDeLado();
+    _weighTheRehearsal();
     _rememberWhereTheyAre(const Ensaio());
   }
 
   /// The first recording of a passage recorded whole: no scene's part, no number.
   void _keepTheWhole(String path) {
-    state = state.copyWith(
-      ensaio: EnsaioStatus.idle,
-      keptTakes: [
-        ...state.keptTakes,
-        KeptTake(scopeId: KeptScope.whole, path: path, pass: 1),
-      ],
-    );
-    _weighTheRehearsal();
     unawaited(
       _guard(
         path,
@@ -7542,6 +7546,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         passNumber: 1,
       ),
     );
+    state = state.copyWith(
+      ensaio: EnsaioStatus.idle,
+      keptTakes: [
+        ...state.keptTakes,
+        KeptTake(scopeId: KeptScope.whole, path: path, pass: 1),
+      ],
+    );
+    _weighTheRehearsal();
     _rememberWhereTheyAre(const Ensaio());
   }
 
@@ -7572,8 +7584,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final escopo = state.partes[parte].scopeId;
     final numero = KeptScope.numberOf(escopo);
     final passada = state.partes[parte].pass + 1;
-    _aParteNoLugar(parte, path, passada: passada);
-    unawaited(_medirAParteRegravada(path, _generation));
     unawaited(
       _guard(
         path,
@@ -7584,6 +7594,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         chunkIndex: numero,
       ),
     );
+    _aParteNoLugar(parte, path, passada: passada);
+    unawaited(_medirAParteRegravada(path, _generation));
     _rememberWhereTheyAre(const Ensaio());
   }
 
@@ -7714,6 +7726,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       if (!await audio.exists()) {
         if (!_endedSince(life)) {
           _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
+          await _countedFromNow(life);
         }
         return null;
       }
@@ -7731,6 +7744,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       } on Object {
         if (_endedSince(life)) return null;
         _notInTheOutbox(path, kind, scope, passNumber, sessionId);
+        await _countedFromNow(life);
         return null;
       }
       kept = linha.id;
@@ -8043,6 +8057,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         for (final scope in tally.unsentParts.keys) ?KeptScope.numberOf(scope),
       },
       joinsOnTheirWay: {for (final scope in tally.joining) ?state.rowOf(scope)},
+      outboxCounted: true,
     );
     _weighTheRehearsal();
     _appliedCount = counting;

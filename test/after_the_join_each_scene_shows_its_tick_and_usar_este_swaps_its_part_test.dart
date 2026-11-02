@@ -1684,9 +1684,9 @@ void main() {
     },
   );
 
-  testWidgets('a swap the tablet was closed on is never offered after the '
-      "relaunch: the room's part stays on its row, and «trocar» is offered "
-      'again', (tester) async {
+  testWidgets('a swap the tablet was closed on leaves the Outbox on the '
+      "relaunch's arrival at the home: the room's part stays on its row, and "
+      "«trocar» is offered again", (tester) async {
     final semantics = tester.ensureSemantics();
     final it = await _atRest(tester);
     await it.joined();
@@ -1703,6 +1703,7 @@ void main() {
     it.room.unreachableTake = null;
     it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
     await it.until('a casa voltar', it.showsTheHome);
+    await it.theOutboxLetsGoOf(s2b);
     await it.wait(const Duration(seconds: 30));
 
     expect(it.takesOf(2), hasLength(1));
@@ -1710,6 +1711,156 @@ void main() {
     await it.openTheSheet(2, _swap);
     expect(it.onLine(s2a, find.text(_inUse)), findsOneWidget);
     semantics.dispose();
+  });
+
+  testWidgets(
+    'a swap on a row with no part the tablet was closed on leaves the '
+    'Outbox on the arrival at the home, and «usar o ensaio desta cena» is '
+    'offered again',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _atRest(tester);
+      it.room.rehearsalsGone.add(it.idOf(s3a));
+      await it.joined(onTheTablet: const [s1a, s2a, s2b]);
+      it.room.sceneAudioOf.remove(it.idOf(s3a));
+      it.list(const [s3b]);
+      await it.held(const [s3b]);
+      await it.relaunchOnTheConversation();
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await it.until('a casa voltar', it.showsTheHome);
+      await it.settle();
+      await it.openTheSheet(3, _useScene);
+      it.holdTheTake('parte-3');
+      await it.tapThe(it.use(s3b));
+      await it.theHeldTakeArrives();
+      it.room
+        ..unreachableTake = 'ensaio/parte-3'
+        ..finishHeldTake();
+      await it.settle();
+      await it.relaunchOnTheConversation();
+      it.room.unreachableTake = null;
+      it.container.read(salaSessionProvider.notifier).goEnsaio();
+      await it.until('a casa voltar', it.showsTheHome);
+      await it.theOutboxLetsGoOf(s3b);
+      await it.wait(const Duration(seconds: 5));
+
+      expect(it.received(3), isEmpty);
+      expect(it.door(3, _useScene), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('a swap the tablet was closed on leaves the Outbox when the dot '
+      'opens the plan, and the plan shows no join in progress for it', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final it = await _atRest(tester);
+    it.room.rehearsalsGone.add(it.idOf(s3a));
+    await it.joined(onTheTablet: const [s1a, s2a, s2b]);
+    it.room.sceneAudioOf.remove(it.idOf(s3a));
+    it.list(const [s3b]);
+    await it.held(const [s3b]);
+    await it.relaunchOnTheConversation();
+    it.container.read(salaSessionProvider.notifier).goEnsaio();
+    await it.until('a casa voltar', it.showsTheHome);
+    await it.settle();
+    await it.openTheSheet(3, _useScene);
+    it.holdTheTake('parte-3');
+    await it.tapThe(it.use(s3b));
+    await it.theHeldTakeArrives();
+    it.room
+      ..unreachableTake = 'ensaio/parte-3'
+      ..finishHeldTake();
+    await it.settle();
+    await it.relaunchOnTheConversation();
+    it.room.unreachableTake = null;
+
+    await it.openThePlan();
+    await it.theOutboxLetsGoOf(s3b);
+    await it.wait(const Duration(seconds: 5));
+
+    expect(find.text(_planLine), findsOneWidget);
+    expect(
+      it.container.read(salaSessionProvider).ensaioFinalPlan,
+      isA<PlanRead>().having((read) => read.waiting, 'waiting', isEmpty),
+    );
+    expect(it.received(3), isEmpty);
+    semantics.dispose();
+  });
+
+  testWidgets('on the arrival at the home only the swap leaves the Outbox: an '
+      'ordinary join on its way and a recorded take stay', (tester) async {
+    final it = await _atRest(tester);
+    await it.joined(listed: const [s1a, s2a, s2b]);
+    await it.openTheSheet(2, _swap);
+    it.holdTheTake('parte-2');
+    await it.swapIn(s2b);
+    await it.theHeldTakeArrives();
+    it.room
+      ..unreachableTake = 'ensaio/parte-2'
+      ..finishHeldTake();
+    await it.settle();
+    await it.relaunchOnTheConversation();
+    final sessionId = it.sessionId;
+    final folder = it.harness.takesHome;
+    await tester.runAsync(() async {
+      await it.harness.takes.enqueueTheJoin(
+        File('${folder.path}/parte-3-junta.wav')..writeAsBytesSync(aWavTake()),
+        sessionId: sessionId,
+        number: 3,
+        passNumber: 1,
+        origin: it.idOf(s3a),
+      );
+      await it.harness.takes.enqueue(
+        File('${folder.path}/parte-1-de-novo.m4a')
+          ..writeAsBytesSync([1, 2, 3, 4]),
+        sessionId: sessionId,
+        kind: partTakeKind,
+        scope: 'parte-1',
+        passNumber: 2,
+        chunkIndex: 1,
+      );
+      await it.harness.takes.enqueueTheJoin(
+        File('${folder.path}/parte-1-junta-antiga.wav')
+          ..writeAsBytesSync(aWavTake()),
+        sessionId: sessionId,
+        number: 1,
+        passNumber: 3,
+        origin: it.idOf(s1a),
+      );
+      await it.harness.takes.enqueueTheJoin(
+        File('${folder.path}/parte-2-troca-de-outra.wav')
+          ..writeAsBytesSync(aWavTake()),
+        sessionId: 'outra-sessao',
+        number: 2,
+        passNumber: 3,
+        origin: 'ensaio-de-outra-sessao',
+        swap: true,
+      );
+    });
+    it.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+    await it.until('a casa voltar', it.showsTheHome);
+    await it.theOutboxLetsGoOf(s2b);
+    await it.wait(const Duration(seconds: 5));
+
+    final left = (await tester.runAsync(it.harness.takes.pending))!;
+    expect(
+      {for (final row in left) (row.scope, row.origin, row.sessionId)},
+      {
+        ('parte-3', it.idOf(s3a), sessionId),
+        ('parte-1', null, sessionId),
+        ('parte-1', it.idOf(s1a), sessionId),
+        ('parte-2', 'ensaio-de-outra-sessao', 'outra-sessao'),
+      },
+    );
+    expect(
+      it.onRow(3, find.textContaining('enviar agora')),
+      findsNothing,
+      reason:
+          'a junta da cena 3 a caminho era oferecida como gravação no tablet',
+    );
+    closeTheRoom(it.container);
   });
 
   testWidgets(
@@ -2238,7 +2389,7 @@ void main() {
 
     testWidgets(
       'a swap still in the Outbox at the kill is never offered after the '
-      'relaunch, and «trocar» is offered again',
+      'relaunch: it leaves, and «trocar» is offered again',
       (tester) async {
         final semantics = tester.ensureSemantics();
         final it = await _atRest(tester);
@@ -2254,6 +2405,7 @@ void main() {
 
         await it.relaunchOnTheHome();
         it.room.unreachableTake = null;
+        await it.theOutboxLetsGoOf(s2b);
         await it.wait(const Duration(seconds: 30));
 
         expect(it.takesOf(2), hasLength(1));

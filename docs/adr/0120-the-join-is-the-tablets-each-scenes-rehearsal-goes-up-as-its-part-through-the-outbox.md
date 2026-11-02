@@ -53,3 +53,10 @@ alone. «A row given up for no answer goes up only on its scene row's «enviar a
 **it is that scene's join in progress on the plan, and «juntar» sends it again**. The retro door
 still waits for it. A join row spent by its attempts, which only a disk failure does, is no
 longer that scene's join in progress: the scene is one to join again.
+
+A swap the tablet was closed on («usar este», ENG-1407) leaves the Outbox with its copy when
+the recording home is next reached: the room's part stays on the row and «trocar o ensaio
+desta cena» (or «usar o ensaio desta cena» over a row with no part) is offered again (Definer,
+2 November). The home's swap marks its row (`swap`), the only word the Outbox row carries for
+it, and only this session's rows so marked leave; a row an older app wrote has none and stays
+as a join of the plan (Definer, 2 November, on ENG-2125).

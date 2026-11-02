@@ -112,6 +112,52 @@ Future<ProviderContainer> _umaLinhaComAParte3SemNome(
 }
 
 void main() {
+  test('a relaunch over a part whose Outbox row still waits keeps the retro '
+      'door dark until this life has counted the Outbox', () async {
+    final harness = SalaHarness();
+    final container = await aRetomadaNoEnsaio(
+      harness,
+      traduzidasAte: [30000, 30000],
+    );
+    harness.room.unreachableTake = 'ensaio/$_parte3';
+    await gravarSemEsperarNome(container, 3);
+    await waitFor(
+      'a parte 3 contar como não enviada',
+      () => container.read(salaSessionProvider).unsentParts.containsKey(3),
+    );
+    final (_, depois) = await relaunch(harness, container);
+    final lit = <bool>[];
+    depois.listen(salaSessionProvider, (_, state) => lit.add(state.ensaioDone));
+
+    await _voltarAoEnsaio(depois);
+    await waitFor(
+      'a contagem da vida nova ver a parte 3',
+      () => depois.read(salaSessionProvider).unsentParts.containsKey(3),
+    );
+
+    expect(depois.read(salaSessionProvider).everySceneHasItsPart, isTrue);
+    expect(
+      lit,
+      everyElement(isFalse),
+      reason: 'a porta acendia na casa antes da primeira contagem do Outbox',
+    );
+  });
+
+  test('a part that landed while the app was closed lights the retro door on '
+      'the relaunch, though the listing has not named it', () async {
+    final harness = SalaHarness();
+    final container = await _umaLinhaComAParte3SemNome(harness);
+    await settle();
+
+    expect(
+      container.read(salaSessionProvider).ensaioDone,
+      isTrue,
+      reason:
+          'a parte que já está na sala não deve nada: a porta não espera um '
+          'nome que só a próxima leitura da listagem traz',
+    );
+  });
+
   test('a name taken from the listing on a relaunch into the passage is '
       'written to the row at once, under the station the row said', () async {
     final before = SalaHarness();
