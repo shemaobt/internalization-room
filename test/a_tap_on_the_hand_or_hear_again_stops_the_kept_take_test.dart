@@ -136,7 +136,7 @@ void main() {
       () => read().canHearAgain && read().partsToReplay.isNotEmpty,
     );
     expect(read().lastSpoken, isNull);
-    notifier.playKeptRetelling(2);
+    notifier.playKeptRetelling('S2');
     await waitFor('the kept take to sound', () => harness.playback.sounding);
 
     unawaited(notifier.hearAgain());

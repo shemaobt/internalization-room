@@ -211,7 +211,7 @@ void main() {
     await _escolherTraduzirDeNovo(tester, container);
     await _abrirOMicrofone(tester, container);
     _oConsertoEstaGravando(container);
-    harness.room.failReplaceWith = const Refused('UNAUTHORIZED');
+    harness.room.failReplaceWith = const Refused('HTTP_422');
     await _entregarATraducao(tester, container);
 
     expect(container.read(salaSessionProvider).wordlessTelling, isTrue);

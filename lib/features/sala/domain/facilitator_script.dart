@@ -754,6 +754,14 @@ const recordingHomeLabels = {
   'recordAgain': {'pt': 'Gravar de novo', 'en': 'Record again'},
   'stop': {'pt': 'Parar', 'en': 'Stop'},
   'playing': {'pt': 'tocando', 'en': 'playing'},
+  'hearHowYouToldAria': {
+    'pt': 'Ouvir como vocês contaram esta parte',
+    'en': 'Hear how you told this part',
+  },
+  'hearWholeTelling': {
+    'pt': 'ouvir como vocês contaram a passagem inteira',
+    'en': 'hear how you told the whole passage',
+  },
   'pending': {
     'pt': 'Uma gravação ainda está neste computador e não foi enviada.',
     'en': 'A recording is still on this computer and has not been sent.',
@@ -842,8 +850,13 @@ const escolhaLabels = {
   'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
   'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
   'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
-  'light': {'pt': 'Claro', 'en': 'Light'},
-  'dark': {'pt': 'Escuro', 'en': 'Dark'},
+};
+
+const escolhaAria = {
+  'display': 'Display',
+  'language': 'Language',
+  'light': 'Light',
+  'dark': 'Dark',
 };
 
 String escolhaLabelFor(String control, String language) =>

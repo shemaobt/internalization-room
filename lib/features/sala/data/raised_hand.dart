@@ -81,8 +81,6 @@ class RaisedHand {
 
   bool get sendingAQuestion => _sendingAQuestion;
 
-  final _failures = <(String, String), int>{};
-
   HandView get _state => host.view;
 
   Future<void> pull() {
@@ -114,7 +112,7 @@ class RaisedHand {
       for (final reply in fetched)
         switch (known[reply.id]) {
           final kept? when kept.audioUrl == reply.audioUrl => kept,
-          _ => _tallied(reply),
+          _ => reply,
         },
     ];
     if (_sameReplies(merged, _state.replies)) return;
@@ -133,7 +131,9 @@ class RaisedHand {
     if (_state.aQuestionRecords) return cancelQuestion();
     if (_sendingAQuestion) return;
     if (!_state.atTheTeamsIdleTurn) return;
-    if (_state.playingReplyId != null || _state.channel is PartPlaying) {
+    if (_state.playingReplyId != null ||
+        _state.channel is PartPlaying ||
+        _state.channel is KeptRetellingPlaying) {
       host.silenceTheRoom();
     }
     if (_state.noteMode) {
@@ -176,19 +176,8 @@ class RaisedHand {
   /// A reply is marked heard when the player reported the whole clip. A clip that cannot
   /// be decoded, is cut short, or never arrives stays unheard.
   ///
-  /// It is offered again on the next touch of the hand, and the second failure at the
-  /// same address, a sound that did not play or a mark the desk refused, sets it aside on
-  /// the tablet: it stops counting as unheard, so the hand plays the next reply or arms a
-  /// question. A clip that never decodes is served from the tablet's copy every time and
-  /// would otherwise hold the gesture until the facilitator records it again. Nothing is
-  /// marked for a sound that did not play, and the desk keeps showing the reply as not
-  /// heard. The inbox is read again on the failure, as it is after a refused mark, and a
-  /// reply recorded again arrives at its new address with no failures, which is what
-  /// lifts the set-aside.
-  ///
-  /// A room that cannot serve the clip is not set aside: the Failure policy decides it at the
-  /// reply door, where it changes nothing in the room (ADR 0071), and the reply keeps its dot
-  /// for the next touch.
+  /// A room that cannot serve the clip goes to the Failure policy at the reply door, where it
+  /// changes nothing in the room (ADR 0071).
   ///
   /// The playing mark is given back on every way out. `_markHeard` is what clears it when
   /// the reply sounded; a reply that did not, or that outlived its generation, clears it
@@ -220,33 +209,13 @@ class RaisedHand {
       return;
     }
     if (_state.playingReplyId == reply.id) host.clearPlaying();
-    if (current) {
-      host.showReplies(_unsounded(reply));
-      unawaited(pull());
-    }
+    if (current) unawaited(pull());
   }
 
   bool get _aReplySounds => switch (_state.channel) {
     GuideSpeaking(line: Line(kind: LineKind.reply)) => true,
     _ => false,
   };
-
-  List<HandReply> _unsounded(HandReply reply) {
-    final count = _fail(reply);
-    return _replies(
-      (kept) => _sameClip(kept, reply),
-      (kept) => kept.withFailures(count),
-    );
-  }
-
-  int _fail(HandReply reply) => _failures.update(
-    (reply.id, reply.audioUrl),
-    (count) => count + 1,
-    ifAbsent: () => 1,
-  );
-
-  HandReply _tallied(HandReply reply) =>
-      reply.withFailures(_failures[(reply.id, reply.audioUrl)] ?? 0);
 
   bool _sameClip(HandReply a, HandReply b) =>
       a.id == b.id && a.audioUrl == b.audioUrl;
@@ -256,7 +225,7 @@ class RaisedHand {
   /// The mark was made on the tablet whatever the desk answered, and it survives only as
   /// long as the screen does: rebuilt state reads the reply back from the desk, which
   /// never learned, and the team is played the same answer again. Leaving it unheard is
-  /// the honest state: it is offered again, until a second failure sets it aside.
+  /// the honest state: it is offered again.
   ///
   /// No retry. The precedent for a call that must land is the one that asks for a person,
   /// and it retries because nobody comes if it is lost. Nothing is lost here: the reply
@@ -280,9 +249,8 @@ class RaisedHand {
   /// reply moved on: the facilitator recorded again while this one played, and the address
   /// the tablet holds has stopped answering. The inbox is otherwise read thirty seconds
   /// after a turn, and not at all while the room sits on the Choice, so without this pull
-  /// the hand kept offering a clip that sounds nothing and marks nothing. A refusal counts
-  /// as a failure of the reply at the address that was marked; an outage counts nothing.
-  /// Both pull; a pull is one GET, and after an outage it changes nothing.
+  /// the hand kept offering a clip that sounds nothing and marks nothing. An outage pulls
+  /// too; a pull is one GET, and after an outage it changes nothing.
   Future<void> _markHeard(HandReply marked) async {
     final life = host.thisLife;
     HandReply? heard;
@@ -302,24 +270,9 @@ class RaisedHand {
     host.decideAt(failure, door: Door.inbox);
     if (host.endedSince(life)) return;
     host.showReplies(
-      failure is Refused
-          ? _refused(marked, heard)
-          : _replies(
-              (kept) => identical(kept, heard),
-              (kept) => kept.asUnheard(),
-            ),
+      _replies((kept) => identical(kept, heard), (kept) => kept.asUnheard()),
     );
     unawaited(pull());
-  }
-
-  List<HandReply> _refused(HandReply marked, HandReply? heard) {
-    final count = _fail(marked);
-    return _replies(
-      (kept) => _sameClip(kept, marked),
-      (kept) => (identical(kept, heard) ? kept.asUnheard() : kept).withFailures(
-        count,
-      ),
-    );
   }
 
   List<HandReply> _replies(

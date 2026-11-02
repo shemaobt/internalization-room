@@ -10,6 +10,7 @@ import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'fakes.dart';
 import 'scenario_helpers.dart'
     show holdTheSession, intoTheRecordingHome, settle;
+import 'support/temp.dart';
 import 'um_ensaio_de_tres_partes.dart';
 
 const _duasPartes = [Duration(seconds: 10), Duration(seconds: 8)];
@@ -220,8 +221,7 @@ void main() {
     'home, is still to hear once the first listen of the other part is over',
     () async {
       final harness = SalaHarness();
-      final pasta = Directory.systemTemp.createTempSync('sala-2109');
-      addTearDown(() => pasta.deleteSync(recursive: true));
+      final pasta = aTempDir('sala-2109');
       final caminhos = [
         for (final n in [1, 2])
           (File('${pasta.path}/p$n.wav')..writeAsBytesSync([1, 2, 3])).path,

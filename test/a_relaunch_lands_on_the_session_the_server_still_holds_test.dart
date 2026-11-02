@@ -24,6 +24,7 @@ import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
     show aKept;
 import 'scenario_helpers.dart';
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 class _Tablet {
   final SalaHarness harness;
@@ -50,8 +51,7 @@ Future<_Tablet> _aTablet({
   String lingua = testLanguage,
   bool watching = false,
 }) async {
-  final home = Directory.systemTemp.createTempSync('sala-sessao-atual');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-sessao-atual');
   final harness = SalaHarness(
     lingua: lingua,
     watchesWithoutAHalt: watching,
@@ -163,8 +163,7 @@ _Tablet _aTabletHolding(SalaStage stage, {List<KeptTake> takes = const []}) {
 }
 
 KeptTake _aPartHere() {
-  final home = Directory.systemTemp.createTempSync('sala-parte-aqui');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-parte-aqui');
   return KeptTake(
     scopeId: KeptScope.parte(1),
     path: (File('${home.path}/p1.m4a')..writeAsBytesSync([1])).path,
@@ -619,7 +618,7 @@ void main() {
     await offline.notifier.openTheRoom();
     await settle();
     offline.harness.room.reachable = true;
-    offline.notifier.escolhaTap();
+    unawaited(offline.notifier.abrirEscolha());
     await _theChoiceShowsItsWheel(offline);
     await enterThePassage(offline.notifier, () => offline.state, 'P01');
     await _landsOn(offline, session);
@@ -1128,7 +1127,7 @@ void main() {
     expect(again.state.station, isA<Menu>());
 
     again.harness.room.reachable = true;
-    again.notifier.escolhaTap();
+    unawaited(again.notifier.abrirEscolha());
     await _theChoiceShowsItsWheel(again);
 
     final later = await _relaunch(again);

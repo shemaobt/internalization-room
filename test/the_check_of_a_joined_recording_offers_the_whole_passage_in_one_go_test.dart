@@ -25,6 +25,7 @@ import 'scenario_helpers.dart'
         intoTheBackTranslation,
         voiceOverFocusLeaves,
         voiceOverTap;
+import 'support/temp.dart';
 
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _recordThePart = 'voltar e regravar uma parte';
@@ -66,8 +67,7 @@ Future<ProviderContainer> _naConferencia(
     ..physicalSize = const Size(820, 2400)
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final pasta = Directory.systemTemp.createTempSync('sala-1876');
-  addTearDown(() => pasta.deleteSync(recursive: true));
+  final pasta = aTempDir('sala-1876');
   await holdTheSession(
     harness,
     ResumePoint(
@@ -157,7 +157,9 @@ Future<ProviderContainer> _naConferencia(
         container.read(salaSessionProvider).btTrechos.length ==
             (primeiraEscuta ? 0 : (aPrimeiraParteContada ? 2 : 1)) &&
         container.read(salaSessionProvider).btPhase ==
-            (aprovada || conferida ? BtPhase.conferida : BtPhase.playing),
+            (aprovada || conferida ? BtPhase.conferida : BtPhase.playing) &&
+        (!(aprovada || conferida) ||
+            container.read(salaSessionProvider).btVeredito),
     step: () => letTheRehearsalReachTheRoom(tester),
   );
   await waitFor(

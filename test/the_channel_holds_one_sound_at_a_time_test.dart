@@ -17,12 +17,12 @@ import 'scenario_helpers.dart'
     show holdTheSession, intoTheBackTranslation, settle;
 import 'session_notifier_test.dart' show inConversa;
 import 'um_ensaio_de_tres_partes.dart';
+import 'support/temp.dart';
 
 Future<(ProviderContainer, SalaSessionState Function())> _reopensOnPartTwoOfTwo(
   SalaHarness harness,
 ) async {
-  final home = Directory.systemTemp.createTempSync('sala-1172');
-  addTearDown(() => home.deleteSync(recursive: true));
+  final home = aTempDir('sala-1172');
   final p1 = File('${home.path}/p1.m4a')..writeAsBytesSync([1, 2, 3]);
   final p2 = File('${home.path}/p2.m4a')..writeAsBytesSync([4, 5, 6]);
   harness.playback.lengths[p1.path] = const Duration(seconds: 10);
@@ -207,27 +207,30 @@ void main() {
     );
   });
 
-  test('a reply silenced by a gesture is not counted against it when the room '
-      'then fails', () async {
-    final harness = SalaHarness(
-      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-    );
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-    harness.voice.holdNextLine();
-    sala.handTap();
-    await waitFor(
-      'a resposta começar',
-      () => harness.voice.played.contains('/resposta-1'),
-    );
+  test(
+    'a reply silenced by a gesture keeps its dot when the room then fails',
+    () async {
+      final harness = SalaHarness(
+        replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+      harness.voice.holdNextLine();
+      sala.handTap();
+      await waitFor(
+        'a resposta começar',
+        () => harness.voice.played.contains('/resposta-1'),
+      );
 
-    sala.goEnsaio();
-    harness.voice.failHeldLine(const NetworkFailed('sem rede'));
-    await settle();
+      sala.goEnsaio();
+      harness.voice.failHeldLine(const NetworkFailed('sem rede'));
+      await settle();
 
-    expect(read().replies.single.failures, 0);
-  });
+      expect(read().hasUnheardReply, isTrue);
+      expect(read().oldestUnheardReply?.id, 'r1');
+    },
+  );
 }

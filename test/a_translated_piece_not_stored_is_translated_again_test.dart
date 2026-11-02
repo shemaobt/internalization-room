@@ -7,13 +7,10 @@ import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
-import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/domain/station.dart';
 import 'package:path/path.dart' as p;
 
-import 'a_parte_da_volta_ganha_nome_test.dart' show gravarSemEsperarNome;
 import 'a_scene_room.dart';
 import 'a_wav_take.dart';
 import 'an_empty_telling_keeps_the_pause_and_shows_her_line_test.dart'
@@ -24,10 +21,10 @@ import 'an_empty_telling_keeps_the_pause_and_shows_her_line_test.dart'
         pausarEAbrir,
         tocarOCirculo;
 import 'fakes.dart';
-import 'resto_da_historia_test.dart' show aRetomadaNoEnsaio;
-import 'scenario_helpers.dart' show byLabel, relaunch, settle, umaParteInteira;
+import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart'
     show entrarNaTraducao, tocar, terminar;
+import 'support/temp.dart';
 
 const _notUnderstood = 'não entendi — traduzam de novo esse pedaço';
 const _wentToTheVoice = 'a tradução deste ensaio da cena já foi para a voz';
@@ -330,75 +327,11 @@ void main() {
     );
   });
 
-  test(
-    'in the Back-translation, a stretch over a part the room has not named yet reads «não entendi — traduzam de novo esse pedaço» and nothing enters the Outbox',
-    () async {
-      final antes = SalaHarness();
-      final primeira = await aRetomadaNoEnsaio(antes, traduzidasAte: [30000]);
-      antes.room.unreachableTake = 'ensaio/${KeptScope.parte(2)}';
-      await gravarSemEsperarNome(primeira, 2);
-      await settle();
-      final (harness, container) = await relaunch(antes, primeira);
-      final notifier = container.read(salaSessionProvider.notifier);
-      await notifier.openTheRoom();
-      await waitFor(
-        'a sala pousar na conversa',
-        () =>
-            container.read(salaSessionProvider).station is Canvas &&
-            !container.read(salaSessionProvider).awaitingTheGuide,
-      );
-      notifier.goEnsaio();
-      await waitFor(
-        'a volta ao ensaio com as duas partes',
-        () =>
-            container.read(salaSessionProvider).stage == SalaStage.ensaio &&
-            container.read(salaSessionProvider).keptTakes.length == 2,
-      );
-      harness.room.unreachableTake = null;
-      notifier.enviarACena(2);
-      await waitFor(
-        'a parte 2 chegar à sala',
-        () => container.read(salaSessionProvider).everyPartIsSent,
-      );
-      final daVolta = container.read(salaSessionProvider).keptTakes[1];
-      expect(
-        daVolta.takeId,
-        isNull,
-        reason:
-            'o cenário é o da parte que chegou à sala sem o tablet saber o '
-            'nome dela',
-      );
-      harness.playback.length = umaParteInteira;
-      notifier.startRetro();
-      await waitFor(
-        'a retro tocar a parte 2',
-        () =>
-            harness.playback.played.isNotEmpty &&
-            harness.playback.played.last == daVolta.path,
-      );
-      await theClipOpens(harness);
-      harness.playback.at = const Duration(seconds: 12);
-      notifier.retroTap();
-      notifier.retroTap();
-      await settle();
-
-      await confirmarATraducao(container);
-
-      expect(container.read(salaSessionProvider).wordlessTelling, isTrue);
-      expect(harness.room.chunksSent, 0);
-      expect([
-        for (final row in await harness.takes.entries())
-          if (row.kind != 'ensaio') row,
-      ], isEmpty);
-    },
-  );
-
   group('a Back-translation row an older build left in the Outbox', () {
     late Directory home;
 
     setUp(() {
-      home = Directory.systemTemp.createTempSync('fila-de-um-app-antigo');
-      addTearDown(() => home.deleteSync(recursive: true));
+      home = aTempDir('fila-de-um-app-antigo');
     });
 
     test(

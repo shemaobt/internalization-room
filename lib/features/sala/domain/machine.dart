@@ -31,7 +31,13 @@ final class SessionRead extends AnsweringEvent {
 final class RoomRaisedAHalt extends AnsweringEvent {
   final bool callsForAPerson;
 
-  const RoomRaisedAHalt({this.callsForAPerson = true, super.generation});
+  final bool outlivesAHeardLine;
+
+  const RoomRaisedAHalt({
+    this.callsForAPerson = true,
+    this.outlivesAHeardLine = false,
+    super.generation,
+  });
 }
 
 final class TheAnswerWarned extends AnsweringEvent {
@@ -57,6 +63,7 @@ enum Door {
   stretches,
   question,
   step,
+  approval,
   telling,
   verdict,
   sceneRehearsal,
@@ -118,6 +125,14 @@ final class AKeepEnded extends MachineEvent {
   final String? row;
 
   const AKeepEnded(this.part, {this.row});
+}
+
+/// The tap «enviar agora» sent [row] up for [part]: from then on it is this visit's.
+final class TheTapSent extends MachineEvent {
+  final PartOfASession part;
+  final String row;
+
+  const TheTapSent(this.part, this.row);
 }
 
 final class StopTapped extends MachineEvent {
@@ -590,6 +605,22 @@ final class TheTellingCameBackEmpty extends AnsweringEvent {
   const TheTellingCameBackEmpty({this.readAgain = false, super.generation});
 }
 
+final class TheTellingWaitsForItsPart extends AnsweringEvent {
+  const TheTellingWaitsForItsPart({super.generation});
+}
+
+final class TheTellingWasTurnedAway extends AnsweringEvent {
+  const TheTellingWasTurnedAway({super.generation});
+}
+
+final class APartWasNamed extends MachineEvent {
+  const APartWasNamed();
+}
+
+final class ThePendingTranslationWasLetGo extends MachineEvent {
+  const ThePendingTranslationWasLetGo();
+}
+
 final class TheStepFailed extends AnsweringEvent {
   const TheStepFailed({super.generation});
 }
@@ -689,6 +720,19 @@ final class PlayStretch extends Effect {
 
   @override
   int get hashCode => stretch.hashCode;
+}
+
+final class PlayKeptRetelling extends Effect {
+  final KeptRetellingSound retelling;
+
+  const PlayKeptRetelling(this.retelling);
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlayKeptRetelling && other.retelling == retelling;
+
+  @override
+  int get hashCode => retelling.hashCode;
 }
 
 final class OpenTheMic extends Effect {
@@ -939,6 +983,10 @@ final class LetThePendingTranslationGo extends Effect {
   const LetThePendingTranslationGo();
 }
 
+final class TellTheHeldStretch extends Effect {
+  const TellTheHeldStretch();
+}
+
 final class RefuseThePassage extends Effect {
   const RefuseThePassage();
 }
@@ -1112,6 +1160,8 @@ final class Machine {
 
   final bool wordlessTelling;
 
+  final bool aStretchWaitsForItsPart;
+
   /// A halt met on the scene rehearsal, the external check or the
   /// back-translation: the person sign shows once the team is back on the Canvas.
   final RoomRaisedAHalt? aHaltWaitsForTheCanvas;
@@ -1144,6 +1194,7 @@ final class Machine {
     this.lastMic,
     this.station = const Menu(),
     this.wordlessTelling = false,
+    this.aStretchWaitsForItsPart = false,
     this.aHaltWaitsForTheCanvas,
     this.theCanvasEnded = false,
     this.session,
@@ -1211,6 +1262,7 @@ final class Machine {
     MicOutcome? lastMic,
     Station? station,
     bool? wordlessTelling,
+    bool? aStretchWaitsForItsPart,
     RoomRaisedAHalt? aHaltWaitsForTheCanvas,
     bool letTheWaitingHaltGo = false,
     bool? theCanvasEnded,
@@ -1240,6 +1292,8 @@ final class Machine {
     lastMic: lastMic ?? this.lastMic,
     station: station ?? this.station,
     wordlessTelling: wordlessTelling ?? this.wordlessTelling,
+    aStretchWaitsForItsPart:
+        aStretchWaitsForItsPart ?? this.aStretchWaitsForItsPart,
     aHaltWaitsForTheCanvas: letTheWaitingHaltGo
         ? null
         : (aHaltWaitsForTheCanvas ?? this.aHaltWaitsForTheCanvas),
@@ -1277,7 +1331,9 @@ const _watch = ArmTheWatch();
     line,
     Said.said,
     heard: () => _ended(
-      machine.station is Retro && line.url != null
+      machine.station is Retro &&
+              line.url != null &&
+              !(machine.aHaltWaitsForTheCanvas?.outlivesAHeardLine ?? false)
           ? machine.copyWith(letTheWaitingHaltGo: true)
           : machine,
     ),
@@ -1297,7 +1353,9 @@ const _watch = ArmTheWatch();
     const [],
   ),
   PlayerEnded() => _ended(machine),
-  PlayerFailed(sound: PartSound() || StretchSound(telling: false))
+  PlayerFailed(
+    sound: PartSound() || StretchSound(telling: false) || KeptRetellingSound(),
+  )
       when machine.station is Retro =>
     _tellThePlayFailed(machine),
   PlayerFailed() => _failed(machine),
@@ -1359,6 +1417,7 @@ const _watch = ArmTheWatch();
   ),
   LeftThePassage() => (
     machine.copyWith(
+      aStretchWaitsForItsPart: false,
       channel: const Silence(),
       queue: const [],
       owners: const {},
@@ -1503,7 +1562,7 @@ const _watch = ArmTheWatch();
   ),
   TheSceneTurnFoundNothing() => reduce(machine, const RoomRaisedAHalt()),
   TheTellingCameBackEmpty() when machine.station is Retro => (
-    machine.copyWith(wordlessTelling: true),
+    machine.copyWith(wordlessTelling: true, aStretchWaitsForItsPart: false),
     const [LetThePendingTranslationGo()],
   ),
   TheTellingCameBackEmpty(readAgain: true)
@@ -1514,9 +1573,35 @@ const _watch = ArmTheWatch();
     const [AskTheFraseAgain()],
   ),
   TheTellingCameBackEmpty() => (machine, const []),
+  TheTellingWaitsForItsPart() when machine.station is Retro => (
+    machine.copyWith(aStretchWaitsForItsPart: true),
+    const [],
+  ),
+  TheTellingWaitsForItsPart() => (machine, const []),
+  APartWasNamed()
+      when machine.station is Retro && machine.aStretchWaitsForItsPart =>
+    (
+      machine.copyWith(aStretchWaitsForItsPart: false),
+      const [TellTheHeldStretch()],
+    ),
+  APartWasNamed() => (machine, const []),
+  ThePendingTranslationWasLetGo() => (
+    machine.copyWith(aStretchWaitsForItsPart: false),
+    const [],
+  ),
+  TheTellingWasTurnedAway() when machine.station is Retro => switch (reduce(
+    machine.copyWith(aStretchWaitsForItsPart: false),
+    const RoomRaisedAHalt(outlivesAHeardLine: true),
+  )) {
+    (final waiting, final effects) => (
+      waiting,
+      [...effects, const LetThePendingTranslationGo()],
+    ),
+  },
+  TheTellingWasTurnedAway() => reduce(machine, const RoomRaisedAHalt()),
   TheVerdictAsked() => (machine.copyWith(wordlessTelling: false), const []),
   TheTranslationStartedOver() => (
-    machine.copyWith(wordlessTelling: false),
+    machine.copyWith(wordlessTelling: false, aStretchWaitsForItsPart: false),
     const [],
   ),
   NetworkFailedAt(:final door) => (
@@ -1542,6 +1627,10 @@ const _watch = ArmTheWatch();
     ),
     const [],
   ),
+  TheTapSent(:final part, :final row) => (
+    machine.copyWith(keptThisVisit: {...machine.keptThisVisit, row: part}),
+    const [],
+  ),
   ATakeSettled(:final row) => (
     machine.copyWith(landTheTake: machine.inTheAir?.row == row),
     const [],
@@ -1559,7 +1648,7 @@ const _watch = ArmTheWatch();
       (final resumed, final looks) => (resumed, [...effects, ...looks]),
     },
   },
-  RoomRaisedAHalt(:final callsForAPerson)
+  RoomRaisedAHalt(:final callsForAPerson, :final outlivesAHeardLine)
       when machine.station is SceneRehearsal ||
           machine.station is ChecagemExterna ||
           machine.station is Retro =>
@@ -1569,6 +1658,9 @@ const _watch = ArmTheWatch();
           callsForAPerson:
               callsForAPerson ||
               (machine.aHaltWaitsForTheCanvas?.callsForAPerson ?? false),
+          outlivesAHeardLine:
+              outlivesAHeardLine ||
+              (machine.aHaltWaitsForTheCanvas?.outlivesAHeardLine ?? false),
         ),
       ),
       const <Effect>[],
@@ -1727,6 +1819,7 @@ const _watch = ArmTheWatch();
       .copyWith(
         station: next,
         wordlessTelling: false,
+        aStretchWaitsForItsPart: false,
         letTheWaitingHaltGo: true,
       );
   if (machine.aHaltWaitsForTheCanvas case final waiting? when next is Canvas) {
@@ -1968,12 +2061,18 @@ Machine _silenced(Machine machine, bool keepingTheHold) =>
   String take,
 ) {
   if (!_silent(machine)) return (machine, const []);
+  final capture = owner == MicOwner.capture;
+  final lettingTheHeldGo = capture && machine.aStretchWaitsForItsPart;
   return (
     machine.copyWith(
       channel: Microphone(owner, held: _keptUnderTheMic(machine.channel)),
-      wordlessTelling: machine.wordlessTelling && owner != MicOwner.capture,
+      wordlessTelling: machine.wordlessTelling && !capture,
+      aStretchWaitsForItsPart: machine.aStretchWaitsForItsPart && !capture,
     ),
-    [OpenTheMic(owner, take: take)],
+    [
+      if (lettingTheHeldGo) const LetThePendingTranslationGo(),
+      OpenTheMic(owner, take: take),
+    ],
   );
 }
 
@@ -2105,6 +2204,7 @@ Paused? _keptUnderTheMic(Channel channel) => switch (channel) {
 Effect _play(Sound sound) => switch (sound) {
   final PartSound part => PlayPart(part),
   final StretchSound stretch => PlayStretch(stretch),
+  final KeptRetellingSound retelling => PlayKeptRetelling(retelling),
 };
 
 Playing _playing(
@@ -2121,6 +2221,12 @@ Playing _playing(
   ),
   final StretchSound stretch => StretchPlaying(
     stretch,
+    opened: opened,
+    next: next,
+    held: held,
+  ),
+  final KeptRetellingSound retelling => KeptRetellingPlaying(
+    retelling,
     opened: opened,
     next: next,
     held: held,
@@ -2304,6 +2410,7 @@ List<Effect> _leavingThePassage(Machine machine) => [
   ATakeSettled() ||
   AKeepBegan() ||
   AKeepEnded() ||
+  TheTapSent() ||
   StopTapped() ||
   LineArrived() ||
   PlayerOpened() ||
@@ -2335,6 +2442,10 @@ List<Effect> _leavingThePassage(Machine machine) => [
   TheReplyFailedToLoad() ||
   ThePassageCannotOpen() ||
   TheTellingCameBackEmpty() ||
+  TheTellingWaitsForItsPart() ||
+  TheTellingWasTurnedAway() ||
+  APartWasNamed() ||
+  ThePendingTranslationWasLetGo() ||
   TheStepFailed() ||
   TheResumeFailed() ||
   TheSceneTurnFoundNothing() ||

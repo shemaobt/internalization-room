@@ -21,6 +21,7 @@ import 'package:internalization_room/main.dart';
 import 'fakes.dart';
 import 'um_ensaio_de_tres_partes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _aprovar = 'Aprovar como rascunho final';
 const _ouvir = 'Ouvir a gravação';
@@ -658,8 +659,7 @@ void main() {
     // que este ticket cria: ela tem de poder ser aprovada como a primeira. A linha é
     // escrita antes da saída porque a roda lê quais passagens já foram começadas ao
     // reabrir.
-    final pasta = Directory.systemTemp.createTempSync('sala-p02');
-    addTearDown(() => pasta.deleteSync(recursive: true));
+    final pasta = aTempDir('sala-p02');
     it.harness.emAberto.rows['Ruth/P02/${it.harness.lingua}'] = ResumePoint(
       sessionId: 'sessao-da-p02',
       stage: SalaStage.retro,
@@ -707,7 +707,9 @@ void main() {
     );
     await waitFor(
       'a conferida voltar',
-      () => _estado(it.container).btPhase == BtPhase.conferida,
+      () =>
+          _estado(it.container).btPhase == BtPhase.conferida &&
+          _estado(it.container).btVeredito,
       step: () => letTheRehearsalReachTheRoom(tester),
     );
 
@@ -1279,17 +1281,16 @@ void main() {
     'a halt raised on the retro\'s checked screen leaves the way back standing',
     (tester) async {
       final it = await _ateAConferida(tester);
-      double passageButton() => tester
-          .widget<AnimatedOpacity>(
-            find.descendant(
-              of: find.byType(WayBackButton),
-              matching: find.byType(AnimatedOpacity),
-            ),
-          )
-          .opacity;
+      bool passageButton() => isDrawn(
+        tester,
+        find.descendant(
+          of: find.byType(WayBackButton),
+          matching: find.byType(GestureDetector),
+        ),
+      );
       expect(
         passageButton(),
-        1,
+        isTrue,
         reason: 'na tela conferida, sem parada, a saída da passagem aparece',
       );
 
@@ -1298,7 +1299,7 @@ void main() {
 
       expect(
         passageButton(),
-        1,
+        isTrue,
         reason: 'a parada escondia a saída da passagem na tela conferida',
       );
       closeTheRoom(it.container);

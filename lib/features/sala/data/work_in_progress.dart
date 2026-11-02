@@ -54,6 +54,8 @@ class ResumePoint {
   /// row written before this field existed.
   final Grain? grain;
 
+  final bool hearNewScene;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -64,6 +66,7 @@ class ResumePoint {
     this.listener,
     this.wholeHeldByTheRoom = const [],
     this.grain,
+    this.hearNewScene = false,
   });
 
   Map<String, Object?> toJson() => {
@@ -80,6 +83,7 @@ class ResumePoint {
       'listener': {'version': version, 'number': number},
     if (wholeHeldByTheRoom.isNotEmpty) 'whole_set_aside': wholeHeldByTheRoom,
     'grain': ?grain?.wire,
+    if (hearNewScene) 'hear_new_scene': true,
     'takes': [
       for (final take in takes)
         {
@@ -126,6 +130,7 @@ class ResumePoint {
           if (id is String) id,
       ],
       grain: Grain.fromWire(json['grain']),
+      hearNewScene: json['hear_new_scene'] == true,
       takes: [
         for (final raw in (json['takes'] as List? ?? const []))
           if (raw is Map)

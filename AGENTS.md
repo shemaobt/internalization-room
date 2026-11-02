@@ -42,6 +42,12 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   screen (ADR 0014), and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR
   0014), and the red microphone's take state with her «parar» (ADR 0131), and the «pensando…»
   under a thinking circle and the mic clock's digits above it (ADR 0014).
+- Every test temp folder comes from `aTempDir`, which deletes it when its test ends; the lint
+  job fails on any other `createTempSync` or `createTemp(` under `test/`. The harness drains
+  its Outbox before that delete, so no write lands in a folder already gone.
+- No `sala-*` folder outlives a shard: each runs its `flutter test` through
+  `tool/the_suite_leaves_no_temp_folder.dart`, which names every new one and fails. Run it
+  locally with `TMPDIR` set to a fresh folder, since a shared `/tmp` holds other runs' folders.
 - Nothing forbidden returns to `lib/`: `tool/check_doctrine.dart` mirrors the backend's
   doctrine guard (`tripod-backend`, `scripts/check_doctrine.py`) against Marcia's six rules,
   spelled in Dart, against a typed allowlist in `tool/doctrine_allowlist.dart`.

@@ -109,6 +109,8 @@ abstract interface class StationHost {
 
   void hearThePendingTranslationLetGo();
 
+  void hearTheHeldStretchGo();
+
   void hearThePassageRefused();
 
   /// The Station takes the scene rehearsals the room listed when it was asked again.
@@ -212,6 +214,8 @@ class EffectRunner {
           _playThePart(part);
         case PlayStretch(:final stretch):
           _playThePart(stretch);
+        case PlayKeptRetelling(:final retelling):
+          _playThePart(retelling);
         case OpenTheMic(:final owner, :final take):
           _openTheMic(owner, take);
         case ArmTheCeiling():
@@ -279,6 +283,8 @@ class EffectRunner {
           host.hearTheStepLetGo();
         case LetThePendingTranslationGo():
           host.hearThePendingTranslationLetGo();
+        case TellTheHeldStretch():
+          host.hearTheHeldStretchGo();
         case RefuseThePassage():
           host.hearThePassageRefused();
         case ReadTheSceneRehearsals():

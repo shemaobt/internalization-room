@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1916 and by ENG-2081
 date: 2026-10-23
 extends: 0113, 0120
 ---
@@ -47,3 +47,23 @@ never come back apart from a passing failure (`Drafting.tsx:2055` at 18fa7c4).
   longer takes the line, as her row note outlives her reload (`Drafting.tsx:2514, 2529`).
   The note of a passing failure still goes when the read shows the room did lay the
   frases. There is still no line and no sign.
+
+## Amendment · 2026-11-02 (ENG-2081)
+
+Her row note belongs to its row and leaves only on a tap of that row
+(`Drafting.tsx:231, :2048-2055, :2529`; `src/draft/join.ts:91, :175` at 18fa7c4).
+
+- **Each row keeps its own line.** A failure writes the line on its row; a tap on
+  another row's bring-back leaves it. The tap that confirms the row's bring-back clears that row's line (a tap that only
+  arms it leaves it), and
+  leaving the recording home clears them all.
+- **The re-read no longer takes the line.** When the read after a passing failure shows
+  the room did lay the frases, its stretches still replace the tablet's, but the row
+  keeps «não deu para juntar esta cena — toquem para tentar de novo» until a tap on that
+  row. This replaces the Decision's «and the note goes» and the previous amendment's
+  «the note of a passing failure still goes».
+- **A part re-recorded since the join answers its own code.** The room answers
+  `PART_NO_LONGER_ITS_REHEARSAL` (shema-api ADR 0085) where the part's bytes are no
+  longer its rehearsal's. It is a refusal that passes, so the row writes the retry line,
+  as her `spliced` does, and `NOTHING_TO_BRING_BACK` alone keeps «este ensaio não pode
+  entrar». An old tablet reads the new code as any unknown refusal.

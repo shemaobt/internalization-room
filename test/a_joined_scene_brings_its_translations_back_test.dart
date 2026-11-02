@@ -30,6 +30,7 @@ import 'scenario_helpers.dart'
         offTheRows,
         thePersonSign,
         voiceOverFocusLeaves;
+import 'support/temp.dart';
 
 const _homeLine = 'Gravem, ouçam, e gravem de novo quantas vezes precisarem.';
 const _homeLineEn =
@@ -236,7 +237,7 @@ Future<void> _toTheConversation(_Home it) async {
 }
 
 SalaHarness _aHarness(String lingua, List<Scene> scenes) {
-  final home = Directory.systemTemp.createTempSync('sala-1405-traz');
+  final home = aTempDir('sala-1405-traz');
   return SalaHarness(lingua: lingua, takesHome: home)
     ..room.passages = const [_thePassage]
     ..room.nextMoment = _midConversation
@@ -298,8 +299,7 @@ Future<_Home> _inTheBackTranslation(
 }) async {
   const sessionId = 'sessao-antiga';
   final harness = _aHarness('pt', _threeScenes);
-  final folder = Directory.systemTemp.createTempSync('sala-1405-retro');
-  addTearDown(() => folder.deleteSync(recursive: true));
+  final folder = aTempDir('sala-1405-retro');
   if (heldSentence != null) {
     await tester.runAsync(
       () => harness.takes.enqueue(
@@ -879,8 +879,8 @@ void main() {
   );
 
   testWidgets(
-    'a bring-back the room made whose answer was lost leaves no note and no '
-    'control',
+    'a bring-back the room made whose answer was lost keeps the retry line on '
+    'its row, without the control, as hers',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final it = await _onTheHome(tester);
@@ -896,7 +896,13 @@ void main() {
 
       expect(it.room.bringBacksAsked, [(it.sessionId, 2)]);
       expect(it.control(2, _bringBack), findsNothing);
-      expect(find.text(_failed), findsNothing);
+      expect(
+        it.onRow(2, find.text(_failed)),
+        findsOneWidget,
+        reason:
+            'a nova leitura da sessão mostrava que a sala juntou e apagava a '
+            'linha, que na dela fica até o toque na linha',
+      );
       expect(thePersonSign, findsNothing);
       semantics.dispose();
     },
@@ -976,21 +982,73 @@ void main() {
   );
 
   testWidgets(
-    'a refusal the tablet does not know as final still asks for another tap',
+    'a failed bring-back keeps its line on its row when another row\'s '
+    'bring-back is tapped',
     (tester) async {
       final semantics = tester.ensureSemantics();
-      final it = await _onTheHome(tester);
-      it.room.failBringBackWith = const Refused(RefusalCode.unreadable);
+      final it = await _onTheHome(tester, bringBack: const [2, 3]);
+      it.room.failBringBackWith = const NetworkFailed('a rede caiu');
 
       await _bringBackTwice(it, 2);
       await it.settle();
+      expect(it.onRow(2, find.text(_failed)), findsOneWidget);
+
+      await it.tapThe(it.control(3, _bringBack));
 
       expect(
         it.onRow(2, find.text(_failed)),
         findsOneWidget,
-        reason: 'só a recusa que diz que nada volta é para ensaiar de novo',
+        reason: 'um toque em outra linha apagava a linha desta',
       );
-      expect(find.text(_cannotEnter), findsNothing);
+      await it.wait(const Duration(seconds: 7));
+      semantics.dispose();
+    },
+  );
+
+  for (final code in const [
+    RefusalCode.unreadable,
+    RefusalCode.partNoLongerItsRehearsal,
+  ]) {
+    testWidgets(
+      'a refusal the tablet does not know as final ($code) still asks for '
+      'another tap',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final it = await _onTheHome(tester);
+        it.room.failBringBackWith = Refused(code);
+
+        await _bringBackTwice(it, 2);
+        await it.settle();
+
+        expect(
+          it.onRow(2, find.text(_failed)),
+          findsOneWidget,
+          reason: 'só a recusa que diz que nada volta é para ensaiar de novo',
+        );
+        expect(find.text(_cannotEnter), findsNothing);
+        semantics.dispose();
+      },
+    );
+  }
+
+  testWidgets(
+    'a tap that only arms the bring-back leaves the failed row\'s line',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final it = await _onTheHome(tester);
+      it.room.failBringBackWith = const NetworkFailed('a rede caiu');
+      await _bringBackTwice(it, 2);
+      await it.settle();
+
+      await it.tapThe(it.control(2, _bringBack));
+      await it.wait(const Duration(seconds: 7));
+
+      expect(
+        it.onRow(2, find.text(_failed)),
+        findsOneWidget,
+        reason: 'um toque que só arma apagava a linha, e nada foi enviado',
+      );
+      expect(it.room.bringBacksAsked, hasLength(1));
       semantics.dispose();
     },
   );

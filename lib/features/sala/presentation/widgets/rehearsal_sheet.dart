@@ -23,6 +23,7 @@ class RehearsalSheet extends ConsumerWidget {
   final String? inUseId;
   final String language;
   final bool busy;
+  final bool backRests;
   final bool Function(SceneRehearsalRecord) offersToUse;
   final String? Function(SceneRehearsalRecord)? answerOf;
   final String Function(SceneRehearsalRecord)? useLabelOf;
@@ -40,6 +41,7 @@ class RehearsalSheet extends ConsumerWidget {
     required this.inUseId,
     required this.language,
     required this.busy,
+    required this.backRests,
     required this.offersToUse,
     this.answerOf,
     this.useLabelOf,
@@ -169,11 +171,11 @@ class RehearsalSheet extends ConsumerWidget {
               top: inset + screen.height * 0.05 - 2,
               child: Semantics(
                 button: true,
-                enabled: !busy,
+                enabled: !backRests,
                 label: said('back'),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: busy ? null : notifier.closeTheRehearsalSheet,
+                  onTap: backRests ? null : notifier.closeTheRehearsalSheet,
                   child: SizedBox(
                     width: 44,
                     height: 44,
