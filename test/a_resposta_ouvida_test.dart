@@ -10,6 +10,7 @@ import 'package:http/testing.dart';
 import 'package:internalization_room/features/sala/data/hand_inbox_repository.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/domain/halt.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart' show settle;
@@ -252,39 +253,33 @@ void main() {
   });
 
   test(
-    'a reply that fails to sound twice is set aside and the hand asks',
+    'a reply that fails to sound keeps its dot however many times it fails',
     () async {
       final desk = _Desk();
       final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
       final container = await _opensTheRoom(desk, harness);
 
-      await _theTeamTapsTheHand(container);
-      expect(
-        container.read(salaSessionProvider).oldestUnheardReply?.id,
-        'resposta-1',
-        reason: 'a primeira falha ainda não tirava a resposta da mão',
-      );
+      for (var taps = 1; taps <= 4; taps++) {
+        await _theTeamTapsTheHand(container);
+        final state = container.read(salaSessionProvider);
+        expect(
+          state.hasUnheardReply,
+          isTrue,
+          reason: 'o ponto saía da mão depois de $taps falhas',
+        );
+        expect(state.oldestUnheardReply?.id, 'resposta-1');
+      }
 
-      await _theTeamTapsTheHand(container);
-      final setAside = container.read(salaSessionProvider);
-      expect(
-        setAside.oldestUnheardReply,
-        isNull,
-        reason:
-            'a resposta que não toca seguia na mão a cada toque, para sempre',
-      );
-      expect(setAside.hasUnheardReply, isFalse);
-
-      await _theTeamTapsTheHand(container);
       expect(
         _timesPlayed(harness),
-        2,
-        reason: 'a sala tentou uma terceira vez o clipe que já falhou duas',
+        4,
+        reason: 'cada toque da mão tenta de novo a resposta, como no dela',
       );
       expect(
         container.read(salaSessionProvider).noteMode,
-        isTrue,
-        reason: 'a equipe não conseguia levantar uma pergunta nova',
+        isFalse,
+        reason:
+            'a mão armava uma pergunta no lugar da resposta da facilitadora',
       );
       expect(
         desk.marks,
@@ -297,98 +292,111 @@ void main() {
   );
 
   test(
-    'a clip the room cannot serve twice is set aside like any other',
+    'every tap of the hand plays the oldest unheard reply again while it fails, and the newer one waits',
+    () async {
+      final desk = _Desk()
+        ..heard['resposta-2'] = false
+        ..current['resposta-2'] = '/voz/resposta-2';
+      final harness = _tabletTalkingTo(desk)..voice.refuses.add(_replyUrl);
+      final container = await _opensTheRoom(desk, harness);
+
+      for (var taps = 0; taps < 3; taps++) {
+        await _theTeamTapsTheHand(container);
+      }
+      expect(_timesPlayed(harness), 3);
+      expect(
+        harness.voice.played,
+        isNot(contains('/voz/resposta-2')),
+        reason: 'a resposta de trás furava a fila da que falha',
+      );
+
+      harness.voice.refuses.remove(_replyUrl);
+      await _theTeamTapsTheHand(container);
+      await waitFor(
+        'a mesa registrar a escuta da primeira resposta',
+        () => desk.heard['resposta-1'] == true,
+      );
+      await settle();
+      expect(harness.voice.played.last, _replyUrl);
+      expect(desk.markedUrl, _replyUrl);
+
+      await _theTeamTapsTheHand(container);
+      expect(harness.voice.played.last, '/voz/resposta-2');
+    },
+  );
+
+  test(
+    'a clip the room cannot serve keeps its dot and every tap asks for it again, calling nobody',
     () async {
       final desk = _Desk();
       final harness = _tabletTalkingTo(desk);
       final container = await _opensTheRoom(desk, harness);
       harness.voice.roomFailsWith = const Refused('BAD_REQUEST');
 
-      await _theTeamTapsTheHand(container);
-      await _theTeamTapsTheHand(container);
-      expect(
-        container.read(salaSessionProvider).hasUnheardReply,
-        isFalse,
-        reason:
-            'a sala não distingue clipe que não chegou de clipe que não toca',
-      );
+      for (var taps = 0; taps < 3; taps++) {
+        await _theTeamTapsTheHand(container);
+      }
 
-      await _theTeamTapsTheHand(container);
-      expect(_timesPlayed(harness), 2);
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
-      expect(container.read(salaSessionProvider).needsPerson, isFalse);
+      final state = container.read(salaSessionProvider);
+      expect(_timesPlayed(harness), 3);
+      expect(state.hasUnheardReply, isTrue);
+      expect(state.noteMode, isFalse);
+      expect(state.needsPerson, isFalse);
       expect(desk.marks, 0);
     },
   );
 
-  test('a reply set aside lets the next unheard reply through', () async {
-    final desk = _Desk()
-      ..heard['resposta-2'] = false
-      ..current['resposta-2'] = '/voz/resposta-2';
-    final harness = _tabletTalkingTo(desk)..voice.refuses.add(_replyUrl);
-    final container = await _opensTheRoom(desk, harness);
+  test(
+    'a reply the room no longer lists is let go, and the next tap arms a question',
+    () async {
+      final desk = _Desk();
+      final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
+      final container = await _opensTheRoom(desk, harness);
+      await _theTeamTapsTheHand(container);
+      await _theTeamTapsTheHand(container);
 
-    await _theTeamTapsTheHand(container);
-    await _theTeamTapsTheHand(container);
-    expect(
-      container.read(salaSessionProvider).oldestUnheardReply?.id,
-      'resposta-2',
-      reason:
-          'a resposta de trás nunca chegava à mão, presa atrás da que falha',
-    );
+      desk.heard['resposta-1'] = true;
+      final readsBefore = desk.reads;
+      container.read(salaSessionProvider.notifier).lookForReplies();
+      await waitFor('a sala reler a caixa', () => desk.reads > readsBefore);
+      await settle();
 
-    await _theTeamTapsTheHand(container);
-    await waitFor(
-      'a mesa registrar a escuta da segunda resposta',
-      () => desk.heard['resposta-2'] == true,
-    );
-    expect(harness.voice.played.last, '/voz/resposta-2');
-    expect(desk.markedUrl, '/voz/resposta-2');
-    expect(desk.marks, 1, reason: 'só a resposta que soou chega à mesa');
-    expect(desk.heard['resposta-1'], isFalse);
-  });
-
-  test('a reply set aside is offered again at a new address', () async {
-    const recordedAgain = '/voz/resposta-1-regravada';
-    final desk = _Desk()
-      ..heard['resposta-2'] = false
-      ..current['resposta-2'] = '/voz/resposta-2';
-    final harness = _tabletTalkingTo(desk)..voice.refuses.add(_replyUrl);
-    final container = await _opensTheRoom(desk, harness);
-    await _theTeamTapsTheHand(container);
-    await _theTeamTapsTheHand(container);
-    expect(
-      container.read(salaSessionProvider).oldestUnheardReply?.id,
-      'resposta-2',
-    );
-
-    desk.current['resposta-1'] = recordedAgain;
-    desk.answers = 400;
-    final readsBefore = desk.reads;
-    await _theTeamTapsTheHand(container);
-    await waitFor(
-      'a sala reler a caixa de entrada depois da marca recusada',
-      () => desk.reads > readsBefore,
-    );
-    await settle();
-    expect(
-      container.read(salaSessionProvider).oldestUnheardReply?.audioUrl,
-      recordedAgain,
-      reason: 'a facilitadora regravou e a quarentena do endereço velho ficou',
-    );
-
-    desk.answers = 200;
-    await _theTeamTapsTheHand(container);
-    await waitFor(
-      'a mesa registrar a escuta da regravação',
-      () => desk.heard['resposta-1'] == true,
-    );
-    expect(harness.voice.played.last, recordedAgain);
-    expect(desk.markedUrl, recordedAgain);
-  });
+      expect(
+        container.read(salaSessionProvider).hasUnheardReply,
+        isFalse,
+        reason: 'a mesa não lista mais a resposta e o ponto seguia na mão',
+      );
+      await _theTeamTapsTheHand(container);
+      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(_timesPlayed(harness), 2);
+    },
+  );
 
   test(
-    'a play cut off by a new generation does not count against the reply',
+    'a reply that fails to sound five times says nothing and shows no sign',
+    () async {
+      final desk = _Desk();
+      final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
+      final container = await _opensTheRoom(desk, harness);
+      final playedBefore = harness.voice.played.length;
+
+      for (var taps = 0; taps < 5; taps++) {
+        await _theTeamTapsTheHand(container);
+      }
+
+      expect(
+        harness.voice.played.skip(playedBefore),
+        everyElement(_replyUrl),
+        reason: 'a sala disse uma linha por uma resposta que não tocou',
+      );
+      final state = container.read(salaSessionProvider);
+      expect(state.needsPerson, isFalse);
+      expect(state.halt, isA<NoHalt>());
+    },
+  );
+
+  test(
+    'a play cut off by a new conversation leaves the reply offered',
     () async {
       final desk = _Desk();
       final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
@@ -414,8 +422,8 @@ void main() {
         container.read(salaSessionProvider).oldestUnheardReply?.id,
         'resposta-1',
         reason:
-            'um play cortado ao recomeçar a conversa gastava uma das duas falhas '
-            'de um clipe que ninguém pôde julgar',
+            'um play cortado ao recomeçar a conversa tirava da mão um clipe '
+            'que ninguém pôde julgar',
       );
     },
   );
@@ -524,110 +532,45 @@ void main() {
   );
 
   test(
-    'a reply whose heard mark the desk refuses twice is set aside and the next tap plays the newer reply',
+    'a reply whose heard mark the desk keeps refusing is played again on every tap, ahead of the newer reply',
     () async {
       final desk = _aDeskWithTwoRepliesAndNoMarkAccepted();
       final harness = _tabletTalkingTo(desk);
       final container = await _opensTheRoom(desk, harness);
 
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-      expect(_timesPlayed(harness), 2);
+      for (var rounds = 0; rounds < 3; rounds++) {
+        await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
+      }
 
       await _theTeamTapsTheHand(container);
-      expect(
-        harness.voice.played.last,
-        '/voz/resposta-2',
-        reason:
-            'a resposta cuja marca a mesa recusou duas vezes seguia na mão, '
-            'presa na frente da que veio depois',
-      );
-      expect(_timesPlayed(harness), 2);
-    },
-  );
-
-  test(
-    'a reply whose heard mark the desk refuses twice is set aside and the next tap arms note mode when no other reply waits',
-    () async {
-      final desk = _Desk()..answers = 400;
-      final harness = _tabletTalkingTo(desk);
-      final container = await _opensTheRoom(desk, harness);
-
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-
-      await _theTeamTapsTheHand(container);
-      expect(
-        _timesPlayed(harness),
-        2,
-        reason: 'a sala tocou pela terceira vez a resposta que a mesa recusa',
-      );
-      expect(
-        container.read(salaSessionProvider).noteMode,
-        isTrue,
-        reason: 'a equipe não conseguia levantar uma pergunta nova',
-      );
-      expect(desk.heard['resposta-1'], isFalse);
-    },
-  );
-
-  test(
-    'one failed sound then one refused heard mark on the same reply set it aside',
-    () async {
-      final desk = _Desk()..answers = 400;
-      final harness = _tabletTalkingTo(desk)..voice.succeeds = false;
-      final container = await _opensTheRoom(desk, harness);
-
-      await _theTeamTapsTheHand(container);
-      expect(desk.marks, 0);
-      harness.voice.succeeds = true;
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-
-      await _theTeamTapsTheHand(container);
-      expect(
-        _timesPlayed(harness),
-        2,
-        reason: 'a falha de som e a marca recusada somavam duas e não bastavam',
-      );
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
-    },
-  );
-
-  test(
-    'a relaunch after a set-aside offers the reply again and it needs two failures again',
-    () async {
-      final desk = _Desk()..answers = 400;
-      final harness = _tabletTalkingTo(desk);
-      final container = await _opensTheRoom(desk, harness);
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, container);
-      await _theTeamTapsTheHand(container);
-      expect(_timesPlayed(harness), 2);
-
-      final again = await _opensTheRoom(desk, harness);
-      await _theTeamHearsTheReplyAndTheDeskRefusesTheMark(desk, again);
-      expect(_timesPlayed(harness), 3);
-
-      await _theTeamTapsTheHand(again);
       expect(
         _timesPlayed(harness),
         4,
-        reason: 'uma única recusa depois da reabertura já a punha de lado',
+        reason:
+            'a resposta cuja marca a mesa recusou saía da mão e a de trás '
+            'furava a fila',
       );
+      expect(harness.voice.played.last, _replyUrl);
+      final state = container.read(salaSessionProvider);
+      expect(state.noteMode, isFalse);
+      expect(state.hasUnheardReply, isTrue);
     },
   );
 
-  test('a heard mark that never reaches the desk counts nothing', () async {
-    final desk = _Desk()..unreachable = true;
-    final harness = _tabletTalkingTo(desk);
-    final container = await _opensTheRoom(desk, harness);
+  test(
+    'a heard mark that never reaches the desk leaves the reply to be played again',
+    () async {
+      final desk = _Desk()..unreachable = true;
+      final harness = _tabletTalkingTo(desk);
+      final container = await _opensTheRoom(desk, harness);
 
-    for (var taps = 0; taps < 3; taps++) {
-      await _theTeamHearsTheReplyAndTheMarkReachesTheDesk(desk, container);
-    }
+      for (var taps = 0; taps < 3; taps++) {
+        await _theTeamHearsTheReplyAndTheMarkReachesTheDesk(desk, container);
+      }
 
-    expect(_timesPlayed(harness), 3);
-  });
+      expect(_timesPlayed(harness), 3);
+    },
+  );
 
   test(
     'a refused mark on the old address leaves the reply at its new address untouched',
@@ -655,8 +598,8 @@ void main() {
         harness.voice.played.where((url) => url == recordedAgain).length,
         2,
         reason:
-            'a recusa da marca do endereço velho contou contra a resposta '
-            'regravada, que já nascia com uma falha',
+            'a recusa da marca do endereço velho tirou da mão a resposta '
+            'regravada',
       );
     },
   );
@@ -757,7 +700,7 @@ void main() {
   );
 
   test(
-    'a reply set aside stays set aside when the team starts a new conversation',
+    'a reply that failed to sound is played again on the first tap of a new conversation',
     () async {
       final desk = _Desk();
       final harness = _tabletTalkingTo(desk)..voice.refuses.add(_replyUrl);
@@ -776,15 +719,15 @@ void main() {
       await _theTeamTapsTheHand(container);
       expect(
         _timesPlayed(harness),
-        2,
-        reason: 'uma conversa nova devolveu à mão a resposta posta de lado',
+        3,
+        reason: 'a conversa nova deixou de oferecer a resposta que falhou',
       );
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(container.read(salaSessionProvider).noteMode, isFalse);
     },
   );
 
   test(
-    'a mark refused after the team started a new conversation counts against the same reply',
+    'a mark refused after the team started a new conversation leaves the reply offered, and the next tap plays it again',
     () async {
       final desk = _Desk()
         ..answers = 400
@@ -809,12 +752,12 @@ void main() {
       await _theTeamTapsTheHand(container);
       expect(
         _timesPlayed(harness),
-        2,
+        3,
         reason:
-            'a recusa que chegou depois da conversa nova não contou contra a '
-            'resposta, que já tinha uma falha de som',
+            'a recusa que chegou depois da conversa nova tirou da mão a '
+            'resposta, que já tinha falhado no som',
       );
-      expect(container.read(salaSessionProvider).noteMode, isTrue);
+      expect(container.read(salaSessionProvider).noteMode, isFalse);
     },
   );
 
@@ -858,7 +801,7 @@ void main() {
   }
 
   test(
-    'a mark refused after the room was revoked and linked again does not count against the reply on the new life',
+    'a mark refused after the room was revoked and linked again leaves the reply offered on the new life',
     () async {
       final desk = _Desk()
         ..answers = 400
@@ -888,8 +831,8 @@ void main() {
         _timesPlayed(harness),
         playedBefore + 1,
         reason:
-            'a recusa de uma marca da sala de antes do desvínculo contou contra '
-            'a resposta da sala nova, que nasce sem falhas',
+            'a recusa de uma marca da sala de antes do desvínculo tirou da mão '
+            'a resposta da sala nova',
       );
     },
   );
