@@ -852,8 +852,13 @@ const escolhaLabels = {
   'choosePassage': {'pt': 'Escolha a passagem', 'en': 'Choose the Passage'},
   'bookPanorama': {'pt': 'Panorama do Livro', 'en': 'Book Panorama'},
   'approved': {'pt': 'tem um ensaio salvo', 'en': 'has a saved rehearsal'},
-  'light': {'pt': 'Claro', 'en': 'Light'},
-  'dark': {'pt': 'Escuro', 'en': 'Dark'},
+};
+
+const escolhaAria = {
+  'display': 'Display',
+  'language': 'Language',
+  'light': 'Light',
+  'dark': 'Dark',
 };
 
 String escolhaLabelFor(String control, String language) =>

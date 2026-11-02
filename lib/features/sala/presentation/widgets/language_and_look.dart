@@ -32,15 +32,16 @@ class LanguageAndLook extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           _Pill(
+            label: escolhaAria['display']!,
             children: [
               _Choice(
-                label: escolhaLabelFor('light', language),
+                label: escolhaAria['light']!,
                 selected: light,
                 onTap: () => look.choose(ThemeMode.light),
                 child: const Icon(LucideIcons.sun, size: 18),
               ),
               _Choice(
-                label: escolhaLabelFor('dark', language),
+                label: escolhaAria['dark']!,
                 selected: !light,
                 onTap: () => look.choose(ThemeMode.dark),
                 child: const Icon(LucideIcons.moon, size: 18),
@@ -49,6 +50,7 @@ class LanguageAndLook extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           _Pill(
+            label: escolhaAria['language']!,
             children: [
               for (final code in languages)
                 _Choice(
@@ -72,18 +74,24 @@ class LanguageAndLook extends ConsumerWidget {
 }
 
 class _Pill extends StatelessWidget {
+  final String label;
   final List<Widget> children;
 
-  const _Pill({required this.children});
+  const _Pill({required this.label, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: SalaColors.of(context).areia, width: 1.4),
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: label,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: SalaColors.of(context).areia, width: 1.4),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: children),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }

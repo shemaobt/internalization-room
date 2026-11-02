@@ -207,27 +207,30 @@ void main() {
     );
   });
 
-  test('a reply silenced by a gesture is not counted against it when the room '
-      'then fails', () async {
-    final harness = SalaHarness(
-      replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
-    );
-    final container = await inConversa(harness);
-    addTearDown(container.dispose);
-    final sala = container.read(salaSessionProvider.notifier);
-    SalaSessionState read() => container.read(salaSessionProvider);
-    await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
-    harness.voice.holdNextLine();
-    sala.handTap();
-    await waitFor(
-      'a resposta começar',
-      () => harness.voice.played.contains('/resposta-1'),
-    );
+  test(
+    'a reply silenced by a gesture keeps its dot when the room then fails',
+    () async {
+      final harness = SalaHarness(
+        replies: const [HandReply(id: 'r1', audioUrl: '/resposta-1')],
+      );
+      final container = await inConversa(harness);
+      addTearDown(container.dispose);
+      final sala = container.read(salaSessionProvider.notifier);
+      SalaSessionState read() => container.read(salaSessionProvider);
+      await waitFor('a resposta chegar à mão', () => read().hasUnheardReply);
+      harness.voice.holdNextLine();
+      sala.handTap();
+      await waitFor(
+        'a resposta começar',
+        () => harness.voice.played.contains('/resposta-1'),
+      );
 
-    sala.goEnsaio();
-    harness.voice.failHeldLine(const NetworkFailed('sem rede'));
-    await settle();
+      sala.goEnsaio();
+      harness.voice.failHeldLine(const NetworkFailed('sem rede'));
+      await settle();
 
-    expect(read().replies.single.failures, 0);
-  });
+      expect(read().hasUnheardReply, isTrue);
+      expect(read().oldestUnheardReply?.id, 'r1');
+    },
+  );
 }

@@ -349,7 +349,15 @@ void main() {
       final heard = tester.ensureSemantics();
       final container = await pumpSala(tester, SalaHarness());
       await tester.pump(const Duration(milliseconds: 1500));
-      const beneath = ['Escolha a passagem', 'Claro', 'Escuro', 'PT', 'EN'];
+      const beneath = [
+        'Escolha a passagem',
+        'Light',
+        'Dark',
+        'Display',
+        'Language',
+        'PT',
+        'EN',
+      ];
       expect(labelsHeard(tester), containsAll(beneath));
 
       container.read(salaSessionProvider.notifier).haltForABrokenBuild();

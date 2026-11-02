@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0050, 0103 and 0152
+status: accepted, amended by 0050, 0103 and 0152, and by ENG-1857 (2026-11-02: the hand's reply is never set aside; a failed play keeps its dot and the next tap tries it again, as hers)
 date: 2026-09-30
 amends: 0046
 ---
@@ -102,3 +102,17 @@ Since ENG-1174 (ADR 0050) every door takes the room out of reach, so the offline
 can arrive under an open microphone; it waits there like any courtesy line.
 
 A part that fails in the Back-translation no longer sends the team back to the Rehearsal.
+
+## Amendment · 2026-11-02 (ENG-1857)
+
+"The reply keeps its own set-aside rule" (ENG-1159) no longer holds. The facilitator's reply
+is never counted and never set aside. A reply that does not play, whether the sound failed or
+the room could not serve the clip, or whose heard mark the Desk refuses, stays unheard with
+its dot, and each tap of the Raised hand plays the oldest unheard reply again. It is let go
+only when it is heard to its end and the Desk accepts the mark, or when the room no longer
+lists it. Nothing is said and no sign is shown, however many times it fails.
+
+This is how her app works (Tripod-Internalization 18fa7c4, `app/page.tsx:387-400` and
+`:1048`): a failed play marks nothing and reads the list again, each tap plays the first
+unheard reply, and the dot shows while the list is not empty. While a reply that never plays
+is listed, the hand never arms a Knot; the way out is the facilitator recording it again.

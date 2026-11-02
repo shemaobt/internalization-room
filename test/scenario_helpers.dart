@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -36,6 +37,21 @@ bool isHeard(Element element) {
   });
   return heard;
 }
+
+/// Whether no veil over [control] has faded it out of sight.
+bool isDrawn(WidgetTester tester, Finder control) => ![
+  for (final veil in tester.widgetList<Opacity>(
+    find.ancestor(of: control, matching: find.byType(Opacity)),
+  ))
+    veil.opacity,
+  for (final veil in tester.widgetList<AnimatedOpacity>(
+    find.ancestor(of: control, matching: find.byType(AnimatedOpacity)),
+  ))
+    veil.opacity,
+].contains(0.0);
+
+Tristate enabledFlagOf(WidgetTester tester, Finder control) =>
+    tester.getSemantics(control).getSemanticsData().flagsCollection.isEnabled;
 
 Finder offered(String label) => find.byElementPredicate(
   (element) =>
