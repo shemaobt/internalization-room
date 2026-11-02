@@ -1008,7 +1008,7 @@ void main() {
   for (final code in const [
     RefusalCode.unreadable,
     RefusalCode.partNoLongerItsRehearsal,
-  ])
+  ]) {
     testWidgets(
       'a refusal the tablet does not know as final ($code) still asks for '
       'another tap',
@@ -1029,6 +1029,7 @@ void main() {
         semantics.dispose();
       },
     );
+  }
 
   testWidgets(
     'a tap that only arms the bring-back leaves the failed row\'s line',
