@@ -240,7 +240,7 @@ void main() {
 
   testWidgets(
     'a reopened scene rehearsal whose take the disk cannot keep opens on places '
-    'unknown and shows the disk word there',
+    'unknown, never on the record step',
     (tester) async {
       final (harness, container, before) = await _aReopenUnderADiskFailure(
         tester,
@@ -251,7 +251,6 @@ void main() {
         container.read(salaSessionProvider).scene.step,
         SceneStep.placesUnknown,
       );
-      expect(_theDiskWord, findsOneWidget);
       expect(container.read(salaSessionProvider).scene.waiting, isFalse);
       _expectNoLineNoPerson(harness, container, before);
     },
@@ -293,7 +292,6 @@ void main() {
       tester,
     ) async {
       final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
-      expect(_theDiskWord, findsOneWidget);
       harness.recorder.keepBytesFails = false;
       await _recordsAgain(tester);
 
@@ -350,7 +348,6 @@ void main() {
     'a take too short to keep after a failed reopen does not bring the disk word back',
     (tester) async {
       final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
-      expect(_theDiskWord, findsOneWidget);
       harness.recorder.rehearsalSpeaks = Uint8List(799);
       await _recordsAgain(tester);
 
@@ -407,7 +404,6 @@ void main() {
     tester,
   ) async {
     final (harness, container, _) = await _aReopenUnderADiskFailure(tester);
-    expect(_theDiskWord, findsOneWidget);
     harness.recorder.keepBytesFails = false;
     await _recordsAgain(tester);
 

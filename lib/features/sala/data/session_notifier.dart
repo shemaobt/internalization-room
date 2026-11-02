@@ -211,6 +211,10 @@ typedef _AListagem = ({
   Set<String> aBuscar,
 });
 
+/// How this session's scene rehearsals answered the open: listed, unreachable, so the
+/// tablet opens from what it holds, or not listed for any other reason.
+enum _TheSceneList { listed, unreachable, notListed }
+
 /// What a reopening found where the team left off.
 enum _Resume {
   /// The takes the tablet still holds are loaded, and the team lands on its conversation.
@@ -5727,29 +5731,31 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final listed = await _listTheSceneRehearsals(sessionId, generation);
     if (!reopensTheUnsent || _theSceneMovedOn(asked, generation)) return false;
     final unsent = SceneRehearsalRecord.toReopen(
-      listed is NetworkFailed ? _sceneRehearsalsRead : state.sceneRehearsals,
+      listed == _TheSceneList.unreachable
+          ? _sceneRehearsalsRead
+          : state.sceneRehearsals,
       sessionId,
     );
     if (unsent == null) return false;
     final reopens = switch (listed) {
-      Answered() => true,
-      NetworkFailed() => await _theTabletHolds(unsent),
-      _ => false,
+      _TheSceneList.listed => true,
+      _TheSceneList.unreachable => await _theTabletHolds(unsent),
+      _TheSceneList.notListed => false,
     };
     if (!reopens || _theSceneMovedOn(asked, generation)) return false;
     await _showTheRehearsal(unsent, asked, generation, opening: true);
     return state.scene.rehearsal?.rehearsalId == unsent.rehearsalId;
   }
 
-  Future<RoomAnswer<List<SceneRehearsalRecord>>> _listTheSceneRehearsals(
+  Future<_TheSceneList> _listTheSceneRehearsals(
     String sessionId,
     int generation,
   ) async {
     final listed = await _room.sceneRehearsalsOf(sessionId);
-    if (_abandoned(generation)) return listed;
+    if (_abandoned(generation)) return _TheSceneList.notListed;
     switch (listed) {
       case Answered(:final value):
-        if (state.station is! SceneRehearsal) return listed;
+        if (state.station is! SceneRehearsal) return _TheSceneList.notListed;
         state = state.copyWith(
           sceneRehearsals: SceneRehearsalRecord.listedOver(
             state.sceneRehearsals,
@@ -5757,10 +5763,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             sessionId,
           ),
         );
+        return _TheSceneList.listed;
       case final RoomFailure failure:
         _decideAt(failure, door: Door.sceneRehearsal);
+        return FailurePolicy.theRoomWasUnreachable(failure.result)
+            ? _TheSceneList.unreachable
+            : _TheSceneList.notListed;
     }
-    return listed;
   }
 
   Future<bool> _theTabletHolds(SceneRehearsalRecord rehearsal) async =>
