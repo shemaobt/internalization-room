@@ -3908,10 +3908,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       _applyTheSessionRead(snapshot, sent);
       final told = snapshot.backTranslation;
       if (laidOn != null && !told.bringBack.contains(laidOn)) {
-        state = state.copyWith(
-          btTrechos: _trechosFrom(told.segments),
-          clearBringBackFailed: true,
-        );
+        state = state.copyWith(btTrechos: _trechosFrom(told.segments));
         unawaited(_relatarASala(sessionId, const []));
       }
     }
@@ -3929,11 +3926,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         state.needsPerson) {
       return;
     }
-    state = state.copyWith(clearBringBackFailed: true);
     _armedTap(
       'bringBack:$cena',
       needs: true,
-      then: () => _handOff(_trazerDeVoltaNaSala(sessionId, cena)),
+      then: () {
+        state = state.copyWith(
+          bringBackFailed: {...state.bringBackFailed}..remove(cena),
+        );
+        _handOff(_trazerDeVoltaNaSala(sessionId, cena));
+      },
     );
   }
 
@@ -3964,10 +3965,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       case final RoomFailure failure:
         final cannotEnter = switch (failure) {
           Refused(code: RefusalCode.nothingToBringBack) => true,
+          Refused(code: RefusalCode.partNoLongerItsRehearsal) => false,
           _ => false,
         };
         state = state.copyWith(
-          bringBackFailed: (cena: cena, cannotEnter: cannotEnter),
+          bringBackFailed: {...state.bringBackFailed, cena: cannotEnter},
         );
         _decideAt(failure, door: Door.stretches, rule: RefusalRule.passes);
         unawaited(_readWhatComesBack(laidOn: cannotEnter ? null : cena));

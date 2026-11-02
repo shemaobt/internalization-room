@@ -695,14 +695,14 @@ class _SceneRowView extends StatelessWidget {
   }
 
   Widget? _bringBackFailed(SalaColors colors) {
-    final failed = session.bringBackFailed;
-    if (failed == null || failed.cena != row.number) return null;
+    final cannotEnter = session.bringBackFailed[row.number];
+    if (cannotEnter == null) return null;
     return Padding(
       padding: const EdgeInsets.only(left: 32, top: 4),
       child: Semantics(
         liveRegion: true,
         child: Text(
-          failed.cannotEnter
+          cannotEnter
               ? ensaioFinalPlanLabelFor('cannotEnter', language)
               : recordingHomeLabelFor('bringBackFailed', language),
           style: TextStyle(color: colors.telha, fontSize: 15),
