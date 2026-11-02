@@ -239,9 +239,12 @@ void main() {
     );
   });
 
-  testWidgets('the necklace closes in stillness, not a loop', (tester) async {
+  testWidgets('the necklace of a finished passage is still, not a loop', (
+    tester,
+  ) async {
     final session = SalaSessionState(
-      machine: Machine(station: Station.stored(SalaStage.fim)),
+      machine: Machine(station: Station.stored(SalaStage.conversa)),
+      endOfThePassage: true,
       coverage: Coverage(engaged: 5, surfaced: 5, total: 5),
     );
     await pumpColar(tester, session);
@@ -269,7 +272,7 @@ void main() {
     await pumpColar(
       tester,
       conversing.copyWith(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
+        machine: Machine(station: Station.stored(SalaStage.conversa)),
       ),
     );
     await tester.pump(const Duration(seconds: 2));
@@ -285,47 +288,36 @@ void main() {
     }
   });
 
-  testWidgets(
-    'the beads sit in one row with nothing drawn under them, at the Closing '
-    'and in the conversation',
-    (tester) async {
-      final closing = SalaSessionState(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
-        coverage: const Coverage(engaged: 0, surfaced: 0, total: 1),
-      );
-      const conversing = SalaSessionState(
-        coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
-      );
-
-      for (final session in [closing, conversing]) {
-        await pumpColar(tester, session);
-        await tester.pump(const Duration(seconds: 2));
-
-        expect(
-          find.descendant(
-            of: find.byType(ColarOverlay),
-            matching: find.byType(CustomPaint),
-          ),
-          findsNothing,
-          reason:
-              'um cordão em arco atravessava a tela por baixo das contas, e o '
-              'colar dela é só a fileira de contas',
-        );
-      }
-    },
-  );
-
-  testWidgets('the beads are 9 px and 11 px apart, as hers, in the '
-      'conversation and at the Closing', (tester) async {
+  testWidgets('the beads sit in one row with nothing drawn under them', (
+    tester,
+  ) async {
     const conversing = SalaSessionState(
       coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
     );
-    for (final session in [
-      conversing,
-      conversing.copyWith(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
-      ),
-    ]) {
+
+    for (final session in [conversing]) {
+      await pumpColar(tester, session);
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(
+        find.descendant(
+          of: find.byType(ColarOverlay),
+          matching: find.byType(CustomPaint),
+        ),
+        findsNothing,
+        reason:
+            'um cordão em arco atravessava a tela por baixo das contas, e o '
+            'colar dela é só a fileira de contas',
+      );
+    }
+  });
+
+  testWidgets('the beads are 9 px and 11 px apart, as hers, in the '
+      'conversation', (tester) async {
+    const conversing = SalaSessionState(
+      coverage: Coverage(engaged: 0, surfaced: 0, total: 1),
+    );
+    for (final session in [conversing]) {
       await pumpColar(tester, session);
       await tester.pump(const Duration(seconds: 2));
 
@@ -347,7 +339,7 @@ void main() {
     }
   });
 
-  SalaSessionState fiveOfTwelve({bool closing = false}) {
+  SalaSessionState fiveOfTwelve() {
     final coverage = answer({
       'engaged': 5,
       'surfaced': 5,
@@ -355,12 +347,7 @@ void main() {
       'beads_total': 12,
       'beads_filled': 5,
     });
-    return closing
-        ? SalaSessionState(
-            machine: Machine(station: Station.stored(SalaStage.fim)),
-            coverage: coverage,
-          )
-        : SalaSessionState(coverage: coverage);
+    return SalaSessionState(coverage: coverage);
   }
 
   void expectFiveFilledAndSevenAtRest(
@@ -397,14 +384,6 @@ void main() {
       expectFiveFilledAndSevenAtRest(tester);
     },
   );
-
-  testWidgets('the filled beads keep their colour at the Closing', (
-    tester,
-  ) async {
-    await pumpReducedColar(tester, fiveOfTwelve(closing: true));
-
-    expectFiveFilledAndSevenAtRest(tester);
-  });
 
   testWidgets('the dark necklace reads her dark areia and verde-claro', (
     tester,

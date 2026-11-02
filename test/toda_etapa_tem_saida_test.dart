@@ -18,7 +18,7 @@ import 'scenario_helpers.dart' show enterThePanorama, settle;
 /// is looking at.
 const _terminal = <SalaStage>{};
 
-const _noGestureReaches = {SalaStage.fim};
+const _noGestureReaches = <SalaStage>{};
 
 /// What the team can do to leave each stage, named rather than read off the code: a table
 /// derived from the implementation proves only that the code equals itself.

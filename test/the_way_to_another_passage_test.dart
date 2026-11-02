@@ -499,31 +499,30 @@ void main() {
     expect(byLabel(_back), findsNothing);
   });
 
-  testWidgets('the way back waits for the Wheel to be read', (tester) async {
+  testWidgets('the way back to a held passage shows before the Wheel is read', (
+    tester,
+  ) async {
     final room = await _pump(tester);
     await _takeThePassage(tester, room, 'P01');
     await tester.pump(const Duration(seconds: 1));
     final session = room.state.sessionId;
-    final created = room.harness.room.pericopesAsked.length;
     room.harness.room.holdNextPassages();
 
     await _tap(tester, _leave);
     await tester.pump(const Duration(seconds: 1));
+    final asked = room.harness.room.calls.length;
 
     expect(room.state.stage, SalaStage.escolha);
     expect(room.state.naRoda, isNull);
-    expect(byLabel(_back), findsNothing);
-
-    room.harness.room.finishHeldPassages();
-    await tester.pump(const Duration(seconds: 1));
-
     expect(byLabel(_back), findsOneWidget);
 
     await _tap(tester, _back);
     await tester.pump(const Duration(seconds: 1));
 
+    expect(room.state.station, isA<Canvas>());
+    expect(room.state.pericope, 'P01');
     expect(room.state.sessionId, session);
-    expect(room.harness.room.pericopesAsked, hasLength(created));
+    expect(room.harness.room.calls.skip(asked), isEmpty);
   });
 
   testWidgets('the way back returns to the passage left, in its own session', (

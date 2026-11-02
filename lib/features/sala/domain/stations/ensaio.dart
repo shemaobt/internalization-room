@@ -4,10 +4,9 @@ part of '../station.dart';
 /// take yet.
 enum EnsaioStep { home, plan }
 
-/// The Rehearsal; the Closing is not reached from it, and the Back-translation is opened
-/// from it only once every scene has its part and none waits in the Outbox. A reopened
-/// passage that had already reached its telling-back resumes it whatever the Rehearsal
-/// weighed.
+/// The Rehearsal; the Back-translation is opened from it only once every scene has its part
+/// and none waits in the Outbox. A reopened passage that had already reached its
+/// telling-back resumes it whatever the Rehearsal weighed.
 final class Ensaio extends Station {
   /// Whether every scene of the passage has its part, as the Rehearsal was last weighed.
   final bool everySceneHasItsPart;
@@ -51,7 +50,6 @@ final class Ensaio extends Station {
           : this,
     TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
-    TheNecklaceClosed() => this,
     TheExternalCheckOpened(:final version) => ChecagemExterna(
       version,
       fromTheHome: true,

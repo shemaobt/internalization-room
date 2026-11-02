@@ -89,7 +89,6 @@ const roomLabels = {
     'pt': 'Voltar para a gravação',
     'en': 'Back to recording',
   },
-  'beginAgain': {'pt': 'Começar de novo', 'en': 'Begin again'},
   'recordEnsaio': {
     'pt': 'Gravar o ensaio de vocês',
     'en': 'Record your rehearsal',

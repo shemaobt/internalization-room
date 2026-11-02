@@ -393,6 +393,7 @@ class FakeRecorder implements RecordingRepository {
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
   String? rehearsalSpeaksAs;
+  Uint8List? questionSpeaks;
 
   bool permitted = true;
 
@@ -442,10 +443,16 @@ class FakeRecorder implements RecordingRepository {
         ? _holdingStarts[_startsTaken++]
         : null;
     if (held != null) await held.future;
+    final stopping = _stopping;
+    if (stopping != null) await stopping;
     captures++;
+    _named = null;
     if (!permitted) return Capture.denied;
     if (startThrows) return Capture.failed;
     _recording = true;
+    _named = home.listSync().any((it) => it.path.contains('/$fileName.'))
+        ? null
+        : fileName;
     return Capture.started;
   }
 
@@ -470,36 +477,53 @@ class FakeRecorder implements RecordingRepository {
   /// The take a stop that threw left on the platform, until a discard removes it.
   String? _lost;
 
+  /// The name the open microphone was started under, which the real recorder gives its file;
+  /// a name a take already holds, as a frozen clock repeats, falls back to a count.
+  String? _named;
+
   @override
-  Future<String?> stop() async {
+  Future<String?> stop() {
+    sounds.add('recorder:stop');
+    return _stop();
+  }
+
+  Future<String?> _stop() async {
+    final named = '${home.path}/${_named ?? 'captura-$captures'}';
+    final owner = lastOwner;
+    final count = captures;
     final held = _holdingStop;
     if (held != null) await (_stopping = held.future);
     _stopping = null;
     _recording = false;
     if (stopThrows) {
-      _lost = '${home.path}/captura-$captures.m4a';
+      _lost = '$named.m4a';
       throw const FileSystemException('o gravador perdeu o arquivo');
     }
     if (returnsNothing) return null;
     final deliverable =
-        lastOwner == MicOwner.rehearsal ||
-        lastOwner == MicOwner.scene ||
-        lastOwner == MicOwner.frase ||
-        lastOwner == MicOwner.listener;
+        owner == MicOwner.rehearsal ||
+        owner == MicOwner.scene ||
+        owner == MicOwner.frase ||
+        owner == MicOwner.listener;
+    final question = questionSpeaks;
+    if (question != null && owner == MicOwner.question) {
+      final take = File('$named.m4a')..writeAsBytesSync(question);
+      return lastPath = take.path;
+    }
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
-        '${home.path}/captura-$captures.'
+        '$named.'
         '${rehearsalSpeaksAs ?? (_isWav(fala) ? 'wav' : 'm4a')}',
       )..writeAsBytesSync(fala);
       return lastPath = take.path;
     }
-    final file = File('${home.path}/captura-$captures.m4a')
+    final file = File('$named.m4a')
       ..writeAsStringSync(
         returnsEmpty
             ? ''
-            : lastOwner == MicOwner.frase
-            ? '$_aWholeTake$captures'
+            : owner == MicOwner.frase
+            ? '$_aWholeTake$count'
             : deliverable
             ? _aWholeTake
             : 'a equipe falou',
@@ -524,7 +548,7 @@ class FakeRecorder implements RecordingRepository {
       return;
     }
     if (!_recording) return;
-    final path = await stop();
+    final path = await _stop();
     if (path != null) deleted.add(path);
   }
 
@@ -758,7 +782,8 @@ class FakePlayback implements PlaybackRepository {
   Duration _abertaEm = Duration.zero;
 
   @override
-  Duration? get playingLength => _aberto ? length : null;
+  Duration? get playingLength =>
+      !_aberto || length == null ? null : _fimDoClipe ?? length;
 
   bool get open => _aberto && !_abrindo;
 
@@ -770,7 +795,6 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     playedFrom.add(from);
     sounds.add('playback:play');
-    _fimDoClipe = null;
     return _soundUntilItStops(from);
   }
 
@@ -779,10 +803,9 @@ class FakePlayback implements PlaybackRepository {
     played.add(path);
     ranges.add('${from.inMilliseconds}-${to.inMilliseconds}');
     sounds.add('playback:play');
-    _fimDoClipe = to - from;
     // At nought, not at [from]: a clip answers its position counted from its own start,
     // which is the very reason the resumed telling-back is not built on one.
-    return _soundUntilItStops(Duration.zero);
+    return _soundUntilItStops(Duration.zero, fim: to - from);
   }
 
   @override
@@ -841,7 +864,7 @@ class FakePlayback implements PlaybackRepository {
   // just_audio only completes the future of `play` when the sound stops: at the end
   // of the clip, on a pause or on a stop. A double that returns at once hides
   // everything hung off that future.
-  Future<void> _soundUntilItStops(Duration from) {
+  Future<void> _soundUntilItStops(Duration from, {Duration? fim}) {
     _stopSounding();
     final playing = Completer<void>();
     _playing = playing;
@@ -865,6 +888,7 @@ class FakePlayback implements PlaybackRepository {
       if (geracao != _opens) return;
       _abrindo = false;
       at = _abertaEm = from;
+      _fimDoClipe = fim;
       _aberto = paradas == stops;
       // Announced either way, held or stopped: the listening ceiling and the measure of
       // the part in the air both hang off this, and a clip that never announces itself
@@ -1463,6 +1487,8 @@ class FakeRoom implements RoomRepository {
   /// than build it up by telling stretches back.
   BackTranslationProgress? retroSoFar;
 
+  final List<RerecordedSentence> rerecordedSentences = [];
+
   /// The approval the room says the session's draft stands under, on the open and on
   /// every read.
   ApprovedDraft? approvedDraft;
@@ -1587,6 +1613,7 @@ class FakeRoom implements RoomRepository {
   String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  Completer<void>? holdingTheCredential;
   RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
@@ -1761,6 +1788,7 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
     if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
+    await holdingTheCredential?.future;
     final refusal = refuseCredentialWith;
     if (refusal != null) return refusal;
     return Answered(credential);
@@ -2609,6 +2637,7 @@ class FakeRoom implements RoomRepository {
           segments: _numbered,
           checked: readsChecked,
           awaitingSegmentId: awaitingSegmentId,
+          rerecordedSentences: rerecordedSentences,
         ),
     approved: approvedDraft,
   );
@@ -3544,18 +3573,6 @@ class FakeRoom implements RoomRepository {
   /// that refused nothing, which is what a mint looks like from here.
   List<String> releaseBlockers = const [];
 
-  /// Which current parts this room says carry nobody's words, when `untold_part` is among
-  /// the holes above. Its own field, as on the wire, and read only for its own blocker.
-  List<String> releaseUntoldTakeIds = const [];
-
-  /// Which parts this room says the team's report does not cover, when
-  /// `playback_did_not_cover_the_clip` is among them.
-  List<String> releaseUnheardTakeIds = const [];
-
-  /// Which stretch this room says was recorded and never told back, when `untold_stretch`
-  /// is among them.
-  String? releaseUntoldSegmentId;
-
   Completer<void>? _holdingState;
 
   /// Holds a read of the room's state in flight, so a test can press again while the room
@@ -3608,14 +3625,7 @@ class FakeRoom implements RoomRepository {
       await held.future;
     }
     if (releaseBlockers.isEmpty) return Answered(release);
-    return Answered(
-      ApprovalAnswer(
-        blockers: releaseBlockers,
-        untoldTakeIds: releaseUntoldTakeIds,
-        unheardTakeIds: releaseUnheardTakeIds,
-        untoldSegmentId: releaseUntoldSegmentId,
-      ),
-    );
+    return Answered(ApprovalAnswer(blockers: releaseBlockers));
   }
 
   final List<String> externalChecksOpened = [];

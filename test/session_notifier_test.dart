@@ -234,7 +234,7 @@ Future<void> _theChoiceOffersThePanorama(
   );
 }
 
-/// The team taps the Panorama on the Choice, and its opening has had time to be said.
+/// The team taps the Panorama on the Choice, and its opening has landed, said or not.
 Future<void> _enterThePanorama(
   SalaHarness harness,
   ProviderContainer container,
@@ -244,7 +244,10 @@ Future<void> _enterThePanorama(
     container.read(salaSessionProvider.notifier),
     () => container.read(salaSessionProvider),
   );
-  await settle();
+  await waitFor('o panorama abrir', () {
+    final state = container.read(salaSessionProvider);
+    return state.station is Panorama && !state.awaitingTheGuide;
+  });
 }
 
 class _RoomThatKeepsAnOwnTake extends SalaSessionNotifier {
@@ -1043,7 +1046,7 @@ void main() {
     );
   });
 
-  test('the necklace is on only for the conversa and the fim', () {
+  test('the necklace is on only for the conversa', () {
     expect(
       SalaSessionState(
         machine: Machine(station: Station.stored(SalaStage.escolha)),
@@ -1073,12 +1076,6 @@ void main() {
       reason:
           'na retro as contas são os trechos contados; o colar da '
           'conversa por cima lia como a mesma fileira de novo',
-    );
-    expect(
-      SalaSessionState(
-        machine: Machine(station: Station.stored(SalaStage.fim)),
-      ).colarOn,
-      isTrue,
     );
   });
 
@@ -1944,26 +1941,49 @@ void main() {
       notifier.goEnsaio();
       notifier.gravarACena(1);
       notifier.gravarACena(1);
-      await settle();
+      await waitFor(
+        'a gravação da parte chegar',
+        () =>
+            container.read(salaSessionProvider).ensaio == EnsaioStatus.recorded,
+      );
       notifier.takeKeep();
+      await waitFor(
+        'a sala nomear a parte guardada',
+        () => container.read(salaSessionProvider).partes.last.takeId != null,
+      );
       notifier.startRetro();
-      await settle();
+      await waitFor('a conferida abrir', () {
+        final state = container.read(salaSessionProvider);
+        return state.stage == SalaStage.retro &&
+            state.btPhase == BtPhase.playing;
+      });
       harness.playback.at = const Duration(seconds: 2);
       notifier.retroTap();
       notifier.retroTap();
-      await settle();
-      await confirmarATraducao(container);
-      await settle();
-      harness.playback.finishPlayback();
-      await settle();
-      await notifier.finishBackTranslation();
-      await settle();
-      await notifier.aprovarRascunhoFinal();
       await waitFor(
-        'o ensaio salvo',
-        () => container.read(salaSessionProvider).ensaioSalvo != null,
+        'a captura abrir',
+        () => container.read(salaSessionProvider).btPhase == BtPhase.capturing,
       );
-      await settle();
+      await confirmarATraducao(container);
+      await waitFor(
+        'o clipe voltar a tocar',
+        () => container.read(salaSessionProvider).btClipRodando,
+      );
+      harness.playback.finishPlayback();
+      await waitFor(
+        'o clipe acabar',
+        () => container.read(salaSessionProvider).btClipEnded,
+      );
+      await notifier.finishBackTranslation();
+      await waitFor(
+        'o veredito ser ouvido',
+        () => container.read(salaSessionProvider).btVeredito,
+      );
+      await notifier.aprovarRascunhoFinal();
+      await waitFor('o ensaio salvo descansar', () {
+        final state = container.read(salaSessionProvider);
+        return state.ensaioSalvo != null && state.btAprovando == null;
+      });
 
       var emits = 0;
       container.listen(salaSessionProvider, (_, _) => emits++);
@@ -3099,23 +3119,6 @@ void main() {
     },
   );
 
-  test('once the necklace has closed nothing is left to hear again', () {
-    final session = SalaSessionState(
-      machine: const Machine(station: Fim()),
-      roomSaysItAgain: true,
-    );
-
-    expect(session.voice, VoiceState.done);
-    expect(
-      session.canHearAgain,
-      isFalse,
-      reason:
-          'o botão fica montado em todas as telas; no fim do colar não há '
-          'círculo, e deixar o pronto valer como convite faria aparecer um '
-          'botão de ouvir de novo numa tela que só espera o toque',
-    );
-  });
-
   test('a tap on the circle at done still records, not a dead touch', () async {
     final harness = SalaHarness()..room.done = true;
     final container = await inConversa(harness);
@@ -3933,7 +3936,7 @@ void main() {
       expect(harness.inbox.questionsSent, ['sessao-1']);
       expect(
         harness.recorder.deleted,
-        [endsWith('captura-1.m4a')],
+        [harness.recorder.lastPath],
         reason:
             'a pergunta já está no servidor, esperando uma pessoa — '
             'a cópia no tablet não serve para nada',
@@ -4525,7 +4528,6 @@ void main() {
       greaterThan(playedBefore),
       reason: 'a parada calava o veredito, e o Drafting dela o diz',
     );
-    expect(after.stage, isNot(SalaStage.fim));
   });
 
   test('explaining for longer than the clip does not end the clip', () {

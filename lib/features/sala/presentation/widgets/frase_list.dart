@@ -24,11 +24,13 @@ class FraseRow {
   final bool regravarDormindo;
   final bool regravarArmado;
   final VoidCallback? onRegravar;
+  final VoidCallback? onRegravarFocusLeft;
   final FraseRevisao? revisao;
   final String? estado;
   final bool estadoDormindo;
   final bool estadoArmado;
   final VoidCallback? onEstado;
+  final VoidCallback? onEstadoFocusLeft;
 
   const FraseRow({
     required this.n,
@@ -46,11 +48,13 @@ class FraseRow {
     this.regravarDormindo = false,
     this.regravarArmado = false,
     this.onRegravar,
+    this.onRegravarFocusLeft,
     this.revisao,
     this.estado,
     this.estadoDormindo = false,
     this.estadoArmado = false,
     this.onEstado,
+    this.onEstadoFocusLeft,
   });
 }
 
@@ -203,6 +207,7 @@ class FraseList extends StatelessWidget {
                       dormindo: row.estadoDormindo,
                       toggled: row.estadoArmado ? true : null,
                       semEsmaecer: true,
+                      onFocusLeft: row.onEstadoFocusLeft,
                     ),
             ),
         ],
@@ -217,6 +222,7 @@ class _Pill extends StatelessWidget {
   final bool dormindo;
   final bool? toggled;
   final bool semEsmaecer;
+  final VoidCallback? onFocusLeft;
 
   const _Pill({
     required this.label,
@@ -224,6 +230,7 @@ class _Pill extends StatelessWidget {
     this.dormindo = false,
     this.toggled,
     this.semEsmaecer = false,
+    this.onFocusLeft,
   });
 
   @override
@@ -235,6 +242,7 @@ class _Pill extends StatelessWidget {
       toggled: toggled,
       label: label,
       onTap: onTap,
+      onDidLoseAccessibilityFocus: onFocusLeft,
       excludeSemantics: true,
       child: Opacity(
         opacity: onTap == null
@@ -405,6 +413,7 @@ class _FraseTile extends StatelessWidget {
                           onTap: row.onRegravar,
                           dormindo: row.regravarDormindo,
                           toggled: row.regravando || row.regravarArmado,
+                          onFocusLeft: row.onRegravarFocusLeft,
                         ),
                     ],
                   ),

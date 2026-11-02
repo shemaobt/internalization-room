@@ -1760,12 +1760,25 @@ void main() {
             'os buracos chegam nomeados, na ordem em que o portão os '
             'levantou: é a única coisa que diz à equipe para onde ir',
       );
+    });
+
+    test('the approval answer reads the row, the version and the blockers off '
+        'the wire, not the lists a refusal used to lead to', () {
+      final source = File(
+        'lib/features/sala/domain/approval_answer.dart',
+      ).readAsStringSync();
+      final keys = {
+        for (final key in RegExp(r"json\['(\w+)'\]").allMatches(source))
+          key[1]!,
+      };
+
       expect(
-        resposta.untoldTakeIds,
-        ['gravacao-2'],
+        keys,
+        {'release_id', 'version', 'blockers'},
         reason:
-            'e o buraco que tem chão traz o chão: sem a gravação, a '
-            'parte não contada é um código que não leva a lugar nenhum',
+            'a recusa trazia untold_take_ids, unheard_take_ids e '
+            'untold_segment_id, que nada lia desde que ela só escreve o '
+            'motivo; a dela lê só se saiu a versão, e por que não',
       );
     });
 

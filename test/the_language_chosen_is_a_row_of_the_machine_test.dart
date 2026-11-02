@@ -24,7 +24,6 @@ void main() {
       Ensaio(),
       Retro(),
       Panorama('OV-Ruth'),
-      Fim(),
     ]) {
       final standing = Machine(station: station);
 

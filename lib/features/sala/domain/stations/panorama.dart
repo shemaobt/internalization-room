@@ -1,6 +1,6 @@
 part of '../station.dart';
 
-/// The Station where the book's Panorama is voiced; the Closing is not reached from it.
+/// The Station where the book's Panorama is voiced.
 final class Panorama extends Station {
   final String id;
 
@@ -25,7 +25,6 @@ final class Panorama extends Station {
     ThePlanOpened() => this,
     TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
-    TheNecklaceClosed() => this,
     TheExternalCheckOpened() ||
     TheExternalCheckLeft() ||
     TheRecordingLeft() => this,

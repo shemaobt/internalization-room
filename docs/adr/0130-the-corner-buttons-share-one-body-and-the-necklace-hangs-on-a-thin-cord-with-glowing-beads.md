@@ -1,10 +1,14 @@
 ---
-status: accepted, amended by 0149, amended by ENG-1972 (2026-10-28: the one body of the corner buttons is superseded; every way back is her bare chevron), amended by ENG-1994 (2026-10-29: the necklace's bead material is hers)
+status: accepted, amended by 0149, amended by ENG-1972 (2026-10-28: the one body of the corner buttons is superseded; every way back is her bare chevron), amended by ENG-1994 (2026-10-29: the necklace's bead material is hers), amended by ENG-1900
 date: 2026-10-22
 amends: 0062
 ---
 
 # The corner buttons share one body, and the necklace hangs on a thin cord with glowing beads
+
+Amended by ENG-1900 (2026-10-30): the chevron's inert 0.2 applies only where no passage is held; a held passage is never inert. As in her app (`app/page.tsx:408`, `:950-956`), the chevron
+shows whenever a passage is held under the Choice, is always live, and its tap lays the passage back with
+no call to the room. Nothing else here changes.
 
 Amended by ENG-1972 (2026-10-28): the «one body» decision is superseded. ENG-1844 draws the
 ≡, the replay and the passage's chevron as Marcia's bare glyphs, and every way back is her

@@ -26,7 +26,6 @@ void main() {
       Menu(),
       Panorama('OV-Ruth'),
       Retro(),
-      Fim(),
       SceneRehearsal(),
     ]) {
       final (machine, _) = reduce(_at(from), const ThePlanOpened());

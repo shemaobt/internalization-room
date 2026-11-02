@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0170 (the verdict is loaded once and writes her line when it will not sound), amended by ENG-2128 (2026-11-02: the check's replay plays the kept verdict once and rests)
 date: 2026-10-23
 amends: 0049, 0063, 0093, 0097
 ---
@@ -77,3 +77,14 @@ replay waits for the sign to clear, and the sign takes every tap.
 
 - A reply that will not sound costs the team about 1.5 s before anything else happens.
 - The Opening's clip that fails is fetched twice before the room rests.
+
+## Amendment · 2026-11-02 (ENG-2128)
+
+«Ouvir a resposta de novo» on the check is outside the reload and the count, as her
+`replayVerdict` is (`app/components/Drafting.tsx:1583-1595` at 18fa7c4): one play of the kept
+verdict, and when the player or the room refuses it the check goes back to rest. No
+`TheReplyFailedToLoad` is dispatched for it, nothing is loaded again, no halt is raised and
+nobody is called; no line is written either, as her `done` only idles. The kept verdict stays
+the one the replay says, and the next tap tries again, once. ADR 0170 took the verdict's first
+play out of the reload; this takes its replay out too. The rule above still holds for every
+other reply, «Ouvir de novo» on the Conversation and the Panorama included.

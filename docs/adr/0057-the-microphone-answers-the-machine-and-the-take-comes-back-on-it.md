@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1965 (2026-10-30: a close gives the Channel back only for the microphone it closed)
 date: 2026-10-06
 amends: 0053
 ---
@@ -95,3 +95,12 @@ behaviour.
   the screen, but the state underneath it is what the team comes back to, and it said the
   room was recording.
 - Two closes in flight hand back their takes in the order the recorder answers them.
+
+## Amendment · 2026-10-30 (ENG-1965)
+
+A close answers for the microphone it closed: `MicClosing` names the owner of the open
+Microphone on its `CloseTheMic`, and the runner's `closed` answer carries it back. A take
+that comes back after that microphone was left, and another one opened, still reaches the
+gesture waiting on it, but gives the Channel back only when the open Microphone is the one
+it closed. Without it, a question's stop that answered after the orange dot had opened the
+recording home closed the scene's microphone, and the scene's take was lost.

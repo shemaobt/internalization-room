@@ -773,12 +773,8 @@ void main() {
     test('a recusa por $codigo só escreve o motivo e deixa a conferida, '
         'não uma parte tocando', () async {
       final it = await _tresPartesAteAConferida();
-      final segunda = it.partes[1];
       final falasAntes = it.harness.voice.fixedLines.length;
-      it.harness.room
-        ..releaseBlockers = [codigo]
-        ..releaseUntoldTakeIds = [segunda.takeId!]
-        ..releaseUnheardTakeIds = [segunda.takeId!];
+      it.harness.room.releaseBlockers = [codigo];
 
       await it.sala.aprovarRascunhoFinal();
 
@@ -835,9 +831,7 @@ void main() {
           'traduzida de novo',
     );
 
-    it.harness.room
-      ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-1';
+    it.harness.room.releaseBlockers = const ['untold_stretch'];
 
     await _aprovarEEsperar(tester);
 
@@ -865,12 +859,7 @@ void main() {
     test('a refused approval naming $codigo says no line of the room\'s own, '
         'only writes why', () async {
       final it = await _tresPartesAteAConferida();
-      final segunda = it.partes[1];
-      it.harness.room
-        ..releaseBlockers = [codigo]
-        ..releaseUntoldTakeIds = [segunda.takeId!]
-        ..releaseUnheardTakeIds = [segunda.takeId!]
-        ..releaseUntoldSegmentId = 'trecho-2';
+      it.harness.room.releaseBlockers = [codigo];
       final sons = it.harness.sounds.length;
 
       await it.sala.aprovarRascunhoFinal();
@@ -892,9 +881,7 @@ void main() {
   test('a refused approval naming a stretch reads nothing back from the room, '
       'not the names it would lead to', () async {
     final it = await _tresPartesAteAConferida();
-    it.harness.room
-      ..releaseBlockers = const ['untold_stretch']
-      ..releaseUntoldSegmentId = 'trecho-2';
+    it.harness.room.releaseBlockers = const ['untold_stretch'];
     final leituras = it.harness.room.calls
         .where((call) => call == 'fetchState')
         .length;
@@ -1083,17 +1070,13 @@ void main() {
     closeTheRoom(it.container);
   });
 
-  for (final caso in const [
-    (codigo: 'no_project', trecho: null),
-    (codigo: 'untold_stretch', trecho: 'trecho-1'),
-  ]) {
-    testWidgets('uma recusa atrasada por ${caso.codigo} não muda nada', (
+  for (final codigo in const ['no_project', 'untold_stretch']) {
+    testWidgets('uma recusa atrasada por $codigo não muda nada', (
       tester,
     ) async {
       final it = await _ateAConferida(tester);
       it.harness.room
-        ..releaseBlockers = [caso.codigo]
-        ..releaseUntoldSegmentId = caso.trecho
+        ..releaseBlockers = [codigo]
         ..holdNextRelease();
 
       await pressTheApproval(tester, _aprovar);
@@ -1138,15 +1121,11 @@ void main() {
   test('nomeados três buracos, a recusa escreve o motivo do trecho, não o da '
       'parte não ouvida', () async {
     final it = await _tresPartesAteAConferida();
-    final terceira = it.partes[2];
-    it.harness.room
-      ..releaseBlockers = const [
-        'telling_back_not_checked',
-        'untold_stretch',
-        'playback_did_not_cover_the_clip',
-      ]
-      ..releaseUntoldSegmentId = 'trecho-1'
-      ..releaseUnheardTakeIds = [terceira.takeId!];
+    it.harness.room.releaseBlockers = const [
+      'telling_back_not_checked',
+      'untold_stretch',
+      'playback_did_not_cover_the_clip',
+    ];
 
     await it.sala.aprovarRascunhoFinal();
 
@@ -1214,13 +1193,10 @@ void main() {
   test('nomeadas a parte não contada e a não ouvida, a recusa escreve o motivo '
       'da não contada', () async {
     final it = await _tresPartesAteAConferida();
-    it.harness.room
-      ..releaseBlockers = const [
-        'untold_part',
-        'playback_did_not_cover_the_clip',
-      ]
-      ..releaseUntoldTakeIds = [it.partes[0].takeId!]
-      ..releaseUnheardTakeIds = [it.partes[2].takeId!];
+    it.harness.room.releaseBlockers = const [
+      'untold_part',
+      'playback_did_not_cover_the_clip',
+    ];
 
     await it.sala.aprovarRascunhoFinal();
 
@@ -1237,9 +1213,10 @@ void main() {
     'um buraco sem porta ao lado de um com porta não chama ninguém',
     () async {
       final it = await _tresPartesAteAConferida();
-      it.harness.room
-        ..releaseBlockers = const ['no_telling_back', 'untold_part']
-        ..releaseUntoldTakeIds = [it.partes[1].takeId!];
+      it.harness.room.releaseBlockers = const [
+        'no_telling_back',
+        'untold_part',
+      ];
 
       await it.sala.aprovarRascunhoFinal();
 

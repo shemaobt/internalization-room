@@ -6,6 +6,7 @@ import 'spoken_line.dart';
 import 'session_snapshot.dart';
 import 'coverage.dart';
 import 'ensaio_final_plan.dart';
+import 'escuta_das_partes.dart';
 import 'grain.dart';
 import 'hand_reply.dart';
 import 'kept_take.dart';
@@ -17,16 +18,7 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage {
-  panorama,
-  escolha,
-  conversa,
-  ensaio,
-  retro,
-  fim,
-  cena,
-  checagem,
-}
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, cena, checagem }
 
 enum OrangeDotLook { gone, faint, bright }
 
@@ -306,20 +298,20 @@ enum PassoDaRegravacao {
 }
 
 class RegravacaoDaFrase {
-  final int frase;
+  final String segmentId;
   final PassoDaRegravacao passo;
   final String? path;
   final bool reabre;
 
   const RegravacaoDaFrase(
-    this.frase,
+    this.segmentId,
     this.passo, {
     this.path,
     this.reabre = false,
   });
 
   RegravacaoDaFrase em(PassoDaRegravacao passo, {String? path}) =>
-      RegravacaoDaFrase(frase, passo, path: path, reabre: reabre);
+      RegravacaoDaFrase(segmentId, passo, path: path, reabre: reabre);
 }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
@@ -426,6 +418,7 @@ class SalaSessionState {
 
   /// The entry the team last left by the way out, for the Choice to offer the way back.
   final LeftEntry? leftEntry;
+  final Passagem? openingEntry;
   final PassageLeft? passageLeft;
   final bool endOfThePassage;
 
@@ -440,9 +433,6 @@ class SalaSessionState {
   final bool peerCue;
   final bool noteMode;
 
-  /// The note the team sent that is still on its way to the facilitator, by the number
-  /// the raised hand gave it.
-  final int? noteOnItsWay;
   final List<HandReply> replies;
   final String? playingReplyId;
   final List<KeptTake> keptTakes;
@@ -484,9 +474,13 @@ class SalaSessionState {
   final bool btClipEnded;
   final bool? btOuvidaInteira;
   final bool btRestoPorOuvir;
+  final Set<String> btPartesOuvidasAqui;
+  final Map<String, List<List<int>>> btFaixasOuvidasAqui;
+  final List<RerecordedSentence> btFrasesNovas;
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
+  final Map<String, int> btTamanhosDasPartesMs;
   final int btParteNoArMs;
   final int btOuvidoMs;
   final Duration btCursor;
@@ -646,6 +640,7 @@ class SalaSessionState {
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
     this.leftEntry,
+    this.openingEntry,
     this.passageLeft,
     this.endOfThePassage = false,
     this.panoramaSaid = false,
@@ -655,7 +650,6 @@ class SalaSessionState {
     this.keptRetellings = const [],
     this.peerCue = false,
     this.noteMode = false,
-    this.noteOnItsWay,
     this.replies = const [],
     this.playingReplyId,
     this.keptTakes = const [],
@@ -680,8 +674,12 @@ class SalaSessionState {
     this.btClipEnded = false,
     this.btOuvidaInteira,
     this.btRestoPorOuvir = false,
+    this.btPartesOuvidasAqui = const {},
+    this.btFaixasOuvidasAqui = const {},
+    this.btFrasesNovas = const [],
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
+    this.btTamanhosDasPartesMs = const {},
     this.btParteNoArMs = 0,
     this.btOuvidoMs = 0,
     this.btCursor = Duration.zero,
@@ -752,7 +750,7 @@ class SalaSessionState {
     this.grainSwitching = false,
   });
 
-  bool get colarOn => stage == SalaStage.conversa || stage == SalaStage.fim;
+  bool get colarOn => stage == SalaStage.conversa;
 
   bool get entriesOpen =>
       stage == SalaStage.escolha &&
@@ -1027,7 +1025,6 @@ class SalaSessionState {
       !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
-      stage != SalaStage.fim &&
       stage != SalaStage.checagem &&
       !sceneRehearsalIsOpen;
 
@@ -1046,6 +1043,14 @@ class SalaSessionState {
       joining != null ||
       bringingBack != null ||
       grainSwitching;
+
+  bool get phaseBusy =>
+      joining != null || swapping != null || bringingBack != null;
+
+  bool get sendNowRests =>
+      _theTakeInTheAirOf(partTakeKind) != null ||
+      machine.keeping.keys.any((part) => part.session == sessionId) ||
+      phaseBusy;
 
   /// Each Scene row's plan row and what it offers on the recording home, by number, from
   /// the scene-rehearsal listing the home last read.
@@ -1125,7 +1130,8 @@ class SalaSessionState {
       sceneFrasesHeld.contains(scene.rehearsal?.rehearsalId);
 
   bool get theSceneIsSending =>
-      sceneRehearsalIsOpen && (awaitingTheGuide || machine.inFlight != null);
+      sceneRehearsalIsOpen &&
+      (awaitingTheGuide || machine.inFlight != null || scene.wentToTheVoice);
 
   bool get redMicrophoneIsShown =>
       (voice == VoiceState.invite || voice == VoiceState.done) &&
@@ -1174,7 +1180,17 @@ class SalaSessionState {
 
   Station get station => machine.station;
 
-  SalaStage get stage => station.stage;
+  /// The entry tapped on the Choice whose session has not landed: the team stays on the
+  /// Choice until it does.
+  Passagem? get theEntryOpening => switch (station) {
+    _ when !awaitingTheGuide => null,
+    Canvas() when sessionId == null => openingEntry,
+    Panorama() when panoramaSessionId == null => openingEntry,
+    _ => null,
+  };
+
+  SalaStage get stage =>
+      theEntryOpening != null ? SalaStage.escolha : station.stage;
 
   Halt get halt => machine.halt;
 
@@ -1265,7 +1281,6 @@ class SalaSessionState {
   VoiceState get _resting {
     if (awaitingTheGuide) return VoiceState.thinking;
     if (endOfThePassage ||
-        stage == SalaStage.fim ||
         (stage == SalaStage.retro && btPhase == BtPhase.conferida)) {
       return VoiceState.done;
     }
@@ -1345,20 +1360,24 @@ class SalaSessionState {
 
   bool get needsPerson => halt is Blocking;
 
-  /// The Choice offers the way back to the entry left, once the Wheel is read; the scene
-  /// rehearsal's screen always offers the way back to the Conversation.
+  bool get _aPassageWaits => leftEntry != null && machine.waiting != null;
+
+  /// The Choice offers the way back to a passage held at once; to an entry left with no
+  /// session, once the Wheel is read. The scene rehearsal's screen always offers the way
+  /// back to the Conversation. The person sign hides it.
   bool get theWayBackIsOffered =>
       sceneRehearsalIsOpen ||
       (stage == SalaStage.escolha &&
           leftEntry != null &&
-          naRoda != null &&
-          !needsPerson);
+          !needsPerson &&
+          (_aPassageWaits || naRoda != null));
 
-  /// The way back answers the finger only while the Wheel is quiet, and from any Step of
-  /// the scene rehearsal, its microphone open included.
+  /// The way back to a passage held answers the finger always; to any other entry, only
+  /// while the Wheel is quiet. From any Step of the scene rehearsal it answers with its
+  /// microphone open and «terminei» in the air included.
   bool get theWayBackIsLive => sceneRehearsalIsOpen
-      ? !theSceneIsSending
-      : theWayBackIsOffered && voice == VoiceState.invite;
+      ? !scene.wentToTheVoice
+      : theWayBackIsOffered && (_aPassageWaits || voice == VoiceState.invite);
 
   /// The way out of a Station is hidden while it cannot apply: the voice is busy, or a
   /// microphone other than the raised-hand note's is open, or the person sign stands
@@ -1433,8 +1452,58 @@ class SalaSessionState {
     return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
   }
 
+  /// How far into this recording the stretches somebody has explained reach.
+  ///
+  /// Not the notifier's cursor floor: that one counts every stretch, including a half
+  /// born of a division that nobody has told back yet — which is right for the cursor,
+  /// since that half is reached by the finding that names it, and wrong for stepping
+  /// over a part, which must not skip ground still waiting for its telling.
+  Duration btChaoContadoDe(int parte) {
+    var ate = Duration.zero;
+    for (final trecho in btTrechos) {
+      if (trecho.parte == parte && trecho.contado && trecho.lugarTo > ate) {
+        ate = trecho.lugarTo;
+      }
+    }
+    return ate;
+  }
+
+  bool _btOuvidaAquiOuContada(int parte) {
+    if (!_btCadaFraseNovaOuvida(parte)) return false;
+    if (btPartesOuvidasAqui.contains(partes[parte].path)) return true;
+    final tamanho = btTamanhosDasPartesMs[partes[parte].path];
+    return tamanho == null ||
+        btChaoContadoDe(parte) + folgaDoFimDaParte >=
+            Duration(milliseconds: tamanho);
+  }
+
+  bool _btCadaFraseNovaOuvida(int parte) {
+    final take = partes[parte];
+    final ouvido = [
+      ...?btFaixasOuvidasAqui[take.path],
+      for (final trecho in btTrechos)
+        if (trecho.parte == parte && trecho.contado)
+          [trecho.lugarFrom.inMilliseconds, trecho.lugarTo.inMilliseconds],
+    ];
+    return btFrasesNovas.every(
+      (frase) =>
+          frase.takeId != take.takeId ||
+          EscutaDasPartes.trechoOuvido(
+            ouvido,
+            frase.startsMs,
+            frase.endsMs,
+            folgaDoFimDaParte,
+          ),
+    );
+  }
+
+  bool get _btCadaParteOuvidaAqui =>
+      partes.indexed.every((parte) => _btOuvidaAquiOuContada(parte.$1));
+
   bool get _btOuvidaCoberta =>
-      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) && !btRestoPorOuvir;
+      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) &&
+      _btCadaParteOuvidaAqui &&
+      !btRestoPorOuvir;
 
   bool get btContadaInteira =>
       _btOuvidaCoberta &&
@@ -1587,7 +1656,7 @@ class SalaSessionState {
     Grain? grainInForce,
   ) {
     if (keptTakes == null) return trechos;
-    final agora = _partesDe(keptTakes, grainInForce ?? this.grainInForce);
+    final agora = _partesDe(keptTakes, grainInForce);
     final onde = [
       for (final era in partes)
         agora.indexWhere((parte) => parte.scopeId == era.scopeId),
@@ -1669,8 +1738,7 @@ class SalaSessionState {
   bool get microphoneOpen => channel is Microphone;
 
   /// The approval drawn on the checked telling-back, in place of the approve button and the
-  /// Warning mark, with its listeners and the Checagem externa: only while nothing of this
-  /// session waits in the Outbox (ADR 0106, 0150).
+  /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>
       stage == SalaStage.retro &&
           btPhase == BtPhase.conferida &&
@@ -1799,6 +1867,8 @@ class SalaSessionState {
     bool? arrivedAtTheChoice,
     LeftEntry? leftEntry,
     bool clearLeftEntry = false,
+    Passagem? openingEntry,
+    bool clearOpeningEntry = false,
     PassageLeft? passageLeft,
     bool clearPassageLeft = false,
     bool? endOfThePassage,
@@ -1810,8 +1880,6 @@ class SalaSessionState {
     List<KeptRetelling>? keptRetellings,
     bool? peerCue,
     bool? noteMode,
-    int? noteOnItsWay,
-    bool clearNoteOnItsWay = false,
     List<HandReply>? replies,
     String? playingReplyId,
     bool clearPlayingReply = false,
@@ -1842,8 +1910,12 @@ class SalaSessionState {
     bool? btClipEnded,
     bool? btOuvidaInteira,
     bool? btRestoPorOuvir,
+    Set<String>? btPartesOuvidasAqui,
+    Map<String, List<List<int>>>? btFaixasOuvidasAqui,
+    List<RerecordedSentence>? btFrasesNovas,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
+    Map<String, int>? btTamanhosDasPartesMs,
     int? btParteNoArMs,
     int? btOuvidoMs,
     Duration? btCursor,
@@ -1933,6 +2005,7 @@ class SalaSessionState {
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Grain? grainInForce,
+    bool clearGrainInForce = false,
     bool? grainSwitching,
     List<int>? toBringBack,
     int? bringingBack,
@@ -1941,10 +2014,16 @@ class SalaSessionState {
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
   }) {
+    final inForce = clearGrainInForce
+        ? null
+        : (grainInForce ?? this.grainInForce);
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
       leftEntry: clearLeftEntry ? null : (leftEntry ?? this.leftEntry),
+      openingEntry: clearOpeningEntry
+          ? null
+          : (openingEntry ?? this.openingEntry),
       passageLeft: clearPassageLeft ? null : (passageLeft ?? this.passageLeft),
       endOfThePassage: endOfThePassage ?? this.endOfThePassage,
       panoramaSaid: panoramaSaid ?? this.panoramaSaid,
@@ -1954,9 +2033,6 @@ class SalaSessionState {
       keptRetellings: keptRetellings ?? this.keptRetellings,
       peerCue: peerCue ?? this.peerCue,
       noteMode: noteMode ?? this.noteMode,
-      noteOnItsWay: clearNoteOnItsWay
-          ? null
-          : (noteOnItsWay ?? this.noteOnItsWay),
       replies: replies ?? this.replies,
       playingReplyId: clearPlayingReply
           ? null
@@ -1971,10 +2047,10 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos:
-          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, grainInForce),
+          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, inForce),
       btTrechosRegravados:
           btTrechosRegravados ??
-          _nasSuasPartes(this.btTrechosRegravados, keptTakes, grainInForce),
+          _nasSuasPartes(this.btTrechosRegravados, keptTakes, inForce),
       btNaoOuvidas: btNaoOuvidas ?? this.btNaoOuvidas,
       btParteQueTocou: clearBtParteQueTocou
           ? null
@@ -1990,8 +2066,13 @@ class SalaSessionState {
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btOuvidaInteira: btOuvidaInteira ?? this.btOuvidaInteira,
       btRestoPorOuvir: btRestoPorOuvir ?? this.btRestoPorOuvir,
+      btPartesOuvidasAqui: btPartesOuvidasAqui ?? this.btPartesOuvidasAqui,
+      btFaixasOuvidasAqui: btFaixasOuvidasAqui ?? this.btFaixasOuvidasAqui,
+      btFrasesNovas: btFrasesNovas ?? this.btFrasesNovas,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
+      btTamanhosDasPartesMs:
+          btTamanhosDasPartesMs ?? this.btTamanhosDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
       btOuvidoMs: btOuvidoMs ?? this.btOuvidoMs,
       btCursor: btCursor ?? this.btCursor,
@@ -2087,7 +2168,7 @@ class SalaSessionState {
       hearNewScene: hearNewScene ?? this.hearNewScene,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
-      grainInForce: grainInForce ?? this.grainInForce,
+      grainInForce: inForce,
       grainSwitching: grainSwitching ?? this.grainSwitching,
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack

@@ -127,8 +127,6 @@ abstract interface class StationHost {
 
   void hearThePlayFailed();
 
-  void hearThePlayOpened();
-
   /// The scene's «terminei» could not be sent.
   void hearTheSendFailed();
 
@@ -192,8 +190,8 @@ class EffectRunner {
           host.answerWhereAsked(const GestureSilenced(keepingTheHold: false));
         case CloseAndDiscardTheMic():
           _closeAndDiscardTheMic(wasOpen: micWasOpen);
-        case CloseTheMic():
-          unawaited(_handTheTakeOver());
+        case CloseTheMic(:final owner):
+          unawaited(_handTheTakeOver(owner));
         case DiscardTheMic():
           unawaited(recorder.discard());
         case ArmTheWatch():
@@ -248,6 +246,10 @@ class EffectRunner {
           host.handOver(effect);
         case EnterThePassageLeft():
           host.handOver(effect);
+        case ReturnToTheEntryLeft():
+          host.handOver(effect);
+        case RestOnTheChoice():
+          host.handOver(effect);
         case LookAtTheSession(:final turn, :final sounding):
           _lookAt(turn, sounding);
         case PlayTheReply(:final turn, :final reply):
@@ -289,8 +291,6 @@ class EffectRunner {
           host.hearTheDiskFailed();
         case TellThePlayFailed():
           host.hearThePlayFailed();
-        case TellThePlayOpened():
-          host.hearThePlayOpened();
         case TellTheSendFailed():
           host.hearTheSendFailed();
         case TellItWentAlready():
@@ -550,7 +550,7 @@ class EffectRunner {
 
   /// A take's answer is stamped when it comes back: the gesture waiting on the take gets
   /// it, or the recorder's failure, whatever moved meanwhile.
-  Future<void> _handTheTakeOver() async {
+  Future<void> _handTheTakeOver(MicOwner? owner) async {
     final String? take;
     try {
       take = await recorder.stop();
@@ -576,7 +576,12 @@ class EffectRunner {
       _startedTakes.removeWhere((it) => _isTheFileOf(it, handedOver));
     }
     host.answer(
-      MicAnswered(MicAnswer.closed, take: take, generation: generation?.call()),
+      MicAnswered(
+        MicAnswer.closed,
+        take: take,
+        owner: owner,
+        generation: generation?.call(),
+      ),
     );
   }
 

@@ -1,10 +1,14 @@
 ---
-status: accepted
+status: accepted, amended by ENG-1970, 0165, 0167
 date: 2026-10-06
 amends: 0053
 ---
 
 # The generation moves on every Station change, and the resume takes it again
+
+Amended by 0167 (ENG-1907, 2026-10-30): the close of the scene screen over a playing reply is the second Station change that keeps the generation.
+
+Amended by ENG-1970 (2026-10-30): there is no Closing and no Closing timer; the passages below that name it describe a station that was removed.
 
 This amends ADR 0053 without editing it; it adds "amended by 0058" to its status line. The
 Definer settled it on 6 October for ENG-1446, the slice that puts the Station in the machine.

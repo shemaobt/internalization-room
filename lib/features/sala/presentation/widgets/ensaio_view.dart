@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -22,14 +23,24 @@ import 'motion.dart';
 import 'ouvir_tudo_view.dart';
 import 'rehearsal_sheet.dart';
 import 'saved_screen.dart';
+import 'scene_question.dart';
 import 'stage_heading.dart';
 import 'stop_control.dart';
 
-class EnsaioView extends ConsumerWidget {
+class EnsaioView extends ConsumerStatefulWidget {
   const EnsaioView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EnsaioView> createState() => _EnsaioViewState();
+}
+
+class _EnsaioViewState extends ConsumerState<EnsaioView> {
+  String? _sheetFrom;
+
+  @override
+  Widget build(BuildContext context) {
+    final returnTo = _sheetFrom;
+    _sheetFrom = null;
     final session = ref.watch(salaSessionProvider);
     if (session.station case Ensaio(step: EnsaioStep.plan)) {
       return const EnsaioFinalPlanView();
@@ -45,7 +56,10 @@ class EnsaioView extends ConsumerWidget {
     final sheet = homeRows.values
         .where((row) => row.plan.scene.sceneId == session.homeSheet)
         .firstOrNull;
-    if (sheet != null) return _homeSheet(session, notifier, sheet, language);
+    if (sheet != null) {
+      _sheetFrom = sheet.plan.scene.sceneId;
+      return _homeSheet(session, notifier, sheet, language);
+    }
     final pending = session.ensaio == EnsaioStatus.recorded;
     final titulo = recordingHomeLabelFor(
       session.joined ? 'joinedTitle' : 'title',
@@ -105,6 +119,13 @@ class EnsaioView extends ConsumerWidget {
                             onStop: notifier.stopTheSend,
                             onBringBack: () =>
                                 notifier.trazerDeVoltaAsTraducoes(row.number),
+                            onBringBackFocusLeft: () =>
+                                notifier.accessibilityFocusLeft(
+                                  'bringBack:${row.number}',
+                                ),
+                            focusReturns:
+                                homeRows[row.number]?.plan.scene.sceneId ==
+                                returnTo,
                           ),
                       ],
                     ),
@@ -188,11 +209,16 @@ class EnsaioView extends ConsumerWidget {
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
                   ],
-                  if (session.btAviso == BtAviso.checagemFalhou &&
-                      session.stage == SalaStage.ensaio) ...[
+                  if (session.btAviso case final aviso?
+                      when (aviso == BtAviso.checagemFalhou ||
+                              aviso == BtAviso.checagemNaoAbre) &&
+                          session.stage == SalaStage.ensaio) ...[
                     const SizedBox(height: 12),
                     Text(
-                      retroLabelFor('externalCheckFailed', language),
+                      retroLabelFor(switch (aviso) {
+                        BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
+                        _ => 'externalCheckFailed',
+                      }, language),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colors.telha, fontSize: 15),
                     ),
@@ -294,6 +320,9 @@ class EnsaioView extends ConsumerWidget {
       armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
+      onFocusLeft: (rehearsal) => notifier.accessibilityFocusLeft(
+        swapControl(plan.scene.sceneId, rehearsal),
+      ),
       onRecordAgain: notifier.rehearseThisSceneAgain,
     );
   }
@@ -332,6 +361,8 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onSend;
   final void Function(TheKeep keep) onStop;
   final VoidCallback onBringBack;
+  final VoidCallback onBringBackFocusLeft;
+  final bool focusReturns;
 
   const _SceneRowView({
     required this.row,
@@ -344,6 +375,8 @@ class _SceneRowView extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onBringBack,
+    required this.onBringBackFocusLeft,
+    required this.focusReturns,
   });
 
   @override
@@ -511,7 +544,18 @@ class _SceneRowView extends StatelessWidget {
       null => null,
     };
     final said = switch (row.unsent) {
-      _ when recording => _said(words('recording'), colors),
+      _ when recording => switch (session.recorderStartedAt) {
+        final since? => Loop(
+          period: const Duration(seconds: 1),
+          reducible: false,
+          builder: (context, _) => _said(
+            '${words('recording')} · '
+            '${minutesAndSecondsOf(clock.now().difference(since))}',
+            colors,
+          ),
+        ),
+        null => _said(words('recording'), colors),
+      },
       _ when inTheAir != null => Row(
         children: [
           _said(words('sending'), colors),
@@ -596,17 +640,20 @@ class _SceneRowView extends StatelessWidget {
         : onSheet;
     return Padding(
       padding: const EdgeInsets.only(left: 32, top: 4),
-      child: Semantics(
-        button: true,
-        enabled: open != null,
-        label: '$label — $cena',
-        onTap: open,
-        excludeSemantics: true,
-        child: TextButton(
-          onPressed: open,
-          child: Text(
-            label,
-            style: TextStyle(color: colors.telha, fontSize: 15),
+      child: FocusOnArrival(
+        wanted: focusReturns,
+        child: Semantics(
+          button: true,
+          enabled: open != null,
+          label: '$label — $cena',
+          onTap: open,
+          excludeSemantics: true,
+          child: TextButton(
+            onPressed: open,
+            child: Text(
+              label,
+              style: TextStyle(color: colors.telha, fontSize: 15),
+            ),
           ),
         ),
       ),
@@ -630,6 +677,7 @@ class _SceneRowView extends StatelessWidget {
         enabled: !asleep && session.bringingBack == null,
         label: '$label — $cena',
         onTap: onBringBack,
+        onDidLoseAccessibilityFocus: onBringBackFocusLeft,
         excludeSemantics: true,
         child: Opacity(
           opacity: asleep ? 0.4 : 1,
