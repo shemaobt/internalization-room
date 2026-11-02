@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0170 (the verdict is loaded once and writes her line when it will not sound)
 date: 2026-10-23
 amends: 0049, 0063, 0093, 0097
 ---

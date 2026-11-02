@@ -48,6 +48,7 @@ class _Escutada {
 /// is left out of it: listening with no subject is evidence about no recording.
 class EscutaDasPartes {
   final Map<String, _Escutada> _partes = {};
+  final Map<String, int> _desde = {};
 
   /// Start listening to [arquivo] at [de], a position inside that file.
   void abrir(String arquivo, int de) {
@@ -77,7 +78,32 @@ class EscutaDasPartes {
     if (quanto > 0) parte.faixas.add([0, quanto]);
   }
 
-  void esquecerTudo() => _partes.clear();
+  void esquecerTudo() {
+    _partes.clear();
+    _desde.clear();
+  }
+
+  void contarDaqui() {
+    for (final entrada in _partes.entries) {
+      _desde[entrada.key] = entrada.value.faixas.length;
+    }
+  }
+
+  bool ouvidaInteira(String arquivo, int tamanho, Duration folga) {
+    final escutada = _partes[arquivo];
+    if (escutada == null || tamanho <= 0) return false;
+    var ouvido = 0;
+    final desde = _desde[arquivo] ?? 0;
+    for (final faixa in _unidas([...escutada.faixas.skip(desde)])) {
+      final de = faixa[0] < 0 ? 0 : faixa[0];
+      final ate = faixa[1] > tamanho ? tamanho : faixa[1];
+      if (ate > de) ouvido += ate - de;
+    }
+    final folgaMs = folga.inMilliseconds < tamanho ~/ 2
+        ? folga.inMilliseconds
+        : tamanho ~/ 2;
+    return tamanho - ouvido <= folgaMs;
+  }
 
   /// The report, one entry per part the team has heard something of and the room can name.
   ///

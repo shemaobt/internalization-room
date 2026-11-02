@@ -702,36 +702,40 @@ void main() {
     },
   );
 
-  testWidgets(
-    'A Knot stopped before the guard\'s duration is dropped even when the '
-    'recorder is slow to stop',
-    (tester) async {
-      final room = await _inConversa(
-        tester,
-        SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
-      );
-      room.sala.handTap();
-      await room.beat();
-      room.sala.conversaTap();
-      await room.until(
-        'a pergunta abrir o microfone',
-        () => room.estado.voice == VoiceState.listening,
-      );
-      await room.beat(450);
-      room.harness.recorder.holdNextStop();
-      room.sala.conversaTap();
-      await room.beat(300);
-      room.harness.recorder.finishStop();
-      await room.until(
-        'o microfone fechar',
-        () => room.harness.recorder.lastPath != null,
-      );
-      await room.beat(300);
+  testWidgets('A Knot stopped before the guard\'s window is sent even when the '
+      'recorder is slow to stop: a question is held to no time floor', (
+    tester,
+  ) async {
+    final room = await _inConversa(
+      tester,
+      SalaHarness(captureGuard: const CaptureGuard(minBytes: 1)),
+    );
+    room.sala.handTap();
+    await room.beat();
+    room.sala.conversaTap();
+    await room.until(
+      'a pergunta abrir o microfone',
+      () => room.estado.voice == VoiceState.listening,
+    );
+    await room.beat(450);
+    room.harness.recorder.holdNextStop();
+    room.sala.conversaTap();
+    await room.beat(300);
+    room.harness.recorder.finishStop();
+    await room.until(
+      'a pergunta chegar à mesa',
+      () => room.harness.inbox.questionsSent.isNotEmpty,
+    );
 
-      expect(room.harness.inbox.questionsSent, isEmpty);
-      expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
-    },
-  );
+    expect(
+      room.harness.inbox.questionsSent,
+      ['sessao-1'],
+      reason:
+          'uma pergunta parada antes dos 0,7 s era apagada; a dela só cai '
+          'abaixo de 800 bytes',
+    );
+    expect(room.harness.recorder.deleted, [room.harness.recorder.lastPath]);
+  });
 
   testWidgets(
     'a Panorama the room could not open leaves the team on the Choice, with no '

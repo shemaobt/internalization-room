@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -105,6 +106,10 @@ class EnsaioView extends ConsumerWidget {
                             onStop: notifier.stopTheSend,
                             onBringBack: () =>
                                 notifier.trazerDeVoltaAsTraducoes(row.number),
+                            onBringBackFocusLeft: () =>
+                                notifier.accessibilityFocusLeft(
+                                  'bringBack:${row.number}',
+                                ),
                           ),
                       ],
                     ),
@@ -299,6 +304,9 @@ class EnsaioView extends ConsumerWidget {
       armedOf: armed,
       wakingOf: (rehearsal) =>
           armed(rehearsal) && session.armedTap?.phase == BtRecomeco.armado,
+      onFocusLeft: (rehearsal) => notifier.accessibilityFocusLeft(
+        swapControl(plan.scene.sceneId, rehearsal),
+      ),
       onRecordAgain: notifier.rehearseThisSceneAgain,
     );
   }
@@ -337,6 +345,7 @@ class _SceneRowView extends StatelessWidget {
   final VoidCallback onSend;
   final void Function(TheKeep keep) onStop;
   final VoidCallback onBringBack;
+  final VoidCallback onBringBackFocusLeft;
 
   const _SceneRowView({
     required this.row,
@@ -349,6 +358,7 @@ class _SceneRowView extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onBringBack,
+    required this.onBringBackFocusLeft,
   });
 
   @override
@@ -516,7 +526,18 @@ class _SceneRowView extends StatelessWidget {
       null => null,
     };
     final said = switch (row.unsent) {
-      _ when recording => _said(words('recording'), colors),
+      _ when recording => switch (session.recorderStartedAt) {
+        final since? => Loop(
+          period: const Duration(seconds: 1),
+          reducible: false,
+          builder: (context, _) => _said(
+            '${words('recording')} · '
+            '${minutesAndSecondsOf(clock.now().difference(since))}',
+            colors,
+          ),
+        ),
+        null => _said(words('recording'), colors),
+      },
       _ when inTheAir != null => Row(
         children: [
           _said(words('sending'), colors),
@@ -635,6 +656,7 @@ class _SceneRowView extends StatelessWidget {
         enabled: !asleep && session.bringingBack == null,
         label: '$label — $cena',
         onTap: onBringBack,
+        onDidLoseAccessibilityFocus: onBringBackFocusLeft,
         excludeSemantics: true,
         child: Opacity(
           opacity: asleep ? 0.4 : 1,

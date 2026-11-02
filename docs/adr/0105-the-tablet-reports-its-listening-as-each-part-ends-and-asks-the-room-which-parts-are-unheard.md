@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers) and ENG-2054 (2026-10-29: «terminei» and the line under it follow the room's count, not the last part's end)
+status: accepted, amended by ENG-1852 (2026-10-29: after her P2 at «terminei» nothing plays until the team presses play, as hers), ENG-2054 (2026-10-29: «terminei» and the line under it follow the room's count, not the last part's end) and ENG-2109 (2026-10-30: beside the room's count, every part played here or told)
 date: 2026-10-20
 ---
 
@@ -106,3 +106,14 @@ the line drawn, and an answer naming none lights it, a replay still playing incl
 refusal sets that count to not heard until the room answers again. Wherever this record says
 the last part's end clears the line and lights «terminei», read that the room's answer does.
 The status line that a refusal writes is not changed here.
+
+Amended by ENG-2109 (2026-10-30, the same rule): the room's answer is one of two terms, as her
+`canCheck` reads `bReady && heardComplete`. Beside it, every part must have been played on this
+screen since the telling began, within her slack of 750 ms or half the part, or have its told
+ground reach its length (`computeBReady`, `:898-910`). Her record is forgotten where the tell
+line begins (`startTell`, `Drafting.tsx:955`) and on the quiet re-entry (`:1110`); a First
+listen that ends on a frase awaiting, a stretch untranslated, a checked telling or the automatic
+check keeps it (`:1017`, `:1573-1580`), as her listen branch keeps it on entry. The Listening
+ledger answers which parts were, with a floor at those two points while its report to the room
+keeps every span, and the state carries them as `btPartesOuvidasAqui`. A room's answer counting every part heard
+on an earlier day no longer lights «terminei» or clears the line on a fresh screen by itself.

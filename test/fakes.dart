@@ -401,6 +401,7 @@ class FakeRecorder implements RecordingRepository {
   MicOwner? lastOwner;
   Uint8List? rehearsalSpeaks;
   String? rehearsalSpeaksAs;
+  Uint8List? questionSpeaks;
 
   bool permitted = true;
 
@@ -489,7 +490,12 @@ class FakeRecorder implements RecordingRepository {
   String? _named;
 
   @override
-  Future<String?> stop() async {
+  Future<String?> stop() {
+    sounds.add('recorder:stop');
+    return _stop();
+  }
+
+  Future<String?> _stop() async {
     final named = '${home.path}/${_named ?? 'captura-$captures'}';
     final owner = lastOwner;
     final count = captures;
@@ -507,6 +513,11 @@ class FakeRecorder implements RecordingRepository {
         owner == MicOwner.scene ||
         owner == MicOwner.frase ||
         owner == MicOwner.listener;
+    final question = questionSpeaks;
+    if (question != null && owner == MicOwner.question) {
+      final take = File('$named.m4a')..writeAsBytesSync(question);
+      return lastPath = take.path;
+    }
     final fala = rehearsalSpeaks;
     if (fala != null && deliverable) {
       final take = File(
@@ -545,7 +556,7 @@ class FakeRecorder implements RecordingRepository {
       return;
     }
     if (!_recording) return;
-    final path = await stop();
+    final path = await _stop();
     if (path != null) deleted.add(path);
   }
 
@@ -1601,6 +1612,7 @@ class FakeRoom implements RoomRepository {
   String? presented = 'credencial-1';
   String credential = 'credencial-1';
   RoomFailure? refuseCredentialWith;
+  Completer<void>? holdingTheCredential;
   RoomFailure? refuseLinkWith;
   int linksRead = 0;
   List<String> claimCodes = const ['QHF-3M7K'];
@@ -1775,6 +1787,7 @@ class FakeRoom implements RoomRepository {
   Future<RoomAnswer<String>> collectTheCredential(String deviceId) async {
     if (_guard('collectTheCredential') case final failure?) return failure;
     credentialsCollected.add(deviceId);
+    await holdingTheCredential?.future;
     final refusal = refuseCredentialWith;
     if (refusal != null) return refusal;
     return Answered(credential);
@@ -3544,18 +3557,6 @@ class FakeRoom implements RoomRepository {
   /// that refused nothing, which is what a mint looks like from here.
   List<String> releaseBlockers = const [];
 
-  /// Which current parts this room says carry nobody's words, when `untold_part` is among
-  /// the holes above. Its own field, as on the wire, and read only for its own blocker.
-  List<String> releaseUntoldTakeIds = const [];
-
-  /// Which parts this room says the team's report does not cover, when
-  /// `playback_did_not_cover_the_clip` is among them.
-  List<String> releaseUnheardTakeIds = const [];
-
-  /// Which stretch this room says was recorded and never told back, when `untold_stretch`
-  /// is among them.
-  String? releaseUntoldSegmentId;
-
   Completer<void>? _holdingState;
 
   /// Holds a read of the room's state in flight, so a test can press again while the room
@@ -3608,14 +3609,7 @@ class FakeRoom implements RoomRepository {
       await held.future;
     }
     if (releaseBlockers.isEmpty) return Answered(release);
-    return Answered(
-      ApprovalAnswer(
-        blockers: releaseBlockers,
-        untoldTakeIds: releaseUntoldTakeIds,
-        unheardTakeIds: releaseUnheardTakeIds,
-        untoldSegmentId: releaseUntoldSegmentId,
-      ),
-    );
+    return Answered(ApprovalAnswer(blockers: releaseBlockers));
   }
 
   final List<String> externalChecksOpened = [];

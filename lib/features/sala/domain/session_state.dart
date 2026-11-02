@@ -297,20 +297,20 @@ enum PassoDaRegravacao {
 }
 
 class RegravacaoDaFrase {
-  final int frase;
+  final String segmentId;
   final PassoDaRegravacao passo;
   final String? path;
   final bool reabre;
 
   const RegravacaoDaFrase(
-    this.frase,
+    this.segmentId,
     this.passo, {
     this.path,
     this.reabre = false,
   });
 
   RegravacaoDaFrase em(PassoDaRegravacao passo, {String? path}) =>
-      RegravacaoDaFrase(frase, passo, path: path, reabre: reabre);
+      RegravacaoDaFrase(segmentId, passo, path: path, reabre: reabre);
 }
 
 /// One stretch the team told back: a slice of one rehearsal recording.
@@ -473,6 +473,7 @@ class SalaSessionState {
   final bool btClipEnded;
   final bool? btOuvidaInteira;
   final bool btRestoPorOuvir;
+  final Set<String> btPartesOuvidasAqui;
   final bool btParteFronteira;
 
   final List<int> btFimDasPartesMs;
@@ -669,6 +670,7 @@ class SalaSessionState {
     this.btClipEnded = false,
     this.btOuvidaInteira,
     this.btRestoPorOuvir = false,
+    this.btPartesOuvidasAqui = const {},
     this.btParteFronteira = false,
     this.btFimDasPartesMs = const [],
     this.btParteNoArMs = 0,
@@ -1443,8 +1445,36 @@ class SalaSessionState {
     return (btCursor + folgaDoFimDaParte).inMilliseconds >= parte;
   }
 
+  /// How far into this recording the stretches somebody has explained reach.
+  ///
+  /// Not the notifier's cursor floor: that one counts every stretch, including a half
+  /// born of a division that nobody has told back yet — which is right for the cursor,
+  /// since that half is reached by the finding that names it, and wrong for stepping
+  /// over a part, which must not skip ground still waiting for its telling.
+  Duration btChaoContadoDe(int parte) {
+    var ate = Duration.zero;
+    for (final trecho in btTrechos) {
+      if (trecho.parte == parte && trecho.contado && trecho.lugarTo > ate) {
+        ate = trecho.lugarTo;
+      }
+    }
+    return ate;
+  }
+
+  bool _btOuvidaAquiOuContada(int parte) {
+    if (btPartesOuvidasAqui.contains(partes[parte].path)) return true;
+    final tamanho = btTamanhoDaParte(parte);
+    return tamanho == null ||
+        btChaoContadoDe(parte) + folgaDoFimDaParte >= tamanho;
+  }
+
+  bool get _btCadaParteOuvidaAqui =>
+      partes.indexed.every((parte) => _btOuvidaAquiOuContada(parte.$1));
+
   bool get _btOuvidaCoberta =>
-      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) && !btRestoPorOuvir;
+      (btOuvidaInteira ?? (btClipEnded && _btParteContada)) &&
+      _btCadaParteOuvidaAqui &&
+      !btRestoPorOuvir;
 
   bool get btContadaInteira =>
       _btOuvidaCoberta &&
@@ -1597,7 +1627,7 @@ class SalaSessionState {
     Grain? grainInForce,
   ) {
     if (keptTakes == null) return trechos;
-    final agora = _partesDe(keptTakes, grainInForce ?? this.grainInForce);
+    final agora = _partesDe(keptTakes, grainInForce);
     final onde = [
       for (final era in partes)
         agora.indexWhere((parte) => parte.scopeId == era.scopeId),
@@ -1851,6 +1881,7 @@ class SalaSessionState {
     bool? btClipEnded,
     bool? btOuvidaInteira,
     bool? btRestoPorOuvir,
+    Set<String>? btPartesOuvidasAqui,
     bool? btParteFronteira,
     List<int>? btFimDasPartesMs,
     int? btParteNoArMs,
@@ -1942,6 +1973,7 @@ class SalaSessionState {
     bool? rehearsalsElsewhere,
     Set<int>? theRoomJoinedParts,
     Grain? grainInForce,
+    bool clearGrainInForce = false,
     bool? grainSwitching,
     List<int>? toBringBack,
     int? bringingBack,
@@ -1950,6 +1982,9 @@ class SalaSessionState {
     bool clearBringBackFailed = false,
     Set<String>? wholeHeldByTheRoom,
   }) {
+    final inForce = clearGrainInForce
+        ? null
+        : (grainInForce ?? this.grainInForce);
     return SalaSessionState(
       awaitingTheGuide: awaitingTheGuide ?? this.awaitingTheGuide,
       arrivedAtTheChoice: arrivedAtTheChoice ?? this.arrivedAtTheChoice,
@@ -1980,10 +2015,10 @@ class SalaSessionState {
       naRoda: clearRoda ? null : (naRoda ?? this.naRoda),
       comecadas: comecadas ?? this.comecadas,
       btTrechos:
-          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, grainInForce),
+          btTrechos ?? _nasSuasPartes(this.btTrechos, keptTakes, inForce),
       btTrechosRegravados:
           btTrechosRegravados ??
-          _nasSuasPartes(this.btTrechosRegravados, keptTakes, grainInForce),
+          _nasSuasPartes(this.btTrechosRegravados, keptTakes, inForce),
       btNaoOuvidas: btNaoOuvidas ?? this.btNaoOuvidas,
       btParteQueTocou: clearBtParteQueTocou
           ? null
@@ -1999,6 +2034,7 @@ class SalaSessionState {
       btClipEnded: btClipEnded ?? this.btClipEnded,
       btOuvidaInteira: btOuvidaInteira ?? this.btOuvidaInteira,
       btRestoPorOuvir: btRestoPorOuvir ?? this.btRestoPorOuvir,
+      btPartesOuvidasAqui: btPartesOuvidasAqui ?? this.btPartesOuvidasAqui,
       btParteFronteira: btParteFronteira ?? this.btParteFronteira,
       btFimDasPartesMs: btFimDasPartesMs ?? this.btFimDasPartesMs,
       btParteNoArMs: btParteNoArMs ?? this.btParteNoArMs,
@@ -2096,7 +2132,7 @@ class SalaSessionState {
       hearNewScene: hearNewScene ?? this.hearNewScene,
       rehearsalsElsewhere: rehearsalsElsewhere ?? this.rehearsalsElsewhere,
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
-      grainInForce: grainInForce ?? this.grainInForce,
+      grainInForce: inForce,
       grainSwitching: grainSwitching ?? this.grainSwitching,
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack

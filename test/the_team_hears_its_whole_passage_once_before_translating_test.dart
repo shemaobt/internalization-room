@@ -1154,6 +1154,47 @@ void main() {
     expect(it.estado.needsPerson, isFalse);
   });
 
+  test('an automatic check whose verdict will not sound leaves her «não deu '
+      'para conferir» on the telling and calls nobody', () async {
+    final it = await _juntadaNaCasa();
+    _frasesTrazidas(it);
+    _nadaOuvido(it);
+    await _oDisco(it);
+    await _ouvirAte(it, ate: 1);
+    _tudoOuvido(it);
+    var conferiu = false;
+    it.harness.voice.refuses.add(falaDoVeredito);
+    it.harness.room
+      ..listeningAutomaticCheck = true
+      ..listeningFixedLine = 'N1'
+      ..duranteOVeredito = () => conferiu = true;
+
+    await _ouvirAte(it, desde: 2);
+    await waitFor(
+      'a conferência sozinha voltar',
+      () =>
+          conferiu &&
+          !it.estado.btConferindo &&
+          it.estado.btPhase != BtPhase.thinking,
+    );
+    await settle();
+
+    expect(
+      it.estado.btRecusa,
+      CheckRefusal.checkUnavailable,
+      reason:
+          'a conferência sozinha cujo veredito não soava deixava a tela sem '
+          'linha e uma chamada por pessoa esperando a conversa',
+    );
+    expect(
+      it.harness.voice.played.where((url) => url == falaDoVeredito),
+      hasLength(1),
+    );
+    expect(it.estado.btPhase, BtPhase.playing);
+    expect(it.estado.machine.aHaltWaitsForTheCanvas, isNull);
+    expect(it.estado.needsPerson, isFalse);
+  });
+
   test('a terminei the room refuses over an untranslated stretch says N2 again '
       'and plays that stretch, never an empty findings screen', () async {
     final it = await _juntadaNaCasa();

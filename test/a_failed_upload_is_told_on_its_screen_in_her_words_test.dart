@@ -2194,7 +2194,7 @@ void main() {
       final casa = await _naCasa(tester);
       await casa.comecarAGravar(2);
 
-      expect(casa.naLinha(2, find.text(_gravando)), findsOneWidget);
+      expect(casa.naLinha(2, find.text('$_gravando · 0:00')), findsOneWidget);
 
       casa.room.holdNextTake('parte-2');
       await casa.emTempoReal(() async {
@@ -2208,7 +2208,7 @@ void main() {
         await settle();
       });
 
-      expect(casa.naLinha(2, find.text(_gravando)), findsNothing);
+      expect(casa.naLinha(2, find.textContaining(_gravando)), findsNothing);
       expect(casa.naLinha(2, find.text(_enviando)), findsOneWidget);
 
       await casa.emTempoReal(() async {
