@@ -1781,6 +1781,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     if (_abandoned(generation) ||
         !identical(_awaitedReplies[turn]?.play, heard)) {
+      if (endsTheConversation &&
+          answer is RoomFailure &&
+          _endOf(endedSession) == (line: null)) {
+        _setTheEnd(endedSession, before);
+      }
       return;
     }
     if (answer case final RoomFailure lost
