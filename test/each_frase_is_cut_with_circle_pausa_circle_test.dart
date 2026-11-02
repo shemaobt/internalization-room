@@ -2293,6 +2293,229 @@ void main() {
   );
 
   test(
+    'the circle that sends a held frase again stops the sounding take where it '
+    'is before the room sees the frase, and leaves it there through the answer',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f2');
+      await settle();
+      room.harness.room.sceneAnswersFirst.add(
+        const Refused(RefusalCode.sceneRehearsalSending),
+      );
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      await _listening(room);
+      room.harness.playback.at = _s(8.7);
+      room.harness.room.holdNextFrase();
+
+      room.sala.tapTheTranslateCircle();
+      await waitFor(
+        'a frase ir de novo para a sala',
+        () => room.harness.room.frasesKept.length > 1,
+      );
+
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'o ensaio da cena seguia soando enquanto a frase ia de novo',
+      );
+      expect(
+        room.state.sceneStoppedAt,
+        _s(8.7),
+        reason: 'o ensaio perdia onde estava quando a frase foi de novo',
+      );
+      room.harness.room.finishHeldFrase();
+      await settle();
+
+      expect(room.state.scene.translatingAgain, isNull);
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'a resposta da sala punha o ensaio a tocar sozinho',
+      );
+    },
+  );
+
+  test(
+    '«terminei» that reads the room\'s list first stops the sounding take before '
+    'the list is asked for, and it stays silent while the list is held',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.harness.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      room.harness.room.frasesLandBeforeTheyFail = false;
+      await waitFor(
+        'a sala não saber se guardou',
+        () => room.state.sceneTranslationUnseen && !room.state.scene.waiting,
+      );
+      room.sala.translateTheFraseAgain('f2');
+      await waitFor(
+        'o trecho da frase tocar',
+        () => room.harness.playback.sounding,
+      );
+      final lists = room.asked('sceneRehearsalsOf');
+      room.harness.room
+        ..sendRefusalsFirst.add(RefusalCode.unnamed(422))
+        ..holdNextSceneList();
+
+      room.sala.sendTheSceneRehearsal();
+      await waitFor(
+        'a lista ser pedida',
+        () => room.asked('sceneRehearsalsOf') > lists,
+      );
+      await settle();
+
+      expect(room.state.scene.waiting, isTrue);
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'o ensaio da cena seguia soando enquanto a lista era lida',
+      );
+      room.harness.room.finishHeldSceneList();
+      await waitFor(
+        'a sala descansar',
+        () => !room.state.theSceneIsSending && !room.state.scene.waiting,
+      );
+    },
+  );
+
+  test(
+    'play that reads the room\'s list first stops the sounding take before the '
+    'list is asked for, and once the list lands the take stays paused',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.harness.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      room.harness.room.frasesLandBeforeTheyFail = false;
+      await waitFor(
+        'a sala não saber se guardou',
+        () => room.state.sceneTranslationUnseen && !room.state.scene.waiting,
+      );
+      room.sala.translateTheFraseAgain('f2');
+      await waitFor(
+        'o trecho da frase tocar',
+        () => room.harness.playback.sounding,
+      );
+      final lists = room.asked('sceneRehearsalsOf');
+      room.harness.room.holdNextSceneList();
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'a lista ser pedida',
+        () => room.asked('sceneRehearsalsOf') > lists,
+      );
+      await settle();
+
+      expect(room.state.scene.waiting, isTrue);
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'o ensaio da cena seguia soando enquanto a lista era lida',
+      );
+      final plays =
+          room.harness.playback.playedFrom.length +
+          room.harness.playback.ranges.length;
+      room.harness.room.finishHeldSceneList();
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      await settle(const Duration(milliseconds: 400));
+
+      expect(
+        room.harness.playback.sounding,
+        isFalse,
+        reason: 'a lista, ao chegar, punha o ensaio a tocar de novo',
+      );
+      expect(
+        room.harness.playback.playedFrom.length +
+            room.harness.playback.ranges.length,
+        plays,
+      );
+    },
+  );
+
+  test(
+    'play that reads the room\'s list first marks the pausa where the take was '
+    'at the tap, not where the stopped player says it opened',
+    () async {
+      final room = await _onTheTranslateStep(
+        rehearsal: _rehearsal(
+          frases: [_frase('f1', 0, 4000), _frase('f2', 4000, 8000)],
+        ),
+      );
+      room.sala.translateTheFraseAgain('f1');
+      await settle();
+      room.harness.room
+        ..frasesLandBeforeTheyFail = true
+        ..sceneAnswersFirst.add(const NetworkFailed('timeout'))
+        ..sceneListsAnswerFirst.add(const NetworkFailed('timeout'));
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room);
+      room.harness.room.frasesLandBeforeTheyFail = false;
+      await waitFor(
+        'a sala não saber se guardou',
+        () => room.state.sceneTranslationUnseen && !room.state.scene.waiting,
+      );
+      room.sala.translateTheFraseAgain('f2');
+      await settle();
+      await _theFraseMicrophoneOpens(room);
+      await _theFraseIsSent(room, already: 1);
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      expect(room.state.scene.translatingAgain, isNull);
+      expect(room.state.sceneTranslationUnseen, isTrue);
+      await _circle(room);
+      await waitFor(
+        'o ensaio tocar da fronteira',
+        () => room.harness.playback.sounding,
+      );
+      room.harness.playback.at = _s(8.7);
+      final lists = room.asked('sceneRehearsalsOf');
+      room.harness.room.holdNextSceneList();
+
+      room.sala.playTheSceneRehearsal();
+      await waitFor(
+        'a lista ser pedida',
+        () => room.asked('sceneRehearsalsOf') > lists,
+      );
+      room.harness.room.finishHeldSceneList();
+      await waitFor('a tela parar de esperar', () => !room.state.scene.waiting);
+      await settle();
+
+      expect(
+        room.state.scene.pausa,
+        _s(8.7),
+        reason:
+            'a pausa era lida de um tocador já parado pela leitura da lista, e '
+            'caía onde o ensaio abriu',
+      );
+      expect(room.harness.playback.sounding, isFalse);
+    },
+  );
+
+  test(
     'play on a take paused 20 ms after the frontier, where no pausa fits, resumes from the pause, not from the frontier',
     () async {
       final room = await _onTheTranslateStep(
