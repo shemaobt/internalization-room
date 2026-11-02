@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/bt_finding.dart';
@@ -38,6 +40,72 @@ Future<void> _traduzirAGravacao(Sala it) async {
     () => it.estado.stage == SalaStage.retro && !it.estado.awaitingTheGuide,
   );
   await settle();
+}
+
+const _trechos = [
+  SegmentView(
+    segmentId: 'trecho-1',
+    takeId: _gravacao,
+    startsMs: 0,
+    endsMs: 12000,
+    frase: 1,
+  ),
+  SegmentView(
+    segmentId: 'trecho-2',
+    takeId: _gravacao,
+    startsMs: 12000,
+    endsMs: 30000,
+    frase: 2,
+  ),
+];
+
+Future<(SalaHarness, ProviderContainer)> _relaunchedOnAChecked() async {
+  final harness = SalaHarness()
+    ..playback.length = _umaParte
+    ..playback.measured = _umaParte;
+  harness.room
+    ..retroSoFar = const BackTranslationProgress(
+      segments: _trechos,
+      checked: true,
+      namedNuance: BtFinding(
+        kind: BtFindingKind.nuance,
+        frase: 1,
+        segmentId: 'trecho-1',
+      ),
+    )
+    ..takes.add(
+      const TakeView(
+        takeId: _gravacao,
+        kind: 'ensaio',
+        scope: 'parte-1',
+        ordinal: 1,
+      ),
+    )
+    ..takeAudio[_gravacao] = Uint8List.fromList([7, 7, 7, 7])
+    ..openedSessions.add('sessao-antiga')
+    ..listeningUnheardTakeIds = const [];
+  harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = const ResumePoint(
+    sessionId: 'sessao-antiga',
+    stage: SalaStage.retro,
+  );
+  final container = harness.container();
+  addTearDown(container.dispose);
+  final sala = container.read(salaSessionProvider.notifier);
+  SalaSessionState estado() => container.read(salaSessionProvider);
+  await sala.abrirEscolha();
+  await settle();
+  await sala.goConversa(book: 'Ruth', pericope: 'P01');
+  await waitFor(
+    'a passagem pousar na conversa',
+    () => estado().stage == SalaStage.conversa && !estado().awaitingTheGuide,
+  );
+  sala.openTheEnsaioFinal();
+  await waitFor(
+    'a casa da gravação abrir com a parte da sala',
+    () => estado().stage == SalaStage.ensaio && estado().partes.isNotEmpty,
+  );
+  await settle();
+  return (harness, container);
 }
 
 void main() {
@@ -418,4 +486,48 @@ void main() {
       },
     );
   }
+
+  test('a relaunch onto a checked passage shows the check at once, and the '
+      'marks are drawn when the read answers', () async {
+    final (harness, container) = await _relaunchedOnAChecked();
+    SalaSessionState estado() => container.read(salaSessionProvider);
+    harness.room.holdNextState();
+
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor('a tradução abrir', () => estado().stage == SalaStage.retro);
+    await settle();
+
+    expect(estado().btPhase, BtPhase.conferida);
+    expect(estado().btVeredito, isFalse);
+
+    harness.room.finishHeldState();
+    await waitFor('o veredito chegar', () => estado().btVeredito);
+
+    expect(estado().btPhase, BtPhase.conferida);
+    expect(
+      [for (final f in estado().btFindings) f.kind],
+      [BtFindingKind.nuance],
+    );
+  });
+
+  test('a resume whose re-entry read fails opens the check with the nuance '
+      'mark the resume restored', () async {
+    final (harness, container) = await _relaunchedOnAChecked();
+    SalaSessionState estado() => container.read(salaSessionProvider);
+    harness.room.failStateOnceWith = const NetworkFailed('sem rede');
+
+    container.read(salaSessionProvider.notifier).startRetro();
+    await waitFor(
+      'a tradução abrir',
+      () => estado().stage == SalaStage.retro && !estado().awaitingTheGuide,
+    );
+    await settle();
+
+    expect(estado().btPhase, BtPhase.conferida);
+    expect(
+      [for (final f in estado().btFindings) f.kind],
+      [BtFindingKind.nuance],
+      reason: 'a leitura falha abria a conferência sem a marca de nuance',
+    );
+  });
 }
