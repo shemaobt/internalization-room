@@ -570,7 +570,7 @@ The one place every room result (answered, network failed, refused with a code, 
 _Avoid_: error handler, retry policy
 
 **Disk failure**:
-The tablet could not keep on its own disk audio the room handed over at the scene door (a scene rehearsal's take or one of its frases). It is a failure of the tablet's own, decided by the Failure policy, never read as a network failure. It calls no person, and the scene screen carries its word on the Step it stands on until the team's next gesture (ADR 0129).
+The tablet could not keep on its own disk audio the room handed over at the scene door (a scene rehearsal's take or one of its frases). It is a failure of the tablet's own, decided by the Failure policy, never read as a network failure. It calls no person, and the scene screen says nothing of it, as hers; the Ensaio Final plan carries its word until the team's next gesture (ADR 0129).
 _Avoid_: no network, offline, dead disk (in prose)
 
 **One look**:

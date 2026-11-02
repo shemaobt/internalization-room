@@ -6893,7 +6893,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   void _theFraseNotUnderstood() =>
       state = state.copyWith(scene: state.scene.copyWith(notUnderstood: true));
 
-  /// The disk word stands on the scene screen until the team's next gesture.
+  /// The disk word stands on the Ensaio Final plan until the team's next gesture.
   void _theDiskFailed() =>
       state = state.copyWith(sceneLine: SceneLine.diskFailed);
 

@@ -827,7 +827,6 @@ void main() {
                 channel: const Microphone(MicOwner.frase),
                 language: 'pt',
                 sending: false,
-                line: null,
                 stoppedAt: null,
               ),
             ),

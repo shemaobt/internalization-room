@@ -1471,7 +1471,7 @@ const _watch = ArmTheWatch();
   TheSceneDoorFailed() => (machine, const []),
   TheSceneDiskFailed()
       when switch (machine.station) {
-        SceneRehearsal() || Ensaio(step: EnsaioStep.plan) => true,
+        Ensaio(step: EnsaioStep.plan) => true,
         _ => false,
       } =>
     (machine, const [TellTheDiskFailed()]),
