@@ -207,7 +207,8 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     CurrentSessionLedger current,
     TakeUploadQueue takes,
   ) async {
-    if (!await takes.endTheLife()) {
+    final leaving = (await ledger.read()).team?.projectId;
+    if (!await takes.endTheLife(leaving: leaving)) {
       return _tryAgainLater(() => _endTheLife(ledger, current, takes));
     }
     await _startOver(ledger, current);

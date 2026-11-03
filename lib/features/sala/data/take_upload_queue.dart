@@ -244,6 +244,7 @@ class PendingTake {
     int? waits,
     DateTime? lastTry,
     String? refusal,
+    String? team,
     bool? teamUnknown,
   }) => PendingTake(
     id: id,
@@ -270,7 +271,7 @@ class PendingTake {
     reopensTheApprovedDraft: reopensTheApprovedDraft,
     swap: swap,
     overTake: overTake,
-    team: team,
+    team: team ?? this.team,
     teamUnknown: teamUnknown ?? this.teamUnknown,
   );
 
@@ -739,16 +740,19 @@ class TakeUploadQueue {
 
   bool _lifeEnded = false;
 
-  Future<bool> endTheLife() async {
+  Future<bool> endTheLife({required String? leaving}) async {
     _lifeEnded = true;
+    _lifeTeam = leaving;
     try {
-      await _mutate((_) => const []);
-      final kept = await _inTurn(
-        () => _deleteTheCopies(
-          (copy) async => !_copiesBeingMade.containsKey(copy.path),
-        ),
+      await _mutate(
+        (written) => [
+          for (final row in written)
+            row.team != null || row.teamUnknown
+                ? row
+                : row.copyWith(team: leaving, teamUnknown: leaving == null),
+        ],
       );
-      if (kept.isNotEmpty) return false;
+      if ((await _inTurn(_deleteTheOrphans)).isNotEmpty) return false;
       await _recordings().deleteEveryRecording();
       return true;
     } on FileSystemException {
@@ -803,23 +807,7 @@ class TakeUploadQueue {
     if (_sweptTheCopies) return;
     _sweptTheCopies = true;
     try {
-      await _inTurn(() async {
-        final written = await _written();
-        if (written == null) return;
-        final named = {for (final row in written) p.basename(row.path)};
-        final quarantined = await _quarantineFile();
-        final quarantinedAt = await quarantined.exists()
-            ? await quarantined.lastModified()
-            : null;
-        await _deleteTheCopies(
-          (copy) async =>
-              !named.contains(p.basename(copy.path)) &&
-              !_copiesBeingMade.containsKey(copy.path) &&
-              _inTheAir?.path != copy.path &&
-              (quarantinedAt == null ||
-                  (await copy.lastModified()).isAfter(quarantinedAt)),
-        );
-      });
+      await _inTurn(_deleteTheOrphans);
     } on FileSystemException catch (error) {
       debugPrint(
         'As cópias sem linha não puderam ser varridas da fila: $error',
@@ -829,6 +817,24 @@ class TakeUploadQueue {
         'As cópias sem linha não puderam ser varridas da fila: $error',
       );
     }
+  }
+
+  Future<List<File>> _deleteTheOrphans() async {
+    final written = await _written();
+    if (written == null) return const [];
+    final named = {for (final row in written) p.basename(row.path)};
+    final quarantined = await _quarantineFile();
+    final quarantinedAt = await quarantined.exists()
+        ? await quarantined.lastModified()
+        : null;
+    return _deleteTheCopies(
+      (copy) async =>
+          !named.contains(p.basename(copy.path)) &&
+          !_copiesBeingMade.containsKey(copy.path) &&
+          _inTheAir?.path != copy.path &&
+          (quarantinedAt == null ||
+              (await copy.lastModified()).isAfter(quarantinedAt)),
+    );
   }
 
   static final _aCopy = RegExp(
@@ -1006,24 +1012,19 @@ class TakeUploadQueue {
         swap: swap,
         overTake: overTake,
         team: _lifeTeam,
+        teamUnknown: _lifeEnded && _lifeTeam == null,
       );
       final gone = kind == partTakeKind
           ? await _goneRowsOf(sessionId, scope)
           : const <String>{};
       await _mutate(
-        (written) => _lifeEnded
-            ? written
-            : [
-                for (final row in written)
-                  if (!gone.contains(row.id)) row,
-                entry,
-              ],
+        (written) => [
+          for (final row in written)
+            if (!gone.contains(row.id)) row,
+          entry,
+        ],
       );
-      if (_lifeEnded) {
-        await _deleteTheCopy(entry);
-        if (await audio.exists()) await audio.delete();
-        throw const TheLifeEnded();
-      }
+      if (_lifeEnded) throw const TheLifeEnded();
       tapped(entry.id);
       return entry;
     } finally {
@@ -1237,7 +1238,7 @@ class TakeUploadQueue {
       // Already written off and gone again between the check above and here: the row
       // is already saying so, and rewriting the manifest to say it twice is a write
       // for no change of state.
-      if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
+      if (!entry.lost) await _writeOff(entry);
       return _Landing.held;
     }
     var sent = entry;
@@ -1539,16 +1540,12 @@ class TakeUploadQueue {
     return inTheAir != null && _sameRow(entry, inTheAir);
   }
 
-  Future<bool> _replace(PendingTake target, PendingTake updated) async {
-    var found = false;
-    await _mutate((written) {
-      found = written.any((entry) => _sameRow(entry, target));
-      return [
-        for (final entry in written) _sameRow(entry, target) ? updated : entry,
-      ];
-    });
-    return found;
-  }
+  Future<void> _writeOff(PendingTake target) => _mutate(
+    (written) => [
+      for (final entry in written)
+        _sameRow(entry, target) ? entry.copyWith(lost: true) : entry,
+    ],
+  );
 
   /// A Back-translation stretch is never queued: one an older build left is a stale
   /// translation, and it leaves with its copy before anything is sent.

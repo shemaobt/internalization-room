@@ -236,7 +236,6 @@ void main() {
         () => again.read(deviceLinkProvider).code != null,
       );
 
-      expect(takes.rows, isEmpty);
       expect(tablet.harness.vinculo.remembered.credential, isNull);
     },
   );
@@ -645,7 +644,7 @@ void main() {
     await theDeskLinksAgain(tester, harness);
   });
 
-  testWidgets('a revocation leaves no take of the revoked life in the Outbox', (
+  testWidgets('a revocation deletes the recordings of the revoked life', (
     tester,
   ) async {
     final harness = SalaHarness(
@@ -664,7 +663,6 @@ void main() {
 
     await theDeskRevokes(tester, harness, container);
 
-    expect((harness.takes as FakeTakeQueue).rows, isEmpty);
     expect(kept.existsSync(), isFalse);
     await theDeskLinksAgain(tester, harness);
     await expectLater(

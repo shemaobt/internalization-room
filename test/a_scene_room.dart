@@ -102,10 +102,17 @@ Future<(SalaHarness, ProviderContainer)> translateOnScreen(
   Duration length = const Duration(seconds: 10),
   required SceneRehearsalRecord rehearsal,
   List<SceneRehearsalRecord> alsoListed = const [],
+  Duration? restartLapse,
 }) async {
-  final harness = SalaHarness(filaEmMemoria: true)
-    ..room.passages = const [Passagem(pericope: 'P01', audioUrl: '/voice/p01')]
-    ..room.nextMoment = articulation;
+  final harness =
+      SalaHarness(
+          filaEmMemoria: true,
+          restartLapse: restartLapse ?? const Duration(seconds: 6),
+        )
+        ..room.passages = const [
+          Passagem(pericope: 'P01', audioUrl: '/voice/p01'),
+        ]
+        ..room.nextMoment = articulation;
   harness.room.sceneRehearsals
     ..addAll(alsoListed)
     ..add(rehearsal);
