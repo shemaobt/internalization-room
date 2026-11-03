@@ -4077,10 +4077,9 @@ class FakeTakeQueue implements TakeUploadQueue {
   bool sweepFails = false;
 
   @override
-  Future<bool> endTheLife() async {
+  Future<bool> endTheLife({required String? leaving}) async {
     _lifeEnded = true;
     if (sweepFails) return false;
-    rows.clear();
     await recordings?.deleteEveryRecording();
     return true;
   }
