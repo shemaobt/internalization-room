@@ -23,9 +23,10 @@ lists, counts and lets go only the rows of the team it is linked to now; every o
 disk with its copy, untouched, until the tablet is linked to that team again.
 
 A revocation no longer empties the Outbox nor deletes its copies. It stamps every row without a
-team with the team being left, read from the link file before the link is forgotten; when that
-file cannot say the team, the row is stamped «team unknown», which no team ever matches, so it is
-never sent, never listed and never deleted. A take kept while the revocation lands is kept the same
+team but with a session with the team being left, read from the link file before the link is
+forgotten; when that file cannot say the team, the row is stamped «team unknown», which no team
+ever matches, so it is never sent, never listed and never deleted. A row with neither a team nor a
+session is stamped «team unknown» too, never the team being left (below). A take kept while the revocation lands is kept the same
 way. Only the copies no row names are deleted, except those a quarantined manifest may still name
 (ADR 0087). The recordings folder is still swept (ADR 0135).
 

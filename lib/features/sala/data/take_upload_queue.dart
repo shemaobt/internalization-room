@@ -747,7 +747,9 @@ class TakeUploadQueue {
       await _mutate(
         (written) => [
           for (final row in written)
-            row.team != null || row.teamUnknown
+            _unclaimed(row)
+                ? row.copyWith(teamUnknown: true)
+                : row.team != null || row.teamUnknown
                 ? row
                 : row.copyWith(team: leaving, teamUnknown: leaving == null),
         ],

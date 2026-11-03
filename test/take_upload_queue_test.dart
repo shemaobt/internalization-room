@@ -3404,28 +3404,36 @@ void main() {
       expect(await onTheHomeOf(queue, 'sessao-1'), 0);
     });
 
-    test('a row an older app left with no session is the team unknown\'s, '
+    for (final stamped in [true, false]) {
+      test(
+        'a row an older app left with no session is the team unknown\'s, '
         'never sent nor listed, kept, and not taken by the team the tablet '
-        'leaves', () async {
-      anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
-      final room = FakeRoom();
-      final queue = queueOn(room);
-      await queue.beginALife(team: 'equipe-1');
-      await queue.endTheLife(leaving: 'equipe-1');
+        'leaves${stamped ? '' : ', even when the life ends before its stamp'}',
+        () async {
+          anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
+          final room = FakeRoom();
+          final queue = queueOn(room);
+          if (stamped) await queue.beginALife(team: 'equipe-1');
+          await queue.endTheLife(leaving: 'equipe-1');
 
-      final relaunched = queueOn(room);
-      await relaunched.beginALife(team: 'equipe-1');
-      await relaunched.sweepTheCopiesLeftBehind();
-      await relaunched.dueAgain(
-        '1700000000000000-0',
-        intoTheSession: 'sessao-1',
+          final relaunched = queueOn(room);
+          await relaunched.beginALife(team: 'equipe-1');
+          await relaunched.sweepTheCopiesLeftBehind();
+          await relaunched.dueAgain(
+            '1700000000000000-0',
+            intoTheSession: 'sessao-1',
+          );
+          await aTapOnEveryRow(relaunched);
+
+          expect(room.takeSessions, isEmpty);
+          expect(await onTheHomeOf(relaunched, 'sessao-1'), 0);
+          expect(
+            inTheFolder(),
+            contains('ensaio-antiga-1700000000000000-0.m4a'),
+          );
+        },
       );
-      await aTapOnEveryRow(relaunched);
-
-      expect(room.takeSessions, isEmpty);
-      expect(await onTheHomeOf(relaunched, 'sessao-1'), 0);
-      expect(inTheFolder(), contains('ensaio-antiga-1700000000000000-0.m4a'));
-    });
+    }
     test('a stamp that cannot be written leaves the old session-less row '
         'unlisted and unsent', () async {
       anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
