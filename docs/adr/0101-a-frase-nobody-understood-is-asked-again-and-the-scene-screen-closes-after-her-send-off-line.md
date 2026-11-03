@@ -8,6 +8,8 @@ amends: 0053 (a door of its own and its rows), 0068, 0085, 0099
 
 Amended by 0167 (ENG-1907, 2026-10-30): the reply of «terminei» plays from the moment it lands, beneath the send-off line, and not after the screen closes; the screen still closes after 1.4 s.
 
+Amended by ENG-1920: while her send-off line stands, the circle, «recomeçar a tradução» and «terminei» are not drawn, on the translate step and on places unknown, and the line is written below the message lines, as hers (`Rehearsal.tsx:903-930`).
+
 This amends ADRs 0053, 0068, 0085 and 0099 without editing their decisions; it adds "amended by
 0101" to their status lines. The Definer settled the rules on 19 and 20 October (ENG-1363).
 
