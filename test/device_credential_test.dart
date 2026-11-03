@@ -532,9 +532,11 @@ void main() {
       );
       container.dispose();
       room.holdingTheCredential!.complete();
-      await settle();
 
-      expect((await ledger.read()).team, isNull);
+      await waitFor(
+        'o vínculo ser esquecido',
+        () async => (await ledger.read()).team == null,
+      );
     },
   );
 
