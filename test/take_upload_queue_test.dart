@@ -3405,18 +3405,21 @@ void main() {
     });
 
     test('a row an older app left with no session is the team unknown\'s, '
-        'never sent nor listed, and kept', () async {
+        'never sent nor listed, kept, and not taken by the team the tablet '
+        'leaves', () async {
       anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
       final room = FakeRoom();
       final queue = queueOn(room);
       await queue.beginALife(team: 'equipe-1');
+      await queue.endTheLife(leaving: 'equipe-1');
 
-      await queue.dueAgain('1700000000000000-0', intoTheSession: 'sessao-1');
-      await queue.flush();
       final relaunched = queueOn(room);
-      await relaunched.beginALife(team: 'equipe-2');
-      await relaunched.sweepTheCopiesLeftBehind();
       await relaunched.beginALife(team: 'equipe-1');
+      await relaunched.sweepTheCopiesLeftBehind();
+      await relaunched.dueAgain(
+        '1700000000000000-0',
+        intoTheSession: 'sessao-1',
+      );
       await aTapOnEveryRow(relaunched);
 
       expect(room.takeSessions, isEmpty);

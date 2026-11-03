@@ -30,8 +30,10 @@ way. Only the copies no row names are deleted, except those a quarantined manife
 (ADR 0087). The recordings folder is still swept (ADR 0135).
 
 A row without a team was written by a build before this one. One with a session is the current
-life's, as ADR 0135 left every re-link with an empty Outbox; what one without a session is at
-launch is decided apart (ENG-2125, acceptance 7).
+life's, as ADR 0135 left every re-link with an empty Outbox. One without a session may be a row an
+older build let go under another team, so no team can claim it: the first life begun with a
+team stamps it «team unknown», and until the stamp is written it is never counted as the current
+team's (Henok, 03-11). A stamp the disk refuses is tried again at the next launch.
 
 The row's shape grows by two optional keys, written only when set: `team` and `team_unknown`. They
 sit beside `swap`, written only by the recording home's swap and read as false when missing
