@@ -1136,10 +1136,11 @@ class SalaSessionState {
       (sceneFraseOnTheMove != null || scene.pausa != scene.takeEnd);
 
   /// Whether «recomeçar a tradução» applies: a rehearsal being translated, so never a
-  /// sent one, with a translated frase.
+  /// sent one, nor one on its way to the voice, with a translated frase.
   bool get sceneRestartShown =>
       (scene.step == SceneStep.translate ||
           scene.step == SceneStep.placesUnknown) &&
+      !scene.wentToTheVoice &&
       (scene.rehearsal?.translatedFrases ?? 0) > 0;
 
   /// Whether the room may hold a new translation the team has not seen in the rehearsal

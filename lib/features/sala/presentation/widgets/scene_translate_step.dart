@@ -24,7 +24,9 @@ const _rem = 16.0;
 /// strip, her adjust row under a pending pausa, «traduzir o ensaio da cena» until the
 /// team listens, the circle, «manter a tradução de antes» while a frase is translated
 /// again, her message and the restart's line under them, the frases told, «terminei»,
-/// «recomeçar a tradução», and «gravar o ensaio da cena de novo» under them.
+/// «recomeçar a tradução», and «gravar o ensaio da cena de novo» under them. During the
+/// sent flash the circle, the restart's line, «terminei» and «recomeçar» go, and her
+/// send-off line is written after the message lines.
 class SceneTranslateStep extends ConsumerWidget {
   final SceneScreen scene;
   final Envelope? envelope;
@@ -79,7 +81,9 @@ class SceneTranslateStep extends ConsumerWidget {
       (longest, frase) => max(longest, frase.spanIn(scene.length)),
     );
     final message = _messageOf(frases);
-    final restartLine = _restartLineOf(line, language);
+    final restartLine = scene.wentToTheVoice
+        ? null
+        : _restartLineOf(line, language);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -131,16 +135,17 @@ class SceneTranslateStep extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 12),
-        _TellCircle(
-          voice: telling
-              ? VoiceState.listening
-              : scene.waiting || sending
-              ? VoiceState.thinking
-              : VoiceState.invite,
-          enabled: telling || (!scene.waiting && !sending && !person),
-          edgeWidth: scene.pausa != null ? 2.2 : 1.5,
-          label: said('tell'),
-        ),
+        if (!scene.wentToTheVoice)
+          _TellCircle(
+            voice: telling
+                ? VoiceState.listening
+                : scene.waiting || sending
+                ? VoiceState.thinking
+                : VoiceState.invite,
+            enabled: telling || (!scene.waiting && !sending && !person),
+            edgeWidth: scene.pausa != null ? 2.2 : 1.5,
+            label: said('tell'),
+          ),
         if (scene.translatingAgain != null && !unseen) ...[
           const SizedBox(height: 8),
           _WrittenButton(
@@ -154,6 +159,10 @@ class SceneTranslateStep extends ConsumerWidget {
         if (restartLine != null) ...[
           const SizedBox(height: 8),
           _HerLine(restartLine),
+        ],
+        if (scene.wentToTheVoice) ...[
+          const SizedBox(height: 12),
+          _HerLine(said('wentToTheVoice')),
         ],
         if (frases.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -210,9 +219,6 @@ class SceneTranslateStep extends ConsumerWidget {
     final again = frases.indexWhere(
       (frase) => frase.fraseId == scene.translatingAgain?.fraseId,
     );
-    if (scene.wentToTheVoice) {
-      return sceneRehearsalLabelFor('wentToTheVoice', language);
-    }
     if (_refusalOf(line) case final refusal?) {
       return retroLabelFor(refusal, language);
     }
@@ -351,7 +357,8 @@ class ScenePlacesUnknown extends ConsumerWidget {
     final notifier = ref.read(salaSessionProvider.notifier);
     final colors = SalaColors.of(context);
     String said(String control) => sceneRehearsalLabelFor(control, language);
-    final restartLine = _restartLineOf(line, language);
+    final flash = scene.wentToTheVoice;
+    final restartLine = flash ? null : _restartLineOf(line, language);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -373,18 +380,20 @@ class ScenePlacesUnknown extends ConsumerWidget {
           playing: false,
         ),
         const SizedBox(height: 12),
-        _TellCircle(
-          voice: scene.waiting || sending
-              ? VoiceState.thinking
-              : VoiceState.invite,
-          enabled: false,
-          label: said('tell'),
-        ),
-        const SizedBox(height: 12),
+        if (!flash) ...[
+          _TellCircle(
+            voice: scene.waiting || sending
+                ? VoiceState.thinking
+                : VoiceState.invite,
+            enabled: false,
+            label: said('tell'),
+          ),
+          const SizedBox(height: 12),
+        ],
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _Written(
-            said('placesUnknown'),
+            said(flash ? 'wentToTheVoice' : 'placesUnknown'),
             style: TextStyle(color: colors.mut, fontSize: 16),
           ),
         ),
@@ -402,13 +411,15 @@ class ScenePlacesUnknown extends ConsumerWidget {
             _HerLine(restartLine),
           ],
         ],
-        const SizedBox(height: 16),
-        _WrittenButton(
-          said(sending ? 'sending' : 'send'),
-          live: sendable && !sending,
-          onTap: notifier.sendTheSceneRehearsal,
-          large: true,
-        ),
+        if (!flash) ...[
+          const SizedBox(height: 16),
+          _WrittenButton(
+            said(sending ? 'sending' : 'send'),
+            live: sendable && !sending,
+            onTap: notifier.sendTheSceneRehearsal,
+            large: true,
+          ),
+        ],
         const SizedBox(height: 8),
         _WrittenButton(
           said('again'),
