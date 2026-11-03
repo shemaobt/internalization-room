@@ -511,7 +511,6 @@ void main() {
           'um código novo aparecer',
           () => container.read(deviceLinkProvider).code != null,
         );
-        expect(takes.rows, isEmpty);
       },
     );
   }
@@ -572,7 +571,6 @@ void main() {
         'um código novo aparecer',
         () => container.read(deviceLinkProvider).code != null,
       );
-      expect(takes.rows, isEmpty);
       expect((await ledger.read()).team, isNull);
     },
   );

@@ -92,41 +92,53 @@ void main() {
     );
   }
 
-  test('the end of a life empties the Outbox with its copies and refuses a '
-      'take until the next life begins', () async {
+  test(
+    'the end of a life keeps the Outbox under the team that leaves, a '
+    'take kept as it lands too, and refuses it until the next life',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      await keep(queue, 'velha-1', 'sessao-1');
+      await keep(queue, 'velha-2', 'sessao-2');
+
+      await queue.endTheLife(leaving: 'equipe-1');
+      await expectLater(
+        keep(queue, 'tardia', 'sessao-1'),
+        throwsA(isA<TheLifeEnded>()),
+      );
+
+      await queue.beginALife(team: 'equipe-2');
+      await keep(queue, 'nova', 'sessao-3');
+      expect(await queue.entries(), hasLength(1));
+      await queue.beginALife(team: 'equipe-1');
+      expect(await queue.entries(), hasLength(3));
+    },
+  );
+
+  test(
+    'the end of a life with no team to name keeps its rows for none',
+    () async {
+      final queue = queueOn(FakeRoom()..reachable = false);
+      final kept = await keep(queue, 'velha', 'sessao-1');
+
+      await queue.endTheLife(leaving: null);
+
+      for (final team in ['equipe-1', 'equipe-2']) {
+        await queue.beginALife(team: team);
+        expect(await queue.entries(), isEmpty);
+      }
+      expect(File(kept.path).existsSync(), isTrue);
+    },
+  );
+
+  test('a life that ends with a copy no row names that it cannot delete '
+      'fails, and keeps every row', () async {
     final queue = queueOn(FakeRoom()..reachable = false);
-    await keep(queue, 'velha-1', 'sessao-1');
-    await keep(queue, 'velha-2', 'sessao-2');
+    await keep(queue, 'velha', 'sessao-1');
+    Directory('${home.path}/guardadas/ensaio-orfa-1-0.m4a').createSync();
 
-    await queue.endTheLife();
-
-    expect(await queue.entries(), isEmpty);
-    expect(inTheFolder(), ['fila.json']);
-    await expectLater(
-      keep(queue, 'tardia', 'sessao-1'),
-      throwsA(isA<TheLifeEnded>()),
-    );
+    expect(await queue.endTheLife(leaving: 'equipe-1'), isFalse);
     await queue.beginALife(team: 'equipe-1');
-    await keep(queue, 'nova', 'sessao-3');
     expect(await queue.entries(), hasLength(1));
-  });
-
-  test('a life that ends with a copy it cannot delete leaves no row behind, '
-      'and after a relaunch no row is without its copy', () async {
-    final queue = queueOn(FakeRoom()..reachable = false);
-    final kept = await keep(queue, 'velha', 'sessao-1');
-    await keep(queue, 'outra', 'sessao-1');
-    File(kept.path).deleteSync();
-    Directory(kept.path).createSync();
-
-    expect(await queue.endTheLife(), isFalse);
-    expect(await queue.entries(), isEmpty);
-
-    final relaunched = queueOn(FakeRoom()..reachable = false);
-    expect([
-      for (final row in await relaunched.entries())
-        if (!File(row.path).existsSync()) row.id,
-    ], isEmpty);
   });
 
   test('the end of a life deletes every recording on the tablet', () async {
@@ -134,7 +146,7 @@ void main() {
     final recording = File('${recorder.home.path}/ensaio_parte1.wav')
       ..writeAsBytesSync([1]);
 
-    expect(await queue.endTheLife(), isTrue);
+    expect(await queue.endTheLife(leaving: 'equipe-1'), isTrue);
 
     expect(recording.existsSync(), isFalse);
   });
@@ -147,34 +159,54 @@ void main() {
     ]) {
       recorder.deleteEveryThrows = error;
 
-      expect(await queue.endTheLife(), isFalse);
+      expect(await queue.endTheLife(leaving: 'equipe-1'), isFalse);
     }
   });
 
-  test('a sweep goes on past a copy already gone', () async {
+  test('the end of a life deletes the copies no row names, and only those, '
+      'not the ones a quarantined manifest may name', () async {
     final queue = queueOn(FakeRoom()..reachable = false);
-    final first = await keep(queue, 'velha-1', 'sessao-1');
-    await keep(queue, 'velha-2', 'sessao-1');
-    File(first.path).deleteSync();
+    final row = await keep(queue, 'velha', 'sessao-1');
+    final dir = '${home.path}/guardadas';
+    File('$dir/ensaio-antes-1-0.m4a')
+      ..writeAsStringSync('antes')
+      ..setLastModifiedSync(DateTime(2020));
+    File('$dir/fila.json.ilegivel')
+      ..writeAsStringSync('[')
+      ..setLastModifiedSync(DateTime(2021));
+    File('$dir/ensaio-depois-2-0.m4a').writeAsStringSync('depois');
 
-    expect(await queue.endTheLife(), isTrue);
-    expect(await queue.entries(), isEmpty);
-    expect(inTheFolder(), ['fila.json']);
+    expect(await queue.endTheLife(leaving: 'equipe-1'), isTrue);
+
+    expect(inTheFolder()..sort(), [
+      'ensaio-antes-1-0.m4a',
+      p.basename(row.path),
+      'fila.json',
+      'fila.json.ilegivel',
+    ]);
   });
 
   test(
-    'a take being copied when the life ends leaves no row and no copy',
+    'a take being copied when the life ends is kept under the team that leaves',
     () async {
       final queue = queueOn(FakeRoom()..reachable = false);
+      await queue.beginALife(team: 'equipe-1');
 
       final enqueuing = keep(queue, 'no-ar', 'sessao-1');
-      final ending = queue.endTheLife();
+      final ending = queue.endTheLife(leaving: 'equipe-1');
 
       await expectLater(enqueuing, throwsA(isA<TheLifeEnded>()));
       await ending;
-      expect(File('${home.path}/no-ar.m4a').existsSync(), isFalse);
+      await queue.beginALife(team: 'equipe-2');
       expect(await queue.entries(), isEmpty);
-      expect(inTheFolder(), ['fila.json']);
+      await queue.beginALife(team: 'equipe-1');
+      expect(
+        [
+          for (final row in await queue.entries())
+            if (File(row.path).existsSync()) row.kind,
+        ],
+        ['ensaio'],
+      );
     },
   );
 
@@ -335,8 +367,8 @@ void main() {
       final row = await aJoinRowInTheAir(queue, room);
       await queue.withdrawEvenInTheAir(row);
 
-      expect(await queue.endTheLife(), isTrue);
-      expect(inTheFolder(), ['fila.json']);
+      expect(await queue.endTheLife(leaving: 'equipe-1'), isTrue);
+      expect(inTheFolder(), hasLength(2));
 
       room.finishHeldTake();
       await queue.flush();
@@ -353,13 +385,12 @@ void main() {
         File('${home.path}/guardadas/$ledger').writeAsStringSync('{}');
       }
 
-      expect(await queue.endTheLife(), isTrue);
+      expect(await queue.endTheLife(leaving: 'equipe-1'), isTrue);
 
-      expect(inTheFolder()..sort(), [
-        'em_curso.json',
-        'fila.json',
-        'vinculo.json',
-      ]);
+      expect(
+        inTheFolder(),
+        containsAll(['em_curso.json', 'fila.json', 'vinculo.json']),
+      );
     });
   });
 

@@ -131,6 +131,10 @@ class PendingTake {
   /// wrote has none and is the current life's.
   final String? team;
 
+  /// Stamped on a row whose team cannot be known: never sent, never listed, never
+  /// deleted.
+  final bool teamUnknown;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -157,6 +161,7 @@ class PendingTake {
     this.swap = false,
     this.overTake,
     this.team,
+    this.teamUnknown = false,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
@@ -199,6 +204,7 @@ class PendingTake {
     swap: swap,
     overTake: overTake,
     team: team ?? this.team,
+    teamUnknown: teamUnknown,
   );
 
   PendingTake dueNow() => PendingTake(
@@ -222,6 +228,7 @@ class PendingTake {
     swap: swap,
     overTake: overTake,
     team: team,
+    teamUnknown: teamUnknown,
   );
 
   bool get refusedWithNoCode =>
@@ -237,6 +244,8 @@ class PendingTake {
     int? waits,
     DateTime? lastTry,
     String? refusal,
+    String? team,
+    bool? teamUnknown,
   }) => PendingTake(
     id: id,
     path: path,
@@ -262,7 +271,8 @@ class PendingTake {
     reopensTheApprovedDraft: reopensTheApprovedDraft,
     swap: swap,
     overTake: overTake,
-    team: team,
+    team: team ?? this.team,
+    teamUnknown: teamUnknown ?? this.teamUnknown,
   );
 
   Map<String, Object?> toJson() => {
@@ -291,6 +301,7 @@ class PendingTake {
     if (swap) 'swap': true,
     'over_take': overTake,
     'team': ?team,
+    if (teamUnknown) 'team_unknown': true,
   };
 
   factory PendingTake.fromJson(
@@ -334,6 +345,7 @@ class PendingTake {
     swap: json['swap'] as bool? ?? false,
     overTake: json['over_take'] as String?,
     team: json['team'] as String?,
+    teamUnknown: json['team_unknown'] as bool? ?? false,
   );
 }
 
@@ -728,16 +740,19 @@ class TakeUploadQueue {
 
   bool _lifeEnded = false;
 
-  Future<bool> endTheLife() async {
+  Future<bool> endTheLife({required String? leaving}) async {
     _lifeEnded = true;
+    _lifeTeam = leaving;
     try {
-      await _mutate((_) => const []);
-      final kept = await _inTurn(
-        () => _deleteTheCopies(
-          (copy) async => !_copiesBeingMade.containsKey(copy.path),
-        ),
+      await _mutate(
+        (written) => [
+          for (final row in written)
+            row.team != null || row.teamUnknown
+                ? row
+                : row.copyWith(team: leaving, teamUnknown: leaving == null),
+        ],
       );
-      if (kept.isNotEmpty) return false;
+      if ((await _inTurn(_deleteTheOrphans)).isNotEmpty) return false;
       await _recordings().deleteEveryRecording();
       return true;
     } on FileSystemException {
@@ -751,7 +766,9 @@ class TakeUploadQueue {
   String? _lifeTeam;
 
   bool _mine(PendingTake row) =>
-      !_lifeBegun || _lifeTeam != null && (row.team ?? _lifeTeam) == _lifeTeam;
+      !row.teamUnknown &&
+      (!_lifeBegun ||
+          _lifeTeam != null && (row.team ?? _lifeTeam) == _lifeTeam);
 
   Future<void> beginALife({required String? team}) async {
     _lifeEnded = false;
@@ -771,23 +788,7 @@ class TakeUploadQueue {
     if (_sweptTheCopies) return;
     _sweptTheCopies = true;
     try {
-      await _inTurn(() async {
-        final written = await _written();
-        if (written == null) return;
-        final named = {for (final row in written) p.basename(row.path)};
-        final quarantined = await _quarantineFile();
-        final quarantinedAt = await quarantined.exists()
-            ? await quarantined.lastModified()
-            : null;
-        await _deleteTheCopies(
-          (copy) async =>
-              !named.contains(p.basename(copy.path)) &&
-              !_copiesBeingMade.containsKey(copy.path) &&
-              _inTheAir?.path != copy.path &&
-              (quarantinedAt == null ||
-                  (await copy.lastModified()).isAfter(quarantinedAt)),
-        );
-      });
+      await _inTurn(_deleteTheOrphans);
     } on FileSystemException catch (error) {
       debugPrint(
         'As cópias sem linha não puderam ser varridas da fila: $error',
@@ -797,6 +798,24 @@ class TakeUploadQueue {
         'As cópias sem linha não puderam ser varridas da fila: $error',
       );
     }
+  }
+
+  Future<List<File>> _deleteTheOrphans() async {
+    final written = await _written();
+    if (written == null) return const [];
+    final named = {for (final row in written) p.basename(row.path)};
+    final quarantined = await _quarantineFile();
+    final quarantinedAt = await quarantined.exists()
+        ? await quarantined.lastModified()
+        : null;
+    return _deleteTheCopies(
+      (copy) async =>
+          !named.contains(p.basename(copy.path)) &&
+          !_copiesBeingMade.containsKey(copy.path) &&
+          _inTheAir?.path != copy.path &&
+          (quarantinedAt == null ||
+              (await copy.lastModified()).isAfter(quarantinedAt)),
+    );
   }
 
   static final _aCopy = RegExp(
@@ -974,24 +993,19 @@ class TakeUploadQueue {
         swap: swap,
         overTake: overTake,
         team: _lifeTeam,
+        teamUnknown: _lifeEnded && _lifeTeam == null,
       );
       final gone = kind == partTakeKind
           ? await _goneRowsOf(sessionId, scope)
           : const <String>{};
       await _mutate(
-        (written) => _lifeEnded
-            ? written
-            : [
-                for (final row in written)
-                  if (!gone.contains(row.id)) row,
-                entry,
-              ],
+        (written) => [
+          for (final row in written)
+            if (!gone.contains(row.id)) row,
+          entry,
+        ],
       );
-      if (_lifeEnded) {
-        await _deleteTheCopy(entry);
-        if (await audio.exists()) await audio.delete();
-        throw const TheLifeEnded();
-      }
+      if (_lifeEnded) throw const TheLifeEnded();
       tapped(entry.id);
       return entry;
     } finally {

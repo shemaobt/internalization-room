@@ -1,5 +1,5 @@
 ---
-status: accepted, amended in place on 2026-10-29 (ENG-2012: the manifest empties first, and the sweep reads the folder)
+status: accepted, amended in place on 2026-10-29 (ENG-2012: the manifest empties first, and the sweep reads the folder), amended by 0179 (the Outbox is no longer swept; the recordings folder still is)
 date: 2026-10-26
 amends: 0070
 ---
