@@ -40,10 +40,9 @@ const _buttons = [_scene1, _scene2, _scene3];
 const _chip2 = 'cena 2 · Primeiro apelo e recusa — $_question';
 const _chip3 = 'cena 3 · Segundo apelo e a separação — $_question';
 const _record = 'Gravar o ensaio da cena';
-const _recording =
-    'gravem o ensaio da cena na língua materna; toquem para parar';
-const _saving = 'guardando o ensaio da cena…';
-const _retry = 'falhou — toque para tentar de novo';
+const _recording = 'Parar';
+const _saving = 'Gravar o ensaio da cena';
+const _retryName = 'Tentar enviar de novo';
 const _again = 'gravar o ensaio da cena de novo';
 
 const _wake = Duration(milliseconds: 600);
@@ -1125,7 +1124,7 @@ void main() {
         expect(_shows(_question), isFalse);
 
         room.room.failSceneWith = null;
-        await tester.tap(byLabel(_retry));
+        await tester.tap(byLabel(_retryName));
         await room.pumpUntil(
           'o ensaio abrir na tradução',
           () => room.state.scene.step == SceneStep.translate,
@@ -1210,7 +1209,7 @@ void main() {
 
         expect(room.state.scene.keep, isA<NotKept>());
         expect(byLabel(_question), findsOneWidget);
-        expect(byLabel(_retry), findsOneWidget);
+        expect(byLabel(_retryName), findsOneWidget);
         expect(find.byType(SceneChip), findsNothing);
         closeTheRoom(room.container);
       },
@@ -1238,7 +1237,7 @@ void main() {
         await room.sleepThrough();
         await room.recordAndStop();
         if (room.room.sceneLabels.length < 2) {
-          await tester.tap(byLabel(_retry));
+          await tester.tap(byLabel(_retryName));
         }
         await room.pumpUntil(
           'os dois takes chegarem à sala',
@@ -1288,7 +1287,7 @@ void main() {
 
         await room.recordAndStop();
         if (room.room.sceneLabels.length < 2) {
-          await tester.tap(byLabel(_retry));
+          await tester.tap(byLabel(_retryName));
         }
         await room.pumpUntil(
           'os dois takes chegarem à sala',
@@ -1316,7 +1315,7 @@ void main() {
         expect(room.state.scene.keep, isA<NotKept>());
         expect(byLabel(_theList), findsOneWidget);
 
-        await tester.tap(byLabel(_retry));
+        await tester.tap(byLabel(_retryName));
         await room.pumpUntil(
           'o ensaio abrir na tradução',
           () => room.state.scene.step == SceneStep.translate,

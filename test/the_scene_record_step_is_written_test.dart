@@ -120,7 +120,7 @@ void main() {
 
   testWidgets(
     'while the take is kept VoiceOver hears «guardando o ensaio da cena…» '
-    'once, from the circle, not again from the line under it',
+    'once, from the line under the circle, not again from the circle',
     (tester) async {
       final semantics = tester.ensureSemantics();
       late SceneRoom room;

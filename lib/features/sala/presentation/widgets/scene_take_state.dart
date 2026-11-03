@@ -31,7 +31,8 @@ class SceneRecordHint extends StatelessWidget {
     );
     Widget written(String words) =>
         Text(words, textAlign: TextAlign.center, style: style);
-    return ExcludeSemantics(
+    return Semantics(
+      liveRegion: true,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 36 * chOf(context, style)),
         child: recording
@@ -117,7 +118,7 @@ class SceneTakeState extends StatelessWidget {
           else
             Semantics(
               button: true,
-              label: label('retry'),
+              label: label('retryAria'),
               onTap: onRetry,
               excludeSemantics: true,
               child: TextButton(

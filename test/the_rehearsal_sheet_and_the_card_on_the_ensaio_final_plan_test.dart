@@ -39,11 +39,7 @@ const _join = 'juntar as cenas e ouvir';
 const _sceneByScene = 'Gravar cena por cena';
 const _wholeAtOnce = 'gravar a passagem inteira de uma vez';
 const _houseBack = 'Voltar para a passagem atual';
-const _circle = [
-  'Gravar o ensaio da cena',
-  'gravem o ensaio da cena na língua materna; toquem para parar',
-  'guardando o ensaio da cena…',
-];
+const _circle = ['Gravar o ensaio da cena', 'Parar'];
 
 const _threeScenes = [
   Scene(sceneId: 'S1', title: 'A fome em Belém'),
