@@ -1,0 +1,36 @@
+name: Earlier visit loop
+
+on:
+  pull_request:
+
+env:
+  FLUTTER_VERSION: 3.44.9
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get --enforce-lockfile
+
+      - run: cp .env.example .env
+
+      - name: Repeat the file until it fails
+        run: |
+          for i in $(seq 1 12); do
+            echo "::group::run $i"
+            flutter test --reporter expanded --concurrency=2 test/a_part_sent_on_an_earlier_visit_is_named_when_it_lands_test.dart || { echo "::endgroup::"; echo "::error::failed on run $i"; exit 1; }
+            echo "::endgroup::"
+          done
