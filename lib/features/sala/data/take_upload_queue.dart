@@ -1219,7 +1219,7 @@ class TakeUploadQueue {
       // Already written off and gone again between the check above and here: the row
       // is already saying so, and rewriting the manifest to say it twice is a write
       // for no change of state.
-      if (!entry.lost) await _replace(entry, entry.copyWith(lost: true));
+      if (!entry.lost) await _writeOff(entry);
       return _Landing.held;
     }
     var sent = entry;
@@ -1521,16 +1521,12 @@ class TakeUploadQueue {
     return inTheAir != null && _sameRow(entry, inTheAir);
   }
 
-  Future<bool> _replace(PendingTake target, PendingTake updated) async {
-    var found = false;
-    await _mutate((written) {
-      found = written.any((entry) => _sameRow(entry, target));
-      return [
-        for (final entry in written) _sameRow(entry, target) ? updated : entry,
-      ];
-    });
-    return found;
-  }
+  Future<void> _writeOff(PendingTake target) => _mutate(
+    (written) => [
+      for (final entry in written)
+        _sameRow(entry, target) ? entry.copyWith(lost: true) : entry,
+    ],
+  );
 
   /// A Back-translation stretch is never queued: one an older build left is a stale
   /// translation, and it leaves with its copy before anything is sent.
