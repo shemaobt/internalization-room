@@ -29,8 +29,9 @@ never sent, never listed and never deleted. A take kept while the revocation lan
 way. Only the copies no row names are deleted, except those a quarantined manifest may still name
 (ADR 0087). The recordings folder is still swept (ADR 0135).
 
-A row without a team was written by a build before this one, and is the current life's, as ADR
-0135 left every re-link with an empty Outbox.
+A row without a team was written by a build before this one. One with a session is the current
+life's, as ADR 0135 left every re-link with an empty Outbox; what one without a session is at
+launch is decided apart (ENG-2125, acceptance 7).
 
 The row's shape grows by two optional keys, written only when set: `team` and `team_unknown`. They
 sit beside `swap`, written only by the recording home's swap and read as false when missing
@@ -48,8 +49,7 @@ sit beside `swap`, written only by the recording home's swap and read as false w
 - An older build reads the manifest by key and ignores both. A downgrade sends a row at once under
   the current link: under another team, its session answers 404, it is let go to its passage and
   sent into that team's session of the passage. A downgrade is not a supported path.
-- After a downgrade and an upgrade, the rows the older build rewrote carry no team again and are
-  the current life's.
+- After a downgrade and an upgrade, the rows the older build rewrote carry no team again.
 - Takes of a team never linked again, and «team unknown» rows, stay on disk with no bound and no
   way to reach them yet (a finding for the close).
 - No sign on screen shows takes held under another team (Henok, 30-10).
