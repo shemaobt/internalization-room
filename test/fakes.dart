@@ -1061,7 +1061,11 @@ class FakeWorkInProgress implements WorkInProgress {
   ) async {
     written.add(point);
     rows['$book/$pericope/$language'] = point;
+    afterRemember?.call(point);
   }
+
+  /// Runs right after a row is written: the instant a kill can come.
+  void Function(ResumePoint point)? afterRemember;
 
   @override
   Future<void> forget(String book, String pericope, String language) async =>

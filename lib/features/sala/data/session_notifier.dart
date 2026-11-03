@@ -2731,7 +2731,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(
       _mindingThePlace(
-        () => _forgetTheSessionOnDisk(sessionId, kept, passage),
+        (open) => _forgetTheSessionOnDisk(open, sessionId, kept, passage),
       ).whenComplete(() => _countUnsentIn(life)),
     );
   }
@@ -2840,11 +2840,11 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   /// The session's memory goes; its takes still unsent stay in the Outbox under
   /// [passage], for the passage's next session.
   Future<void> _forgetTheSessionOnDisk(
+    WorkInProgress open,
     String? sessionId,
     List<KeptTake> kept,
     String? passage,
   ) async {
-    final open = _emAberto;
     final queue = _takes;
     final recorder = _recorder;
     if (sessionId != null) {
@@ -2984,7 +2984,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           _endsOf.remove(waiting.sessionId);
           unawaited(_store.letGoOfTheEnd(waiting.sessionId).catchError((_) {}));
           unawaited(
-            _mindingThePlace(() => _emAberto.forget(book, pericope!, speaking)),
+            _mindingThePlace((open) => open.forget(book, pericope!, speaking)),
           );
         }
       }
@@ -3044,7 +3044,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (pericope != null && !resumed) {
       unawaited(
         _mindingThePlace(
-          () => _emAberto.remember(
+          (open) => open.remember(
             book,
             pericope,
             speaking,
@@ -3319,7 +3319,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     unawaited(
       _mindingThePlace(
-        () => _emAberto.remember(
+        (open) => open.remember(
           passage.book,
           pericope,
           language,
@@ -7927,28 +7927,33 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String? kept;
     try {
       final audio = File(path);
-      if (!await audio.exists()) {
-        if (!_endedSince(life)) {
-          _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
-          await _countedFromNow(life);
-        }
-        return null;
-      }
-      final PendingTake linha;
+      final row = _theRowFirst(
+        () async => await audio.exists()
+            ? await queue.enqueue(
+                audio,
+                sessionId: sessionId,
+                passage: passage,
+                kind: kind,
+                scope: scope,
+                passNumber: passNumber,
+                chunkIndex: chunkIndex,
+              )
+            : null,
+      );
+      final PendingTake? linha;
       try {
-        linha = await queue.enqueue(
-          audio,
-          sessionId: sessionId,
-          passage: passage,
-          kind: kind,
-          scope: scope,
-          passNumber: passNumber,
-          chunkIndex: chunkIndex,
-        );
+        linha = await row;
       } on Object {
         if (_endedSince(life)) return null;
         _notInTheOutbox(path, kind, scope, passNumber, sessionId);
         await _countedFromNow(life);
+        return null;
+      }
+      if (linha == null) {
+        if (!_endedSince(life)) {
+          _notInTheOutbox(path, kind, scope, passNumber, sessionId, gone: true);
+          await _countedFromNow(life);
+        }
         return null;
       }
       kept = linha.id;
@@ -8421,14 +8426,41 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     return measured;
   }
 
-  Future<void> _mindingThePlace(Future<void> Function() write) =>
-      _apart(() async {
-        try {
-          await write();
-        } on Object catch (error) {
-          debugPrint('O lugar da equipe não pôde ser guardado: $error');
-        }
-      });
+  /// A keep's Outbox row, written before any Resume point that names its part: a kill
+  /// between the two then finds the part in the Outbox, never nameless and unsent.
+  Future<T> _theRowFirst<T>(Future<T> Function() write) {
+    final row = write();
+    final settled = row.then<void>((_) {}, onError: (_) {});
+    _rowsOnTheirWay.add(settled);
+    unawaited(settled.whenComplete(() => _rowsOnTheirWay.remove(settled)));
+    return row;
+  }
+
+  final Set<Future<void>> _rowsOnTheirWay = {};
+
+  Future<void> _place = Future<void>.value();
+
+  int _placesWaiting = 0;
+
+  Future<void> _mindingThePlace(
+    Future<void> Function(WorkInProgress open) write,
+  ) {
+    final open = _emAberto;
+    Future<void> writing() => _apart(() async {
+      try {
+        await write(open);
+      } on Object catch (error) {
+        debugPrint('O lugar da equipe não pôde ser guardado: $error');
+      }
+    });
+    if (_rowsOnTheirWay.isEmpty && _placesWaiting == 0) return writing();
+    final rows = Future.wait([..._rowsOnTheirWay]);
+    _placesWaiting++;
+    return _place = _place
+        .then((_) => rows)
+        .then((_) => writing())
+        .whenComplete(() => _placesWaiting--);
+  }
 
   void theAppWentAway() {
     _cortarAEscutaNoAr();

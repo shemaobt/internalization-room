@@ -143,6 +143,41 @@ void main() {
     );
   });
 
+  test('a kill the instant the row is written with a new part finds the part '
+      'in the Outbox on the relaunch, the retro door dark', () async {
+    final harness = SalaHarness();
+    final container = await aRetomadaNoEnsaio(
+      harness,
+      traduzidasAte: [30000, 30000],
+    );
+    harness.room.unreachableTake = 'ensaio/$_parte3';
+    harness.emAberto.afterRemember = (point) {
+      if (!point.takes.any((take) => take.scopeId == _parte3)) return;
+      harness.emAberto.afterRemember = null;
+      harness.endTheLifeOnTheDisk();
+    };
+    await gravarSemEsperarNome(container, 3);
+    final (_, depois) = await relaunch(harness, container);
+    final lit = <bool>[];
+    depois.listen(salaSessionProvider, (_, state) => lit.add(state.ensaioDone));
+
+    await _voltarAoEnsaio(depois);
+    await waitFor(
+      'a parte 3 aparecer por enviar',
+      () => depois.read(salaSessionProvider).unsentParts.containsKey(3),
+      limit: const Duration(seconds: 5),
+    );
+
+    expect(
+      lit,
+      everyElement(isFalse),
+      reason:
+          'a linha de retomada ia ao disco antes da fila: morto o app entre as '
+          'duas, a parte voltava sem nome e fora da fila, e a porta acendia '
+          'sobre uma gravação que nunca seria enviada',
+    );
+  });
+
   test('a part that landed while the app was closed lights the retro door on '
       'the relaunch, though the listing has not named it', () async {
     final harness = SalaHarness();
