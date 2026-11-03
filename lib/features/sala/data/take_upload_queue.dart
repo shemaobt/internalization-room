@@ -127,6 +127,10 @@ class PendingTake {
   /// part's take is another by then.
   final String? overTake;
 
+  /// The team the row was recorded under, as its link's project; a row an older app
+  /// wrote has none and is the current life's.
+  final String? team;
+
   const PendingTake({
     required this.id,
     required this.path,
@@ -152,6 +156,7 @@ class PendingTake {
     this.reopensTheApprovedDraft = false,
     this.swap = false,
     this.overTake,
+    this.team,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
@@ -164,7 +169,11 @@ class PendingTake {
 
   /// The row as it goes into [sessionId], kept under [passage] so the passage's next
   /// session can find it once that session is gone.
-  PendingTake inTheSession(String? sessionId, {String? passage}) => PendingTake(
+  PendingTake inTheSession(
+    String? sessionId, {
+    String? passage,
+    String? team,
+  }) => PendingTake(
     id: id,
     path: path,
     sessionId: sessionId,
@@ -189,6 +198,7 @@ class PendingTake {
     reopensTheApprovedDraft: reopensTheApprovedDraft,
     swap: swap,
     overTake: overTake,
+    team: team ?? this.team,
   );
 
   PendingTake dueNow() => PendingTake(
@@ -211,6 +221,7 @@ class PendingTake {
     reopensTheApprovedDraft: reopensTheApprovedDraft,
     swap: swap,
     overTake: overTake,
+    team: team,
   );
 
   bool get refusedWithNoCode =>
@@ -251,6 +262,7 @@ class PendingTake {
     reopensTheApprovedDraft: reopensTheApprovedDraft,
     swap: swap,
     overTake: overTake,
+    team: team,
   );
 
   Map<String, Object?> toJson() => {
@@ -278,6 +290,7 @@ class PendingTake {
     'reopens_the_approved_draft': reopensTheApprovedDraft,
     if (swap) 'swap': true,
     'over_take': overTake,
+    'team': ?team,
   };
 
   factory PendingTake.fromJson(
@@ -320,6 +333,7 @@ class PendingTake {
         json['reopens_the_approved_draft'] as bool? ?? false,
     swap: json['swap'] as bool? ?? false,
     overTake: json['over_take'] as String?,
+    team: json['team'] as String?,
   );
 }
 
@@ -421,7 +435,10 @@ class TakeUploadQueue {
     }
   }
 
-  Future<List<PendingTake>> entries() async => await _written() ?? const [];
+  Future<List<PendingTake>> entries() async => [
+    for (final entry in await _written() ?? const <PendingTake>[])
+      if (_mine(entry)) entry,
+  ];
 
   Future<List<PendingTake>> pending() async => [
     for (final entry in await entries())
@@ -498,7 +515,7 @@ class TakeUploadQueue {
   Future<int> unsentOf(String kind, {required String sessionId}) async =>
       _unsentIn(await _written(), kind, sessionId);
 
-  static int _unsentIn(
+  int _unsentIn(
     List<PendingTake>? written,
     String kind,
     String? sessionId, {
@@ -529,13 +546,11 @@ class TakeUploadQueue {
   }
 
   /// A row of [sessionId], or one of [passage] whose session is gone.
-  static bool _ofTheVisit(
-    PendingTake entry,
-    String? sessionId,
-    String? passage,
-  ) => entry.sessionId == null
-      ? passage != null && entry.passage == passage
-      : entry.sessionId == sessionId;
+  bool _ofTheVisit(PendingTake entry, String? sessionId, String? passage) =>
+      _mine(entry) &&
+      (entry.sessionId == null
+          ? passage != null && entry.passage == passage
+          : entry.sessionId == sessionId);
 
   Future<String?> fingerprintOf(String path) async {
     try {
@@ -642,11 +657,12 @@ class TakeUploadQueue {
       parts: {
         for (final row in _confirmed.keys) row: PartFact.sent,
         for (final entry in written ?? const <PendingTake>[])
-          entry.id: entry.stored
-              ? PartFact.sent
-              : trying.contains(entry.id)
-              ? PartFact.pending
-              : PartFact.stranded,
+          if (_mine(entry))
+            entry.id: entry.stored
+                ? PartFact.sent
+                : trying.contains(entry.id)
+                ? PartFact.pending
+                : PartFact.stranded,
       },
       unsentTakes: written == null
           ? 1
@@ -731,7 +747,17 @@ class TakeUploadQueue {
     }
   }
 
-  void beginALife() => _lifeEnded = false;
+  bool _lifeBegun = false;
+  String? _lifeTeam;
+
+  bool _mine(PendingTake row) =>
+      !_lifeBegun || _lifeTeam != null && (row.team ?? _lifeTeam) == _lifeTeam;
+
+  Future<void> beginALife({required String? team}) async {
+    _lifeEnded = false;
+    _lifeBegun = true;
+    _lifeTeam = team;
+  }
 
   /// The copies `enqueue` has made and not yet written a row for, each until its keep
   /// settles.
@@ -818,7 +844,7 @@ class TakeUploadQueue {
   /// written its row or failed to.
   Future<Set<String>> recordingsItHolds(Iterable<String> recordings) async {
     await Future.wait(_copiesBeingMade.values);
-    final rows = await entries();
+    final rows = await _written() ?? const <PendingTake>[];
     return {
       for (final recording in recordings)
         if (rows.any(
@@ -947,6 +973,7 @@ class TakeUploadQueue {
         reopensTheApprovedDraft: reopensTheApprovedDraft,
         swap: swap,
         overTake: overTake,
+        team: _lifeTeam,
       );
       final gone = kind == partTakeKind
           ? await _goneRowsOf(sessionId, scope)
@@ -1554,6 +1581,7 @@ class TakeUploadQueue {
           for (var i = 0; i < written.length; i++)
             i == at ||
                     i < at &&
+                        _mine(written[i]) &&
                         written[i].kind == sceneTakeKind &&
                         written[i].sessionId == written[at].sessionId &&
                         (written[i].sessionId != null ||
@@ -1582,7 +1610,7 @@ class TakeUploadQueue {
     return _mutate(
       (written) => [
         for (final entry in written)
-          if (entry.id != row)
+          if (entry.id != row || !_mine(entry))
             entry
           else if (entry.sessionId == null)
             entry.dueNow().inTheSession(intoTheSession)
@@ -1634,8 +1662,8 @@ class TakeUploadQueue {
         (written) => [
           for (final entry in written)
             switch (entry.passage ?? passage) {
-              final known? when entry.sessionId == sessionId =>
-                entry.inTheSession(null, passage: known),
+              final known? when entry.sessionId == sessionId && _mine(entry) =>
+                entry.inTheSession(null, passage: known, team: _lifeTeam),
               _ => entry,
             },
         ],

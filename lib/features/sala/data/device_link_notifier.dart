@@ -86,7 +86,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     }
     _failures = 0;
     _deviceId = remembered.deviceId;
-    final flushed = _present(remembered.credential);
+    final flushed = _present(remembered.credential, team: remembered.team);
     final team = remembered.team;
     if (team != null) {
       state = DeviceLink(team: team, presented: _credential != null);
@@ -218,7 +218,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
   /// as the one thing still arriving unnamed.
   ///
   /// The room opens with it; the takes that waited for it stay until their own tap.
-  Future<void> _present(String? credential) async {
+  Future<void> _present(String? credential, {TeamLink? team}) async {
     _credential = credential;
     _room.presents(credential);
     _inbox.presents(credential);
@@ -227,7 +227,11 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       team: state.team,
       presented: credential != null,
     );
-    if (credential != null) ref.read(takeUploadQueueProvider).beginALife();
+    if (credential != null) {
+      await ref
+          .read(takeUploadQueueProvider)
+          .beginALife(team: (team ?? state.team)?.projectId);
+    }
   }
 
   Future<void> _showACode() async {
@@ -266,6 +270,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
           }
           if (_closed) return;
           state = DeviceLink(team: team, presented: _credential != null);
+          if (_credential != null) await takes.beginALife(team: team.projectId);
           return _collectTheCredential();
         }
         final showing = state.code;

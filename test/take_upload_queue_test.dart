@@ -106,7 +106,7 @@ void main() {
       keep(queue, 'tardia', 'sessao-1'),
       throwsA(isA<TheLifeEnded>()),
     );
-    queue.beginALife();
+    await queue.beginALife(team: 'equipe-1');
     await keep(queue, 'nova', 'sessao-3');
     expect(await queue.entries(), hasLength(1));
   });
@@ -3225,6 +3225,148 @@ void main() {
       expect(home.existsSync(), isFalse);
     },
   );
+
+  group('an Outbox row belongs to the team that recorded it', () {
+    const passage = 'Genesis/P01/pt';
+
+    Future<PendingTake> aPart(TakeUploadQueue queue, String? session) =>
+        queue.enqueue(
+          aTake('parte-$session'),
+          sessionId: session,
+          passage: passage,
+          kind: 'ensaio',
+          scope: 'parte-1',
+          passNumber: 1,
+          chunkIndex: 1,
+        );
+
+    Future<PendingTake> aScene(TakeUploadQueue queue, String name) =>
+        queue.enqueue(
+          aTake(name),
+          sessionId: null,
+          passage: passage,
+          kind: 'cena',
+          scope: 'cena',
+        );
+
+    Future<int> onTheHomeOf(TakeUploadQueue queue, String session) async {
+      final tally = await queue.tally(sessionId: session, passage: passage);
+      return tally.unsentTakes;
+    }
+
+    test("no take of another team is sent, listed or let go into the new "
+        "team's session of its passage", () async {
+      final room = FakeRoom()..reachable = false;
+      final queue = queueOn(room);
+      await queue.beginALife(team: 'equipe-1');
+      final theirs = await aPart(queue, 'sessao-1');
+      final theirScene = await aScene(queue, 'cena-a');
+      await queue.flush();
+      room
+        ..reachable = true
+        ..takeSessions.clear();
+
+      await queue.beginALife(team: 'equipe-2');
+      final ours = await aScene(queue, 'cena-b');
+      await queue.dueAgain(theirs.id);
+      await queue.flush();
+      await queue.letGoOfTheSession('sessao-1', passage: passage);
+      await queue.dueAgain(theirScene.id, intoTheSession: 'sessao-9');
+      await queue.keepTheScene(ours.id, intoTheSession: 'sessao-9');
+
+      expect(room.takeSessions, isEmpty);
+      expect(room.scenesKept, ['sessao-9']);
+      expect(await onTheHomeOf(queue, 'sessao-9'), 0);
+      expect(await queue.pending(), isEmpty);
+      expect(
+        (await queue.tally(sessionId: 'sessao-9', passage: passage)).parts,
+        isNot(contains(theirs.id)),
+      );
+
+      await queue.beginALife(team: 'equipe-1');
+      await queue.dueAgain(theirs.id);
+      await queue.flush();
+      expect(room.takeSessions, ['sessao-1']);
+      expect(room.scenesKept, ['sessao-9']);
+    });
+
+    test(
+      "another team's row survives the new team's open sweep and flush",
+      () async {
+        final room = FakeRoom();
+        final first = queueOn(room);
+        await first.beginALife(team: 'equipe-1');
+        final ours = await aPart(first, 'sessao-1');
+        final gone = await aPart(first, null);
+        File(gone.path).deleteSync();
+
+        final relaunched = queueOn(room);
+        await relaunched.beginALife(team: 'equipe-2');
+        await relaunched.sweepTheCopiesLeftBehind();
+        await aPart(relaunched, null);
+        await relaunched.flush();
+        expect(File(ours.path).existsSync(), isTrue);
+        expect(
+          await relaunched.recordingsItHolds([
+            '${home.path}/parte-sessao-1.m4a',
+          ]),
+          hasLength(1),
+        );
+
+        await relaunched.beginALife(team: 'equipe-1');
+        expect(
+          [for (final row in await relaunched.pending()) row.id],
+          [ours.id, gone.id],
+        );
+        relaunched.tapped(ours.id);
+        await relaunched.flush();
+        expect(room.takeSessions, ['sessao-1']);
+      },
+    );
+
+    test('a life whose team is not known sends and lists nothing', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await queue.beginALife(team: null);
+      await aPart(queue, 'sessao-1');
+
+      await queue.flush();
+
+      expect(room.takeSessions, isEmpty);
+      expect(await onTheHomeOf(queue, 'sessao-1'), 0);
+    });
+
+    test(
+      "an older app's row let go under its team stays that team's",
+      () async {
+        final dir = Directory('${home.path}/guardadas')..createSync();
+        File('${dir.path}/ensaio-antiga-1-0.m4a').writeAsStringSync('antes');
+        File('${dir.path}/fila.json').writeAsStringSync(
+          '[{"id":"1-0","name":"ensaio-antiga-1-0.m4a","session_id":"sessao-1",'
+          '"passage":"$passage","kind":"ensaio","scope":"parte-1"}]',
+        );
+        final queue = queueOn(FakeRoom());
+        await queue.beginALife(team: 'equipe-1');
+        await queue.letGoOfTheSession('sessao-1', passage: passage);
+
+        await queue.beginALife(team: 'equipe-2');
+
+        expect(await onTheHomeOf(queue, 'sessao-9'), 0);
+      },
+    );
+
+    test("a session-less row made due again stays its team's under the next "
+        'team', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await queue.beginALife(team: 'equipe-1');
+      await queue.dueAgain((await aPart(queue, null)).id);
+
+      await queue.beginALife(team: 'equipe-2');
+
+      expect(await onTheHomeOf(queue, 'sessao-9'), 0);
+    });
+  });
 }
 
 final class _Plain extends IOOverrides {}
