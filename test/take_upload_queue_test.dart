@@ -114,21 +114,24 @@ void main() {
     },
   );
 
-  test(
-    'the end of a life with no team to name keeps its rows for none',
-    () async {
-      final queue = queueOn(FakeRoom()..reachable = false);
-      final kept = await keep(queue, 'velha', 'sessao-1');
+  test('a flush that writes a row off as the life ends keeps the stamp of the '
+      'team that leaves', () async {
+    Directory('${home.path}/guardadas').createSync();
+    manifest().writeAsStringSync(
+      '[{"id":"antiga","name":"ensaio-antiga-1-0.m4a","session_id":"sessao-1",'
+      '"kind":"ensaio","scope":"inteira"}]',
+    );
+    final queue = queueOn(FakeRoom());
+    await queue.beginALife(team: 'equipe-1');
+    queue.tapped('antiga');
 
-      await queue.endTheLife(leaving: null);
+    final flushing = queue.flush();
+    await queue.endTheLife(leaving: 'equipe-1');
+    await flushing;
 
-      for (final team in ['equipe-1', 'equipe-2']) {
-        await queue.beginALife(team: team);
-        expect(await queue.entries(), isEmpty);
-      }
-      expect(File(kept.path).existsSync(), isTrue);
-    },
-  );
+    await queue.beginALife(team: 'equipe-2');
+    expect(await queue.entries(), isEmpty);
+  });
 
   test('a life that ends with a copy no row names that it cannot delete '
       'fails, and keeps every row', () async {
@@ -161,29 +164,6 @@ void main() {
 
       expect(await queue.endTheLife(leaving: 'equipe-1'), isFalse);
     }
-  });
-
-  test('the end of a life deletes the copies no row names, and only those, '
-      'not the ones a quarantined manifest may name', () async {
-    final queue = queueOn(FakeRoom()..reachable = false);
-    final row = await keep(queue, 'velha', 'sessao-1');
-    final dir = '${home.path}/guardadas';
-    File('$dir/ensaio-antes-1-0.m4a')
-      ..writeAsStringSync('antes')
-      ..setLastModifiedSync(DateTime(2020));
-    File('$dir/fila.json.ilegivel')
-      ..writeAsStringSync('[')
-      ..setLastModifiedSync(DateTime(2021));
-    File('$dir/ensaio-depois-2-0.m4a').writeAsStringSync('depois');
-
-    expect(await queue.endTheLife(leaving: 'equipe-1'), isTrue);
-
-    expect(inTheFolder()..sort(), [
-      'ensaio-antes-1-0.m4a',
-      p.basename(row.path),
-      'fila.json',
-      'fila.json.ilegivel',
-    ]);
   });
 
   test(
@@ -360,15 +340,15 @@ void main() {
       },
     );
 
-    test('the next try at the end of a life deletes the copies the first one '
-        'left', () async {
+    test('the end of a life keeps the copy of a request in the air, and its '
+        'answer deletes it', () async {
       final room = FakeRoom()..holdNextTake('parte-2');
       final queue = queueOn(room);
       final row = await aJoinRowInTheAir(queue, room);
       await queue.withdrawEvenInTheAir(row);
 
       expect(await queue.endTheLife(leaving: 'equipe-1'), isTrue);
-      expect(inTheFolder(), hasLength(2));
+      expect(inTheFolder()..sort(), [p.basename(row.path), 'fila.json']);
 
       room.finishHeldTake();
       await queue.flush();
