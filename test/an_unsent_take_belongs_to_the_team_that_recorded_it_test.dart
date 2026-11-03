@@ -143,6 +143,21 @@ void main() {
     expect(await tablet.harness.takes.entries(), isEmpty);
   });
 
+  test(
+    'a re-link to the same team sends its take up on the new link',
+    () async {
+      final tablet = await _linkedTo('equipe-1');
+      await _aTakeRecordedOffline(tablet, 'sessao-1');
+      await _theDeskUnlinks(tablet);
+      final sentBefore = tablet.harness.room.takeSessions.length;
+
+      await _theDeskLinks(tablet, 'equipe-1');
+
+      expect(tablet.harness.room.takeSessions.skip(sentBefore), ['sessao-1']);
+      expect(await tablet.harness.takes.entries(), isEmpty);
+    },
+  );
+
   test("the new team's home of the same part lists none of the old team's "
       'takes', () async {
     final tablet = await _linkedTo('equipe-1');
