@@ -66,6 +66,7 @@ Future<void> waitFor(
   FutureOr<bool> Function() ready, {
   Duration limit = const Duration(seconds: 10),
   Future<void> Function()? step,
+  FutureOr<String> Function()? evidence,
 }) async {
   final stepLength = step == null
       ? const Duration(milliseconds: 5)
@@ -76,7 +77,11 @@ Future<void> waitFor(
       final waited = limit.inMilliseconds % 1000 == 0
           ? '${limit.inSeconds}s'
           : '${limit.inMilliseconds}ms';
-      throw TimeoutException('esperei $waited e $what não aconteceu', limit);
+      final seen = evidence == null ? '' : '\n${await evidence()}';
+      throw TimeoutException(
+        'esperei $waited e $what não aconteceu$seen',
+        limit,
+      );
     }
     if (step == null) {
       await Future<void>.delayed(stepLength);

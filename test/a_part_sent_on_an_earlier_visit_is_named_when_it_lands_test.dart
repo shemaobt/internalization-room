@@ -42,6 +42,26 @@ Future<void> _voltarAoEnsaio(ProviderContainer container) async {
 String _oNomeQueASalaDeu(SalaHarness harness) =>
     harness.room.takes.lastWhere((take) => take.scope == _parte3).takeId;
 
+Future<String> _whatTheRoomAndTheOutboxHold(
+  SalaHarness harness,
+  ProviderContainer container,
+) async {
+  final state = container.read(salaSessionProvider);
+  final rows = await harness.takes.entries();
+  return [
+    'room calls: ${harness.room.calls}',
+    'room kept: ${harness.room.takesKept}',
+    'room unreachable: ${harness.room.unreachableTake}',
+    'ensaio: ${state.ensaio}, session: ${state.sessionId}',
+    'unsent parts: ${state.unsentParts.map((cena, part) => MapEntry(cena, part.failure))}',
+    for (final row in rows)
+      'outbox row: ${row.scope} session=${row.sessionId} attempts=${row.attempts} '
+          'waits=${row.waits} lastTry=${row.lastTry} refusal=${row.refusal} '
+          'stored=${row.stored} lost=${row.lost} takeId=${row.takeId}',
+    'at: ${DateTime.now().toUtc().toIso8601String()}',
+  ].join('\n');
+}
+
 Future<void> _enviarAParte3Agora(
   SalaHarness harness,
   ProviderContainer container,
@@ -49,12 +69,14 @@ Future<void> _enviarAParte3Agora(
   await waitFor(
     'a parte 3 aparecer por enviar',
     () => container.read(salaSessionProvider).unsentParts.containsKey(3),
+    evidence: () => _whatTheRoomAndTheOutboxHold(harness, container),
   );
   harness.room.unreachableTake = null;
   container.read(salaSessionProvider.notifier).enviarACena(3);
   await waitFor(
     'a parte 3 chegar à sala',
     () => harness.room.takesKept.contains('ensaio/$_parte3'),
+    evidence: () => _whatTheRoomAndTheOutboxHold(harness, container),
   );
   await waitFor(
     'a parte 3 ganhar um nome',
