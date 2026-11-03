@@ -131,10 +131,6 @@ class PendingTake {
   /// wrote has none and is the current life's.
   final String? team;
 
-  /// Stamped on a row whose team cannot be known: never sent, never listed, never
-  /// deleted.
-  final bool teamUnknown;
-
   const PendingTake({
     required this.id,
     required this.path,
@@ -161,7 +157,6 @@ class PendingTake {
     this.swap = false,
     this.overTake,
     this.team,
-    this.teamUnknown = false,
   });
 
   bool get exhausted => attempts >= takeUploadAttempts;
@@ -204,7 +199,6 @@ class PendingTake {
     swap: swap,
     overTake: overTake,
     team: team ?? this.team,
-    teamUnknown: teamUnknown,
   );
 
   PendingTake dueNow() => PendingTake(
@@ -228,7 +222,6 @@ class PendingTake {
     swap: swap,
     overTake: overTake,
     team: team,
-    teamUnknown: teamUnknown,
   );
 
   bool get refusedWithNoCode =>
@@ -244,7 +237,6 @@ class PendingTake {
     int? waits,
     DateTime? lastTry,
     String? refusal,
-    bool? teamUnknown,
   }) => PendingTake(
     id: id,
     path: path,
@@ -271,7 +263,6 @@ class PendingTake {
     swap: swap,
     overTake: overTake,
     team: team,
-    teamUnknown: teamUnknown ?? this.teamUnknown,
   );
 
   Map<String, Object?> toJson() => {
@@ -300,7 +291,6 @@ class PendingTake {
     if (swap) 'swap': true,
     'over_take': overTake,
     'team': ?team,
-    if (teamUnknown) 'team_unknown': true,
   };
 
   factory PendingTake.fromJson(
@@ -344,7 +334,6 @@ class PendingTake {
     swap: json['swap'] as bool? ?? false,
     overTake: json['over_take'] as String?,
     team: json['team'] as String?,
-    teamUnknown: json['team_unknown'] as bool? ?? false,
   );
 }
 
@@ -761,34 +750,13 @@ class TakeUploadQueue {
   bool _lifeBegun = false;
   String? _lifeTeam;
 
-  static bool _unclaimed(PendingTake row) =>
-      row.team == null && row.sessionId == null && !row.teamUnknown;
-
   bool _mine(PendingTake row) =>
-      !row.teamUnknown &&
-      (!_lifeBegun ||
-          _lifeTeam != null &&
-              !_unclaimed(row) &&
-              (row.team ?? _lifeTeam) == _lifeTeam);
+      !_lifeBegun || _lifeTeam != null && (row.team ?? _lifeTeam) == _lifeTeam;
 
   Future<void> beginALife({required String? team}) async {
     _lifeEnded = false;
     _lifeBegun = true;
     _lifeTeam = team;
-    if (team == null) return;
-    try {
-      if (!(await _written() ?? const []).any(_unclaimed)) return;
-      await _mutate(
-        (written) => [
-          for (final row in written)
-            _unclaimed(row) ? row.copyWith(teamUnknown: true) : row,
-        ],
-      );
-    } on FileSystemException catch (error) {
-      debugPrint('As linhas sem equipa não puderam ser marcadas: $error');
-    } on MissingPlatformDirectoryException catch (error) {
-      debugPrint('As linhas sem equipa não puderam ser marcadas: $error');
-    }
   }
 
   /// The copies `enqueue` has made and not yet written a row for, each until its keep

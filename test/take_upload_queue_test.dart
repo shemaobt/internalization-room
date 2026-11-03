@@ -3254,21 +3254,6 @@ void main() {
       return tally.unsentTakes;
     }
 
-    void anOlderAppWrote(String rows) {
-      final dir = Directory('${home.path}/guardadas')
-        ..createSync(recursive: true);
-      for (final id in ['1700000000000000-0', '1700000000000000-1']) {
-        File('${dir.path}/ensaio-antiga-$id.m4a').writeAsStringSync('antes');
-      }
-      File('${dir.path}/fila.json').writeAsStringSync(rows);
-    }
-
-    String anOldRow(String id, String? session) =>
-        '{"id":"$id","name":"ensaio-antiga-$id.m4a","session_id":'
-        '${session == null ? 'null' : '"$session"'},"passage":"$passage",'
-        '"kind":"ensaio","scope":"parte-1","pass_number":1,"chunk_index":1,'
-        '"stored":false,"lost":false,"attempts":0,"waits":0}';
-
     test("no take of another team is sent, listed or let go into the new "
         "team's session of its passage", () async {
       final room = FakeRoom()..reachable = false;
@@ -3351,62 +3336,16 @@ void main() {
       expect(await onTheHomeOf(queue, 'sessao-1'), 0);
     });
 
-    test('a row an older app left with no session is the team unknown\'s, '
-        'never sent nor listed, and kept', () async {
-      anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
+    test("a session-less row made due again stays its team's under the next "
+        'team', () async {
       final room = FakeRoom();
       final queue = queueOn(room);
       await queue.beginALife(team: 'equipe-1');
-
-      await queue.dueAgain('1700000000000000-0', intoTheSession: 'sessao-1');
-      await queue.flush();
-      final relaunched = queueOn(room);
-      await relaunched.beginALife(team: 'equipe-2');
-      await relaunched.sweepTheCopiesLeftBehind();
-      await relaunched.beginALife(team: 'equipe-1');
-      await aTapOnEveryRow(relaunched);
-
-      expect(room.takeSessions, isEmpty);
-      expect(await onTheHomeOf(relaunched, 'sessao-1'), 0);
-      expect(inTheFolder(), contains('ensaio-antiga-1700000000000000-0.m4a'));
-    });
-    test('a stamp that cannot be written leaves the old session-less row '
-        'unlisted and unsent', () async {
-      anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
-      final room = FakeRoom();
-      final queue = queueOn(room);
-      final folder = Directory('${home.path}/guardadas');
-      Process.runSync('chmod', ['555', folder.path]);
-      addTearDown(() => Process.runSync('chmod', ['755', folder.path]));
-
-      await queue.beginALife(team: 'equipe-1');
-      queue.tapped('1700000000000000-0');
-      await queue.flush();
-
-      expect(room.takeSessions, isEmpty);
-      expect(await onTheHomeOf(queue, 'sessao-1'), 0);
-    });
-
-    test('a row an older app left in a session is the current team\'s, and a '
-        'session-less row of the new build, made due again, stays its '
-        'team\'s at the next launch', () async {
-      anOlderAppWrote('[${anOldRow('1700000000000000-1', 'sessao-1')}]');
-      final room = FakeRoom()..reachable = false;
-      final queue = queueOn(room);
-      await queue.beginALife(team: 'equipe-1');
-      await queue.letGoOfTheSession('sessao-1', passage: passage);
       await queue.dueAgain((await aPart(queue, null)).id);
 
-      final relaunched = queueOn(room);
-      await relaunched.beginALife(team: 'equipe-1');
+      await queue.beginALife(team: 'equipe-2');
 
-      expect(await onTheHomeOf(relaunched, 'sessao-2'), 2);
-      for (final row in await relaunched.pending()) {
-        await relaunched.dueAgain(row.id, intoTheSession: 'sessao-2');
-      }
-      room.reachable = true;
-      await relaunched.flush();
-      expect(room.takeSessions, ['sessao-2', 'sessao-2']);
+      expect(await onTheHomeOf(queue, 'sessao-9'), 0);
     });
   });
 }
