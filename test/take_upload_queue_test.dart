@@ -3336,6 +3336,25 @@ void main() {
       expect(await onTheHomeOf(queue, 'sessao-1'), 0);
     });
 
+    test(
+      "an older app's row let go under its team stays that team's",
+      () async {
+        final dir = Directory('${home.path}/guardadas')..createSync();
+        File('${dir.path}/ensaio-antiga-1-0.m4a').writeAsStringSync('antes');
+        File('${dir.path}/fila.json').writeAsStringSync(
+          '[{"id":"1-0","name":"ensaio-antiga-1-0.m4a","session_id":"sessao-1",'
+          '"passage":"$passage","kind":"ensaio","scope":"parte-1"}]',
+        );
+        final queue = queueOn(FakeRoom());
+        await queue.beginALife(team: 'equipe-1');
+        await queue.letGoOfTheSession('sessao-1', passage: passage);
+
+        await queue.beginALife(team: 'equipe-2');
+
+        expect(await onTheHomeOf(queue, 'sessao-9'), 0);
+      },
+    );
+
     test("a session-less row made due again stays its team's under the next "
         'team', () async {
       final room = FakeRoom();
