@@ -761,25 +761,34 @@ class TakeUploadQueue {
   bool _lifeBegun = false;
   String? _lifeTeam;
 
+  static bool _unclaimed(PendingTake row) =>
+      row.team == null && row.sessionId == null && !row.teamUnknown;
+
   bool _mine(PendingTake row) =>
       !row.teamUnknown &&
       (!_lifeBegun ||
-          _lifeTeam != null && (row.team ?? _lifeTeam) == _lifeTeam);
+          _lifeTeam != null &&
+              !_unclaimed(row) &&
+              (row.team ?? _lifeTeam) == _lifeTeam);
 
   Future<void> beginALife({required String? team}) async {
     _lifeEnded = false;
     _lifeBegun = true;
     _lifeTeam = team;
     if (team == null) return;
-    bool unclaimed(PendingTake row) =>
-        row.team == null && row.sessionId == null && !row.teamUnknown;
-    if (!(await _written() ?? const []).any(unclaimed)) return;
-    await _mutate(
-      (written) => [
-        for (final row in written)
-          unclaimed(row) ? row.copyWith(teamUnknown: true) : row,
-      ],
-    );
+    try {
+      if (!(await _written() ?? const []).any(_unclaimed)) return;
+      await _mutate(
+        (written) => [
+          for (final row in written)
+            _unclaimed(row) ? row.copyWith(teamUnknown: true) : row,
+        ],
+      );
+    } on FileSystemException catch (error) {
+      debugPrint('As linhas sem equipa não puderam ser marcadas: $error');
+    } on MissingPlatformDirectoryException catch (error) {
+      debugPrint('As linhas sem equipa não puderam ser marcadas: $error');
+    }
   }
 
   /// The copies `enqueue` has made and not yet written a row for, each until its keep

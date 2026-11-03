@@ -3271,15 +3271,19 @@ void main() {
 
     test("no take of another team is sent, listed or let go into the new "
         "team's session of its passage", () async {
-      final room = FakeRoom();
+      final room = FakeRoom()..reachable = false;
       final queue = queueOn(room);
       await queue.beginALife(team: 'equipe-1');
       final theirs = await aPart(queue, 'sessao-1');
       final theirScene = await aScene(queue, 'cena-a');
+      await queue.flush();
+      room
+        ..reachable = true
+        ..takeSessions.clear();
 
       await queue.beginALife(team: 'equipe-2');
       final ours = await aScene(queue, 'cena-b');
-      queue.tapped(theirs.id);
+      await queue.dueAgain(theirs.id);
       await queue.flush();
       await queue.letGoOfTheSession('sessao-1', passage: passage);
       await queue.dueAgain(theirScene.id, intoTheSession: 'sessao-9');
@@ -3289,9 +3293,14 @@ void main() {
       expect(room.scenesKept, ['sessao-9']);
       expect(await onTheHomeOf(queue, 'sessao-9'), 0);
       expect(await queue.pending(), isEmpty);
+      expect(
+        (await queue.tally(sessionId: 'sessao-9', passage: passage)).parts,
+        isNot(contains(theirs.id)),
+      );
 
       await queue.beginALife(team: 'equipe-1');
-      await aTapOnEveryRow(queue);
+      await queue.dueAgain(theirs.id);
+      await queue.flush();
       expect(room.takeSessions, ['sessao-1']);
       expect(room.scenesKept, ['sessao-9']);
     });
@@ -3303,6 +3312,8 @@ void main() {
         final first = queueOn(room);
         await first.beginALife(team: 'equipe-1');
         final ours = await aPart(first, 'sessao-1');
+        final gone = await aPart(first, null);
+        File(gone.path).deleteSync();
 
         final relaunched = queueOn(room);
         await relaunched.beginALife(team: 'equipe-2');
@@ -3310,8 +3321,18 @@ void main() {
         await aPart(relaunched, null);
         await relaunched.flush();
         expect(File(ours.path).existsSync(), isTrue);
+        expect(
+          await relaunched.recordingsItHolds([
+            '${home.path}/parte-sessao-1.m4a',
+          ]),
+          hasLength(1),
+        );
 
         await relaunched.beginALife(team: 'equipe-1');
+        expect(
+          [for (final row in await relaunched.pending()) row.id],
+          [ours.id, gone.id],
+        );
         relaunched.tapped(ours.id);
         await relaunched.flush();
         expect(room.takeSessions, ['sessao-1']);
@@ -3349,16 +3370,32 @@ void main() {
       expect(await onTheHomeOf(relaunched, 'sessao-1'), 0);
       expect(inTheFolder(), contains('ensaio-antiga-1700000000000000-0.m4a'));
     });
+    test('a stamp that cannot be written leaves the old session-less row '
+        'unlisted and unsent', () async {
+      anOlderAppWrote('[${anOldRow('1700000000000000-0', null)}]');
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      final folder = Directory('${home.path}/guardadas');
+      Process.runSync('chmod', ['555', folder.path]);
+      addTearDown(() => Process.runSync('chmod', ['755', folder.path]));
+
+      await queue.beginALife(team: 'equipe-1');
+      queue.tapped('1700000000000000-0');
+      await queue.flush();
+
+      expect(room.takeSessions, isEmpty);
+      expect(await onTheHomeOf(queue, 'sessao-1'), 0);
+    });
 
     test('a row an older app left in a session is the current team\'s, and a '
-        'session-less row of the new build stays its team\'s at the next '
-        'launch', () async {
+        'session-less row of the new build, made due again, stays its '
+        'team\'s at the next launch', () async {
       anOlderAppWrote('[${anOldRow('1700000000000000-1', 'sessao-1')}]');
       final room = FakeRoom()..reachable = false;
       final queue = queueOn(room);
       await queue.beginALife(team: 'equipe-1');
       await queue.letGoOfTheSession('sessao-1', passage: passage);
-      await aPart(queue, null);
+      await queue.dueAgain((await aPart(queue, null)).id);
 
       final relaunched = queueOn(room);
       await relaunched.beginALife(team: 'equipe-1');

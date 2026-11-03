@@ -106,36 +106,47 @@ void main() {
     );
   });
 
-  test('a relaunch sends a take of its team on its tap', () async {
-    final harness = SalaHarness(
-      linkedAs: const RememberedLink(
-        deviceId: 'aparelho-1',
-        team: TeamLink(projectId: 'equipe-1'),
-        credential: 'credencial-1',
-      ),
-    );
-    final before = TakeUploadQueue(
-      room: harness.room,
-      home: () async => harness.takesHome,
-      recordings: () => harness.recorder,
-    );
-    await before.beginALife(team: 'equipe-1');
-    File('${harness.takesHome.path}/parte.m4a').writeAsBytesSync([1, 2, 3]);
-    await before.enqueue(
-      File('${harness.takesHome.path}/parte.m4a'),
-      sessionId: 'sessao-1',
-      kind: 'ensaio',
-      scope: 'passagem',
-    );
-    final container = harness.container();
-    addTearDown(container.dispose);
+  for (final remembered in [const TeamLink(projectId: 'equipe-1'), null]) {
+    test(
+      'a relaunch sends a take of its team on its tap, its team '
+      '${remembered == null ? 'read from the room' : 'remembered'}',
+      () async {
+        final harness = SalaHarness(
+          linkedAs: RememberedLink(
+            deviceId: 'aparelho-1',
+            team: remembered,
+            credential: 'credencial-1',
+          ),
+        );
+        harness.room.linkedTo = const TeamLink(projectId: 'equipe-1');
+        final before = TakeUploadQueue(
+          room: harness.room,
+          home: () async => harness.takesHome,
+          recordings: () => harness.recorder,
+        );
+        await before.beginALife(team: 'equipe-1');
+        File('${harness.takesHome.path}/parte.m4a').writeAsBytesSync([1, 2, 3]);
+        await before.enqueue(
+          File('${harness.takesHome.path}/parte.m4a'),
+          sessionId: 'sessao-1',
+          kind: 'ensaio',
+          scope: 'passagem',
+        );
+        final container = harness.container();
+        addTearDown(container.dispose);
 
-    await container.read(deviceLinkProvider.notifier).findTheTeam();
-    for (final row in await harness.takes.pending()) {
-      harness.takes.tapped(row.id);
-    }
-    await harness.takes.flush();
+        await container.read(deviceLinkProvider.notifier).findTheTeam();
+        await waitFor(
+          'the room to open',
+          () => container.read(deviceLinkProvider).linked,
+        );
+        for (final row in await harness.takes.pending()) {
+          harness.takes.tapped(row.id);
+        }
+        await harness.takes.flush();
 
-    expect(harness.room.takeSessions, ['sessao-1']);
-  });
+        expect(harness.room.takeSessions, ['sessao-1']);
+      },
+    );
+  }
 }
