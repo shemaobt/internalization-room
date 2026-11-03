@@ -632,23 +632,40 @@ void main() {
     'a tap to record a part again over a failed take removes the old copy at '
     'the tap, before the microphone opens',
     (tester) async {
-      final casa = await _naCasa(tester);
+      var slow = false;
+      final casa = await _naCasa(
+        tester,
+        harness: SalaHarness(
+          takesOverride: (room, home, recordings) => TakeUploadQueue(
+            room: room,
+            home: () async {
+              if (slow) {
+                await Future<void>.delayed(const Duration(milliseconds: 400));
+              }
+              return home;
+            },
+            recordings: recordings,
+          ),
+        ),
+      );
       casa.room.unreachableTake = 'ensaio/parte-2';
       await casa.guardar(2);
       expect(casa.naLinha(2, find.text(_falhou)), findsOneWidget);
       expect(casa.copias, hasLength(1));
       casa.harness.recorder.holdNextStart();
+      slow = true;
 
       await casa.emTempoReal(() async {
         casa.sala.gravarACena(2);
-        await settle();
+        await waitFor('a cópia velha sair do disco', () => casa.copias.isEmpty);
+        await casa.harness.takes.drained();
       });
 
-      expect(casa.copias, isEmpty);
       expect((await tester.runAsync(casa.harness.takes.entries))!, isEmpty);
       await casa.emTempoReal(() async {
         casa.harness.recorder.finishStart();
         await settle();
+        await casa.harness.takes.drained();
       });
     },
   );

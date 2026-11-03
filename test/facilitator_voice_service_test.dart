@@ -1956,6 +1956,8 @@ void main() {
           expect(await speaking, isTrue);
         }
 
+        await voice.clipFor(longAddress);
+
         expect(fetched, [Uri.parse(longAddress).path]);
         expect(names().where((n) => n.endsWith('.mp3')), hasLength(1));
       },
