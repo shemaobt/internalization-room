@@ -237,6 +237,8 @@ String sheetLineFor(SceneRehearsalRecord rehearsal, String language) => [
 /// Her scene-rehearsal words (strings.ts).
 const sceneRehearsalLabels = {
   'enter': {'pt': 'ensaio da cena', 'en': 'scene rehearsal'},
+  'stop': {'pt': 'Parar', 'en': 'Stop'},
+  'retryAria': {'pt': 'Tentar enviar de novo', 'en': 'Try sending again'},
   'record': {
     'pt': 'Gravar o ensaio da cena',
     'en': 'Record the scene rehearsal',

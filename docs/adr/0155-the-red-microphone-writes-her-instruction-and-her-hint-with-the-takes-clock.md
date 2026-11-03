@@ -4,6 +4,8 @@ date: 2026-10-28
 amends: 0131 (the red microphone's take state)
 ---
 
+Amended by ENG-1918: the circle is named «Parar» while the team records and «Gravar o ensaio da cena» at rest and while the take is kept; the retry is named «Tentar enviar de novo»; her hint is heard, as a polite live region, as hers (`Rehearsal.tsx:848-852`).
+
 # The red microphone writes her instruction and her hint, with the take's clock
 
 This amends ADR 0131 without editing its decision; it adds "amended by 0155" to its status

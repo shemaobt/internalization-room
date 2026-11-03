@@ -20,9 +20,7 @@ import 'scenario_helpers.dart' show byLabel, settle;
 
 final _redMicrophone = byLabel('ensaio da cena');
 final _circleAtRest = byLabel('Gravar o ensaio da cena');
-final _circleRecording = byLabel(
-  'gravem o ensaio da cena na língua materna; toquem para parar',
-);
+final _circleRecording = byLabel('Parar');
 final _theWayBack = byLabel('Voltar para a passagem atual');
 
 bool _aMicrophone(Channel channel) => channel is Microphone;
