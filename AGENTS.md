@@ -94,7 +94,10 @@ freeze, not a sweep ticket.
 Every field of `SalaSessionNotifier` is declared `late`, never `late final`, with no
 initializer, and is assigned in `_aNewLife()` or `build()`, so a relink begins a whole new
 Life; only `_highestGeneration`, `_firstGeneration`, `_gestures`, `_lines` and `_random`
-cross lives (enforced by `test/every_field_of_the_room_is_born_with_its_life_test.dart`).
+cross lives (enforced by `test/every_field_of_the_room_is_born_with_its_life_test.dart`), and
+the order of the tablet's own writes, `_rowsOnTheirWay`, `_place` and `_placesWaiting`: the
+disk is one across lives, and a Resume point never lands before the Outbox row of a part it
+names (ENG-2143).
 A continuation captures `_thisLife` before its await and checks `_endedSince(life)` after it;
 `_gone` alone guards only synchronous code, because a new Life sets it back to false.
 

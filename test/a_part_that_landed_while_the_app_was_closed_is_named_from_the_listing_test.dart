@@ -167,7 +167,9 @@ void main() {
       () => depois.read(salaSessionProvider).unsentParts.containsKey(3),
       limit: const Duration(seconds: 5),
     );
+    await settle();
 
+    expect(lit, isNotEmpty);
     expect(
       lit,
       everyElement(isFalse),

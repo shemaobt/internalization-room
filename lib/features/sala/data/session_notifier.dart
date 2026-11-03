@@ -3042,19 +3042,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _sessionSavedAt = row?.savedAt ?? clock.now();
     _warmHerLines();
     if (pericope != null && !resumed) {
+      final point = ResumePoint(
+        sessionId: sessionId,
+        stage: const Canvas().stage,
+        savedAt: _sessionSavedAt,
+        language: _sessionLanguage,
+      );
       unawaited(
         _mindingThePlace(
-          (open) => open.remember(
-            book,
-            pericope,
-            speaking,
-            ResumePoint(
-              sessionId: sessionId,
-              stage: const Canvas().stage,
-              savedAt: _sessionSavedAt,
-              language: _sessionLanguage,
-            ),
-          ),
+          (open) => open.remember(book, pericope, speaking, point),
         ),
       );
     }
@@ -3317,25 +3313,21 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         language == null) {
       return;
     }
+    final point = ResumePoint(
+      sessionId: sessionId,
+      stage: station.stage,
+      takes: state.keptTakes,
+      savedAt: _sessionSavedAt,
+      language: _sessionLanguage,
+      passesToGoAbove: _passadasDaSala ?? const {},
+      listener: _listenerInProgress,
+      wholeHeldByTheRoom: [...state.wholeHeldByTheRoom],
+      grain: state.grainInForce,
+      hearNewScene: state.hearNewScene,
+    );
     unawaited(
       _mindingThePlace(
-        (open) => open.remember(
-          passage.book,
-          pericope,
-          language,
-          ResumePoint(
-            sessionId: sessionId,
-            stage: station.stage,
-            takes: state.keptTakes,
-            savedAt: _sessionSavedAt,
-            language: _sessionLanguage,
-            passesToGoAbove: _passadasDaSala ?? const {},
-            listener: _listenerInProgress,
-            wholeHeldByTheRoom: [...state.wholeHeldByTheRoom],
-            grain: state.grainInForce,
-            hearNewScene: state.hearNewScene,
-          ),
-        ),
+        (open) => open.remember(passage.book, pericope, language, point),
       ),
     );
   }
@@ -7927,7 +7919,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String? kept;
     try {
       final audio = File(path);
-      final row = _theRowFirst(
+      final row = _aRowOnItsWay(
         () async => await audio.exists()
             ? await queue.enqueue(
                 audio,
@@ -8428,7 +8420,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
   /// A keep's Outbox row, written before any Resume point that names its part: a kill
   /// between the two then finds the part in the Outbox, never nameless and unsent.
-  Future<T> _theRowFirst<T>(Future<T> Function() write) {
+  Future<PendingTake?> _aRowOnItsWay(Future<PendingTake?> Function() write) {
     final row = write();
     final settled = row.then<void>((_) {}, onError: (_) {});
     _rowsOnTheirWay.add(settled);
