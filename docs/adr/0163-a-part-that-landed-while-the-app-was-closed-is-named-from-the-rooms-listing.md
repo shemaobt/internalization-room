@@ -56,7 +56,7 @@ home when every part is nameless, recorded as a finding for a follow-up ticket.
 
 **A kept part's Outbox row is written before any Resume point that names it.** "No Outbox row
 waiting for it" therefore means the part landed, never that a kill fell between the two writes:
-a relaunch finds the row and sends the part, and the retro door stays dark. When a session goes
+a relaunch finds the row and offers or sends the part, and the retro door stays dark. When a session goes
 while a keep is still copying, the forget runs after the row exists and deletes the original
 recording, as for any take the Outbox holds; the Outbox's copy stays (Henok, 2026-11-04). A part
 the Outbox refuses still leaves a Resume point with no row, as ENG-2079 left it; that is a
