@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ENG-2143 (the Outbox row comes first)
 date: 2026-10-29
 amends: 0154 (the check waits for every part to reach the room; in part: a part that landed without this tablet learning its name), 0025 (a recording learns its name on a flush)
 ---
@@ -51,3 +51,13 @@ name-only listing read that fails lands the team as before, with the part namele
 next read; the session read that follows decides a gone session. The reads that serve a swap
 or a join keep their own naming, and the orange dot still chooses the plan over the recording
 home when every part is nameless, recorded as a finding for a follow-up ticket.
+
+## Amendment · 2026-11-04 (ENG-2143)
+
+**A kept part's Outbox row is written before any Resume point that names it.** "No Outbox row
+waiting for it" therefore means the part landed, never that a kill fell between the two writes:
+a relaunch finds the row and sends the part, and the retro door stays dark. When a session goes
+while a keep is still copying, the forget runs after the row exists and deletes the original
+recording, as for any take the Outbox holds; the Outbox's copy stays (Henok, 2026-11-04). A part
+the Outbox refuses still leaves a Resume point with no row, as ENG-2079 left it; that is a
+follow-up ticket.
