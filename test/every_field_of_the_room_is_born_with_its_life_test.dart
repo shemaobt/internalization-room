@@ -10,6 +10,9 @@ const _whatCrossesLives = {
   '_gestures',
   '_lines',
   '_random',
+  '_rowsOnTheirWay',
+  '_place',
+  '_placesWaiting',
 };
 
 final _commentPattern = RegExp(r'//.*$', multiLine: true);

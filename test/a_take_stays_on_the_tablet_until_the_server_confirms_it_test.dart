@@ -859,8 +859,14 @@ void main() {
         await settle(const Duration(milliseconds: 500));
       });
 
-      expect(casa.harness.recorder.deleted, isNot(contains(guardando)));
       final linha = await casa.aLinhaDe(guardando);
+      expect(
+        casa.harness.recorder.deleted,
+        contains(guardando),
+        reason:
+            'a sessão só se esquece depois de a linha da guarda estar escrita, e '
+            'a gravação cuja cópia a linha guarda sai do tablet',
+      );
       expect(linha.sessionId, isNull);
       expect(linha.passage, _aPassagem);
       expect(File(linha.path).existsSync(), isTrue);
