@@ -119,6 +119,10 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                             onSheet: () =>
                                 notifier.openTheHomeSheet(row.number),
                             onRecord: () => notifier.gravarACena(row.number),
+                            onRecordFocusLeft: () =>
+                                notifier.accessibilityFocusLeft(
+                                  recordControl(row.number),
+                                ),
                             onListen: () => notifier.ouvirACena(row.number),
                             onRetelling: notifier.playKeptRetelling,
                             onSend: () => notifier.enviarACena(row.number),
@@ -417,6 +421,7 @@ class _SceneRowView extends StatelessWidget {
   final String language;
   final VoidCallback onSheet;
   final VoidCallback onRecord;
+  final VoidCallback onRecordFocusLeft;
   final VoidCallback onListen;
   final void Function(String scope) onRetelling;
   final VoidCallback onSend;
@@ -432,6 +437,7 @@ class _SceneRowView extends StatelessWidget {
     required this.language,
     required this.onSheet,
     required this.onRecord,
+    required this.onRecordFocusLeft,
     required this.onListen,
     required this.onRetelling,
     required this.onSend,
@@ -555,10 +561,9 @@ class _SceneRowView extends StatelessWidget {
                     ButtonMood.lit,
                   )
                 else if (row.part == null)
-                  _control(
+                  _recordControl(
                     'record',
                     _glyph(BorderRadius.circular(7)),
-                    onRecord,
                     mood,
                   )
                 else ...[
@@ -575,19 +580,19 @@ class _SceneRowView extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                   ],
-                  _control(
+                  _recordControl(
                     'recordAgain',
                     const Icon(
                       LucideIcons.rotateCcw,
                       size: 18,
                       color: ShemaBrand.branco,
                     ),
-                    onRecord,
                     mood,
                   ),
                 ],
               ],
             ),
+            if (_armedToRecord) _said(_reopenArmed, colors),
             ?_takeState(recording, cena, colors),
             ?_sheetDoor(cena, colors),
             ?_bringBackControl(cena, colors),
@@ -777,6 +782,27 @@ class _SceneRowView extends StatelessWidget {
       ),
     );
   }
+
+  bool get _armedToRecord =>
+      session.armedTap?.control == recordControl(row.number);
+
+  String get _reopenArmed => retroLabelFor('reopenArmed', language);
+
+  Widget _recordControl(String key, Widget glyph, ButtonMood mood) =>
+      RoundActionButton(
+        size: 44,
+        mood: _armedToRecord && session.armedTap?.phase == BtRecomeco.armado
+            ? ButtonMood.dimmed
+            : mood,
+        gradient: BeadStyles.wood,
+        semanticLabel: _armedToRecord
+            ? _reopenArmed
+            : recordingHomeLabelFor(key, language),
+        toggled: _armedToRecord ? true : null,
+        onTap: onRecord,
+        onFocusLeft: onRecordFocusLeft,
+        child: glyph,
+      );
 
   Widget _control(
     String key,

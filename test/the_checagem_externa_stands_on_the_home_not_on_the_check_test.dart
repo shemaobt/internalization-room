@@ -125,7 +125,10 @@ void main() {
       'stays, with «Checagem externa» drawn and resting', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
-    container.read(salaSessionProvider.notifier).gravarACena(1);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.gravarACena(1);
+    await tester.pump(const Duration(milliseconds: 700));
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 300));
     expect(_sala(container).microphoneOpen, isTrue);
 
@@ -140,6 +143,8 @@ void main() {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
     final notifier = container.read(salaSessionProvider.notifier);
+    notifier.gravarACena(1);
+    await tester.pump(const Duration(milliseconds: 700));
     notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 300));
     expect(

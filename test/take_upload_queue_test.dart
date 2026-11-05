@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
@@ -2571,6 +2572,38 @@ void main() {
       expect(read.tries, 0, reason: 'a linha não passou pelo dueNow');
       expect(read.origin, 'ensaio-2');
       expect(read.reopensTheApprovedDraft, isTrue);
+    });
+
+    test('only an armed take goes up with the reopening, and only in its own '
+        'session', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      Future<bool> kept(String session, String name) async {
+        await queue.enqueue(
+          File('${home.path}/$name.wav')..writeAsBytesSync(aWavTake()),
+          sessionId: session,
+          passage: 'P01',
+          kind: 'ensaio',
+          scope: 'parte-2',
+          chunkIndex: 2,
+        );
+        await queue.flush();
+        return room.takesReceivedWhole.last.reopens;
+      }
+
+      expect(isAnArmedTake('/$anArmedTake/ensaio_tomada_1.wav'), isFalse);
+      expect(await kept('sessao-1', '${anArmedTake}_1'), isTrue);
+      expect(await kept('sessao-1', 'ensaio_tomada_2'), isFalse);
+      room.reachable = false;
+      await kept('sessao-2', '${anArmedTake}_3');
+      await queue.letGoOfTheSession('sessao-2');
+      room.reachable = true;
+      for (final row in await queue.entries()) {
+        await queue.dueAgain(row.id, intoTheSession: 'sessao-3');
+      }
+      await queue.flush();
+      expect(room.takeSessions.last, 'sessao-3');
+      expect(room.takesReceivedWhole.last.reopens, isFalse);
     });
 
     test('goes up with its origin, the reopening and the rehearsal\'s '

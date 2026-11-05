@@ -200,7 +200,6 @@ class PendingTake {
     durationMs: durationMs,
     sha256: sha256,
     origin: origin,
-    reopensTheApprovedDraft: reopensTheApprovedDraft,
     swap: swap,
     overTake: overTake,
     team: team ?? this.team,
@@ -916,6 +915,7 @@ class TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
       recordedAt: await audio.lastModified(),
+      reopensTheApprovedDraft: isAnArmedTake(audio.path),
     ))!,
   );
 

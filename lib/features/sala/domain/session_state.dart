@@ -281,6 +281,8 @@ class ArmedTap {
   const ArmedTap(this.control, this.phase);
 }
 
+String recordControl(int row) => 'record:$row';
+
 enum BtAviso {
   recomecoFalhou,
   pausaSoNaUltima,

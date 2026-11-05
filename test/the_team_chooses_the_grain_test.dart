@@ -1327,6 +1327,35 @@ void main() {
   );
 
   testWidgets(
+    'over an approved draft the whole take on the home takes the armed tap and '
+    'goes up with the re-open',
+    (tester) async {
+      final (harness, container) = await _onTheEmptyWholeHome(tester);
+      harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _recordAndKeep(tester, container);
+      await _pumpUntil(
+        tester,
+        () => container.read(salaSessionProvider).overAnApprovedDraft,
+      );
+
+      await tester.tap(byLabel(_recordAgain));
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
+      await tester.tap(byLabel(_reopenArmed));
+      await tester.pump(const Duration(milliseconds: 200));
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.gravarACena(1);
+      await _settles(tester);
+      notifier.takeKeep();
+      await _settles(tester);
+      await letTheRehearsalReachTheRoom(tester);
+
+      expect(harness.room.takesReceivedWhole.last.scope, KeptScope.whole);
+      expect(harness.room.takesReceivedWhole.last.reopens, isTrue);
+    },
+  );
+
+  testWidgets(
     '10. over an approved draft the whole switch arms with «toquem de novo: isto '
     'abre de novo o rascunho aprovado» and goes up with the re-open',
     (tester) async {

@@ -7574,9 +7574,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
-        _abrirOMicrofoneDaCena(cena);
+        _gravarComOToqueArmado(cena);
       case EnsaioStatus.recorded when daCena:
-        _abrirOMicrofoneDaCena(cena);
+        _gravarComOToqueArmado(cena);
       case EnsaioStatus.recording when daCena:
         _handOff(_finishTake());
       case EnsaioStatus.recorded || EnsaioStatus.recording:
@@ -7593,7 +7593,16 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tocarAParte(indice);
   }
 
-  void _abrirOMicrofoneDaCena(int cena) {
+  void _gravarComOToqueArmado(int cena) {
+    final reopens = state.overAnApprovedDraft;
+    _armedTap(
+      recordControl(cena),
+      needs: reopens,
+      then: () => _abrirOMicrofoneDaCena(cena, reopens: reopens),
+    );
+  }
+
+  void _abrirOMicrofoneDaCena(int cena, {required bool reopens}) {
     _silenceTheRoom();
     if (state.unsentParts[cena]?.failure != null) {
       unawaited(_letGoOfTheFailedTakeOf(cena));
@@ -7605,7 +7614,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _dispatch(
       MicOpened(
         MicOwner.rehearsal,
-        take: 'ensaio_tomada_${_stamp()}',
+        take: '${reopens ? anArmedTake : 'ensaio_tomada'}_${_stamp()}',
         generation: _generation,
       ),
     );

@@ -7,9 +7,10 @@ import 'package:internalization_room/features/sala/domain/session_snapshot.dart'
 import 'package:internalization_room/features/sala/presentation/widgets/frase_list.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaConferida, gravarAFraseAberta, tocarNaLista;
+    show aprovadaNaCasa, aprovadaNaConferida, gravarAFraseAberta, tocarNaLista;
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, voiceOverFocusLeaves;
+import 'scenario_helpers.dart'
+    show byLabel, linhaDoEnsaio, voiceOverFocusLeaves;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
 
@@ -65,6 +66,25 @@ void main() {
       isNot(contains(_ouvirAFrase)),
       reason: 'o toque seguinte abria a frase em vez de só armar',
     );
+    await tester.pump(const Duration(seconds: 8));
+    closeTheRoom(container);
+    semantics.dispose();
+  });
+
+  testWidgets('an armed «Gravar de novo» that VoiceOver focus leaves reads its '
+      'own label again', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaCasa(tester, harness);
+    Finder naLinha(String label) =>
+        find.descendant(of: linhaDoEnsaio(2), matching: byLabel(label));
+    await tester.tap(naLinha('Gravar de novo'));
+    await tester.pump(const Duration(seconds: 2));
+
+    voiceOverFocusLeaves(tester, naLinha(_armado));
+    await _passo(tester);
+
+    expect(naLinha('Gravar de novo'), findsOneWidget);
     await tester.pump(const Duration(seconds: 8));
     closeTheRoom(container);
     semantics.dispose();

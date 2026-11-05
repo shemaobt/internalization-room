@@ -4148,6 +4148,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       original: kind == sceneTakeKind
           ? p.basenameWithoutExtension(audio.path)
           : null,
+      reopensTheApprovedDraft: isAnArmedTake(audio.path),
     );
     rows.add(entry);
     return entry;
@@ -4354,6 +4355,7 @@ class FakeTakeQueue implements TakeUploadQueue {
         scope: entry.scope,
         passNumber: entry.passNumber,
         chunkIndex: entry.chunkIndex,
+        reopensTheApprovedDraft: entry.reopensTheApprovedDraft,
       )) {
         case Answered(value: final landed):
           _writeBack(entry.copyWith(takeId: landed, stored: true));

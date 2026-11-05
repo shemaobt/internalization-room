@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by 0180
 date: 2026-10-30
 amends: 0113 (the Armed tap gains a fourth disarm: focus loss)
 ---
