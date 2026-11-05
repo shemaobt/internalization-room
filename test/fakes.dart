@@ -4142,8 +4142,7 @@ class FakeTakeQueue implements TakeUploadQueue {
       original: kind == sceneTakeKind
           ? p.basenameWithoutExtension(audio.path)
           : null,
-      reopensTheApprovedDraft:
-          sessionId != null && audio.path.contains(anArmedTake),
+      reopensTheApprovedDraft: isAnArmedTake(audio.path),
     );
     rows.add(entry);
     return entry;

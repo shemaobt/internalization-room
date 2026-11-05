@@ -1,3 +1,5 @@
+import 'package:path/path.dart' as p;
+
 abstract class KeptScope {
   static const whole = 'passagem-inteira';
 
@@ -27,6 +29,8 @@ const partTakeKind = 'ensaio';
 const sceneTakeKind = 'cena';
 
 const anArmedTake = 'ensaio_tomada_reabre';
+
+bool isAnArmedTake(String path) => p.basename(path).startsWith(anArmedTake);
 
 enum SendFailure { failed, tooLarge, refused, gone }
 

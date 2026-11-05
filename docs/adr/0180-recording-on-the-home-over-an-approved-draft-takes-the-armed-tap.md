@@ -54,5 +54,7 @@ grain and the Restart, but not the home's record controls.
 - A row queued before the approval re-opens the draft with no warning when it is a part or a
   whole take over the team's own parts. Over a joined recording the room refuses its whole take.
 - A tablet that has not yet read the approval records a part on one tap and the room re-opens
-  the draft. ADR 0113's «the server refuses and the read arms the resend» holds only for the
-  whole take over a joined recording; refusing the others would be a new rule of the room's.
+  the draft; refusing it would be a new rule of the room's. ADR 0113's «the server refuses and
+  the read arms the resend» holds only in part: over a joined recording the room does refuse the
+  whole take, but nothing sets the flag on a row once it is written, so that row goes up unflagged
+  again and is refused again. That gap is filed.

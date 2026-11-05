@@ -915,8 +915,7 @@ class TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
       recordedAt: await audio.lastModified(),
-      reopensTheApprovedDraft:
-          sessionId != null && audio.path.contains(anArmedTake),
+      reopensTheApprovedDraft: isAnArmedTake(audio.path),
     ))!,
   );
 

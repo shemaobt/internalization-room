@@ -2591,6 +2591,7 @@ void main() {
         return room.takesReceivedWhole.last.reopens;
       }
 
+      expect(isAnArmedTake('/$anArmedTake/ensaio_tomada_1.wav'), isFalse);
       expect(await kept('sessao-1', '${anArmedTake}_1'), isTrue);
       expect(await kept('sessao-1', 'ensaio_tomada_2'), isFalse);
       room.reachable = false;
@@ -2601,6 +2602,7 @@ void main() {
         await queue.dueAgain(row.id, intoTheSession: 'sessao-3');
       }
       await queue.flush();
+      expect(room.takeSessions.last, 'sessao-3');
       expect(room.takesReceivedWhole.last.reopens, isFalse);
     });
 
