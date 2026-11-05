@@ -114,7 +114,6 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final current = _currentSession;
     final forgets = _forgets;
     final takes = ref.read(takeUploadQueueProvider);
-    final open = ref.read(workInProgressProvider);
     final String credential;
     switch (await _room.collectTheCredential(deviceId)) {
       case Answered(value: final collected):
@@ -123,13 +122,13 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         _lookAgainLater();
         return;
       case Refused(code: RefusalCode.credentialTaken):
-        await _endTheLife(ledger, current, takes, open);
+        await _endTheLife(ledger, current, takes);
         return;
       case Refused(code: RefusalCode.notFound):
         // The server does not know this device at all. Keeping the team beside an id
         // nobody claimed is a lie the next opening believes: it walks into the room as
         // linked, and the code the facilitator would have to write down never shows.
-        await _endTheLife(ledger, current, takes, open);
+        await _endTheLife(ledger, current, takes);
         return;
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_collectTheCredential);
@@ -201,7 +200,6 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       _ledger,
       _currentSession,
       ref.read(takeUploadQueueProvider),
-      ref.read(workInProgressProvider),
     );
   }
 
@@ -209,12 +207,10 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     LinkedTeam ledger,
     CurrentSessionLedger current,
     TakeUploadQueue takes,
-    WorkInProgress open,
   ) async {
     final leaving = (await ledger.read()).team?.projectId;
-    open.linkedTo(null);
     if (!await takes.endTheLife(leaving: leaving)) {
-      return _tryAgainLater(() => _endTheLife(ledger, current, takes, open));
+      return _tryAgainLater(() => _endTheLife(ledger, current, takes));
     }
     await _startOver(ledger, current);
   }
@@ -289,7 +285,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         }
         _lookAgainLater();
       case Refused(code: RefusalCode.notFound):
-        await _endTheLife(ledger, current, takes, open);
+        await _endTheLife(ledger, current, takes);
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_lookForTheTeam);
     }

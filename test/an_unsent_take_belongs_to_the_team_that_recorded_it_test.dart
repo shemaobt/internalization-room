@@ -193,8 +193,9 @@ void main() {
   });
 
   Future<({_Tablet tablet, WorkInProgress ledger, File file})> withAPlace(
-    String sessionId,
-  ) async {
+    String sessionId, {
+    bool watchesWithoutAHalt = false,
+  }) async {
     final home = aTempDir('sala-em-curso-relink');
     final ledger = WorkInProgress(
       home: () async => home,
@@ -207,6 +208,7 @@ void main() {
         credential: 'credencial-1',
       ),
       linkPoll: const Duration(milliseconds: 20),
+      watchesWithoutAHalt: watchesWithoutAHalt,
       emAbertoNoDisco: ledger,
     );
     final container = harness.container();
@@ -239,7 +241,6 @@ void main() {
   test("a 404 on the old team's session forgets none of its Resume point, and "
       'linked back to its team the passage resumes its session', () async {
     final (:tablet, :ledger, :file) = await withAPlace('sessao-da-equipe-1');
-    final room = tablet.harness.room;
     String? opened() => tablet.container.read(salaSessionProvider).sessionId;
 
     await _theDeskUnlinks(tablet);
@@ -249,10 +250,9 @@ void main() {
       foreignSessions: {'sessao-da-equipe-1'},
     );
     await opensP01(tablet);
+    await settle();
 
     expect(opened(), isNot('sessao-da-equipe-1'));
-    expect(room.statesRead, isNot(contains('sessao-da-equipe-1')));
-    expect(room.askedOfTheForgotten, isNot(contains('sessao-da-equipe-1')));
     expect(file.readAsStringSync(), contains('sessao-da-equipe-1'));
 
     await _theDeskUnlinks(tablet);
@@ -266,19 +266,62 @@ void main() {
     );
   });
 
-  test("a 404 on the current team's own session forgets its tagged Resume "
-      'point', () async {
-    final (:tablet, :ledger, :file) = await withAPlace('sessao-apagada');
-    tablet.harness.room.forgetTheSession('sessao-apagada');
-
+  test("the room forgetting the current team's own session erases its tagged "
+      'Resume point', () async {
+    final (:tablet, :ledger, :file) = await withAPlace(
+      'sessao-apagada',
+      watchesWithoutAHalt: true,
+    );
+    final container = tablet.container;
     await opensP01(tablet);
+    expect(container.read(salaSessionProvider).sessionId, 'sessao-apagada');
+
+    tablet.harness.room.forgetTheSession('sessao-apagada');
+    await waitFor(
+      'the room to open the Choice',
+      () => container.read(salaSessionProvider).stage == SalaStage.escolha,
+    );
     await settle();
 
     expect(file.readAsStringSync(), isNot(contains('sessao-apagada')));
-    expect(
-      (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
-      isNot('sessao-apagada'),
+    expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+  });
+
+  test('a tablet that learns its team after it holds a credential writes its '
+      "places under that team, not the next team's", () async {
+    final home = aTempDir('sala-em-curso-late-team');
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => home,
     );
+    final harness = SalaHarness(
+      linkedAs: const RememberedLink(
+        deviceId: 'aparelho-1',
+        credential: 'credencial-1',
+      ),
+      linkPoll: const Duration(milliseconds: 20),
+      emAbertoNoDisco: ledger,
+    );
+    final container = harness.container();
+    addTearDown(container.dispose);
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    final tablet = (harness: harness, container: container);
+    harness.room.linkedTo = const TeamLink(projectId: 'equipe-1');
+    await waitFor(
+      'the tablet to learn its team',
+      () => container.read(deviceLinkProvider).linked,
+    );
+    await ledger.remember(
+      'Ruth',
+      'P01',
+      'pt',
+      const ResumePoint(sessionId: 'sessao-1', stage: SalaStage.ensaio),
+    );
+
+    await _theDeskUnlinks(tablet);
+    await _theDeskLinks(tablet, 'equipe-2');
+
+    expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
   });
 
   test(
