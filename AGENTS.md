@@ -90,6 +90,9 @@ A second, decided on 28 October and recorded by ENG-1839: the resume slice picks
 the notifier (`_backToWhereTheyStopped`, `_Resume`, `Station.stored`), and a new resume rule
 reuses the events that exist. Moving the resume into the machine is a refactor after the
 freeze, not a sweep ticket.
+A third, by ENG-2112 and ENG-2160: `_Flight`, the open in flight from the Choice (the way back
+taken meanwhile, the answer kept to be adopted), is notifier bookkeeping no screen reads and
+nothing persists; the chevron and the late answer meet there, not in the machine.
 
 Every field of `SalaSessionNotifier` is declared `late`, never `late final`, with no
 initializer, and is assigned in `_aNewLife()` or `build()`, so a relink begins a whole new

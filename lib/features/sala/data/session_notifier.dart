@@ -2546,10 +2546,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     final sent = ++_readsSent;
-    final found = await _room.createSession(pericope: id, language: _lingua);
+    final speaking = _lingua;
+    final kept = flight.answered;
+    final RoomAnswer<SessionSnapshot> found = kept != null
+        ? Answered(kept)
+        : await _room.createSession(pericope: id, language: speaking);
     switch (found) {
-      case Answered() when _abandoned(generation):
-        flight.adopt = flight.wayBack;
+      case Answered(value: final session) when _abandoned(generation):
+        flight.adoptIfTheWayBackWasTaken(session, speaking == _lingua);
       case _ when _abandoned(generation):
         return;
       case Answered(value: final session):
@@ -2994,7 +2998,10 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     var created = opened;
     if (opened == null) {
-      final answer = waiting == null
+      final kept = flight?.answered;
+      final RoomAnswer<SessionSnapshot> answer = kept != null
+          ? Answered(kept)
+          : waiting == null
           ? await _createThePassage(book, pericope, speaking, generation)
           : await _room.createSession(pericope: pericope, language: speaking);
       switch (answer) {
@@ -3013,7 +3020,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final room = created!;
     if (_abandoned(generation)) {
-      flight?.adopt = flight.wayBack;
+      flight?.adoptIfTheWayBackWasTaken(room, speaking == _lingua);
       return;
     }
     final row = opened != null || waiting?.sessionId == room.sessionId
@@ -12588,4 +12595,10 @@ const JoinOutcome _joinLeftBehind = (
 class _Flight {
   bool wayBack = false;
   bool adopt = false;
+  SessionSnapshot? answered;
+
+  void adoptIfTheWayBackWasTaken(SessionSnapshot session, bool sameLanguage) {
+    adopt = wayBack && sameLanguage;
+    if (adopt) answered = session;
+  }
 }
