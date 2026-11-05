@@ -1467,11 +1467,15 @@ const _watch = ArmTheWatch();
     machine.copyWith(letTheWaitingHaltGo: true),
     const [TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
-  TheSceneWentAlready() || TheSceneSendRefused() => (machine, const []),
+  TheSceneWentAlready() || TheSceneSendRefused() => (
+    machine.copyWith(letTheWaitingHaltGo: true),
+    const [],
+  ),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
   TheSceneDoorFailed()
       when machine.station is Canvas &&
+          !machine.holdsATurn &&
           machine.aHaltWaitsForTheCanvas != null =>
     _theHalt(
       machine.copyWith(letTheWaitingHaltGo: true),
@@ -1521,7 +1525,7 @@ const _watch = ArmTheWatch();
     ],
   ),
   LookFailed(:final turn, :final result, :final sounding) => reduce(
-    machine.copyWith(forgetTheLook: true),
+    machine.copyWith(forgetTheLook: true, letTheWaitingHaltGo: true),
     FailurePolicy.decide(
       result,
       FailureContext(
@@ -1537,7 +1541,7 @@ const _watch = ArmTheWatch();
   TheReplyFailedToLoad() => _theReplyFailed(machine, event),
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
     switch (reduce(
-      machine.copyWith(forgetTheLook: true),
+      machine.copyWith(forgetTheLook: true, letTheWaitingHaltGo: true),
       FailurePolicy.decide(
         const RoomFoundNothing(),
         FailureContext(
@@ -1569,7 +1573,10 @@ const _watch = ArmTheWatch();
     machine.copyWith(aHaltWaitsForTheCanvas: const RoomRaisedAHalt()),
     const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
-  TheSceneTurnFoundNothing() => reduce(machine, const RoomRaisedAHalt()),
+  TheSceneTurnFoundNothing() => reduce(
+    machine.copyWith(letTheWaitingHaltGo: true),
+    const RoomRaisedAHalt(),
+  ),
   TheTellingCameBackEmpty() when machine.station is Retro => (
     machine.copyWith(wordlessTelling: true, aStretchWaitsForItsPart: false),
     const [LetThePendingTranslationGo()],

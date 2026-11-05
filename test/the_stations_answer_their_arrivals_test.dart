@@ -564,13 +564,55 @@ void main() {
     });
 
     test('calls a person when the room refuses with a code that stops it', () {
+      final (landed, _) = reduce(leftWith(const []), const TurnFailed(turn));
       final (machine, effects) = reduce(
-        leftWith(const []),
+        landed,
         const TheSceneDoorFailed(readAgain: true, generation: _generation),
       );
 
       expect(machine.halt, isA<Blocking>());
       expect(effects, contains(const CallForAPerson()));
+    });
+
+    test('a list refused while the resend is out calls nobody, and the accept '
+        'leaves no sign', () {
+      final (refused, effects) = reduce(
+        leftWith(const []),
+        const TheSceneDoorFailed(readAgain: true, generation: _generation),
+      );
+      final (accepted, _) = reduce(refused, const TurnAnswered(turn));
+
+      expect(refused.halt, isNot(isA<Blocking>()));
+      expect(effects, isNot(contains(const CallForAPerson())));
+      expect(accepted.halt, isNot(isA<Blocking>()));
+      expect(accepted.aHaltWaitsForTheCanvas, isNull);
+    });
+
+    for (final refusal in const <MachineEvent>[
+      TheSceneWentAlready(generation: _generation),
+      TheSceneSendRefused(generation: _generation),
+    ]) {
+      test('${refusal.runtimeType} forgets the sign, so a later refused list '
+          'calls nobody', () {
+        final (landed, _) = reduce(leftWith(const []), refusal);
+        final (machine, _) = reduce(
+          landed,
+          const TheSceneDoorFailed(readAgain: true, generation: _generation),
+        );
+
+        expect(machine.aHaltWaitsForTheCanvas, isNull);
+        expect(machine.halt, isNot(isA<Blocking>()));
+      });
+    }
+
+    test('forgets the waiting sign once the look has shown it', () {
+      final (machine, _) = reduce(
+        leftWith(const [TurnGivenUp(turn)]),
+        const LookEmpty(turn, theWaitRanOut: true),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(machine.aHaltWaitsForTheCanvas, isNull);
     });
   });
 
