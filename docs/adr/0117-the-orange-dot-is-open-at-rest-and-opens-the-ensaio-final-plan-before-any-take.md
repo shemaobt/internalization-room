@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes); amended by ENG-2103 (2026-10-30: the whole-passage arm reads the room's grain only); amended by ENG-2104 (2026-10-30: the notice's «enviar agora» rests while a take of the session goes up or a join, a swap or a bring-back runs)
+status: accepted, amended by 0181 (2026-11-05: the home waits for the listing it reads); amended by 0134 (the 6 s cut and a passage with no scenes open the grain choice while no grain is in force); amended by ENG-1828 (2026-10-29: an empty whole-passage recording with no scene rehearsal of the session opens the whole-passage home); amended by ENG-1861 (2026-10-29: a take the room has not received never decides where the dot goes); amended by ENG-2103 (2026-10-30: the whole-passage arm reads the room's grain only); amended by ENG-2104 (2026-10-30: the notice's «enviar agora» rests while a take of the session goes up or a join, a swap or a bring-back runs)
 date: 2026-10-22
 amends: 0014
 ---

@@ -1598,6 +1598,97 @@ void main() {
     );
 
     testWidgets(
+      'the home opened over a listing still in the air takes no recording '
+      'until the listing answers',
+      (tester) async {
+        final (harness, container) = await _atRest(
+          tester,
+          seed: (session) => [_rehearsal(session)],
+        );
+        harness.room
+          ..grain = Grain.scene
+          ..holdTheTakesListing();
+        await _tapTheDot(tester);
+        await tester.pump(const Duration(milliseconds: 6000));
+        await tester.pump(const Duration(milliseconds: 100));
+        harness.room
+          ..holdNextTakesList()
+          ..holdNextSceneList()
+          ..finishTheTakesListing();
+        await _settles(tester);
+        harness.room.holdNextTakesList();
+        await tester.pump(const Duration(milliseconds: 6000));
+        await _settles(tester);
+        expect(find.text(_homeLine), findsOneWidget);
+
+        final record = byLabel('Gravar').first;
+        expect(find.text(_thinking), findsOneWidget);
+        expect(tester.widget<Semantics>(record).properties.enabled, isFalse);
+        await tester.tap(record);
+        await _settles(tester);
+        expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+
+        harness.room
+          ..finishHeldTakesList()
+          ..finishHeldTakesList()
+          ..finishHeldSceneList();
+        await _settles(tester);
+
+        expect(find.text(_thinking), findsNothing);
+        expect(tester.widget<Semantics>(record).properties.enabled, isTrue);
+        await tester.tap(record);
+        await _settles(tester);
+        expect(
+          container.read(salaSessionProvider).ensaio,
+          EnsaioStatus.recording,
+        );
+      },
+    );
+
+    testWidgets(
+      'a listing that fails opens the rows with what the tablet holds',
+      (tester) async {
+        final (harness, container) = await _atRest(
+          tester,
+          seed: (session) => [_rehearsal(session)],
+        );
+        harness.room
+          ..grain = Grain.scene
+          ..holdTheTakesListing();
+        await _tapTheDot(tester);
+        await tester.pump(const Duration(milliseconds: 6000));
+        await tester.pump(const Duration(milliseconds: 100));
+        harness.room
+          ..holdNextTakesList()
+          ..holdNextSceneList()
+          ..finishTheTakesListing();
+        await _settles(tester);
+        harness.room
+          ..holdNextTakesList()
+          ..failTakesWith = const NetworkFailed('offline');
+        await tester.pump(const Duration(milliseconds: 6000));
+        await _settles(tester);
+        expect(find.text(_thinking), findsOneWidget);
+
+        harness.room
+          ..finishHeldTakesList()
+          ..finishHeldTakesList()
+          ..finishHeldSceneList();
+        await _settles(tester);
+
+        expect(find.text(_thinking), findsNothing);
+        final record = byLabel('Gravar').first;
+        expect(tester.widget<Semantics>(record).properties.enabled, isTrue);
+        await tester.tap(record);
+        await _settles(tester);
+        expect(
+          container.read(salaSessionProvider).ensaio,
+          EnsaioStatus.recording,
+        );
+      },
+    );
+
+    testWidgets(
       'naming the whole over a scene rehearsal of this session lands on the '
       'plan, not on the empty whole home',
       (tester) async {

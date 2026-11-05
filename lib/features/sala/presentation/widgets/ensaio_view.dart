@@ -92,6 +92,15 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                 style: TextStyle(color: colors.mut, fontSize: 15, height: 1.35),
               ),
             ),
+            if (session.readingTheListing)
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  ensaioFinalPlanLabelFor('thinking', language),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.mut, fontSize: 15),
+                ),
+              ),
             UnsentNotice(
               session: session,
               language: language,
@@ -463,6 +472,7 @@ class _SceneRowView extends StatelessWidget {
     final another =
         session.ensaio != EnsaioStatus.idle && !row.recording ||
         session.needsPerson ||
+        session.readingTheListing ||
         frozen;
     final mood = another ? ButtonMood.dimmed : ButtonMood.lit;
     final listens =
