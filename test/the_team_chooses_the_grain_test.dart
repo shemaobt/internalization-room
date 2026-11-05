@@ -417,14 +417,13 @@ Future<ProviderContainer> _relaunchOnTheApp(
   return next;
 }
 
-Future<ProviderContainer> _holdingTheFirstClip(
+Future<void> _holdingTheFirstClip(
   WidgetTester tester,
   SalaHarness harness,
 ) async {
   harness.room.holdNextClip();
   await _tapTheDot(tester);
   await _settles(tester);
-  return ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
 }
 
 Future<void> _backOnTheConversation(
@@ -1620,6 +1619,7 @@ void main() {
       await _letTheClipLand(tester);
 
       expect(container.read(salaSessionProvider).readingTheListing, isFalse);
+      expect(container.read(salaSessionProvider).nothingStartsNow, isFalse);
     });
 
     testWidgets('a lay-in of an ended life never opens the new life\'s rows', (

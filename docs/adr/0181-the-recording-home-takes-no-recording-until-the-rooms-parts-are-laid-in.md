@@ -31,7 +31,11 @@ answers in time and «Gravar» stays lit until the clips land.
   room's parts.
 - **A row whose clip failed to come down stays shut.** The listing named the part, so the
   room is known to hold it; the other rows open once laid in. The row's retry and «trazer de
-  volta» stay available. The next opening of the home tries the clip again.
+  volta» stay available. A later opening whose listing fails keeps the row shut: the set
+  changes only when a listing answered. A switch of the grain clears it, since its row
+  numbers belong to the old grain. The next opening that reads the room tries the clip again.
+- **The Checagem externa rests during the wait.** Leaving it would return to the home with
+  no lay-in running.
 - **It holds on every opening of the home that reads the room**, not only after a relaunch: a
   grain switch to the whole, the read after a join, and the dot over parts the tablet holds.
   The wait is bounded by the listing's 20 s and the clips' own limits.

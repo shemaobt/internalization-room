@@ -3515,6 +3515,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         case SessionGone():
           return const Answered(null);
         case _ when shutTheFailed:
+          if (_abandoned(generation)) return const Answered(null);
           fechadas.add(parte.scopeId);
           continue;
         case NetworkFailed() && final fell:
@@ -4457,6 +4458,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (!leftBehind(take.scopeId)) take,
       ],
       btChecked: false,
+      rowsAwaitingTheirClip: const {},
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,
     );
@@ -5508,10 +5510,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<TakeView>? listed,
     int generation,
   ) async {
-    state = state.copyWith(
-      layingInGeneration: generation,
-      rowsAwaitingTheirClip: const {},
-    );
+    state = state.copyWith(layingInGeneration: generation);
     await _readAndLayInTheListing(sessionId, listed, generation);
     if (state.layingInGeneration == generation) {
       state = state.copyWith(clearLayingIn: true);
@@ -9427,6 +9426,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     if ((state.approvedDraftDrawn ?? state.approvedOnTheHome) == null) return;
     if (state.microphoneOpen || !state.aBackTranslationGestureActs) return;
+    if (state.readingTheListing) return;
     _handOff(_abrirAChecagemExterna(sessionId));
   });
 

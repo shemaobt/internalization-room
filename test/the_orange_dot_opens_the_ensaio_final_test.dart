@@ -25,6 +25,8 @@ import 'package:internalization_room/main.dart';
 
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
+import 'the_kept_retellings_are_numbered_buttons_on_the_conversation_test.dart'
+    show aKept;
 import 'scenario_helpers.dart'
     show
         byLabel,
@@ -1072,6 +1074,239 @@ void main() {
       expect(harness.room.takePasses, isEmpty);
     },
   );
+
+  group('the home that lays in the room\'s parts', () {
+    final threeParts = [
+      for (final n in [1, 2, 3]) _roomPart(n, pass: 1),
+    ];
+
+    Future<(SalaHarness, ProviderContainer)> clipTwoFailed(
+      WidgetTester tester, {
+      void Function(SalaHarness harness)? also,
+    }) async {
+      final opened = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: threeParts,
+        before: (harness) {
+          harness.room.failClipOf['gravacao-2'] = const NetworkFailed(
+            'sem rede',
+          );
+          also?.call(harness);
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      return opened;
+    }
+
+    bool enabled(WidgetTester tester, Finder control) =>
+        tester.widget<Semantics>(control.first).properties.enabled ?? false;
+
+    Finder inRow(int n, String control) =>
+        find.descendant(of: _row(n, _threeScenes), matching: byLabel(control));
+
+    testWidgets('stays shut when a later opening cannot read the listing', (
+      tester,
+    ) async {
+      final (harness, container) = await clipTwoFailed(tester);
+      expect(enabled(tester, inRow(2, 'Gravar')), isFalse);
+
+      await tester.tap(byLabel(_backToPassage));
+      await _theAnswerSettles(tester);
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(find.text(_homeLine), findsOneWidget);
+      expect(enabled(tester, inRow(2, 'Gravar')), isFalse);
+      await tester.tap(inRow(2, 'Gravar').first);
+      await _theAnswerSettles(tester);
+      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+    });
+
+    testWidgets('is not left dead by a switch of the grain', (tester) async {
+      final (harness, container) = await clipTwoFailed(tester);
+      expect(enabled(tester, inRow(2, 'Gravar')), isFalse);
+
+      container
+          .read(salaSessionProvider.notifier)
+          .recordTheWholePassageInstead();
+      await _theAnswerSettles(tester);
+      await _theAnswerSettles(tester);
+
+      expect(harness.room.grainSwitches, isNotEmpty);
+      expect(
+        container.read(salaSessionProvider).rowsAwaitingTheirClip,
+        isEmpty,
+        reason: 'os números de linha do grão antigo ficaram fechando linhas',
+      );
+      expect(enabled(tester, byLabel('Gravar')), isTrue);
+    });
+
+    testWidgets('offers no sheet door while it is shut', (tester) async {
+      final semantics = tester.ensureSemantics();
+      SceneRehearsalRecord rehearsal(int n) => SceneRehearsalRecord(
+        rehearsalId: 'ensaio-s$n',
+        sessionId: 'sessao-antiga',
+        n: n,
+        scene: 'S$n',
+        sentAt: '2026-10-22T09:0$n:00+00:00',
+        durationMs: 6000,
+        frases: const [
+          SceneFrase(fraseId: 'frase-a', startsMs: 0, endsMs: 6000),
+        ],
+        verified: true,
+      );
+      await clipTwoFailed(
+        tester,
+        also: (harness) => harness.room.sceneRehearsals.addAll([
+          rehearsal(1),
+          rehearsal(2),
+          rehearsal(3),
+        ]),
+      );
+
+      Finder doorOf(int n) => find.descendant(
+        of: _row(n, _threeScenes),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              (widget.properties.label ?? '').startsWith(
+                'usar o ensaio desta cena',
+              ),
+        ),
+      );
+      expect(
+        doorOf(2),
+        findsOneWidget,
+        reason: 'a linha 2 não oferecia a porta',
+      );
+      expect(enabled(tester, doorOf(2)), isFalse);
+      expect(enabled(tester, doorOf(1)), isTrue);
+      semantics.dispose();
+    });
+
+    testWidgets('keeps the external check shut while the parts are read', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: threeParts,
+        before: (harness) {
+          harness.room.approvedDraft = const ApprovedDraft(version: 1);
+          harness.room.holdNextClip();
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      final notifier = container.read(salaSessionProvider.notifier);
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      expect(
+        tester
+            .widget<Semantics>(byLabel('Checagem externa'))
+            .properties
+            .enabled,
+        isFalse,
+      );
+
+      notifier.abrirAChecagemExterna();
+      await _theAnswerSettles(tester);
+      notifier.leaveTheExternalCheck();
+      await _theAnswerSettles(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      expect(enabled(tester, inRow(1, 'Gravar')), isFalse);
+      harness.room.finishHeldClip();
+      await _theAnswerSettles(tester);
+      expect(enabled(tester, inRow(1, 'Gravar de novo')), isTrue);
+    });
+
+    testWidgets('lets a part already on the tablet be heard during the wait', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: [_roomPart(2, pass: 1)],
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _theAnswerSettles(tester);
+
+      harness.room.holdNextTakesList();
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      expect(enabled(tester, inRow(2, 'Ouvir')), isTrue);
+      harness.room.finishHeldTakesList();
+    });
+
+    testWidgets('lets a kept retelling be heard during the wait', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: threeParts,
+        before: (harness) {
+          harness.room.keptRetellings = [aKept('S1', 2)];
+          harness.room.holdNextClip();
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      final hear = inRow(1, 'Ouvir como vocês contaram esta parte');
+      expect(hear, findsOneWidget);
+      expect(enabled(tester, hear), isTrue);
+    });
+
+    testWidgets('keeps a shut row shut when an abandoned lay-in lands', (
+      tester,
+    ) async {
+      final (harness, _) = await clipTwoFailed(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _theAnswerSettles(tester);
+      harness.room.failClipOf.clear();
+      harness.room.holdNextClip();
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _theAnswerSettles(tester);
+      harness.room.finishHeldClip();
+      await _theAnswerSettles(tester);
+
+      harness.room.failTakesWith = const NetworkFailed('sem rede');
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+
+      expect(enabled(tester, inRow(2, 'Gravar')), isFalse);
+    });
+
+    testWidgets('lets an abandoned lay-in fetch no more clips', (tester) async {
+      final (harness, _) = await _reopenedOnTheConversation(
+        tester,
+        roomTakes: threeParts,
+        before: (harness) {
+          for (final n in [1, 2, 3]) {
+            harness.room.failClipOf['gravacao-$n'] = const NetworkFailed('x');
+          }
+          harness.room.holdNextClip();
+        },
+      );
+      await _tapTheDot(tester);
+      await _theAnswerSettles(tester);
+      await tester.tap(byLabel(_backToPassage));
+      await _theAnswerSettles(tester);
+      final fetchedBefore = harness.room.clipsFetched.length;
+
+      harness.room.finishHeldClip();
+      await _theAnswerSettles(tester);
+
+      expect(harness.room.clipsFetched.length, fetchedBefore);
+    });
+  });
 
   testWidgets(
     'with a part waiting in the Outbox the dot\'s home lays in the room\'s '
