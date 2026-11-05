@@ -2547,13 +2547,13 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _watchBusyState();
     final sent = ++_readsSent;
     final found =
-        flight.answered ??
+        flight.answerIn(_lingua) ??
         await _room.createSession(pericope: id, language: _lingua);
     flight.answered = null;
     switch (found) {
       case Answered() when _abandoned(generation):
         flight.adopt = flight.wayBack;
-        flight.answered = found;
+        flight.answered = (found, _lingua);
       case _ when _abandoned(generation):
         return;
       case Answered(value: final session):
@@ -2999,7 +2999,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     var created = opened;
     if (opened == null) {
       final answer =
-          flight?.answered ??
+          flight?.answerIn(speaking) ??
           (waiting == null
               ? await _createThePassage(book, pericope, speaking, generation)
               : await _room.createSession(
@@ -3024,7 +3024,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final room = created!;
     if (_abandoned(generation)) {
       flight?.adopt = flight.wayBack;
-      flight?.answered = Answered(room);
+      flight?.answered = (Answered(room), speaking);
       return;
     }
     final row = opened != null || waiting?.sessionId == room.sessionId
@@ -12599,5 +12599,10 @@ const JoinOutcome _joinLeftBehind = (
 class _Flight {
   bool wayBack = false;
   bool adopt = false;
-  RoomAnswer<SessionSnapshot>? answered;
+  (RoomAnswer<SessionSnapshot>, String)? answered;
+
+  RoomAnswer<SessionSnapshot>? answerIn(String language) {
+    final kept = answered;
+    return kept != null && kept.$2 == language ? kept.$1 : null;
+  }
 }

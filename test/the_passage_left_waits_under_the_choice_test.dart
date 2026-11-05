@@ -720,7 +720,9 @@ void main() {
       tablet.notifier.openTheEntry(panorama);
       await waitFor('the open to be in flight', () => harness.room.createHeld);
       await tablet.notifier.returnToTheLeftEntry();
+      final asked = harness.room.calls.length;
       harness.room.finishHeldCreate();
+      harness.room.reachable = false;
       await waitFor(
         'the Panorama to open',
         () =>
@@ -730,8 +732,34 @@ void main() {
       );
 
       expect(read().station, Panorama(panorama.pericope));
+      expect(
+        harness.room.calls.skip(asked).where((call) => call == 'createSession'),
+        isEmpty,
+      );
     },
   );
+
+  test('a pill\'s open answered after the chevron and a change of language is '
+      'asked again in the language now chosen', () async {
+    final tablet = await _onTheChoiceFromP01();
+    final harness = tablet.harness;
+    final read = tablet.read;
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    harness.room.holdNextCreate();
+
+    tablet.notifier.openTheEntry(p02);
+    await waitFor('the open to be in flight', () => harness.room.createHeld);
+    await tablet.notifier.returnToTheLeftEntry();
+    await waitFor('P01 back', () => read().sessionId == tablet.p01);
+    tablet.notifier.leaveThePassage();
+    await waitFor('the Choice', () => read().entriesOpen);
+    tablet.notifier.chooseTheLanguage('en');
+    harness.room.finishHeldCreate();
+    await settle();
+    await settle();
+
+    expect(harness.room.languagesSent.last, 'en');
+  });
 
   test(
     'an Error thrown in the open raises no person sign and frees the '
