@@ -1343,7 +1343,6 @@ void main() {
       expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
       await tester.tap(byLabel(_reopenArmed));
       await tester.pump(const Duration(milliseconds: 200));
-
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.gravarACena(1);
       await _settles(tester);
