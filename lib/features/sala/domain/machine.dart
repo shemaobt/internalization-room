@@ -1823,6 +1823,9 @@ const _watch = ArmTheWatch();
         letTheWaitingHaltGo: true,
       );
   if (machine.aHaltWaitsForTheCanvas case final waiting? when next is Canvas) {
+    if (event is TheSceneRehearsalLeft && machine.inFlight != null) {
+      return (arrived.copyWith(aHaltWaitsForTheCanvas: waiting), const []);
+    }
     return _theHalt(arrived, waiting);
   }
   return (arrived, const []);

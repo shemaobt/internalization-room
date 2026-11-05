@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by 0107, 0108, 0125, 0152, 0159, ENG-2028, ENG-2128, 0178
+status: accepted, amended by 0107, 0108, 0125, 0152, 0159, ENG-2028, ENG-2128, 0178, ENG-2161
 date: 2026-10-20
 supersedes: 0050 (in part), 0073 (in part)
 amends: 0053, 0074, 0097
@@ -107,3 +107,9 @@ the call that sent it: one from an earlier tap, given up on, never acts on the t
 followed. A «terminei» that lands, or whose
 reply the look finds, forgets the waiting sign too. Nothing is resent by itself: a row read as
 sent while a person is called is never sent again.
+
+## Amendment · 2026-11-04 (ENG-2161)
+
+A «terminei» sent again and still in the air when the team returns to the Conversation does
+not raise the waiting sign on arrival: it stays waiting, an accepted resend forgets it, and a
+resend that drops again calls the person at once.
