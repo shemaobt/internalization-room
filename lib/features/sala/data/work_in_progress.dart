@@ -182,13 +182,17 @@ class ResumePoint {
   }
 }
 
+class _Serial {
+  Future<void> tail = Future<void>.value();
+}
+
 class WorkInProgress {
   final Future<Directory> Function() _home;
 
   /// Where the recordings themselves live, which is not where this ledger lives: the
   /// takes sit under the documents directory, the ledger under application support.
   final Future<Directory> Function() _recordings;
-  Future<void> _writes = Future<void>.value();
+  final _Serial _serial;
 
   /// The team the tablet is linked to now. A row of any other team stays on disk,
   /// unread and untouched, until the tablet is linked to that team again (ADR 0179).
@@ -200,7 +204,18 @@ class WorkInProgress {
     String? Function()? team,
   }) : _home = home ?? getApplicationSupportDirectory,
        _recordings = recordings ?? _recordingsHome,
-       _team = team ?? _noTeam;
+       _team = team ?? _noTeam,
+       _serial = _Serial();
+
+  WorkInProgress._pinned(WorkInProgress of, String? team)
+    : _home = of._home,
+      _recordings = of._recordings,
+      _serial = of._serial,
+      _team = (() => team);
+
+  /// This ledger as the team linked now sees it, for a write that runs after the link
+  /// has changed.
+  WorkInProgress pinnedToTheTeamNow() => WorkInProgress._pinned(this, _team());
 
   static String? _noTeam() => null;
 
@@ -332,7 +347,7 @@ class WorkInProgress {
   Future<void> _write(
     Map<String, ResumePoint> Function(Map<String, ResumePoint>) change,
   ) {
-    final next = _writes.then((_) async {
+    final next = _serial.tail.then((_) async {
       final file = await _file();
       if (await file.exists() && !await _readable(file)) {
         // Not overwritten — the rows of every other passage are in there, and a read that
@@ -349,7 +364,7 @@ class WorkInProgress {
         }),
       );
     });
-    _writes = next.then((_) {}, onError: (_) {});
+    _serial.tail = next.then((_) {}, onError: (_) {});
     return next;
   }
 

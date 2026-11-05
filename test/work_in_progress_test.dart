@@ -549,6 +549,37 @@ void main() {
       },
     );
 
+    test(
+      'its own team forgetting its session erases the tagged place',
+      () async {
+        await remember('sessao-a');
+
+        final forgotten = await ledger.forgetTheSession('sessao-a');
+
+        expect(forgotten.map((row) => row.sessionId), ['sessao-a']);
+        expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      },
+    );
+
+    test('a write queued under one team lands under it though the link '
+        'changes before it runs', () async {
+      final queued = ledger.pinnedToTheTeamNow();
+      team = null;
+
+      await queued.remember(
+        'Ruth',
+        'P01',
+        'pt',
+        const ResumePoint(sessionId: 'sessao-a', stage: SalaStage.ensaio),
+      );
+
+      expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      team = 'equipe-b';
+      expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      team = 'equipe-a';
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
+    });
+
     test('a row an older build wrote, with no team, is the current '
         "team's, whichever it is", () async {
       Directory('${home.path}/guardadas').createSync(recursive: true);

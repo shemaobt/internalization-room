@@ -8437,7 +8437,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _mindingThePlace(
     Future<void> Function(WorkInProgress open) write,
   ) {
-    final open = _emAberto;
+    final open = _emAberto.pinnedToTheTeamNow();
     Future<void> writing() => _apart(() async {
       try {
         await write(open);
