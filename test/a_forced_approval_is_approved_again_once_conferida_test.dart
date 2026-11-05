@@ -228,7 +228,10 @@ void main() {
     await _naCasa(tester, harness, container);
     final semantics = tester.ensureSemantics();
 
-    container.read(salaSessionProvider.notifier).gravarACena(1);
+    final notifier = container.read(salaSessionProvider.notifier);
+    notifier.gravarACena(1);
+    await tester.pump(const Duration(milliseconds: 700));
+    notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(container.read(salaSessionProvider).microphoneOpen, isTrue);
