@@ -417,6 +417,46 @@ Future<ProviderContainer> _relaunchOnTheApp(
   return next;
 }
 
+Future<ProviderContainer> _holdingTheFirstClip(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  harness.room.holdNextClip();
+  await _tapTheDot(tester);
+  await _settles(tester);
+  return ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+}
+
+Future<void> _backOnTheConversation(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+  for (var vez = 0; vez < 30; vez++) {
+    final read = container.read(salaSessionProvider);
+    if (read.stage == SalaStage.conversa && !read.awaitingTheGuide) break;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  await tester.pump(const Duration(seconds: 1));
+}
+
+Future<void> _letTheClipLand(WidgetTester tester) async {
+  for (var vez = 0; vez < 10; vez++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
+List<TakeView> get _onePart => [_joinedPart(1)];
+
 void main() {
   testWidgets(
     '1. the plan read that runs out at 6 s shows «Como vocês querem gravar?», '
@@ -1538,6 +1578,73 @@ void main() {
     },
   );
 
+  group('a lay-in that outlives the home it served', () {
+    testWidgets('leaving the passage and coming back finds the rows shut', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopened(tester, roomTakes: _onePart);
+      await _holdingTheFirstClip(tester, harness);
+      final old = harness.room.takeClipHold();
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.leaveThePassage();
+      await _settles(tester);
+      old!.complete();
+      await _letTheClipLand(tester);
+
+      await _backOnTheConversation(tester, container);
+      harness.room.holdNextClip();
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      expect(find.text(_thinking), findsOneWidget);
+      final record = byLabel('Gravar').first;
+      expect(tester.widget<Semantics>(record).properties.enabled, isFalse);
+      harness.room.finishHeldClip();
+      await _letTheClipLand(tester);
+    });
+
+    testWidgets('coming back through the way back leaves no rows dead', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopened(tester, roomTakes: _onePart);
+      await _holdingTheFirstClip(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      notifier.leaveThePassage();
+      await _settles(tester);
+      harness.room.finishHeldClip();
+      await _letTheClipLand(tester);
+      await notifier.returnToTheLeftEntry();
+      await _letTheClipLand(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isFalse);
+    });
+
+    testWidgets('a lay-in of an ended life never opens the new life\'s rows', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopened(tester, roomTakes: _onePart);
+      await _holdingTheFirstClip(tester, harness);
+      final old = harness.room.takeClipHold();
+      container.invalidate(salaSessionProvider);
+      await tester.pump(const Duration(milliseconds: 300));
+      await _backOnTheConversation(tester, container);
+      harness.room.holdNextClip();
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+
+      old!.complete();
+      await _letTheClipLand(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      harness.room.finishHeldClip();
+      await _letTheClipLand(tester);
+    });
+  });
+
   group('1. a listing that answers after the 6 s cut', () {
     testWidgets('with a grain in force takes the team off the choice', (
       tester,
@@ -1623,7 +1730,6 @@ void main() {
         await tester.pump(const Duration(milliseconds: 6100));
         harness.room
           ..holdNextTakesList()
-          ..holdNextSceneList()
           ..finishTheTakesListing();
         await _settles(tester);
         harness.room.holdNextTakesList();
@@ -1641,8 +1747,7 @@ void main() {
 
         harness.room
           ..finishHeldTakesList()
-          ..finishHeldTakesList()
-          ..finishHeldSceneList();
+          ..finishHeldTakesList();
         await _settles(tester);
 
         expect(find.text(_thinking), findsNothing);

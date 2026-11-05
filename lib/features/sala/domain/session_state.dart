@@ -649,11 +649,16 @@ class SalaSessionState {
   /// Whether a switch of the grain is in the air.
   final bool grainSwitching;
 
-  /// How many times the recording home is still laying in what the room holds, from the
-  /// listing to the last clip.
-  final int listingsLayingIn;
+  /// The generation of the recording home that is still laying in what the room holds,
+  /// from the listing to the last clip. A lay-in of another generation neither holds the
+  /// rows nor opens them.
+  final int? layingInGeneration;
 
-  bool get readingTheListing => listingsLayingIn > 0;
+  /// The rows whose part the listing named and whose clip failed to come down: shut until
+  /// a later opening lays the clip in.
+  final Set<int> rowsAwaitingTheirClip;
+
+  bool get readingTheListing => layingInGeneration == machine.generation;
 
   const SalaSessionState({
     this.awaitingTheGuide = false,
@@ -769,7 +774,8 @@ class SalaSessionState {
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
-    this.listingsLayingIn = 0,
+    this.layingInGeneration,
+    this.rowsAwaitingTheirClip = const {},
   });
 
   bool get colarOn => stage == SalaStage.conversa;
@@ -2062,7 +2068,9 @@ class SalaSessionState {
     Grain? grainInForce,
     bool clearGrainInForce = false,
     bool? grainSwitching,
-    int? listingsLayingIn,
+    int? layingInGeneration,
+    bool clearLayingIn = false,
+    Set<int>? rowsAwaitingTheirClip,
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
@@ -2228,7 +2236,11 @@ class SalaSessionState {
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       grainInForce: inForce,
       grainSwitching: grainSwitching ?? this.grainSwitching,
-      listingsLayingIn: listingsLayingIn ?? this.listingsLayingIn,
+      rowsAwaitingTheirClip:
+          rowsAwaitingTheirClip ?? this.rowsAwaitingTheirClip,
+      layingInGeneration: clearLayingIn
+          ? null
+          : (layingInGeneration ?? this.layingInGeneration),
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack
           ? null

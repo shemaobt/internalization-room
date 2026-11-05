@@ -1026,22 +1026,50 @@ void main() {
   );
 
   testWidgets(
-    'a part the room holds whose audio cannot be fetched, recorded again from '
-    'the dot\'s home, goes up above the room\'s pass',
+    'a part the room holds whose clip fails to come down keeps its row shut, '
+    'and the rows whose parts were laid in open',
     (tester) async {
       final (harness, container) = await _reopenedOnTheConversation(
         tester,
-        roomTakes: [_roomPart(2, pass: 3)],
+        roomTakes: [
+          _roomPart(1, pass: 1),
+          _roomPart(2, pass: 3),
+          _roomPart(3, pass: 1),
+        ],
+        before: (harness) => harness.room.failClipOf['gravacao-2'] =
+            const NetworkFailed('sem rede'),
       );
-      harness.room.failClipWith = const NetworkFailed('sem rede');
       await _tapTheDot(tester);
       await _theAnswerSettles(tester);
       expect(find.text(_homeLine), findsOneWidget);
-      harness.room.failClipWith = null;
+      expect(find.text(_thinking), findsNothing);
 
-      await _recordAgain(tester, container, 2);
+      Finder inRow(int n, String control) => find.descendant(
+        of: _row(n, _threeScenes),
+        matching: byLabel(control),
+      );
+      final shut = inRow(2, 'Gravar').first;
+      expect(tester.widget<Semantics>(shut).properties.enabled, isFalse);
+      await tester.tap(shut);
+      await _theAnswerSettles(tester);
+      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
 
-      expect(harness.room.takePasses, [4]);
+      for (final n in [1, 3]) {
+        expect(
+          tester
+              .widget<Semantics>(inRow(n, 'Gravar de novo').first)
+              .properties
+              .enabled,
+          isTrue,
+        );
+      }
+      await tester.tap(inRow(1, 'Gravar de novo').first);
+      await _theAnswerSettles(tester);
+      expect(
+        container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recording,
+      );
+      expect(harness.room.takePasses, isEmpty);
     },
   );
 

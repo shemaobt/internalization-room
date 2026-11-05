@@ -473,12 +473,12 @@ class _SceneRowView extends StatelessWidget {
         session.ensaio != EnsaioStatus.idle && !row.recording ||
         session.needsPerson ||
         session.readingTheListing ||
+        session.rowsAwaitingTheirClip.contains(row.number) ||
         frozen;
     final mood = another ? ButtonMood.dimmed : ButtonMood.lit;
     final listens =
         session.needsPerson ||
             session.ensaio == EnsaioStatus.recording ||
-            session.readingTheListing ||
             frozen
         ? ButtonMood.dimmed
         : ButtonMood.lit;
@@ -556,7 +556,7 @@ class _SceneRowView extends StatelessWidget {
                       color: ShemaBrand.branco,
                     ),
                     () => onRetelling(retelling.scope),
-                    session.keptRetellingsRest || session.readingTheListing
+                    session.keptRetellingsRest
                         ? ButtonMood.dimmed
                         : ButtonMood.lit,
                   ),
@@ -719,7 +719,10 @@ class _SceneRowView extends StatelessWidget {
       language,
     );
     final open =
-        session.homeBusy || session.needsPerson || session.bringingBack != null
+        session.homeBusy ||
+            session.needsPerson ||
+            session.bringingBack != null ||
+            session.rowsAwaitingTheirClip.contains(row.number)
         ? null
         : onSheet;
     return Padding(

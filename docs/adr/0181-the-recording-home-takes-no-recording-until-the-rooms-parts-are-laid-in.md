@@ -23,15 +23,23 @@ answers in time and «Gravar» stays lit until the clips land.
 ## Decision
 
 - **From the home's opening until its parts are laid in, its rows are dimmed and take no tap,
-  and the home says «pensando…».** The record controls, «ouvir», the kept retelling, the sheet
-  door and the grain controls wait, as they do while a grain switch is in the air.
-- **The wait ends when the parts are laid in or when the read fails.** A failed listing read
-  opens the rows with what the tablet holds.
+  and the home says «pensando…».** The record controls, the sheet door and the grain controls
+  wait, as they do while a grain switch is in the air. «Ouvir» plays what the tablet holds and
+  stays live (ADR 0177).
+- **The wait ends when the parts are laid in, or when the listing read fails.** A failed
+  listing read opens the rows with what the tablet holds: the tablet then knows nothing of the
+  room's parts.
+- **A row whose clip failed to come down stays shut.** The listing named the part, so the
+  room is known to hold it; the other rows open once laid in. The row's retry and «trazer de
+  volta» stay available. The next opening of the home tries the clip again.
 - **It holds on every opening of the home that reads the room**, not only after a relaunch: a
   grain switch to the whole, the read after a join, and the dot over parts the tablet holds.
   The wait is bounded by the listing's 20 s and the clips' own limits.
+- **The lay-in belongs to the generation that opened the home.** A lay-in of another
+  generation neither holds the rows nor opens them.
 
 ## Consequences
 
-- A clip that fails to download leaves the part unnamed on the tablet and opens the rows, as
-  the read's failure does; the room's refusal of a take over a part it holds remains the net.
+- A team that stays offline cannot re-record a part whose clip failed. A take over that part
+  would go up as the next pass and make it the room's current part, since the room refuses
+  nothing for a higher pass, so the row stays shut instead.
