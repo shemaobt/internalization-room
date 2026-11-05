@@ -2546,14 +2546,14 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     state = state.copyWith(awaitingTheGuide: true);
     _watchBusyState();
     final sent = ++_readsSent;
-    final found =
-        flight.answerIn(_lingua) ??
-        await _room.createSession(pericope: id, language: _lingua);
-    flight.answered = null;
+    final speaking = _lingua;
+    final kept = flight.answered;
+    final RoomAnswer<SessionSnapshot> found = kept != null
+        ? Answered(kept)
+        : await _room.createSession(pericope: id, language: speaking);
     switch (found) {
-      case Answered() when _abandoned(generation):
-        flight.adopt = flight.wayBack;
-        flight.answered = (found, _lingua);
+      case Answered(value: final session) when _abandoned(generation):
+        flight.adoptIfTheWayBackWasTaken(session, speaking == _lingua);
       case _ when _abandoned(generation):
         return;
       case Answered(value: final session):
@@ -2998,15 +2998,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
 
     var created = opened;
     if (opened == null) {
-      final answer =
-          flight?.answerIn(speaking) ??
-          (waiting == null
-              ? await _createThePassage(book, pericope, speaking, generation)
-              : await _room.createSession(
-                  pericope: pericope,
-                  language: speaking,
-                ));
-      flight?.answered = null;
+      final kept = flight?.answered;
+      final RoomAnswer<SessionSnapshot> answer = kept != null
+          ? Answered(kept)
+          : waiting == null
+          ? await _createThePassage(book, pericope, speaking, generation)
+          : await _room.createSession(pericope: pericope, language: speaking);
       switch (answer) {
         case Answered(value: final session):
           created = session;
@@ -3023,8 +3020,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     }
     final room = created!;
     if (_abandoned(generation)) {
-      flight?.adopt = flight.wayBack;
-      flight?.answered = (Answered(room), speaking);
+      flight?.adoptIfTheWayBackWasTaken(room, speaking == _lingua);
       return;
     }
     final row = opened != null || waiting?.sessionId == room.sessionId
@@ -12599,10 +12595,10 @@ const JoinOutcome _joinLeftBehind = (
 class _Flight {
   bool wayBack = false;
   bool adopt = false;
-  (RoomAnswer<SessionSnapshot>, String)? answered;
+  SessionSnapshot? answered;
 
-  RoomAnswer<SessionSnapshot>? answerIn(String language) {
-    final kept = answered;
-    return kept != null && kept.$2 == language ? kept.$1 : null;
+  void adoptIfTheWayBackWasTaken(SessionSnapshot session, bool sameLanguage) {
+    adopt = wayBack && sameLanguage;
+    if (adopt) answered = session;
   }
 }

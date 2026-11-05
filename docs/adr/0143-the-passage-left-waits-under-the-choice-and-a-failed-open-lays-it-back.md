@@ -28,6 +28,8 @@ her app does after a kickoff that throws (`:756-758`). A spoken turn is unchange
 Amended by ENG-2160 (2026-11-05): the open that answers after the chevron is adopted from that
 answer; the room is not asked to open the pill a second time. A second ask could fail on a slow
 network and, with nothing waiting any more, left the Choice without the passage and its chevron.
+An answer born in a language the team has since left is dropped, asking nothing: the team stays
+on the passage it laid back, or on the Choice with the way back live.
 
 This amends ADR 0137 without editing its decision: it adds "amended by 0143" to its status
 line. Her app is the bar: the session stays in memory under her picker (`app/page.tsx:407`),
