@@ -36,6 +36,14 @@ older build let go under another team, so no team can claim it: the first life b
 team stamps it «team unknown», and until the stamp is written it is never counted as the current
 team's (Henok, 03-11). A stamp the disk refuses is tried again at the next launch.
 
+A Resume point (`em_curso.json`) belongs to the team that wrote it the same way: it records the
+link's `project_id` as `team`, written only when set, and is kept under a key that names the team.
+The tablet reads, lists, rewrites and forgets only the points of the team it is linked to now, so a
+re-link to another team never asks the room for the old team's session, and the 404 that would have
+answered erases nothing. The old team's point waits on disk until the tablet is linked to it again,
+and then resumes the passage where it stood. A point with no team was written by a build before this
+one and is the current team's, as an untagged Outbox row with a session is (ENG-2144).
+
 The row's shape grows by two optional keys, written only when set: `team` and `team_unknown`. They
 sit beside `swap`, written only by the recording home's swap and read as false when missing
 (ENG-2079).

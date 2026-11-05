@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../domain/grain.dart';
 import '../domain/kept_take.dart';
 import '../domain/session_state.dart';
+import 'device_link_notifier.dart';
 import 'staged_write.dart';
 
 const _folder = 'guardadas';
@@ -56,6 +57,10 @@ class ResumePoint {
 
   final bool hearNewScene;
 
+  /// The team the row was written under. Null for a row written before this field
+  /// existed, which reads as the current team's (ADR 0179).
+  final String? team;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -67,13 +72,31 @@ class ResumePoint {
     this.wholeHeldByTheRoom = const [],
     this.grain,
     this.hearNewScene = false,
+    this.team,
   });
+
+  ResumePoint withTeam(String? team) => team == this.team
+      ? this
+      : ResumePoint(
+          sessionId: sessionId,
+          stage: stage,
+          takes: takes,
+          savedAt: savedAt,
+          language: language,
+          passesToGoAbove: passesToGoAbove,
+          listener: listener,
+          wholeHeldByTheRoom: wholeHeldByTheRoom,
+          grain: grain,
+          hearNewScene: hearNewScene,
+          team: team,
+        );
 
   Map<String, Object?> toJson() => {
     'session_id': sessionId,
     'stage': stage.name,
     'saved_at': ?savedAt?.millisecondsSinceEpoch,
     'language': ?language,
+    'team': ?team,
     if (passesToGoAbove.isNotEmpty)
       'passes_to_go_above': {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
@@ -112,6 +135,7 @@ class ResumePoint {
           ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
           : null,
       language: json['language'] as String?,
+      team: json['team'] as String?,
       passesToGoAbove: {
         for (final MapEntry(:key, :value)
             in (json['passes_to_go_above'] as Map? ?? const {}).entries)
@@ -166,11 +190,19 @@ class WorkInProgress {
   final Future<Directory> Function() _recordings;
   Future<void> _writes = Future<void>.value();
 
+  /// The team the tablet is linked to now. A row of any other team stays on disk,
+  /// unread and untouched, until the tablet is linked to that team again (ADR 0179).
+  final String? Function() _team;
+
   WorkInProgress({
     Future<Directory> Function()? home,
     Future<Directory> Function()? recordings,
+    String? Function()? team,
   }) : _home = home ?? getApplicationSupportDirectory,
-       _recordings = recordings ?? _recordingsHome;
+       _recordings = recordings ?? _recordingsHome,
+       _team = team ?? _noTeam;
+
+  static String? _noTeam() => null;
 
   static Future<Directory> _recordingsHome() async => Directory(
     p.join((await getApplicationDocumentsDirectory()).path, 'recordings'),
@@ -187,14 +219,25 @@ class WorkInProgress {
 
   static String _shipped(String book, String pericope) => '$book/$pericope';
 
+  static String _keyed(String? team, String mark) =>
+      team == null ? mark : '$team|$mark';
+
+  static String _markOf(String key, ResumePoint row) =>
+      row.team == null ? key : key.substring(row.team!.length + 1);
+
+  static bool _mine(ResumePoint row, String? team) =>
+      row.team == null || row.team == team;
+
   static Map<String, ResumePoint> _without(
     Map<String, ResumePoint> rows,
+    String? team,
     String book,
     String pericope,
     String language,
   ) => {
     for (final entry in rows.entries)
       if (entry.key != _mark(book, pericope, language) &&
+          entry.key != _keyed(team, _mark(book, pericope, language)) &&
           !(entry.key == _shipped(book, pericope) &&
               (entry.value.language ?? language) == language))
         entry.key: entry.value,
@@ -224,17 +267,27 @@ class WorkInProgress {
   }
 
   /// The passages of this book with work waiting in them.
-  Future<Set<String>> startedIn(String book, String language) async => {
-    for (final MapEntry(:key, :value) in (await _rows()).entries)
-      if (key.startsWith('$book/') &&
-          (key.endsWith('/$language') || value.language == language))
-        key.split('/')[1],
-  };
+  Future<Set<String>> startedIn(String book, String language) async {
+    final team = _team();
+    return {
+      for (final MapEntry(:key, :value) in (await _rows()).entries)
+        if (_mine(value, team) && _markOf(key, value).startsWith('$book/'))
+          if (_markOf(key, value).endsWith('/$language') ||
+              value.language == language)
+            _markOf(key, value).split('/')[1],
+    };
+  }
 
   Future<ResumePoint?> of(String book, String pericope, String language) async {
-    final rows = await _rows();
+    final team = _team();
+    final rows = {
+      for (final entry in (await _rows()).entries)
+        if (_mine(entry.value, team)) entry.key: entry.value,
+    };
     final shipped = rows[_shipped(book, pericope)];
-    return rows[_mark(book, pericope, language)] ??
+    final mark = _mark(book, pericope, language);
+    return rows[_keyed(team, mark)] ??
+        rows[mark] ??
         (shipped?.language == language ? shipped : null);
   }
 
@@ -243,23 +296,31 @@ class WorkInProgress {
     String pericope,
     String language,
     ResumePoint point,
-  ) => _write(
-    (rows) => {
-      ..._without(rows, book, pericope, language),
-      _mark(book, pericope, language): point,
-    },
-  );
+  ) {
+    final team = _team();
+    return _write(
+      (rows) => {
+        ..._without(rows, team, book, pericope, language),
+        _keyed(team, _mark(book, pericope, language)): point.withTeam(team),
+      },
+    );
+  }
 
-  Future<void> forget(String book, String pericope, String language) =>
-      _write((rows) => _without(rows, book, pericope, language));
+  Future<void> forget(String book, String pericope, String language) {
+    final team = _team();
+    return _write((rows) => _without(rows, team, book, pericope, language));
+  }
 
   Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final team = _team();
     final forgotten = <ResumePoint>[];
     await _write((rows) {
-      forgotten.addAll(rows.values.where((row) => row.sessionId == sessionId));
+      bool theOne(ResumePoint row) =>
+          row.sessionId == sessionId && _mine(row, team);
+      forgotten.addAll(rows.values.where(theOne));
       return {
         for (final entry in rows.entries)
-          if (entry.value.sessionId != sessionId) entry.key: entry.value,
+          if (!theOne(entry.value)) entry.key: entry.value,
       };
     });
     return forgotten;
@@ -303,5 +364,6 @@ class WorkInProgress {
 }
 
 final workInProgressProvider = Provider<WorkInProgress>(
-  (ref) => WorkInProgress(),
+  (ref) =>
+      WorkInProgress(team: () => ref.read(deviceLinkProvider).team?.projectId),
 );

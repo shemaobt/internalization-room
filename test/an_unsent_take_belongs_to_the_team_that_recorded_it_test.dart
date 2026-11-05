@@ -7,6 +7,7 @@ import 'package:internalization_room/features/sala/data/device_link_notifier.dar
 import 'package:internalization_room/features/sala/data/linked_team.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
+import 'package:internalization_room/features/sala/data/work_in_progress.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/domain/device_link.dart';
@@ -14,6 +15,7 @@ import 'package:internalization_room/features/sala/domain/kept_take.dart';
 
 import 'fakes.dart';
 import 'scenario_helpers.dart';
+import 'support/temp.dart';
 
 const _passage = 'Genesis/P01/pt';
 
@@ -188,6 +190,72 @@ void main() {
     expect(estado().sessionId, isNot(theirs));
     expect(estado().unsentParts, isEmpty);
     expect(estado().unsentTakes, 0);
+  });
+
+  test("a 404 on the old team's session forgets none of its Resume point, and "
+      'linked back to its team the passage resumes where it stood', () async {
+    late ProviderContainer container;
+    final home = aTempDir('sala-em-curso-relink');
+    final ledger = WorkInProgress(
+      home: () async => home,
+      recordings: () async => home,
+      team: () => container.read(deviceLinkProvider).team?.projectId,
+    );
+    final harness = SalaHarness(
+      linkedAs: const RememberedLink(
+        deviceId: 'aparelho-1',
+        team: TeamLink(projectId: 'equipe-1'),
+        credential: 'credencial-1',
+      ),
+      linkPoll: const Duration(milliseconds: 20),
+      emAbertoNoDisco: ledger,
+    );
+    container = harness.container();
+    addTearDown(container.dispose);
+    await container.read(deviceLinkProvider.notifier).findTheTeam();
+    final tablet = (harness: harness, container: container);
+    await ledger.remember(
+      'Ruth',
+      'P01',
+      'pt',
+      const ResumePoint(
+        sessionId: 'sessao-da-equipe-1',
+        stage: SalaStage.ensaio,
+      ),
+    );
+    final sala = container.read(salaSessionProvider.notifier);
+
+    await _theDeskUnlinks(tablet);
+    await _theDeskLinks(
+      tablet,
+      'equipe-2',
+      foreignSessions: {'sessao-da-equipe-1'},
+    );
+    await sala.abrirEscolha();
+    await settle();
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'the new team to open the passage',
+      () => container.read(salaSessionProvider).sessionId != null,
+    );
+
+    expect(
+      container.read(salaSessionProvider).sessionId,
+      isNot('sessao-da-equipe-1'),
+    );
+
+    await sala.abrirEscolha();
+    await settle();
+    await _theDeskUnlinks(tablet);
+    await _theDeskLinks(tablet, 'equipe-1');
+    await sala.abrirEscolha();
+    await settle();
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'the first team to resume its passage',
+      () =>
+          container.read(salaSessionProvider).sessionId == 'sessao-da-equipe-1',
+    );
   });
 
   test(
