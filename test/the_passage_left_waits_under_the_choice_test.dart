@@ -612,6 +612,36 @@ void main() {
     },
   );
 
+  test('a pill\'s open answered after the chevron is adopted from that answer, '
+      'without asking the room to open it again', () async {
+    final harness = SalaHarness();
+    harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
+      sessionId: 'sessao-da-p02',
+      stage: SalaStage.conversa,
+    );
+    final tablet = await _onTheChoiceFromP01(harness);
+    final read = tablet.read;
+    final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
+    harness.room.holdNextCreate();
+
+    tablet.notifier.openTheEntry(p02);
+    await waitFor('the open to be in flight', () => harness.room.createHeld);
+    await tablet.notifier.returnToTheLeftEntry();
+    final asked = harness.room.calls.length;
+    harness.room.finishHeldCreate();
+    harness.room.reachable = false;
+    await settle();
+    await settle();
+
+    expect(read().station, isA<Canvas>());
+    expect(read().sessionId, 'sessao-da-p02');
+    expect(read().pericope, 'P02');
+    expect(
+      harness.room.calls.skip(asked).where((call) => call == 'createSession'),
+      isEmpty,
+    );
+  });
+
   test(
     'a new life born while a pill\'s open is held after the chevron does not '
     'open that pill by itself',

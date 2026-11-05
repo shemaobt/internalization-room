@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by ENG-1997 and ENG-2112
+status: accepted, amended by ENG-1997, ENG-2112 and ENG-2160
 date: 2026-10-28
 amends: 0137 (in part: a failed open with a passage left lays that passage back instead of resting on the Choice)
 ---
@@ -24,6 +24,10 @@ open lands over it when it answers, a Panorama pill's open included (`:980-981`)
 time: a pill tapped while an open is in flight does nothing (`:776`). An `Error` thrown by the room's call that opens a passage
 frees the flight and raises no person sign: the team rests on the passage opened, unheard, as
 her app does after a kickoff that throws (`:756-758`). A spoken turn is unchanged.
+
+Amended by ENG-2160 (2026-11-05): the open that answers after the chevron is adopted from that
+answer; the room is not asked to open the pill a second time. A second ask could fail on a slow
+network and, with nothing waiting any more, left the Choice without the passage and its chevron.
 
 This amends ADR 0137 without editing its decision: it adds "amended by 0143" to its status
 line. Her app is the bar: the session stays in memory under her picker (`app/page.tsx:407`),
