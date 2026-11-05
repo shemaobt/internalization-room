@@ -1470,10 +1470,13 @@ const _watch = ArmTheWatch();
   TheSceneWentAlready() || TheSceneSendRefused() => (machine, const []),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
-  TheSceneDoorFailed() when machine.aHaltWaitsForTheCanvas != null => _theHalt(
-    machine.copyWith(letTheWaitingHaltGo: true),
-    machine.aHaltWaitsForTheCanvas!,
-  ),
+  TheSceneDoorFailed()
+      when machine.station is Canvas &&
+          machine.aHaltWaitsForTheCanvas != null =>
+    _theHalt(
+      machine.copyWith(letTheWaitingHaltGo: true),
+      machine.aHaltWaitsForTheCanvas!,
+    ),
   TheSceneDoorFailed() => (machine, const []),
   TheSceneDiskFailed()
       when switch (machine.station) {

@@ -356,7 +356,7 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
       LookEmpty() ||
       LookFailed() => true,
       TheReplyFailedToLoad(:final load) => load >= 2,
-      StationEvent() =>
+      StationEvent() || TheSceneDoorFailed() =>
         before.aHaltWaitsForTheCanvas != null && after.station is Canvas,
       _ => false,
     };
