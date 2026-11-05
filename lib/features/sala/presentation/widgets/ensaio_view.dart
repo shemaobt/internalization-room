@@ -478,6 +478,7 @@ class _SceneRowView extends StatelessWidget {
     final listens =
         session.needsPerson ||
             session.ensaio == EnsaioStatus.recording ||
+            session.readingTheListing ||
             frozen
         ? ButtonMood.dimmed
         : ButtonMood.lit;
@@ -555,7 +556,7 @@ class _SceneRowView extends StatelessWidget {
                       color: ShemaBrand.branco,
                     ),
                     () => onRetelling(retelling.scope),
-                    session.keptRetellingsRest
+                    session.keptRetellingsRest || session.readingTheListing
                         ? ButtonMood.dimmed
                         : ButtonMood.lit,
                   ),

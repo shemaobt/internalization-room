@@ -649,8 +649,11 @@ class SalaSessionState {
   /// Whether a switch of the grain is in the air.
   final bool grainSwitching;
 
-  /// Whether the recording home is waiting for the room's listing of the takes.
-  final bool readingTheListing;
+  /// How many times the recording home is still laying in what the room holds, from the
+  /// listing to the last clip.
+  final int listingsLayingIn;
+
+  bool get readingTheListing => listingsLayingIn > 0;
 
   const SalaSessionState({
     this.awaitingTheGuide = false,
@@ -766,7 +769,7 @@ class SalaSessionState {
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
-    this.readingTheListing = false,
+    this.listingsLayingIn = 0,
   });
 
   bool get colarOn => stage == SalaStage.conversa;
@@ -2059,7 +2062,7 @@ class SalaSessionState {
     Grain? grainInForce,
     bool clearGrainInForce = false,
     bool? grainSwitching,
-    bool? readingTheListing,
+    int? listingsLayingIn,
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
@@ -2225,7 +2228,7 @@ class SalaSessionState {
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       grainInForce: inForce,
       grainSwitching: grainSwitching ?? this.grainSwitching,
-      readingTheListing: readingTheListing ?? this.readingTheListing,
+      listingsLayingIn: listingsLayingIn ?? this.listingsLayingIn,
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack
           ? null

@@ -991,12 +991,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text(_homeLine), findsOneWidget);
-      expect(find.text(_thinking), findsNothing);
+      expect(find.text(_thinking), findsOneWidget);
       expect(byLabel(_backToPassage), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 25));
       await _theAnswerSettles(tester);
 
+      expect(find.text(_thinking), findsNothing);
       expect(
         find.descendant(of: _row(1, _threeScenes), matching: byLabel('Ouvir')),
         findsOneWidget,

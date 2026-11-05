@@ -563,7 +563,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _timers = {};
     _armHandedOver = null;
     _readsSent = 0;
-    _listingReads = 0;
     _readsApplied = 0;
     _stretchesAt = 0;
     _resumeFailures = {};
@@ -807,8 +806,6 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   }
 
   int get _generation => state.machine.generation;
-
-  late int _listingReads;
 
   bool _abandoned(int generation) => _gone || generation != _generation;
 
@@ -5493,14 +5490,22 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<TakeView>? listed,
     int generation,
   ) async {
+    final life = _thisLife;
+    state = state.copyWith(listingsLayingIn: state.listingsLayingIn + 1);
+    await _readAndLayInTheListing(sessionId, listed, generation);
+    if (!_endedSince(life)) {
+      state = state.copyWith(listingsLayingIn: state.listingsLayingIn - 1);
+    }
+  }
+
+  Future<void> _readAndLayInTheListing(
+    String sessionId,
+    List<TakeView>? listed,
+    int generation,
+  ) async {
     var guardadas = listed;
     if (guardadas == null) {
-      final read = ++_listingReads;
-      state = state.copyWith(readingTheListing: true);
       final listing = await _room.takesListingOf(sessionId);
-      if (read == _listingReads && !_gone) {
-        state = state.copyWith(readingTheListing: false);
-      }
       if (listing case final SessionGone gone when !_abandoned(generation)) {
         return _decideTheFailure(gone);
       }

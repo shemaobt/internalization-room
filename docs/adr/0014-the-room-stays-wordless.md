@@ -283,3 +283,7 @@ names in English and the circle at rest, «Toque para falar» (`:266`, ENG-1950)
 a gravação» / «Back to recording» (`:274` / `:139`) on every Back-translation screen
 (ENG-1835); «Hear that again» (`:131`, ENG-1948); and the person sign's label, which leaves
 (ENG-1894).
+
+Amended by ENG-2162 (ADR 0181): the recording home writes «pensando…» under its heading while
+it lays in what the room holds, the plan's own word (`widgets/ensaio_final_plan_view.dart`),
+and no other.
