@@ -207,6 +207,7 @@ typedef _PartesDaSala = ({
   bool inteiro,
   Map<int, int> passadas,
   Set<String> deLado,
+  Set<String> fechadas,
 });
 
 /// The room's current parts read against the files the tablet holds: each current part,
@@ -3487,10 +3488,12 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     String sessionId,
     List<TakeView> guardadas,
     List<KeptTake> aqui,
-    int generation,
-  ) async {
+    int generation, {
+    bool shutTheFailed = false,
+  }) async {
     final recorder = _recorder;
     final lidas = _lerAListagem(guardadas, aqui);
+    final fechadas = <String>{};
     final semParte = <int, int>{};
     var faltou = false;
     final partes = <KeptTake>[];
@@ -3509,9 +3512,15 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
             semParte[ordinal] = parte.pass;
           }
           continue;
+        case SessionGone():
+          return const Answered(null);
+        case _ when shutTheFailed:
+          if (_abandoned(generation)) return const Answered(null);
+          fechadas.add(parte.scopeId);
+          continue;
         case NetworkFailed() && final fell:
           return fell;
-        case Answered() || Refused() || SessionGone():
+        case Answered() || Refused():
           return const Answered(null);
       }
       if (_abandoned(generation)) {
@@ -3521,6 +3530,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           inteiro: true,
           passadas: <int, int>{},
           deLado: <String>{},
+          fechadas: <String>{},
         ));
       }
       partes.add(parte.at(arquivo));
@@ -3530,6 +3540,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       inteiro: !faltou,
       passadas: semParte,
       deLado: lidas.deLado,
+      fechadas: fechadas,
     ));
   }
 
@@ -4447,6 +4458,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
           if (!leftBehind(take.scopeId)) take,
       ],
       btChecked: false,
+      rowsAwaitingTheirClip: const {},
       theRoomJoinedParts: _partesJuntadas(listing.takes),
       wholeHeldByTheRoom: grain == Grain.whole ? const {} : null,
     );
@@ -5498,6 +5510,18 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     List<TakeView>? listed,
     int generation,
   ) async {
+    state = state.copyWith(layingInGeneration: generation);
+    await _readAndLayInTheListing(sessionId, listed, generation);
+    if (state.layingInGeneration == generation) {
+      state = state.copyWith(clearLayingIn: true);
+    }
+  }
+
+  Future<void> _readAndLayInTheListing(
+    String sessionId,
+    List<TakeView>? listed,
+    int generation,
+  ) async {
     var guardadas = listed;
     if (guardadas == null) {
       final listing = await _room.takesListingOf(sessionId);
@@ -5536,9 +5560,20 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
         })
           guardada,
     ];
-    if (await _asPartesDaSala(sessionId, faltam, const [], generation)
+    if (await _asPartesDaSala(
+          sessionId,
+          faltam,
+          const [],
+          generation,
+          shutTheFailed: true,
+        )
         case Answered(value: final laid?)) {
       if (_abandoned(generation)) return;
+      state = state.copyWith(
+        rowsAwaitingTheirClip: {
+          for (final scope in laid.fechadas) ?state.rowOf(scope),
+        },
+      );
       final agora = _theRowsStanding;
       final novas = [
         for (final parte in laid.partes)
@@ -9391,6 +9426,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     if (sessionId == null) return;
     if ((state.approvedDraftDrawn ?? state.approvedOnTheHome) == null) return;
     if (state.microphoneOpen || !state.aBackTranslationGestureActs) return;
+    if (state.readingTheListing) return;
     _handOff(_abrirAChecagemExterna(sessionId));
   });
 

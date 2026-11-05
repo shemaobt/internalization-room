@@ -417,6 +417,45 @@ Future<ProviderContainer> _relaunchOnTheApp(
   return next;
 }
 
+Future<void> _holdingTheFirstClip(
+  WidgetTester tester,
+  SalaHarness harness,
+) async {
+  harness.room.holdNextClip();
+  await _tapTheDot(tester);
+  await _settles(tester);
+}
+
+Future<void> _backOnTheConversation(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final notifier = container.read(salaSessionProvider.notifier);
+  await notifier.abrirEscolha();
+  await tester.pump(const Duration(milliseconds: 300));
+  unawaited(notifier.goConversa(book: 'Ruth', pericope: 'P01'));
+  for (var vez = 0; vez < 30; vez++) {
+    final read = container.read(salaSessionProvider);
+    if (read.stage == SalaStage.conversa && !read.awaitingTheGuide) break;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  await tester.pump(const Duration(seconds: 1));
+}
+
+Future<void> _letTheClipLand(WidgetTester tester) async {
+  for (var vez = 0; vez < 10; vez++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
+List<TakeView> get _onePart => [_joinedPart(1)];
+
 void main() {
   testWidgets(
     '1. the plan read that runs out at 6 s shows «Como vocês querem gravar?», '
@@ -670,7 +709,7 @@ void main() {
     'after «A passagem inteira» the room answered, a plan read with the '
     'listing unread opens the whole home, not the choice again',
     (tester) async {
-      final (harness, _) = await _onTheChoice(tester);
+      final (harness, container) = await _onTheChoice(tester);
       harness.room.failTakesWith = const NetworkFailed('sem rede');
 
       await _tap(tester, _whole);
@@ -686,6 +725,15 @@ void main() {
             'perguntava a escolha de novo; o dela, sem plano, abre a casa',
       );
       expect(find.text(_how), findsNothing);
+      expect(find.text(_thinking), findsNothing);
+      final record = byLabel('Gravar').first;
+      expect(tester.widget<Semantics>(record).properties.enabled, isTrue);
+      await tester.tap(record);
+      await _settles(tester);
+      expect(
+        container.read(salaSessionProvider).ensaio,
+        EnsaioStatus.recording,
+      );
     },
   );
 
@@ -1529,6 +1577,74 @@ void main() {
     },
   );
 
+  group('a lay-in that outlives the home it served', () {
+    testWidgets('leaving the passage and coming back finds the rows shut', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopened(tester, roomTakes: _onePart);
+      await _holdingTheFirstClip(tester, harness);
+      final old = harness.room.takeClipHold();
+      final notifier = container.read(salaSessionProvider.notifier);
+      notifier.leaveThePassage();
+      await _settles(tester);
+      old!.complete();
+      await _letTheClipLand(tester);
+
+      await _backOnTheConversation(tester, container);
+      harness.room.holdNextClip();
+      await _tapTheDot(tester);
+      await _settles(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      expect(find.text(_thinking), findsOneWidget);
+      final record = byLabel('Gravar').first;
+      expect(tester.widget<Semantics>(record).properties.enabled, isFalse);
+      harness.room.finishHeldClip();
+      await _letTheClipLand(tester);
+    });
+
+    testWidgets('coming back through the way back leaves no rows dead', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopened(tester, roomTakes: _onePart);
+      await _holdingTheFirstClip(tester, harness);
+      final notifier = container.read(salaSessionProvider.notifier);
+      await tester.tap(byLabel(_backToPassage));
+      await _settles(tester);
+      notifier.leaveThePassage();
+      await _settles(tester);
+      harness.room.finishHeldClip();
+      await _letTheClipLand(tester);
+      await notifier.returnToTheLeftEntry();
+      await _letTheClipLand(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isFalse);
+      expect(container.read(salaSessionProvider).nothingStartsNow, isFalse);
+    });
+
+    testWidgets('a lay-in of an ended life never opens the new life\'s rows', (
+      tester,
+    ) async {
+      final (harness, container) = await _reopened(tester, roomTakes: _onePart);
+      await _holdingTheFirstClip(tester, harness);
+      final old = harness.room.takeClipHold();
+      container.invalidate(salaSessionProvider);
+      await tester.pump(const Duration(milliseconds: 300));
+      await _backOnTheConversation(tester, container);
+      harness.room.holdNextClip();
+      await _tapTheDot(tester);
+      await _settles(tester);
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+
+      old!.complete();
+      await _letTheClipLand(tester);
+
+      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
+      harness.room.finishHeldClip();
+      await _letTheClipLand(tester);
+    });
+  });
+
   group('1. a listing that answers after the 6 s cut', () {
     testWidgets('with a grain in force takes the team off the choice', (
       tester,
@@ -1594,6 +1710,94 @@ void main() {
         harness.room
           ..finishHeldTakesList()
           ..finishHeldSceneList();
+      },
+    );
+
+    testWidgets(
+      'a relaunch whose listing is still in the air takes no recording on the '
+      'home until the listing answers',
+      (tester) async {
+        final (harness, container) = await _reopened(
+          tester,
+          roomTakes: const [],
+          before: (harness) =>
+              harness.room.sceneRehearsals.add(_rehearsal('sessao-antiga')),
+        );
+        harness.room
+          ..grain = Grain.scene
+          ..holdTheTakesListing();
+        await _tapTheDot(tester);
+        await tester.pump(const Duration(milliseconds: 6100));
+        harness.room
+          ..holdNextTakesList()
+          ..finishTheTakesListing();
+        await _settles(tester);
+        harness.room.holdNextTakesList();
+        await tester.pump(const Duration(milliseconds: 6000));
+        await _settles(tester);
+        expect(find.text(_homeLine), findsOneWidget);
+
+        final record = byLabel('Gravar').first;
+        expect(find.text(_thinking), findsOneWidget);
+        expect(_enabled(tester, _wholeInstead), isFalse);
+        expect(tester.widget<Semantics>(record).properties.enabled, isFalse);
+        await tester.tap(record);
+        await _settles(tester);
+        expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+
+        harness.room
+          ..finishHeldTakesList()
+          ..finishHeldTakesList();
+        await _settles(tester);
+
+        expect(find.text(_thinking), findsNothing);
+        expect(_enabled(tester, _wholeInstead), isTrue);
+        await tester.tap(record);
+        await _settles(tester);
+        expect(
+          container.read(salaSessionProvider).ensaio,
+          EnsaioStatus.recording,
+        );
+      },
+    );
+
+    testWidgets(
+      'a relaunch whose listing named the parts keeps the rows shut until their '
+      'clips are laid in',
+      (tester) async {
+        final (harness, container) = await _reopened(
+          tester,
+          roomTakes: [
+            for (final n in [1, 2, 3]) _joinedPart(n),
+          ],
+        );
+        harness.room.holdNextClip();
+        await _tapTheDot(tester);
+        await _settles(tester);
+        expect(find.text(_homeLine), findsOneWidget);
+
+        final record = byLabel('Gravar').first;
+        expect(find.text(_thinking), findsOneWidget);
+        expect(container.read(salaSessionProvider).partes, isEmpty);
+        expect(tester.widget<Semantics>(record).properties.enabled, isFalse);
+        await tester.tap(record);
+        await _settles(tester);
+        expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
+
+        harness.room.finishHeldClip();
+        await _settles(tester);
+        await _settles(tester);
+
+        expect(find.text(_thinking), findsNothing);
+        expect(container.read(salaSessionProvider).partes, hasLength(3));
+        final again = byLabel('Gravar de novo').first;
+        expect(tester.widget<Semantics>(again).properties.enabled, isTrue);
+        await tester.tap(again);
+        await _settles(tester);
+        expect(
+          container.read(salaSessionProvider).ensaio,
+          EnsaioStatus.recording,
+        );
       },
     );
 

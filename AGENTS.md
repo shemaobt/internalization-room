@@ -41,7 +41,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   screen, her Checagem externa screen, her grain choice, the unsent notice, and the update
   screen (ADR 0014), and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR
   0014), and the red microphone's take state with her «parar» (ADR 0131), and the «pensando…»
-  under a thinking circle and the mic clock's digits above it (ADR 0014).
+  under a thinking circle and the mic clock's digits above it (ADR 0014), and the «pensando…»
+  under the recording home's heading while it lays in the room's parts (ADR 0181).
 - Every test temp folder comes from `aTempDir`, which deletes it when its test ends; the lint
   job fails on any other `createTempSync` or `createTemp(` under `test/`. The harness drains
   its Outbox before that delete, so no write lands in a folder already gone.

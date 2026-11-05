@@ -649,6 +649,17 @@ class SalaSessionState {
   /// Whether a switch of the grain is in the air.
   final bool grainSwitching;
 
+  /// The generation of the recording home that is still laying in what the room holds,
+  /// from the listing to the last clip. A lay-in of another generation neither holds the
+  /// rows nor opens them.
+  final int? layingInGeneration;
+
+  /// The rows whose part the listing named and whose clip failed to come down: shut until
+  /// a later opening lays the clip in.
+  final Set<int> rowsAwaitingTheirClip;
+
+  bool get readingTheListing => layingInGeneration == machine.generation;
+
   const SalaSessionState({
     this.awaitingTheGuide = false,
     this.arrivedAtTheChoice = false,
@@ -763,6 +774,8 @@ class SalaSessionState {
     this.wholeHeldByTheRoom = const {},
     this.grainInForce,
     this.grainSwitching = false,
+    this.layingInGeneration,
+    this.rowsAwaitingTheirClip = const {},
   });
 
   bool get colarOn => stage == SalaStage.conversa;
@@ -1065,7 +1078,8 @@ class SalaSessionState {
       _theTakeInTheAirOf(partTakeKind) != null ||
       machine.keeping.keys.any((part) => part.session == sessionId) ||
       phaseBusy ||
-      grainSwitching;
+      grainSwitching ||
+      readingTheListing;
 
   bool get phaseBusy =>
       joining != null || swapping != null || bringingBack != null;
@@ -2054,6 +2068,9 @@ class SalaSessionState {
     Grain? grainInForce,
     bool clearGrainInForce = false,
     bool? grainSwitching,
+    int? layingInGeneration,
+    bool clearLayingIn = false,
+    Set<int>? rowsAwaitingTheirClip,
     List<int>? toBringBack,
     int? bringingBack,
     bool clearBringingBack = false,
@@ -2219,6 +2236,11 @@ class SalaSessionState {
       theRoomJoinedParts: theRoomJoinedParts ?? this.theRoomJoinedParts,
       grainInForce: inForce,
       grainSwitching: grainSwitching ?? this.grainSwitching,
+      rowsAwaitingTheirClip:
+          rowsAwaitingTheirClip ?? this.rowsAwaitingTheirClip,
+      layingInGeneration: clearLayingIn
+          ? null
+          : (layingInGeneration ?? this.layingInGeneration),
       toBringBack: toBringBack ?? this.toBringBack,
       bringingBack: clearBringingBack
           ? null

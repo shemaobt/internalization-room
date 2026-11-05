@@ -18,7 +18,8 @@ class ExternalCheckButton extends ConsumerWidget {
     final abre =
         !session.microphoneOpen &&
         session.voice != VoiceState.speaking &&
-        session.voice != VoiceState.thinking;
+        session.voice != VoiceState.thinking &&
+        !session.readingTheListing;
     final rotulo = retroLabelFor('externalCheck', language);
     return Semantics(
       button: true,

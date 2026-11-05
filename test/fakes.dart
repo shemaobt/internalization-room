@@ -1327,6 +1327,12 @@ class FakeRoom implements RoomRepository {
   /// Hold the next audio this room is asked for, the way a bad link holds a whole part.
   void holdNextClip() => _holdingClip = Completer<void>();
 
+  Completer<void>? takeClipHold() {
+    final held = _holdingClip;
+    _holdingClip = null;
+    return held;
+  }
+
   void finishHeldClip() {
     _holdingClip?.complete();
     _holdingClip = null;
