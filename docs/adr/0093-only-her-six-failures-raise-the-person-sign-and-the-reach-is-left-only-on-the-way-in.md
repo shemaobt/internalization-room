@@ -113,4 +113,4 @@ sent while a person is called is never sent again.
 A «terminei» sent again and still out when the team returns to the Conversation (in the air,
 or in the look that follows a drop) does not raise the waiting sign on arrival: it stays
 waiting on the Conversation. An accepted resend, or a look that finds its reply, forgets it; a
-look that finds nothing, or a code that stops the room, shows it then.
+look that finds nothing, a wait that runs out, or a code that stops the room, shows it then.

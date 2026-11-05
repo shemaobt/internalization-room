@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:internalization_room/features/sala/domain/channel.dart';
+import 'package:internalization_room/features/sala/domain/failure_policy.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
@@ -594,16 +595,37 @@ void main() {
     ]) {
       test('${refusal.runtimeType} forgets the sign, so a later refused list '
           'calls nobody', () {
-        final (landed, _) = reduce(leftWith(const []), refusal);
-        final (machine, _) = reduce(
-          landed,
+        var (machine, _) = reduce(leftWith(const []), const TurnFailed(turn));
+        (machine, _) = reduce(machine, refusal);
+        final (after, effects) = reduce(
+          machine,
           const TheSceneDoorFailed(readAgain: true, generation: _generation),
         );
 
-        expect(machine.aHaltWaitsForTheCanvas, isNull);
-        expect(machine.halt, isNot(isA<Blocking>()));
+        expect(after.halt, isNot(isA<Blocking>()));
+        expect(effects, isNot(contains(const CallForAPerson())));
       });
     }
+
+    test('calls a person when the wait runs out over the resend\'s look', () {
+      final (machine, effects) = reduce(
+        leftWith(const [TurnGivenUp(turn)]),
+        const TheStepFailed(generation: _generation),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(effects, contains(const CallForAPerson()));
+    });
+
+    test('forgets the waiting sign once a failed look has shown it', () {
+      final (machine, _) = reduce(
+        leftWith(const [TurnGivenUp(turn)]),
+        const LookFailed(turn, RoomNetworkFailed()),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(machine.aHaltWaitsForTheCanvas, isNull);
+    });
 
     test('forgets the waiting sign once the look has shown it', () {
       final (machine, _) = reduce(

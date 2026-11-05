@@ -1562,6 +1562,18 @@ const _watch = ArmTheWatch();
     const [],
     const RefuseThePassage(),
   ),
+  TheStepFailed()
+      when machine.station is Canvas &&
+          machine.aHaltWaitsForTheCanvas != null =>
+    switch (_theHalt(
+      machine.copyWith(letTheWaitingHaltGo: true),
+      machine.aHaltWaitsForTheCanvas!,
+    )) {
+      (final halted, final effects) => (
+        halted,
+        [const LetTheStepGo(), ...effects],
+      ),
+    },
   TheStepFailed() => (machine, const [LetTheStepGo()]),
   TheResumeFailed() => _theResumeFailed(machine),
   TheOpenBroughtNoSession() => _orBackToWhatWaits(
@@ -1573,10 +1585,7 @@ const _watch = ArmTheWatch();
     machine.copyWith(aHaltWaitsForTheCanvas: const RoomRaisedAHalt()),
     const [LetTheStepGo(), TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
-  TheSceneTurnFoundNothing() => reduce(
-    machine.copyWith(letTheWaitingHaltGo: true),
-    const RoomRaisedAHalt(),
-  ),
+  TheSceneTurnFoundNothing() => reduce(machine, const RoomRaisedAHalt()),
   TheTellingCameBackEmpty() when machine.station is Retro => (
     machine.copyWith(wordlessTelling: true, aStretchWaitsForItsPart: false),
     const [LetThePendingTranslationGo()],
