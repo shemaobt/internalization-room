@@ -58,7 +58,6 @@ class _Fila extends QueueThatFlushesLate {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     if (_enqueue case final held? when !enqueueAsked) {
       enqueueAsked = true;
@@ -73,7 +72,6 @@ class _Fila extends QueueThatFlushesLate {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 

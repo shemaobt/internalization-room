@@ -4122,7 +4122,6 @@ class FakeTakeQueue implements TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     if (_lifeEnded) throw const TheLifeEnded();
     if (refusesTheNextKeep) {
@@ -4143,7 +4142,8 @@ class FakeTakeQueue implements TakeUploadQueue {
       original: kind == sceneTakeKind
           ? p.basenameWithoutExtension(audio.path)
           : null,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
+      reopensTheApprovedDraft:
+          sessionId != null && audio.path.contains(anArmedTake),
     );
     rows.add(entry);
     return entry;
@@ -5115,7 +5115,6 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     final wait = enqueuesAfter;
     if (wait != null) await Future<void>.delayed(wait);
@@ -5128,7 +5127,6 @@ class QueueThatEnqueuesLate extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }

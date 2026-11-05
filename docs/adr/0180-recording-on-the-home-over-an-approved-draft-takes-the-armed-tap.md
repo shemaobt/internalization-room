@@ -1,13 +1,13 @@
 ---
 status: accepted
 date: 2026-11-05
-amends: 0113 (the home's record controls join its Armed tap)
+amends: 0113 (the home's record controls join its Armed tap), 0171 (they are a seventh control that disarms when focus leaves it)
 ---
 
 # Recording on the home over an approved draft takes the Armed tap
 
-This amends ADR 0113 without editing its decision; it adds "amended by 0180" to its status
-line. Henok decided on 4 November that the rule is ADR 0113's, and the Definer settled the rest
+This amends ADRs 0113 and 0171 without editing their decisions; it adds "amended by 0180" to
+their status lines. Henok decided on 4 November that the rule is ADR 0113's, and the Definer settled the rest
 on the ticket (ENG-2159) on 5 November.
 
 ## Context
@@ -29,14 +29,20 @@ grain and the Restart, but not the home's record controls.
 - **Every record control on the home, on a part's row or the whole passage's, is armed over an
   approved draft**, reading «toquem de novo: isto abre de novo o rascunho aprovado». The first
   tap records nothing. Over a draft not approved it stays one tap and goes up without the flag.
-- **The tap decides the flag.** A take goes up with `reopens_the_approved_draft` only when its
-  own recording was opened by a confirmed armed tap, however late the keep or the send. An
-  approval read while the microphone is open arms nothing for that take.
+- **The tap decides the flag, and the take's file carries it.** A take goes up with
+  `reopens_the_approved_draft` only when its own recording was opened by a confirmed armed tap,
+  however late the keep or the send. An approval read while the microphone is open arms nothing
+  for that take, and a later armed take that comes back empty leaves the stopped one as it was.
+- **The confirmation does not cross sessions.** It answers one session's approved draft. A take
+  whose session goes, kept already or not, waits for the next session without the flag.
+- **The record control is a seventh control that disarms when accessibility focus leaves it**
+  (ADR 0171).
 
 ## Consequences
 
-- The tablet asks more than her recording screen does: the room still keeps these takes on one
-  tap and ignores the flag on a part recorded here.
-- A tablet that has not yet read the approval records on one tap and the room re-opens the draft.
-  ADR 0113's «the server refuses and the read arms the resend» does not hold for these takes;
-  refusing them would be a new rule of the room's.
+- The tablet asks more than her recording screen does: the room keeps a part recorded here, and
+  a whole take over the team's own parts, on one tap and ignores the flag. Over a joined
+  recording the room refuses a whole take without the flag (ADR 0081).
+- A tablet that has not yet read the approval records a part on one tap and the room re-opens
+  the draft. ADR 0113's «the server refuses and the read arms the resend» holds only for the
+  whole take over a joined recording; refusing the others would be a new rule of the room's.

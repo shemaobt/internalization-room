@@ -274,14 +274,14 @@ enum BtPhase { playing, capturing, thinking, conferida }
 enum BtRecomeco { armado, pronto }
 
 /// The one control armed on the screen, and whether its second tap counts yet.
-String recordControl(int row) => 'record:$row';
-
 class ArmedTap {
   final String control;
   final BtRecomeco phase;
 
   const ArmedTap(this.control, this.phase);
 }
+
+String recordControl(int row) => 'record:$row';
 
 enum BtAviso {
   recomecoFalhou,

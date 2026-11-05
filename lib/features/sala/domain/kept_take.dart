@@ -26,6 +26,8 @@ const partTakeKind = 'ensaio';
 
 const sceneTakeKind = 'cena';
 
+const anArmedTake = 'ensaio_tomada_reabre';
+
 enum SendFailure { failed, tooLarge, refused, gone }
 
 class UnsentPart {

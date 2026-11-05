@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/room_repository.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
+import 'package:internalization_room/features/sala/domain/kept_take.dart';
 import 'package:internalization_room/features/sala/domain/machine.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
 
@@ -2573,22 +2574,33 @@ void main() {
       expect(read.reopensTheApprovedDraft, isTrue);
     });
 
-    test('a part kept on the armed tap goes up with the reopening', () async {
-      final room = FakeRoom();
-      final queue = queueOn(room);
-      await queue.enqueue(
-        aRehearsal(aWavTake()),
-        sessionId: 'sessao-1',
-        kind: 'ensaio',
-        scope: 'parte-2',
-        chunkIndex: 2,
-        reopensTheApprovedDraft: true,
-      );
+    test(
+      'a part of an armed take goes up with the reopening in its session and '
+      'without it in the next one',
+      () async {
+        final room = FakeRoom();
+        final queue = queueOn(room);
+        Future<PendingTake> kept(String session) => queue.enqueue(
+          File('${home.path}/${anArmedTake}_1.wav')
+            ..writeAsBytesSync(aWavTake()),
+          sessionId: session,
+          passage: 'P01',
+          kind: 'ensaio',
+          scope: 'parte-2',
+          chunkIndex: 2,
+        );
 
-      await queue.flush();
+        await kept('sessao-1');
+        await queue.flush();
+        expect(room.takesReceivedWhole.single.reopens, isTrue);
 
-      expect(room.takesReceivedWhole.single.reopens, isTrue);
-    });
+        final left = await kept('sessao-2');
+        await queue.letGoOfTheSession('sessao-2');
+        await queue.dueAgain(left.id, intoTheSession: 'sessao-3');
+        await queue.flush();
+        expect(room.takesReceivedWhole.last.reopens, isFalse);
+      },
+    );
 
     test('goes up with its origin, the reopening and the rehearsal\'s '
         'fingerprint', () async {

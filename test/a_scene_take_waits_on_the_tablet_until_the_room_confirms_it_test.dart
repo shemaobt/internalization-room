@@ -1021,7 +1021,6 @@ class _AnOutboxSlowToTakeIt extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     await Future<void>.delayed(takesToCopy);
     return super.enqueue(
@@ -1033,7 +1032,6 @@ class _AnOutboxSlowToTakeIt extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }
@@ -1057,7 +1055,6 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     if (kind == 'cena' && full) {
       throw const FileSystemException('disco cheio');
@@ -1071,7 +1068,6 @@ class _DiskThatRefusesTheScene extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }

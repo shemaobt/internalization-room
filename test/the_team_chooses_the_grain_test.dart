@@ -1339,19 +1339,10 @@ void main() {
       );
 
       await tester.tap(byLabel(_recordAgain));
-      await tester.pump(const Duration(milliseconds: 200));
-
-      expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.idle);
-      expect(byLabel(_reopenArmed), findsOneWidget);
-      expect(find.text(_reopenArmed), findsOneWidget);
-
-      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
       await tester.tap(byLabel(_reopenArmed));
       await tester.pump(const Duration(milliseconds: 200));
-      expect(
-        container.read(salaSessionProvider).ensaio,
-        EnsaioStatus.recording,
-      );
 
       final notifier = container.read(salaSessionProvider.notifier);
       notifier.gravarACena(1);

@@ -2293,7 +2293,6 @@ class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     await segurar?.future;
     if (falhar) throw const FileSystemException('o disco encheu');
@@ -2306,7 +2305,6 @@ class _AQueueThatHoldsTheKeep extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }

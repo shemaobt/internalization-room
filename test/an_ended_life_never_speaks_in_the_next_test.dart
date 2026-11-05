@@ -39,7 +39,6 @@ class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
-    bool reopensTheApprovedDraft = false,
   }) async {
     if (_armed case final held?) {
       _armed = null;
@@ -56,7 +55,6 @@ class _AnOutboxHeldAsTheRoomCloses extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
-      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }

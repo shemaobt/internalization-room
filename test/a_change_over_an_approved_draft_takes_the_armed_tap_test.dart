@@ -43,19 +43,25 @@ Future<void> _tocarNaLinha(WidgetTester tester, int cena, String label) async {
   await tester.pump(const Duration(milliseconds: 200));
 }
 
+Future<void> _gravarArmado(WidgetTester tester, int cena) async {
+  await _tocarNaLinha(tester, cena, _gravarDeNovo);
+  await tester.pump(const Duration(milliseconds: 700));
+  await _tocarNaLinha(tester, cena, _armado);
+}
+
+Future<void> _ate(WidgetTester tester, bool Function() condicao) => waitFor(
+  'a condição do caso',
+  condicao,
+  step: () => letTheRehearsalReachTheRoom(tester),
+);
+
 Future<bool> _aParteDoisSobe(WidgetTester tester, SalaHarness harness) async {
   final antes = harness.room.takesReceivedWhole.length;
   await tester.ensureVisible(offTheRows(_enviar));
   await tester.tap(offTheRows(_enviar));
-  await tester.pump(const Duration(milliseconds: 200));
-  await waitFor(
-    'a parte chegar à sala',
-    () => harness.room.takesReceivedWhole.length > antes,
-    step: () => letTheRehearsalReachTheRoom(tester),
-  );
-  final subiu = harness.room.takesReceivedWhole.last;
-  expect(subiu.scope, 'parte-2');
-  return subiu.reopens;
+  await _ate(tester, () => harness.room.takesReceivedWhole.length > antes);
+  expect(harness.room.takesReceivedWhole.last.scope, 'parte-2');
+  return harness.room.takesReceivedWhole.last.reopens;
 }
 
 Future<void> _passo(WidgetTester tester) =>
@@ -524,86 +530,104 @@ void main() {
 
   testWidgets('over an approved draft «Gravar de novo» of a part records '
       'nothing on the first tap, the row reads the armed text, and the second '
-      'tap in the window records', (tester) async {
+      'tap in the window records, and its take goes up with '
+      'reopens_the_approved_draft', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
+    bool microfone() => container.read(salaSessionProvider).microphoneOpen;
 
     await _tocarNaLinha(tester, 2, _gravarDeNovo);
-
-    final sala = container.read(salaSessionProvider);
-    expect(sala.ensaio, EnsaioStatus.idle);
+    expect(microfone(), isFalse);
     expect(_naLinha(2, _armado), findsOneWidget);
     expect(find.text(_armado), findsOneWidget);
-
     await tester.pump(const Duration(milliseconds: 700));
     await _tocarNaLinha(tester, 2, _armado);
-
-    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording);
+    expect(microfone(), isTrue);
+    await _tocarNaLinha(tester, 2, _parar);
+    harness.room.approvedDraft = null;
+    expect(await _aParteDoisSobe(tester, harness), isTrue);
+    await _ate(
+      tester,
+      () => !container.read(salaSessionProvider).overAnApprovedDraft,
+    );
     closeTheRoom(container);
   });
 
-  testWidgets('the take of a part recorded on the armed tap goes up with '
-      'reopens_the_approved_draft, and the approval leaves with the read', (
-    tester,
-  ) async {
+  testWidgets('a part the Outbox could not take keeps its flag when its row '
+      'sends it', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
-    await _tocarNaLinha(tester, 2, _gravarDeNovo);
-    await tester.pump(const Duration(milliseconds: 700));
-    await _tocarNaLinha(tester, 2, _armado);
+    await _gravarArmado(tester, 2);
     await _tocarNaLinha(tester, 2, _parar);
-    harness.room.approvedDraft = null;
+    final sala = container.read(salaSessionProvider.notifier);
+    (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+    sala.takeKeep();
+    await _ate(
+      tester,
+      () => container.read(salaSessionProvider).unsentParts.containsKey(2),
+    );
 
-    expect(await _aParteDoisSobe(tester, harness), isTrue);
-    await waitFor(
-      'a leitura levar a aprovação',
-      () => !container.read(salaSessionProvider).overAnApprovedDraft,
-      step: () => _passo(tester),
+    sala.enviarACena(2);
+    await _ate(
+      tester,
+      () => harness.room.takesReceivedWhole.any(
+        (take) => take.scope == 'parte-2' && take.reopens,
+      ),
     );
     closeTheRoom(container);
   });
 
   testWidgets(
-    'a part the Outbox could not take keeps the armed tap\'s flag when '
-    'its row sends it',
+    'a row\'s first recording and a re-record over a stopped take arm '
+    'too',
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await aprovadaNaCasa(tester, harness);
-      await _tocarNaLinha(tester, 2, _gravarDeNovo);
-      await tester.pump(const Duration(milliseconds: 700));
-      await _tocarNaLinha(tester, 2, _armado);
-      await _tocarNaLinha(tester, 2, _parar);
-      final sala = container.read(salaSessionProvider.notifier);
-      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
-      sala.takeKeep();
-      await waitFor(
-        'o tablet saber que a parte não entrou',
-        () => container.read(salaSessionProvider).unsentParts.containsKey(2),
-        step: () => letTheRehearsalReachTheRoom(tester),
-      );
 
-      sala.enviarACena(2);
-      await waitFor(
-        'a parte chegar à sala',
-        () => harness.room.takesReceivedWhole.any(
-          (take) => take.scope == 'parte-2' && take.reopens,
-        ),
-        step: () => letTheRehearsalReachTheRoom(tester),
-      );
+      await _tocarNaLinha(tester, 3, 'Gravar');
+      expect(_naLinha(3, _armado), findsOneWidget);
+
+      await _gravarArmado(tester, 2);
+      await _tocarNaLinha(tester, 2, _parar);
+      await _tocarNaLinha(tester, 2, _gravarDeNovo);
+      expect(_naLinha(2, _armado), findsOneWidget);
+      expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
       closeTheRoom(container);
     },
   );
 
-  testWidgets('over a draft not approved «Gravar de novo» of a part takes one '
-      'tap and goes up without the flag', (tester) async {
+  testWidgets('an approval read while the microphone is open arms nothing, and '
+      'an armed re-record that comes back empty leaves the stopped take '
+      'unflagged', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await quatroFrasesEmWav(tester, harness);
-    container.read(salaSessionProvider.notifier).leaveTheBackTranslation();
+    final sala = container.read(salaSessionProvider.notifier);
+    sala.leaveTheBackTranslation();
     await tester.pump(const Duration(milliseconds: 1500));
+    await _tocarNaLinha(tester, 1, _gravarDeNovo);
+    await _tocarNaLinha(tester, 1, _parar);
+    final lidas = harness.room.statesRead.length;
+    harness.room.holdNextState();
+    sala.takeKeep();
+    await _ate(tester, () => harness.room.statesRead.length > lidas);
 
     await _tocarNaLinha(tester, 2, _gravarDeNovo);
-    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording);
+    expect(container.read(salaSessionProvider).microphoneOpen, isTrue);
+    harness.room
+      ..approvedDraft = const ApprovedDraft(version: 1)
+      ..finishHeldState();
+    await _ate(
+      tester,
+      () => container.read(salaSessionProvider).overAnApprovedDraft,
+    );
     await _tocarNaLinha(tester, 2, _parar);
+
+    harness.recorder
+      ..rehearsalSpeaks = null
+      ..returnsEmpty = true;
+    await _gravarArmado(tester, 2);
+    await _tocarNaLinha(tester, 2, _parar);
+
     expect(await _aParteDoisSobe(tester, harness), isFalse);
     closeTheRoom(container);
   });
