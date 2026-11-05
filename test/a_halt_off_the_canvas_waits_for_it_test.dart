@@ -25,21 +25,6 @@ void main() {
     expect(back.halt, isA<Blocking>());
   });
 
-  test('a halt raised on the external check does not stand there', () {
-    final (waiting, effects) = reduce(
-      const Machine(station: ChecagemExterna(1)),
-      const RoomRaisedAHalt(),
-    );
-
-    expect(
-      waiting.halt,
-      isA<NoHalt>(),
-      reason: 'a parada cobria a checagem, e o dela só fica sobre a conversa',
-    );
-    expect(waiting.aHaltWaitsForTheCanvas, isNotNull);
-    expect(effects, isEmpty);
-  });
-
   test('a halt raised on the back-translation does not stand there and calls '
       'nobody there', () {
     final (waiting, effects) = reduce(
@@ -149,42 +134,20 @@ void main() {
   );
 
   test('a halt waiting from the back-translation is dropped on the way to the '
-      'ensaio or the check, not carried to a later conversation', () {
+      'ensaio, not carried to a later conversation', () {
     final (waiting, _) = reduce(
       const Machine(station: Retro()),
       const RoomRaisedAHalt(),
     );
 
     final (onTheEnsaio, _) = reduce(waiting, const TheRehearsalOpened());
-    final (onTheCheck, _) = reduce(waiting, const TheExternalCheckOpened(1));
     final (laterOnTheCanvas, _) = reduce(onTheEnsaio, const TheRecordingLeft());
 
     expect(onTheEnsaio.halt, isA<NoHalt>());
-    expect(onTheCheck.halt, isA<NoHalt>());
-    expect(onTheCheck.aHaltWaitsForTheCanvas, isNull);
     expect(
       laterOnTheCanvas.halt,
       isA<NoHalt>(),
       reason: 'a parada da retro subia numa conversa muito depois',
-    );
-  });
-
-  test('a halt waiting from the external check is dropped when the team goes '
-      'back to the back-translation, not carried to a later conversation', () {
-    final (waiting, _) = reduce(
-      const Machine(station: ChecagemExterna(1)),
-      const RoomRaisedAHalt(),
-    );
-
-    final (back, _) = reduce(waiting, const TheExternalCheckLeft());
-    final (onTheCanvas, _) = reduce(back, const TheRecordingLeft());
-
-    expect(back.station, isA<Retro>());
-    expect(back.halt, isA<NoHalt>());
-    expect(
-      onTheCanvas.halt,
-      isA<NoHalt>(),
-      reason: 'a parada da checagem subia numa conversa muito depois',
     );
   });
 }

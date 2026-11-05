@@ -25,8 +25,6 @@ final class Panorama extends Station {
     ThePlanOpened() => this,
     TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalOpened() || TheSceneRehearsalLeft() => this,
-    TheExternalCheckOpened() ||
-    TheExternalCheckLeft() ||
     TheRecordingLeft() => this,
   };
 }

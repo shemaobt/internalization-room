@@ -367,13 +367,11 @@ final nothingButHerSixCasesEntersThePersonSign = Invariant<Machine>(
 );
 
 final noHaltIsEnteredOffTheCanvasWhereHersNeverShowsIt = Invariant<Machine>(
-  'ADRs 0159 and 0160, no halt is entered over the scene rehearsal, the '
-  'external check or the back-translation; it waits for the Canvas',
+  'ADRs 0159 and 0160, no halt is entered over the scene rehearsal or '
+  'the back-translation; it waits for the Canvas',
   (before, event, after, effects, world) {
     if (before.halt is Blocking || after.halt is! Blocking) return null;
-    if (after.station is! SceneRehearsal &&
-        after.station is! ChecagemExterna &&
-        after.station is! Retro) {
+    if (after.station is! SceneRehearsal && after.station is! Retro) {
       return null;
     }
     return '${describeEvent(event)} entered the person sign over '

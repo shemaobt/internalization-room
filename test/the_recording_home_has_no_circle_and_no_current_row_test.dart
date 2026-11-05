@@ -552,37 +552,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a Scene row does not record while the external check is '
-      'opening', (tester) async {
-    final harness = _umaSala();
-    final container = await _naCasaDoEnsaio(tester, harness);
-    await _gravarNaLinha(tester, container, 1, partes: 1);
-    harness.room
-      ..retroSoFar = const BackTranslationProgress(checked: true)
-      ..approvedDraft = const ApprovedDraft(version: 1);
-    final notifier = container.read(salaSessionProvider.notifier);
-    notifier.goEnsaio();
-    await tester.pump(const Duration(seconds: 2));
-    harness.room.holdNextExternalCheck();
-    notifier.abrirAChecagemExterna();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      harness.room.externalChecksOpened,
-      isNotEmpty,
-      reason: 'o caso só mede alguma coisa com a checagem a caminho',
-    );
-
-    final antes = harness.recorder.captures;
-    await _tocar(tester, _naLinha(2, _gravar));
-
-    expect(_estado(container).ensaio, EnsaioStatus.idle);
-    harness.room.finishHeldExternalCheck();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(_estado(container).ensaio, EnsaioStatus.idle);
-    expect(harness.recorder.captures, antes);
-    closeTheRoom(container);
-  });
-
   testWidgets(
     'a recording home whose scene list never answered offers nothing to record',
     (tester) async {

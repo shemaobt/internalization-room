@@ -14,27 +14,33 @@ const _away = {
   AppLifecycleState.detached,
 };
 
-class _AmbientClock {
+class _AmbientClock with WidgetsBindingObserver {
   final _loops = <VoidCallback>{};
   final _ripples = <VoidCallback>{};
   Timer? _ticking;
   Duration? _step;
-  AppLifecycleListener? _lifecycle;
+  bool _observing = false;
 
   bool get _empty => _loops.isEmpty && _ripples.isEmpty;
 
   void join(VoidCallback redraw, {bool ripple = false}) {
     (ripple ? _ripples : _loops).add(redraw);
-    _lifecycle ??= AppLifecycleListener(onStateChange: (_) => _tune());
+    if (!_observing) {
+      WidgetsBinding.instance.addObserver(this);
+      _observing = true;
+    }
     _tune();
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) => _tune();
 
   void leave(VoidCallback redraw) {
     _loops.remove(redraw);
     _ripples.remove(redraw);
-    if (_empty) {
-      _lifecycle?.dispose();
-      _lifecycle = null;
+    if (_empty && _observing) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observing = false;
     }
     _tune();
   }

@@ -163,7 +163,7 @@ class RecordingRepository {
     }
   }
 
-  /// Deletes every scene frase, listener retelling and question a killed app left in the
+  /// Deletes every scene frase and question a killed app left in the
   /// recordings: at launch none of them is held, so none will be sent again.
   Future<void> sweepTheRecordingsLeftBehind() async {
     try {

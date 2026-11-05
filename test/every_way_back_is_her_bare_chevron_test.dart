@@ -12,14 +12,13 @@ import 'package:internalization_room/features/sala/domain/scene_rehearsal.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
 
 import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaCasa, aprovadaNaConferida;
+    show aprovadaNaConferida;
 import 'fakes.dart';
 import 'sala_screen_test.dart' show pumpSala;
 import 'scenario_helpers.dart' show byLabel;
 
 const _backToPassage = 'Voltar para a passagem atual';
 const _backToRecording = 'Voltar para a gravação';
-const _checagem = 'Checagem externa';
 const _recordEnsaio = 'Gravar o ensaio de vocês';
 const _planLine = 'Estes são os ensaios das cenas que vocês me enviaram.';
 
@@ -99,18 +98,6 @@ Future<void> _onTheCheck(WidgetTester tester) async {
   addTearDown(() => closeTheRoom(container));
   await _pass(tester);
   expect(container.read(salaSessionProvider).stage, SalaStage.retro);
-}
-
-Future<void> _onTheExternalCheck(WidgetTester tester) async {
-  final container = await aprovadaNaCasa(
-    tester,
-    SalaHarness(filaEmMemoria: true),
-  );
-  addTearDown(() => closeTheRoom(container));
-  await tester.ensureVisible(byLabel(_checagem).first);
-  await tester.tap(byLabel(_checagem).first);
-  await _pass(tester, 20);
-  expect(container.read(salaSessionProvider).stage, SalaStage.checagem);
 }
 
 Finder _chevronOf(String back) =>
@@ -210,15 +197,6 @@ void main() {
 
     _isHerChevron(tester, _backToPassage, const Color(0xFFAAB07E));
   });
-
-  testWidgets(
-    'the way back on the external check paints her chevron, not a faint grey one',
-    (tester) async {
-      await _onTheExternalCheck(tester);
-
-      _isHerChevron(tester, _backToRecording, const Color(0xFF777D45));
-    },
-  );
 
   test('no code under lib/ keeps the disc the ways back used to wear', () {
     final keeping = [

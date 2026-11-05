@@ -410,7 +410,7 @@ void main() {
       final container = await aprovadaNaCasa(
         tester,
         harness,
-        approved: const ApprovedDraft(version: 1, listeners: 2),
+        approved: const ApprovedDraft(version: 1),
       );
       onAScreen(tester, screen, bar: bar);
       await tester.pump(const Duration(milliseconds: 400));
@@ -418,8 +418,6 @@ void main() {
       _standApartInHerOrder(tester, screen, [
         ('Traduzir a gravação', byLabel('Traduzir a gravação')),
         ('the badge', find.text('✓ aprovado como rascunho final (v1)')),
-        ('the listeners line', find.text('checagem externa: 2 ouvintes')),
-        ('Checagem externa', byLabel('Checagem externa')),
         ('the grain switch', byLabel('Gravar a passagem inteira')),
       ]);
       closeTheRoom(container);

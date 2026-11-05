@@ -18,7 +18,7 @@ import 'scene_question.dart';
 import 'scene_rehearsal.dart';
 import 'station.dart';
 
-enum SalaStage { panorama, escolha, conversa, ensaio, retro, cena, checagem }
+enum SalaStage { panorama, escolha, conversa, ensaio, retro, cena }
 
 enum OrangeDotLook { gone, faint, bright }
 
@@ -39,74 +39,6 @@ enum SceneLine {
   diskFailed,
   notSent,
   alreadySent,
-}
-
-/// Her listener's steps on the Checagem externa.
-enum ListenerStep { idle, playing, retell, done }
-
-/// Her failure words the Checagem externa shows under its controls.
-enum ListenerLine { openFailed, clipFailed }
-
-/// What the Checagem externa's screen holds: the takes of the approved version's parts,
-/// the listener's number and Step, whether the passage stalled, whether a call this
-/// screen made is in the air, the failure words shown, when the retelling began, whether
-/// X-open was said, which lets the passage play, whether X-retell was said, which opens
-/// the circle, and how the listener ended and whether the room acknowledged it.
-final class ExternalCheckScreen {
-  final List<String> takes;
-  final int? listener;
-  final ListenerStep step;
-  final bool stalled;
-  final bool sending;
-  final ListenerLine? line;
-  final DateTime? recordingSince;
-  final bool openSaid;
-  final bool retellSaid;
-  final bool? completed;
-  final bool finishAcknowledged;
-
-  const ExternalCheckScreen({
-    this.takes = const [],
-    this.listener,
-    this.step = ListenerStep.idle,
-    this.stalled = false,
-    this.sending = false,
-    this.line,
-    this.recordingSince,
-    this.openSaid = false,
-    this.retellSaid = false,
-    this.completed,
-    this.finishAcknowledged = false,
-  });
-
-  ExternalCheckScreen copyWith({
-    int? listener,
-    ListenerStep? step,
-    bool? stalled,
-    bool? sending,
-    ListenerLine? line,
-    bool clearLine = false,
-    DateTime? recordingSince,
-    bool clearRecordingSince = false,
-    bool? openSaid,
-    bool? retellSaid,
-    bool? completed,
-    bool? finishAcknowledged,
-  }) => ExternalCheckScreen(
-    takes: takes,
-    listener: listener ?? this.listener,
-    step: step ?? this.step,
-    stalled: stalled ?? this.stalled,
-    sending: sending ?? this.sending,
-    line: clearLine ? null : (line ?? this.line),
-    recordingSince: clearRecordingSince
-        ? null
-        : (recordingSince ?? this.recordingSince),
-    openSaid: openSaid ?? this.openSaid,
-    retellSaid: retellSaid ?? this.retellSaid,
-    completed: completed ?? this.completed,
-    finishAcknowledged: finishAcknowledged ?? this.finishAcknowledged,
-  );
 }
 
 /// What the scene rehearsal's screen holds: its Step, the rehearsal as the room last
@@ -288,8 +220,6 @@ enum BtAviso {
   pausaSoNaUltima,
   pausaPassaDoFim,
   pausaNaoFica,
-  checagemFalhou,
-  checagemNaoAbre,
   tocarFalhou,
 }
 
@@ -402,7 +332,6 @@ class PassageLeft {
   final String book;
   final String? pericope;
   final String language;
-  final ({int version, int number})? listener;
 
   const PassageLeft({
     required this.canvas,
@@ -410,7 +339,6 @@ class PassageLeft {
     required this.book,
     this.pericope,
     required this.language,
-    this.listener,
   });
 }
 
@@ -522,10 +450,6 @@ class SalaSessionState {
   /// the end of the refusal's handling. A newer Generation is not held by it.
   final int? btAprovando;
 
-  /// The Generation an open of the Checagem externa is in the air in: from the tap until
-  /// the room answers. A newer Generation is not held by it.
-  final int? btAbrindoAChecagem;
-
   /// The version this press minted, while her approved sentence and P3 stand on the
   /// Back-translation.
   final int? btAprovadoAgora;
@@ -558,9 +482,6 @@ class SalaSessionState {
   final int? cenaDaGravacao;
 
   final SceneScreen scene;
-
-  /// The Checagem externa's listener as the screen shows it; set on arrival, never stored.
-  final ExternalCheckScreen externalCheck;
 
   /// This session's scene rehearsals, by number, as the room last answered them.
   final List<SceneRehearsalRecord> sceneRehearsals;
@@ -727,7 +648,6 @@ class SalaSessionState {
     this.btRascunhoAprovado,
     this.btSoOuvir = false,
     this.btAprovando,
-    this.btAbrindoAChecagem,
     this.btAprovadoAgora,
     this.ensaioSalvo,
     this.ouvirTudo = OuvirTudo.fora,
@@ -742,7 +662,6 @@ class SalaSessionState {
     this.recorderStartedAt,
     this.cenaDaGravacao,
     this.scene = const SceneScreen(),
-    this.externalCheck = const ExternalCheckScreen(),
     this.sceneRehearsals = const [],
     this.sceneTranslationsUnseen = const {},
     this.sceneFrasesHeld = const {},
@@ -1062,7 +981,6 @@ class SalaSessionState {
       !noteMode &&
       stage != SalaStage.ensaio &&
       stage != SalaStage.retro &&
-      stage != SalaStage.checagem &&
       !sceneRehearsalIsOpen;
 
   /// Whether the scene rehearsal's screen stands over the Canvas.
@@ -1254,31 +1172,6 @@ class SalaSessionState {
   /// Whether a tap on the chip brings the question back.
   bool get sceneChipLive =>
       scene.keep == null && !sceneTakeUnderWay && !scene.waiting;
-
-  /// Whether the listener's circle answers a tap: at the retelling, once X-retell was
-  /// said, no line speaks and nothing is being sent. Its own open microphone counts, as
-  /// the tap stops it.
-  bool get listenerCircleOpen =>
-      station is ChecagemExterna &&
-      externalCheck.step == ListenerStep.retell &&
-      externalCheck.retellSaid &&
-      !externalCheck.sending &&
-      channel is! GuideSpeaking;
-
-  /// Whether «ouvir de novo» plays the passage again: on a stall, or at the retelling,
-  /// while no microphone is open, no line speaks and nothing is being sent.
-  bool get listenerMayHearItAgain =>
-      station is ChecagemExterna &&
-      (externalCheck.step == ListenerStep.retell || externalCheck.stalled) &&
-      !externalCheck.sending &&
-      channel is! Microphone &&
-      channel is! GuideSpeaking;
-
-  /// Whether the listener's microphone is the one open.
-  bool get listenerRecording => switch (channel) {
-    Microphone(owner: MicOwner.listener) => true,
-    _ => false,
-  };
 
   /// The scene the question highlights.
   String? get sceneHighlighted =>
@@ -1813,13 +1706,10 @@ class SalaSessionState {
       partes.isNotEmpty &&
       aBackTranslationGestureActs;
 
-  /// Whether a gesture on the Back-translation acts: never while an approval or an open of
-  /// the Checagem externa is in the air, so nothing the team presses meanwhile moves what
+  /// Whether a gesture on the Back-translation acts: never while an approval is in the air, so nothing the team presses meanwhile moves what
   /// the answer lands on.
   bool get aBackTranslationGestureActs =>
-      btAprovando != machine.generation &&
-      btAbrindoAChecagem != machine.generation &&
-      !aFraseDevidaEmBusca;
+      btAprovando != machine.generation && !aFraseDevidaEmBusca;
 
   bool get aFraseDevidaEmBusca =>
       btFraseDevida != null &&
@@ -1861,7 +1751,7 @@ class SalaSessionState {
       ensaioSalvo == null;
 
   /// Whether the approve button on the recording home acts: offered, and nothing is being
-  /// recorded or sent and no approval or open of the Checagem externa is in the air.
+  /// recorded or sent and no approval is in the air.
   bool get approveActsOnTheHome =>
       approveOffered &&
       ensaio == EnsaioStatus.idle &&
@@ -2008,9 +1898,7 @@ class SalaSessionState {
     bool clearBtRascunhoAprovado = false,
     bool? btSoOuvir,
     int? btAprovando,
-    int? btAbrindoAChecagem,
     bool clearBtAprovando = false,
-    bool clearBtAbrindoAChecagem = false,
     int? btAprovadoAgora,
     bool clearBtAprovadoAgora = false,
     int? ensaioSalvo,
@@ -2029,7 +1917,6 @@ class SalaSessionState {
     int? cenaDaGravacao,
     bool clearCenaDaGravacao = false,
     SceneScreen? scene,
-    ExternalCheckScreen? externalCheck,
     List<SceneRehearsalRecord>? sceneRehearsals,
     Map<String, String>? sceneTranslationsUnseen,
     Set<String>? sceneFrasesHeld,
@@ -2178,9 +2065,6 @@ class SalaSessionState {
           : (btRascunhoAprovado ?? this.btRascunhoAprovado),
       btSoOuvir: btSoOuvir ?? this.btSoOuvir,
       btAprovando: clearBtAprovando ? null : (btAprovando ?? this.btAprovando),
-      btAbrindoAChecagem: clearBtAbrindoAChecagem
-          ? null
-          : (btAbrindoAChecagem ?? this.btAbrindoAChecagem),
       btAprovadoAgora: clearBtAprovadoAgora
           ? null
           : (btAprovadoAgora ?? this.btAprovadoAgora),
@@ -2201,7 +2085,6 @@ class SalaSessionState {
           ? null
           : (cenaDaGravacao ?? this.cenaDaGravacao),
       scene: scene ?? this.scene,
-      externalCheck: externalCheck ?? this.externalCheck,
       sceneRehearsals: sceneRehearsals ?? this.sceneRehearsals,
       sceneTranslationsUnseen:
           sceneTranslationsUnseen ?? this.sceneTranslationsUnseen,

@@ -53,11 +53,8 @@ void main() {
   test(
     'leaving the Back-translation drops a stretch that waits for its part',
     () {
-      final (away, _) = reduce(
-        _aStretchWaits(),
-        const TheExternalCheckOpened(1),
-      );
-      final (back, _) = reduce(away, const TheExternalCheckLeft());
+      final (away, _) = reduce(_aStretchWaits(), const TheRecordingLeft());
+      final (back, _) = reduce(away, const TheBackTranslationOpened());
 
       final (_, effects) = reduce(back, const APartWasNamed());
 

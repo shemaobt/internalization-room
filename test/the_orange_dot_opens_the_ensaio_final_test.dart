@@ -1186,41 +1186,6 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('keeps the external check shut while the parts are read', (
-      tester,
-    ) async {
-      final (harness, container) = await _reopenedOnTheConversation(
-        tester,
-        roomTakes: threeParts,
-        before: (harness) {
-          harness.room.approvedDraft = const ApprovedDraft(version: 1);
-          harness.room.holdNextClip();
-        },
-      );
-      await _tapTheDot(tester);
-      await _theAnswerSettles(tester);
-      final notifier = container.read(salaSessionProvider.notifier);
-      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
-      expect(
-        tester
-            .widget<Semantics>(byLabel('Checagem externa'))
-            .properties
-            .enabled,
-        isFalse,
-      );
-
-      notifier.abrirAChecagemExterna();
-      await _theAnswerSettles(tester);
-      notifier.leaveTheExternalCheck();
-      await _theAnswerSettles(tester);
-
-      expect(container.read(salaSessionProvider).readingTheListing, isTrue);
-      expect(enabled(tester, inRow(1, 'Gravar')), isFalse);
-      harness.room.finishHeldClip();
-      await _theAnswerSettles(tester);
-      expect(enabled(tester, inRow(1, 'Gravar de novo')), isTrue);
-    });
-
     testWidgets('lets a part already on the tablet be heard during the wait', (
       tester,
     ) async {

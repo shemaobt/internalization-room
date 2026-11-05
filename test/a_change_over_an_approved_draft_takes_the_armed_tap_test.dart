@@ -321,69 +321,6 @@ void main() {
     closeTheRoom(container);
   });
 
-  testWidgets('a read of the stretches that went out while the sentence was in '
-      'the air never brings the old sentence back over the kept one', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _aprovada(tester, harness);
-    await tocarNaLista(tester, _regravar(2));
-    await tester.pump(const Duration(seconds: 2));
-    await tocarNaLista(tester, _armado);
-    await gravarAFraseAberta(tester, harness);
-    final segura = harness.room.holdTheSentence = Completer<void>();
-    await tester.tap(_textoNaLista('usar esta'));
-    await _passo(tester);
-    harness.room.approvedDraft = null;
-    harness.room.keptRetellings = const [
-      KeptRetelling(scope: 'parte-1', turnNumber: 1, audioUrl: 'ouvinte.mp3'),
-    ];
-    harness.room.holdTheNextRead();
-    harness.room.holdTheNextRead();
-    container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
-    await waitFor(
-      'a leitura sair e ficar presa',
-      () => harness.room.heldReads.isNotEmpty,
-      step: () => _passo(tester),
-    );
-    segura.complete();
-    await waitFor(
-      'a frase entrar no lugar',
-      () => harness.room.sentencesLaid.isNotEmpty,
-      step: () => _passo(tester),
-    );
-    await waitFor(
-      'a leitura depois da frase sair e ficar presa',
-      () => harness.room.heldReads.length == 2,
-      step: () => _passo(tester),
-    );
-    final nova = harness.room.takes.last.takeId;
-
-    harness.room.answerHeldRead(0);
-    await _passo(tester);
-
-    expect(
-      container
-          .read(salaSessionProvider)
-          .btTrechos
-          .singleWhere((trecho) => trecho.frase == 2)
-          .takeId,
-      nova,
-      reason: 'a leitura de antes da frase voltava a velha por cima da nova',
-    );
-    expect(
-      container.read(salaSessionProvider).btFraseQueAguarda,
-      'trecho-2',
-      reason: 'a leitura de antes da frase apagava a frase que espera tradução',
-    );
-    expect(
-      container.read(salaSessionProvider).keptRetellings,
-      hasLength(1),
-      reason: 'a frase mantida jogava fora o que a leitura em voo trazia',
-    );
-    closeTheRoom(container);
-  });
-
   testWidgets('a second tap after 0.3 s does not count, and the draft stays '
       'approved', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);

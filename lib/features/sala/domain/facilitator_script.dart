@@ -29,17 +29,6 @@ const unheardLine = 'P2';
 /// approved. The approval's is the fourth, never rotated.
 const approvedLine = 'P3';
 
-/// The first of Marcia's external-check lines, read by position: open, retell, whole,
-/// frases, thanks. Its second sentence is the consent.
-const listenerOpenLine = 'X0';
-
-/// The second of Marcia's external-check lines, read by position: open, retell, whole,
-/// frases, thanks. Said once the whole passage ended, before the circle opens.
-const listenerRetellLine = 'X1';
-
-/// The last of Marcia's external-check lines, her thanks as a listener ends.
-const listenerThanksLine = 'X4';
-
 const sentenceInPlaceLine = 'N4';
 
 const sentenceAwaitingLine = 'N5';
@@ -581,10 +570,8 @@ const retroLabels = {
     'en': 'Approve as the final draft',
   },
   'approved': {
-    'pt':
-        'Aprovado como rascunho final da equipe (v{n}). Próximo passo: a checagem externa — o botão aqui embaixo.',
-    'en':
-        'Approved as the team\'s final draft (v{n}). Next step: the external check — the button below.',
+    'pt': 'Aprovado como rascunho final da equipe (v{n}).',
+    'en': 'Approved as the team\'s final draft (v{n}).',
   },
   'notConferida': {
     'pt': 'para aprovar, a tradução precisa estar conferida',
@@ -597,23 +584,6 @@ const retroLabels = {
   'reopenArmed': {
     'pt': 'toquem de novo: isto abre de novo o rascunho aprovado',
     'en': 'tap again: this re-opens the approved draft',
-  },
-  'externalCheck': {'pt': 'Checagem externa', 'en': 'External check'},
-  'listenersOne': {
-    'pt': 'checagem externa: 1 ouvinte',
-    'en': 'external check: 1 listener',
-  },
-  'listeners': {
-    'pt': 'checagem externa: {n} ouvintes',
-    'en': 'external check: {n} listeners',
-  },
-  'externalCheckNotFinal': {
-    'pt': 'a checagem externa abre depois que o rascunho final é aprovado',
-    'en': 'the external check opens after the final draft is approved',
-  },
-  'externalCheckFailed': {
-    'pt': 'não deu para abrir a checagem externa — tentem de novo',
-    'en': 'couldn\'t open the external check — try again',
   },
   'translated': {'pt': 'traduzida e conferida', 'en': 'translated and checked'},
   'notUnderstood': {
@@ -847,53 +817,6 @@ const escolhaAria = {
 String escolhaLabelFor(String control, String language) =>
     escolhaLabels[control]![language] ??
     escolhaLabels[control]![floorLanguage]!;
-
-const externalCheckLabels = {
-  'title': {'pt': 'Checagem externa', 'en': 'External check'},
-  'subIdle': {
-    'pt': 'Quem não ajudou a traduzir ouve a passagem e diz o que entendeu.',
-    'en':
-        "Those who didn't help translate hear the passage and say what they "
-        'understood.',
-  },
-  'newListener': {'pt': 'Novo ouvinte', 'en': 'New listener'},
-  'back': {'pt': 'Voltar para a gravação', 'en': 'Back to recording'},
-  'listener': {'pt': 'ouvinte {n}', 'en': 'listener {n}'},
-  'subPlaying': {
-    'pt': 'ouvindo a passagem inteira…',
-    'en': 'listening to the whole passage…',
-  },
-  'subRetell': {
-    'pt': 'Contem, do jeito de vocês, o que ouviram.',
-    'en': 'Tell, in your own way, what you heard.',
-  },
-  'recordHint': {
-    'pt': 'toque no círculo para falar; toque de novo para parar',
-    'en': 'tap the circle to speak; tap again to stop',
-  },
-  'recording': {'pt': 'gravando', 'en': 'recording'},
-  'hearAgain': {'pt': 'ouvir de novo', 'en': 'hear it again'},
-  'retellAria': {
-    'pt': 'Toque para contar o que ouviu',
-    'en': 'Tap to tell what you heard',
-  },
-  'openFail': {
-    'pt': 'não deu para abrir a checagem externa — tentem de novo',
-    'en': "couldn't open the external check — try again",
-  },
-  'clipFail': {
-    'pt': 'não deu para guardar essa gravação — gravem de novo',
-    'en': "couldn't keep that recording — record it again",
-  },
-  'done': {'pt': 'Agradecemos sua ajuda.', 'en': 'Thank you for your help.'},
-  'anotherListener': {'pt': 'Outro ouvinte', 'en': 'Another listener'},
-  'finishTheCheck': {'pt': 'Terminar a checagem', 'en': 'Finish the check'},
-};
-
-String externalCheckLabelFor(String control, String language, {int? n}) =>
-    (externalCheckLabels[control]![language] ??
-            externalCheckLabels[control]![floorLanguage]!)
-        .replaceAll('{n}', '$n');
 
 const codigoLabels = {
   'preparing': {

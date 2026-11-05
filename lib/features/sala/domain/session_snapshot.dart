@@ -249,25 +249,14 @@ class BackTranslationProgress {
 /// one it approved (ADR 0071 of the API).
 class ApprovedDraft {
   final int version;
-  final int listeners;
 
   /// Whether a person forced this version past a blocker. A forced version is the one a
   /// conferida telling approves again, minting the next (ADR 0101 of the API).
   final bool forced;
 
-  const ApprovedDraft({
-    required this.version,
-    this.listeners = 0,
-    this.forced = false,
-  });
+  const ApprovedDraft({required this.version, this.forced = false});
 
   static ApprovedDraft? fromJson(Object? raw) => switch (raw) {
-    {'version': final int version, 'listeners': final int listeners} =>
-      ApprovedDraft(
-        version: version,
-        listeners: listeners,
-        forced: _forcedIn(raw),
-      ),
     {'version': final int version} => ApprovedDraft(
       version: version,
       forced: _forcedIn(raw),

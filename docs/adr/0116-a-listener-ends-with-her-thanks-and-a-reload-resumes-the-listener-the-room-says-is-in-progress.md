@@ -1,5 +1,5 @@
 ---
-status: accepted (amended by 0136, amended by 0138)
+status: superseded by 0182
 date: 2026-10-23
 ---
 

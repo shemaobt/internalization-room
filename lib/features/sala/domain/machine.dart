@@ -328,16 +328,6 @@ final class TheSceneRehearsalLeft extends StationEvent {
   const TheSceneRehearsalLeft({this.keepsTheReply = false});
 }
 
-final class TheExternalCheckOpened extends StationEvent {
-  final int version;
-
-  const TheExternalCheckOpened(this.version);
-}
-
-final class TheExternalCheckLeft extends StationEvent {
-  const TheExternalCheckLeft();
-}
-
 final class TheRecordingLeft extends StationEvent {
   const TheRecordingLeft();
 }
@@ -1674,9 +1664,7 @@ const _watch = ArmTheWatch();
     },
   },
   RoomRaisedAHalt(:final callsForAPerson, :final outlivesAHeardLine)
-      when machine.station is SceneRehearsal ||
-          machine.station is ChecagemExterna ||
-          machine.station is Retro =>
+      when machine.station is SceneRehearsal || machine.station is Retro =>
     (
       machine.copyWith(
         aHaltWaitsForTheCanvas: RoomRaisedAHalt(

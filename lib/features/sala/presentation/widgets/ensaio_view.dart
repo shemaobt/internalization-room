@@ -17,9 +17,7 @@ import '../../domain/station.dart';
 import 'approve_button.dart';
 import 'bead_styles.dart';
 import 'ensaio_final_plan_view.dart';
-import 'external_check_button.dart';
 import 'grain_choice_view.dart';
-import 'listeners_line.dart';
 import 'motion.dart';
 import 'ouvir_tudo_view.dart';
 import 'rehearsal_sheet.dart';
@@ -277,9 +275,6 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                       ),
                       style: TextStyle(color: colors.ink, fontSize: 17),
                     ),
-                    ListenersLine(aprovado.listeners),
-                    const SizedBox(height: 12),
-                    const ExternalCheckButton(),
                   ],
                   if (session.btRecusa case final recusa?
                       when session.stage == SalaStage.ensaio) ...[
@@ -289,20 +284,6 @@ class _EnsaioViewState extends ConsumerState<EnsaioView> {
                         CheckRefusal.partUnheard => 'partUnheard',
                         CheckRefusal.notConferida => 'notConferida',
                         _ => 'checkFailed',
-                      }, language),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.telha, fontSize: 15),
-                    ),
-                  ],
-                  if (session.btAviso case final aviso?
-                      when (aviso == BtAviso.checagemFalhou ||
-                              aviso == BtAviso.checagemNaoAbre) &&
-                          session.stage == SalaStage.ensaio) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      retroLabelFor(switch (aviso) {
-                        BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
-                        _ => 'externalCheckFailed',
                       }, language),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: colors.telha, fontSize: 15),
