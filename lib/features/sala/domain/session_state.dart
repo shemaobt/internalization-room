@@ -1706,8 +1706,8 @@ class SalaSessionState {
       partes.isNotEmpty &&
       aBackTranslationGestureActs;
 
-  /// Whether a gesture on the Back-translation acts: never while an approval is in the air, so nothing the team presses meanwhile moves what
-  /// the answer lands on.
+  /// Whether a gesture on the Back-translation acts: never while an approval is in the
+  /// air, so nothing the team presses meanwhile moves what the answer lands on.
   bool get aBackTranslationGestureActs =>
       btAprovando != machine.generation && !aFraseDevidaEmBusca;
 

@@ -22,6 +22,17 @@ List<(BtFindingKind?, int?, String?)> _asRead(List<BtFinding> findings) => [
 ];
 
 void main() {
+  test(
+    'an approved draft the room reports with its listeners count still reads '
+    'as its version',
+    () {
+      final draft = ApprovedDraft.fromJson({'version': 3, 'listeners': 2});
+
+      expect(draft?.version, 3);
+      expect(draft?.forced, isFalse);
+    },
+  );
+
   test('the verdict answer hands over every finding of the check in its '
       'order, not only the one that leads', () {
     final verdict = BackTranslationVerdict.fromJson(const {
