@@ -855,8 +855,12 @@ void main() {
     'a pill\'s open that fails after the chevron changes nothing: the passage '
     'laid back stays and the room is asked for nothing',
     () async {
-      final tablet = await _onTheChoiceFromP01();
-      final harness = tablet.harness;
+      final harness = SalaHarness();
+      harness.emAberto.rows['Ruth/P02/pt'] = const ResumePoint(
+        sessionId: 'sessao-da-p02',
+        stage: SalaStage.conversa,
+      );
+      final tablet = await _onTheChoiceFromP01(harness);
       final read = tablet.read;
       final p02 = read().naRoda!.firstWhere((entry) => entry.pericope == 'P02');
       harness.room.holdNextCreate();
