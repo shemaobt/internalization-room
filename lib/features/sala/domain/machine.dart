@@ -1163,7 +1163,9 @@ final class Machine {
   final bool aStretchWaitsForItsPart;
 
   /// A halt met on the scene rehearsal, the external check or the
-  /// back-translation: the person sign shows once the team is back on the Canvas.
+  /// back-translation: the person sign shows once the team is back on the Canvas,
+  /// unless a «terminei» sent again is still out then: the sign stays waiting on the
+  /// Canvas until that send lands (forgotten) or is lost (shown).
   final RoomRaisedAHalt? aHaltWaitsForTheCanvas;
 
   final bool theCanvasEnded;
@@ -1465,9 +1467,20 @@ const _watch = ArmTheWatch();
     machine.copyWith(letTheWaitingHaltGo: true),
     const [TellTheSendFailed(), ReadTheSceneRehearsals()],
   ),
-  TheSceneWentAlready() || TheSceneSendRefused() => (machine, const []),
+  TheSceneWentAlready() || TheSceneSendRefused() => (
+    machine.copyWith(letTheWaitingHaltGo: true),
+    const [],
+  ),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
+  TheSceneDoorFailed()
+      when machine.station is Canvas &&
+          !machine.holdsATurn &&
+          machine.aHaltWaitsForTheCanvas != null =>
+    _theHalt(
+      machine.copyWith(letTheWaitingHaltGo: true),
+      machine.aHaltWaitsForTheCanvas!,
+    ),
   TheSceneDoorFailed() => (machine, const []),
   TheSceneDiskFailed()
       when switch (machine.station) {
@@ -1512,7 +1525,7 @@ const _watch = ArmTheWatch();
     ],
   ),
   LookFailed(:final turn, :final result, :final sounding) => reduce(
-    machine.copyWith(forgetTheLook: true),
+    machine.copyWith(forgetTheLook: true, letTheWaitingHaltGo: true),
     FailurePolicy.decide(
       result,
       FailureContext(
@@ -1528,7 +1541,7 @@ const _watch = ArmTheWatch();
   TheReplyFailedToLoad() => _theReplyFailed(machine, event),
   LookEmpty(:final turn, :final sounding, :final theWaitRanOut) =>
     switch (reduce(
-      machine.copyWith(forgetTheLook: true),
+      machine.copyWith(forgetTheLook: true, letTheWaitingHaltGo: true),
       FailurePolicy.decide(
         const RoomFoundNothing(),
         FailureContext(
@@ -1549,6 +1562,18 @@ const _watch = ArmTheWatch();
     const [],
     const RefuseThePassage(),
   ),
+  TheStepFailed()
+      when machine.station is Canvas &&
+          machine.aHaltWaitsForTheCanvas != null =>
+    switch (_theHalt(
+      machine.copyWith(letTheWaitingHaltGo: true),
+      machine.aHaltWaitsForTheCanvas!,
+    )) {
+      (final halted, final effects) => (
+        halted,
+        [const LetTheStepGo(), ...effects],
+      ),
+    },
   TheStepFailed() => (machine, const [LetTheStepGo()]),
   TheResumeFailed() => _theResumeFailed(machine),
   TheOpenBroughtNoSession() => _orBackToWhatWaits(
@@ -1823,6 +1848,9 @@ const _watch = ArmTheWatch();
         letTheWaitingHaltGo: true,
       );
   if (machine.aHaltWaitsForTheCanvas case final waiting? when next is Canvas) {
+    if (event is TheSceneRehearsalLeft && machine.holdsATurn) {
+      return (arrived.copyWith(aHaltWaitsForTheCanvas: waiting), const []);
+    }
     return _theHalt(arrived, waiting);
   }
   return (arrived, const []);

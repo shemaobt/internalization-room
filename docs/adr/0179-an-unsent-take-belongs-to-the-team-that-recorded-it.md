@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-11-02
-amends: 0135
+amends: 0135, 0077
 ---
 
 # An unsent take belongs to the team that recorded it
@@ -39,6 +39,18 @@ team's (Henok, 03-11). A stamp the disk refuses is tried again at the next launc
 The row's shape grows by two optional keys, written only when set: `team` and `team_unknown`. They
 sit beside `swap`, written only by the recording home's swap and read as false when missing
 (ENG-2079).
+
+The Resume point of ADR 0077 (`em_curso.json`) is kept per team as well as per passage and
+language, and belongs to the team that wrote it the same way: it records the link's `project_id`
+as `team`, written only when set, and is kept under a key that names the team.
+The tablet reads, lists, rewrites and forgets only the points of the team it is linked to now, so a
+re-link to another team never asks the room for the old team's session, and the 404 that would have
+answered erases nothing. The old team's point waits on disk until the tablet is linked to it again,
+and then resumes the passage on that session. A point with no team was written by a build before this
+one and is the current team's, as an untagged Outbox row with a session is (ENG-2144).
+
+What a revocation sweeps stays swept (ADR 0135): the take files a point names are gone after it,
+so a point resumed on the same session lands on the conversation, not on the stage it stood.
 
 ## Considered Options
 
