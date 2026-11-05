@@ -23,6 +23,9 @@ grain and the Restart, but not the home's record controls.
   ledger.
 - **Arming only «Gravar de novo».** Rejected: a row's first recording over an approved draft
   changes the takes just the same.
+- **Holding an older Outbox row for an armed tap.** Rejected: it is a new Outbox state and a new
+  rule, what the tablet tells the team about a take recorded before the approval, and over a part
+  the room ignores the flag anyway. It is left to Henok, with the room's own refusal.
 
 ## Decision
 
@@ -33,6 +36,11 @@ grain and the Restart, but not the home's record controls.
   `reopens_the_approved_draft` only when its own recording was opened by a confirmed armed tap,
   however late the keep or the send. An approval read while the microphone is open arms nothing
   for that take, and a later armed take that comes back empty leaves the stopped one as it was.
+- **A row queued before the approval retries as it is.** Once its take is in the Outbox, an
+  approval the tablet reads later arms nothing for it: the row goes up without the flag on its own
+  retry, with no tap. This is the one exception to asking the armed tap over a draft the tablet
+  holds as approved, and it is the race shema-api ADR 0081 already accepts (an approval minted
+  between a keep and its row lands the take without the flag), with a longer window.
 - **The confirmation does not cross sessions.** It answers one session's approved draft. A take
   whose session goes, kept already or not, waits for the next session without the flag.
 - **The record control is a seventh control that disarms when accessibility focus leaves it**
@@ -43,6 +51,8 @@ grain and the Restart, but not the home's record controls.
 - The tablet asks more than her recording screen does: the room keeps a part recorded here, and
   a whole take over the team's own parts, on one tap and ignores the flag. Over a joined
   recording the room refuses a whole take without the flag (ADR 0081).
+- A row queued before the approval re-opens the draft with no warning when it is a part or a
+  whole take over the team's own parts. Over a joined recording the room refuses its whole take.
 - A tablet that has not yet read the approval records a part on one tap and the room re-opens
   the draft. ADR 0113's «the server refuses and the read arms the resend» holds only for the
   whole take over a joined recording; refusing the others would be a new rule of the room's.
