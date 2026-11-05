@@ -481,6 +481,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   late TurnClock? _coverageClock;
 
   late String? _pendingTakePath;
+  late bool _thisTakeReopens;
+  late Set<String> _keepsThatReopen;
 
   /// The room's latest grain told while a take was open on the recording home, for the
   /// session it was told for: it lands once that take is over or the team leaves the
@@ -607,6 +609,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _pendingClock = null;
     _coverageClock = null;
     _pendingTakePath = null;
+    _thisTakeReopens = false;
+    _keepsThatReopen = {};
     _theGrainToldDuringATake = null;
     _outboxFalls = _apart(
       () => ref
@@ -7566,9 +7570,9 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     final daCena = state.cenaDaGravacao == cena;
     switch (state.ensaio) {
       case EnsaioStatus.idle:
-        _abrirOMicrofoneDaCena(cena);
+        _gravarComOToqueArmado(cena);
       case EnsaioStatus.recorded when daCena:
-        _abrirOMicrofoneDaCena(cena);
+        _gravarComOToqueArmado(cena);
       case EnsaioStatus.recording when daCena:
         _handOff(_finishTake());
       case EnsaioStatus.recorded || EnsaioStatus.recording:
@@ -7585,7 +7589,17 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
     _tocarAParte(indice);
   }
 
-  void _abrirOMicrofoneDaCena(int cena) {
+  void _gravarComOToqueArmado(int cena) {
+    final reopens = state.overAnApprovedDraft;
+    _armedTap(
+      recordControl(cena),
+      needs: reopens,
+      then: () => _abrirOMicrofoneDaCena(cena, reopens: reopens),
+    );
+  }
+
+  void _abrirOMicrofoneDaCena(int cena, {required bool reopens}) {
+    _thisTakeReopens = reopens;
     _silenceTheRoom();
     if (state.unsentParts[cena]?.failure != null) {
       unawaited(_letGoOfTheFailedTakeOf(cena));
@@ -7681,6 +7695,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
       state = state.copyWith(ensaio: EnsaioStatus.idle);
       return;
     }
+    if (_thisTakeReopens) _keepsThatReopen.add(path);
     // Part N is Scene N: the recording is kept under the number of the row it was made
     // from, in place of the part already there.
     final numero = state.cenaDaGravacao;
@@ -7929,6 +7944,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
                 scope: scope,
                 passNumber: passNumber,
                 chunkIndex: chunkIndex,
+                reopensTheApprovedDraft: _keepsThatReopen.contains(path),
               )
             : null,
       );

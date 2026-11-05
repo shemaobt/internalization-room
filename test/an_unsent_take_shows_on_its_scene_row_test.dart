@@ -1710,6 +1710,7 @@ class _QueueThatRefusesOnce extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) async {
     if (!_refused) {
       _refused = true;
@@ -1724,6 +1725,7 @@ class _QueueThatRefusesOnce extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }
@@ -1750,6 +1752,7 @@ class _QueueThatRefusesWhenLetGo extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) async {
     holding = true;
     await _held.future;
@@ -1779,6 +1782,7 @@ class _QueueHeldAfterWriting extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) async {
     final row = await super.enqueue(
       audio,
@@ -1789,6 +1793,7 @@ class _QueueHeldAfterWriting extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
     written = true;
     await _held.future;
@@ -1818,6 +1823,7 @@ class _QueueHeldPerKeep extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) async {
     final held = Completer<void>();
     _held.add(held);
@@ -1830,6 +1836,7 @@ class _QueueHeldPerKeep extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
     written++;
     await held.future;

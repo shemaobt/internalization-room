@@ -2573,6 +2573,23 @@ void main() {
       expect(read.reopensTheApprovedDraft, isTrue);
     });
 
+    test('a part kept on the armed tap goes up with the reopening', () async {
+      final room = FakeRoom();
+      final queue = queueOn(room);
+      await queue.enqueue(
+        aRehearsal(aWavTake()),
+        sessionId: 'sessao-1',
+        kind: 'ensaio',
+        scope: 'parte-2',
+        chunkIndex: 2,
+        reopensTheApprovedDraft: true,
+      );
+
+      await queue.flush();
+
+      expect(room.takesReceivedWhole.single.reopens, isTrue);
+    });
+
     test('goes up with its origin, the reopening and the rehearsal\'s '
         'fingerprint', () async {
       final room = FakeRoom();

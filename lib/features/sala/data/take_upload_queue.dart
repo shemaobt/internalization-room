@@ -905,6 +905,7 @@ class TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) => _underway(
     () async => (await _enqueue(
       audio,
@@ -916,6 +917,7 @@ class TakeUploadQueue {
       chunkIndex: chunkIndex,
       scene: scene,
       recordedAt: await audio.lastModified(),
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     ))!,
   );
 

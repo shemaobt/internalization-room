@@ -294,6 +294,7 @@ class _ADiskThatFailsOnce extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) async {
     if (!_failed) {
       _failed = true;
@@ -308,6 +309,7 @@ class _ADiskThatFailsOnce extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }
@@ -336,6 +338,7 @@ class _AKeepHeldOnACompleter extends TakeUploadQueue {
     int? passNumber,
     int? chunkIndex,
     String? scene,
+    bool reopensTheApprovedDraft = false,
   }) async {
     if (scope == _heldScope) {
       _heldScope = null;
@@ -351,6 +354,7 @@ class _AKeepHeldOnACompleter extends TakeUploadQueue {
       passNumber: passNumber,
       chunkIndex: chunkIndex,
       scene: scene,
+      reopensTheApprovedDraft: reopensTheApprovedDraft,
     );
   }
 }

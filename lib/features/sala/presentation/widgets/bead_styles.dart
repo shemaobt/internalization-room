@@ -73,6 +73,7 @@ class RoundActionButton extends StatelessWidget {
   final String semanticLabel;
   final bool? toggled;
   final VoidCallback? onLongPress;
+  final VoidCallback? onFocusLeft;
   final ButtonMood mood;
   final Color halo;
 
@@ -89,6 +90,7 @@ class RoundActionButton extends StatelessWidget {
     this.border,
     this.shadows,
     this.onLongPress,
+    this.onFocusLeft,
     this.mood = ButtonMood.lit,
     this.halo = ShemaBrand.verdeClaro,
   });
@@ -103,6 +105,7 @@ class RoundActionButton extends StatelessWidget {
     enabled: _live,
     toggled: toggled,
     label: semanticLabel,
+    onDidLoseAccessibilityFocus: onFocusLeft,
     child: label == null
         ? _disc(t)
         : Stack(

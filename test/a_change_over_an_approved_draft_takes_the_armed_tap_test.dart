@@ -13,7 +13,8 @@ import 'package:internalization_room/features/sala/presentation/widgets/retro_vi
 
 import 'a_wav_take.dart';
 import 'fakes.dart';
-import 'scenario_helpers.dart' show byLabel, thePersonSign;
+import 'scenario_helpers.dart'
+    show byLabel, linhaDoEnsaio, offTheRows, thePersonSign;
 import 'the_back_translation_is_told_by_beads_test.dart' show tocar;
 import 'the_team_re_records_one_whole_sentence_test.dart'
     show quatroFrasesEmWav;
@@ -27,7 +28,35 @@ const _sinal = 'Um momento para uma pessoa';
 const _ouvirAFrase1 = 'ouvir a minha tradução da frase 1';
 const _ouvirAFrase = ('N6', 'pt');
 
+const _gravarDeNovo = 'Gravar de novo';
+const _parar = 'Parar';
+const _enviar = 'Enviar a gravação';
+
 String _regravar(int n) => 'regravar a frase $n';
+
+Finder _naLinha(int cena, String label) =>
+    find.descendant(of: linhaDoEnsaio(cena), matching: byLabel(label));
+
+Future<void> _tocarNaLinha(WidgetTester tester, int cena, String label) async {
+  await tester.ensureVisible(_naLinha(cena, label));
+  await tester.tap(_naLinha(cena, label));
+  await tester.pump(const Duration(milliseconds: 200));
+}
+
+Future<bool> _aParteDoisSobe(WidgetTester tester, SalaHarness harness) async {
+  final antes = harness.room.takesReceivedWhole.length;
+  await tester.ensureVisible(offTheRows(_enviar));
+  await tester.tap(offTheRows(_enviar));
+  await tester.pump(const Duration(milliseconds: 200));
+  await waitFor(
+    'a parte chegar à sala',
+    () => harness.room.takesReceivedWhole.length > antes,
+    step: () => letTheRehearsalReachTheRoom(tester),
+  );
+  final subiu = harness.room.takesReceivedWhole.last;
+  expect(subiu.scope, 'parte-2');
+  return subiu.reopens;
+}
 
 Future<void> _passo(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 100));
@@ -491,6 +520,92 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
     closeTheRoom(container);
     semantics.dispose();
+  });
+
+  testWidgets('over an approved draft «Gravar de novo» of a part records '
+      'nothing on the first tap, the row reads the armed text, and the second '
+      'tap in the window records', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaCasa(tester, harness);
+
+    await _tocarNaLinha(tester, 2, _gravarDeNovo);
+
+    final sala = container.read(salaSessionProvider);
+    expect(sala.ensaio, EnsaioStatus.idle);
+    expect(_naLinha(2, _armado), findsOneWidget);
+    expect(find.text(_armado), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 700));
+    await _tocarNaLinha(tester, 2, _armado);
+
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording);
+    closeTheRoom(container);
+  });
+
+  testWidgets('the take of a part recorded on the armed tap goes up with '
+      'reopens_the_approved_draft, and the approval leaves with the read', (
+    tester,
+  ) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await aprovadaNaCasa(tester, harness);
+    await _tocarNaLinha(tester, 2, _gravarDeNovo);
+    await tester.pump(const Duration(milliseconds: 700));
+    await _tocarNaLinha(tester, 2, _armado);
+    await _tocarNaLinha(tester, 2, _parar);
+    harness.room.approvedDraft = null;
+
+    expect(await _aParteDoisSobe(tester, harness), isTrue);
+    await waitFor(
+      'a leitura levar a aprovação',
+      () => !container.read(salaSessionProvider).overAnApprovedDraft,
+      step: () => _passo(tester),
+    );
+    closeTheRoom(container);
+  });
+
+  testWidgets(
+    'a part the Outbox could not take keeps the armed tap\'s flag when '
+    'its row sends it',
+    (tester) async {
+      final harness = SalaHarness(filaEmMemoria: true);
+      final container = await aprovadaNaCasa(tester, harness);
+      await _tocarNaLinha(tester, 2, _gravarDeNovo);
+      await tester.pump(const Duration(milliseconds: 700));
+      await _tocarNaLinha(tester, 2, _armado);
+      await _tocarNaLinha(tester, 2, _parar);
+      final sala = container.read(salaSessionProvider.notifier);
+      (harness.takes as FakeTakeQueue).refusesTheNextKeep = true;
+      sala.takeKeep();
+      await waitFor(
+        'o tablet saber que a parte não entrou',
+        () => container.read(salaSessionProvider).unsentParts.containsKey(2),
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+
+      sala.enviarACena(2);
+      await waitFor(
+        'a parte chegar à sala',
+        () => harness.room.takesReceivedWhole.any(
+          (take) => take.scope == 'parte-2' && take.reopens,
+        ),
+        step: () => letTheRehearsalReachTheRoom(tester),
+      );
+      closeTheRoom(container);
+    },
+  );
+
+  testWidgets('over a draft not approved «Gravar de novo» of a part takes one '
+      'tap and goes up without the flag', (tester) async {
+    final harness = SalaHarness(filaEmMemoria: true);
+    final container = await quatroFrasesEmWav(tester, harness);
+    container.read(salaSessionProvider.notifier).leaveTheBackTranslation();
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    await _tocarNaLinha(tester, 2, _gravarDeNovo);
+    expect(container.read(salaSessionProvider).ensaio, EnsaioStatus.recording);
+    await _tocarNaLinha(tester, 2, _parar);
+    expect(await _aParteDoisSobe(tester, harness), isFalse);
+    closeTheRoom(container);
   });
 
   testWidgets('«recomeçar a tradução» keeps its own armed text over an '
