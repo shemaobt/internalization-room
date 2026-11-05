@@ -1012,6 +1012,9 @@ class FakeWorkInProgress implements WorkInProgress {
   Exception? startedInFails;
 
   @override
+  void linkedTo(String? team) {}
+
+  @override
   WorkInProgress pinnedToTheTeamNow() => this;
 
   @override

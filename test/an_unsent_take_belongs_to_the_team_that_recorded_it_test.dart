@@ -192,14 +192,13 @@ void main() {
     expect(estado().unsentTakes, 0);
   });
 
-  test("a 404 on the old team's session forgets none of its Resume point, and "
-      'linked back to its team the passage resumes where it stood', () async {
-    late ProviderContainer container;
+  Future<({_Tablet tablet, WorkInProgress ledger, File file})> withAPlace(
+    String sessionId,
+  ) async {
     final home = aTempDir('sala-em-curso-relink');
     final ledger = WorkInProgress(
       home: () async => home,
       recordings: () async => home,
-      team: () => container.read(deviceLinkProvider).team?.projectId,
     );
     final harness = SalaHarness(
       linkedAs: const RememberedLink(
@@ -210,20 +209,38 @@ void main() {
       linkPoll: const Duration(milliseconds: 20),
       emAbertoNoDisco: ledger,
     );
-    container = harness.container();
+    final container = harness.container();
     addTearDown(container.dispose);
     await container.read(deviceLinkProvider.notifier).findTheTeam();
-    final tablet = (harness: harness, container: container);
     await ledger.remember(
       'Ruth',
       'P01',
       'pt',
-      const ResumePoint(
-        sessionId: 'sessao-da-equipe-1',
-        stage: SalaStage.ensaio,
-      ),
+      ResumePoint(sessionId: sessionId, stage: SalaStage.ensaio),
     );
-    final sala = container.read(salaSessionProvider.notifier);
+    return (
+      tablet: (harness: harness, container: container),
+      ledger: ledger,
+      file: File('${home.path}/guardadas/em_curso.json'),
+    );
+  }
+
+  Future<void> opensP01(_Tablet tablet) async {
+    final sala = tablet.container.read(salaSessionProvider.notifier);
+    await sala.abrirEscolha();
+    await settle();
+    await sala.goConversa(book: 'Ruth', pericope: 'P01');
+    await waitFor(
+      'the passage to open',
+      () => tablet.container.read(salaSessionProvider).sessionId != null,
+    );
+  }
+
+  test("a 404 on the old team's session forgets none of its Resume point, and "
+      'linked back to its team the passage resumes its session', () async {
+    final (:tablet, :ledger, :file) = await withAPlace('sessao-da-equipe-1');
+    final room = tablet.harness.room;
+    String? opened() => tablet.container.read(salaSessionProvider).sessionId;
 
     await _theDeskUnlinks(tablet);
     await _theDeskLinks(
@@ -231,30 +248,36 @@ void main() {
       'equipe-2',
       foreignSessions: {'sessao-da-equipe-1'},
     );
-    await sala.abrirEscolha();
-    await settle();
-    await sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'the new team to open the passage',
-      () => container.read(salaSessionProvider).sessionId != null,
-    );
+    await opensP01(tablet);
 
-    expect(
-      container.read(salaSessionProvider).sessionId,
-      isNot('sessao-da-equipe-1'),
-    );
+    expect(opened(), isNot('sessao-da-equipe-1'));
+    expect(room.statesRead, isNot(contains('sessao-da-equipe-1')));
+    expect(room.askedOfTheForgotten, isNot(contains('sessao-da-equipe-1')));
+    expect(file.readAsStringSync(), contains('sessao-da-equipe-1'));
 
-    await sala.abrirEscolha();
-    await settle();
     await _theDeskUnlinks(tablet);
     await _theDeskLinks(tablet, 'equipe-1');
-    await sala.abrirEscolha();
+    await opensP01(tablet);
+
+    expect(opened(), 'sessao-da-equipe-1');
+    expect(
+      (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
+      'sessao-da-equipe-1',
+    );
+  });
+
+  test("a 404 on the current team's own session forgets its tagged Resume "
+      'point', () async {
+    final (:tablet, :ledger, :file) = await withAPlace('sessao-apagada');
+    tablet.harness.room.forgetTheSession('sessao-apagada');
+
+    await opensP01(tablet);
     await settle();
-    await sala.goConversa(book: 'Ruth', pericope: 'P01');
-    await waitFor(
-      'the first team to resume its passage',
-      () =>
-          container.read(salaSessionProvider).sessionId == 'sessao-da-equipe-1',
+
+    expect(file.readAsStringSync(), isNot(contains('sessao-apagada')));
+    expect(
+      (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
+      isNot('sessao-apagada'),
     );
   });
 

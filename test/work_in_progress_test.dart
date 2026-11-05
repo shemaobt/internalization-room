@@ -495,18 +495,15 @@ void main() {
 
   group('a Resume point belongs to the team that wrote it', () {
     late Directory home;
-    late String? team;
     late WorkInProgress ledger;
     File file() => File('${home.path}/guardadas/em_curso.json');
 
     setUp(() {
       home = aTempDir('sala-em-curso-equipe');
-      team = 'equipe-a';
       ledger = WorkInProgress(
         home: () async => home,
         recordings: () async => home,
-        team: () => team,
-      );
+      )..linkedTo('equipe-a');
     });
 
     Future<void> remember(String sessionId) => ledger.remember(
@@ -521,7 +518,7 @@ void main() {
       await remember('sessao-a');
       final onDisk = file().readAsStringSync();
 
-      team = 'equipe-b';
+      ledger.linkedTo('equipe-b');
       expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
       expect(await ledger.startedIn('Ruth', 'pt'), isEmpty);
       expect(await ledger.forgetTheSession('sessao-a'), isEmpty);
@@ -530,7 +527,7 @@ void main() {
       await remember('sessao-b');
       expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-b');
 
-      team = 'equipe-a';
+      ledger.linkedTo('equipe-a');
       expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
       expect(await ledger.startedIn('Ruth', 'pt'), {'P01'});
     });
@@ -539,12 +536,13 @@ void main() {
       "one team forgetting a passage leaves the other team's place",
       () async {
         await remember('sessao-a');
-        team = 'equipe-b';
+        ledger.linkedTo('equipe-b');
         await remember('sessao-b');
 
         await ledger.forget('Ruth', 'P01', 'pt');
 
-        team = 'equipe-a';
+        expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+        ledger.linkedTo('equipe-a');
         expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
       },
     );
@@ -564,7 +562,7 @@ void main() {
     test('a write queued under one team lands under it though the link '
         'changes before it runs', () async {
       final queued = ledger.pinnedToTheTeamNow();
-      team = null;
+      ledger.linkedTo(null);
 
       await queued.remember(
         'Ruth',
@@ -574,9 +572,29 @@ void main() {
       );
 
       expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
-      team = 'equipe-b';
+      ledger.linkedTo('equipe-b');
       expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
-      team = 'equipe-a';
+      ledger.linkedTo('equipe-a');
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
+    });
+
+    test('a write queued under one team and one under another, started '
+        'together, both land', () async {
+      final queued = ledger.pinnedToTheTeamNow();
+      ledger.linkedTo('equipe-b');
+
+      await Future.wait([
+        queued.remember(
+          'Ruth',
+          'P01',
+          'pt',
+          const ResumePoint(sessionId: 'sessao-a', stage: SalaStage.ensaio),
+        ),
+        remember('sessao-b'),
+      ]);
+
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-b');
+      ledger.linkedTo('equipe-a');
       expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
     });
 
@@ -592,7 +610,7 @@ void main() {
         (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
         'sessao-antiga',
       );
-      team = 'equipe-b';
+      ledger.linkedTo('equipe-b');
       expect(
         (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
         'sessao-antiga',

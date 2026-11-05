@@ -13,6 +13,7 @@ import 'room_answer.dart';
 import 'room_repository.dart';
 import 'session_notifier.dart';
 import 'take_upload_queue.dart';
+import 'work_in_progress.dart';
 
 /// How often the tablet asks whether its code has been spent yet.
 ///
@@ -113,6 +114,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final current = _currentSession;
     final forgets = _forgets;
     final takes = ref.read(takeUploadQueueProvider);
+    final open = ref.read(workInProgressProvider);
     final String credential;
     switch (await _room.collectTheCredential(deviceId)) {
       case Answered(value: final collected):
@@ -121,13 +123,13 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         _lookAgainLater();
         return;
       case Refused(code: RefusalCode.credentialTaken):
-        await _endTheLife(ledger, current, takes);
+        await _endTheLife(ledger, current, takes, open);
         return;
       case Refused(code: RefusalCode.notFound):
         // The server does not know this device at all. Keeping the team beside an id
         // nobody claimed is a lie the next opening believes: it walks into the room as
         // linked, and the code the facilitator would have to write down never shows.
-        await _endTheLife(ledger, current, takes);
+        await _endTheLife(ledger, current, takes, open);
         return;
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_collectTheCredential);
@@ -199,6 +201,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       _ledger,
       _currentSession,
       ref.read(takeUploadQueueProvider),
+      ref.read(workInProgressProvider),
     );
   }
 
@@ -206,10 +209,12 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     LinkedTeam ledger,
     CurrentSessionLedger current,
     TakeUploadQueue takes,
+    WorkInProgress open,
   ) async {
     final leaving = (await ledger.read()).team?.projectId;
+    open.linkedTo(null);
     if (!await takes.endTheLife(leaving: leaving)) {
-      return _tryAgainLater(() => _endTheLife(ledger, current, takes));
+      return _tryAgainLater(() => _endTheLife(ledger, current, takes, open));
     }
     await _startOver(ledger, current);
   }
@@ -229,9 +234,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       presented: credential != null,
     );
     if (credential != null) {
-      await ref
-          .read(takeUploadQueueProvider)
-          .beginALife(team: (team ?? state.team)?.projectId);
+      final theTeam = (team ?? state.team)?.projectId;
+      ref.read(workInProgressProvider).linkedTo(theTeam);
+      await ref.read(takeUploadQueueProvider).beginALife(team: theTeam);
     }
   }
 
@@ -259,6 +264,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final ledger = _ledger;
     final current = _currentSession;
     final takes = ref.read(takeUploadQueueProvider);
+    final open = ref.read(workInProgressProvider);
     switch (await _room.readTheLink(deviceId)) {
       case Answered(value: final team):
         if (_closed) return;
@@ -271,7 +277,10 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
           }
           if (_closed) return;
           state = DeviceLink(team: team, presented: _credential != null);
-          if (_credential != null) await takes.beginALife(team: team.projectId);
+          if (_credential != null) {
+            open.linkedTo(team.projectId);
+            await takes.beginALife(team: team.projectId);
+          }
           return _collectTheCredential();
         }
         final showing = state.code;
@@ -280,7 +289,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
         }
         _lookAgainLater();
       case Refused(code: RefusalCode.notFound):
-        await _endTheLife(ledger, current, takes);
+        await _endTheLife(ledger, current, takes, open);
       case NetworkFailed() || Refused() || SessionGone():
         _tryAgainLater(_lookForTheTeam);
     }

@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import '../domain/grain.dart';
 import '../domain/kept_take.dart';
 import '../domain/session_state.dart';
-import 'device_link_notifier.dart';
 import 'staged_write.dart';
 
 const _folder = 'guardadas';
@@ -57,8 +56,6 @@ class ResumePoint {
 
   final bool hearNewScene;
 
-  /// The team the row was written under. Null for a row written before this field
-  /// existed, which reads as the current team's (ADR 0179).
   final String? team;
 
   const ResumePoint({
@@ -194,30 +191,24 @@ class WorkInProgress {
   final Future<Directory> Function() _recordings;
   final _Serial _serial;
 
-  /// The team the tablet is linked to now. A row of any other team stays on disk,
-  /// unread and untouched, until the tablet is linked to that team again (ADR 0179).
-  final String? Function() _team;
+  String? _team;
 
   WorkInProgress({
     Future<Directory> Function()? home,
     Future<Directory> Function()? recordings,
-    String? Function()? team,
   }) : _home = home ?? getApplicationSupportDirectory,
        _recordings = recordings ?? _recordingsHome,
-       _team = team ?? _noTeam,
        _serial = _Serial();
 
   WorkInProgress._pinned(WorkInProgress of, String? team)
     : _home = of._home,
       _recordings = of._recordings,
       _serial = of._serial,
-      _team = (() => team);
+      _team = team;
 
-  /// This ledger as the team linked now sees it, for a write that runs after the link
-  /// has changed.
-  WorkInProgress pinnedToTheTeamNow() => WorkInProgress._pinned(this, _team());
+  void linkedTo(String? team) => _team = team;
 
-  static String? _noTeam() => null;
+  WorkInProgress pinnedToTheTeamNow() => WorkInProgress._pinned(this, _team);
 
   static Future<Directory> _recordingsHome() async => Directory(
     p.join((await getApplicationDocumentsDirectory()).path, 'recordings'),
@@ -283,7 +274,7 @@ class WorkInProgress {
 
   /// The passages of this book with work waiting in them.
   Future<Set<String>> startedIn(String book, String language) async {
-    final team = _team();
+    final team = _team;
     return {
       for (final MapEntry(:key, :value) in (await _rows()).entries)
         if (_mine(value, team) && _markOf(key, value).startsWith('$book/'))
@@ -294,11 +285,8 @@ class WorkInProgress {
   }
 
   Future<ResumePoint?> of(String book, String pericope, String language) async {
-    final team = _team();
-    final rows = {
-      for (final entry in (await _rows()).entries)
-        if (_mine(entry.value, team)) entry.key: entry.value,
-    };
+    final team = _team;
+    final rows = await _rows();
     final shipped = rows[_shipped(book, pericope)];
     final mark = _mark(book, pericope, language);
     return rows[_keyed(team, mark)] ??
@@ -312,7 +300,7 @@ class WorkInProgress {
     String language,
     ResumePoint point,
   ) {
-    final team = _team();
+    final team = _team;
     return _write(
       (rows) => {
         ..._without(rows, team, book, pericope, language),
@@ -322,12 +310,12 @@ class WorkInProgress {
   }
 
   Future<void> forget(String book, String pericope, String language) {
-    final team = _team();
+    final team = _team;
     return _write((rows) => _without(rows, team, book, pericope, language));
   }
 
   Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
-    final team = _team();
+    final team = _team;
     final forgotten = <ResumePoint>[];
     await _write((rows) {
       bool theOne(ResumePoint row) =>
@@ -379,6 +367,5 @@ class WorkInProgress {
 }
 
 final workInProgressProvider = Provider<WorkInProgress>(
-  (ref) =>
-      WorkInProgress(team: () => ref.read(deviceLinkProvider).team?.projectId),
+  (ref) => WorkInProgress(),
 );

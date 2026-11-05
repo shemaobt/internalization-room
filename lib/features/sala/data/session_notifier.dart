@@ -521,7 +521,8 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   RoomRepository get _room => ref.read(roomRepositoryProvider);
   TakeUploadQueue get _takes => ref.read(takeUploadQueueProvider);
   ConnectivityService get _network => ref.read(connectivityServiceProvider);
-  WorkInProgress get _emAberto => ref.read(workInProgressProvider);
+  WorkInProgress get _emAberto =>
+      ref.read(workInProgressProvider).pinnedToTheTeamNow();
   StorePort get _store => ref.read(storePortProvider);
   CaptureGuard get _captureGuard => ref.read(captureGuardProvider);
 
@@ -8437,7 +8438,7 @@ class SalaSessionNotifier extends Notifier<SalaSessionState> {
   Future<void> _mindingThePlace(
     Future<void> Function(WorkInProgress open) write,
   ) {
-    final open = _emAberto.pinnedToTheTeamNow();
+    final open = _emAberto;
     Future<void> writing() => _apart(() async {
       try {
         await write(open);
