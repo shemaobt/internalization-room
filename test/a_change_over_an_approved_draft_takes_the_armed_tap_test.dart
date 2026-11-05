@@ -578,7 +578,6 @@ void main() {
     (tester) async {
       final harness = SalaHarness(filaEmMemoria: true);
       final container = await aprovadaNaCasa(tester, harness);
-
       await _tocarNaLinha(tester, 3, 'Gravar');
       expect(_naLinha(3, _armado), findsOneWidget);
 
@@ -587,6 +586,7 @@ void main() {
       await _tocarNaLinha(tester, 2, _gravarDeNovo);
       expect(_naLinha(2, _armado), findsOneWidget);
       expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
+      expect(await _aParteDoisSobe(tester, harness), isTrue);
       closeTheRoom(container);
     },
   );

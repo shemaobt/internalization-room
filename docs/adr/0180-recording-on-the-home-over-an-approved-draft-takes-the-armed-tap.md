@@ -38,9 +38,11 @@ grain and the Restart, but not the home's record controls.
   for that take, and a later armed take that comes back empty leaves the stopped one as it was.
 - **A row queued before the approval retries as it is.** Once its take is in the Outbox, an
   approval the tablet reads later arms nothing for it: the row goes up without the flag on its own
-  retry, with no tap. This is the one exception to asking the armed tap over a draft the tablet
-  holds as approved, and it is the race shema-api ADR 0081 already accepts (an approval minted
+  retry, with no tap. This is the race shema-api ADR 0081 already accepts (an approval minted
   between a keep and its row lands the take without the flag), with a longer window.
+- **So two takes go up unflagged over a draft the tablet holds as approved:** a take whose
+  microphone was open when the approval was read, and a row queued before it. Every other take
+  over that draft asks the armed tap.
 - **The confirmation does not cross sessions.** It answers one session's approved draft. A take
   whose session goes, kept already or not, waits for the next session without the flag.
 - **The record control is a seventh control that disarms when accessibility focus leaves it**
