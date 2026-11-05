@@ -1148,10 +1148,12 @@ void main() {
         'a conversa voltar',
         () => room.state.stage == SalaStage.conversa,
       );
+      expect(room.state.needsPerson, isFalse);
       harness.room.finishHeldTurn();
       await settle();
 
       expect(room.state.needsPerson, isFalse);
+      expect(harness.room.personsAsked, 0);
     },
   );
 
@@ -1181,8 +1183,43 @@ void main() {
         'a conversa voltar',
         () => room.state.stage == SalaStage.conversa,
       );
+      expect(room.state.needsPerson, isFalse);
       harness.room.finishHeldTurn();
       await waitFor('a pessoa ser chamada', () => room.state.needsPerson);
     },
   );
+
+  test('a scene rehearsal sent again whose answer is lost, left during the '
+      'look, shows no sign when the look finds the reply', () async {
+    final harness = SalaHarness();
+    final room = await _onTheSceneScreen(harness);
+    harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+    await _terminei(room);
+    await waitFor(
+      'a sala olhar a sessão',
+      () => harness.room.turnIdsLookedAt.isNotEmpty,
+    );
+    await _theRoomRests(room);
+
+    harness.room.turnsLandBeforeTheyFail = true;
+    harness.room.failHeldTurnWith = const NetworkFailed('a rede caiu');
+    harness.room.holdTheLooks();
+    final looks = harness.room.turnIdsLookedAt.length;
+    room.sala.sendTheSceneRehearsal();
+    await waitFor(
+      'a sala olhar o reenvio',
+      () => harness.room.turnIdsLookedAt.length > looks,
+    );
+    room.sala.leaveTheSceneRehearsal();
+    await waitFor(
+      'a conversa voltar',
+      () => room.state.stage == SalaStage.conversa,
+    );
+    expect(room.state.needsPerson, isFalse);
+    harness.room.finishTheLooks();
+    await settle();
+
+    expect(room.state.needsPerson, isFalse);
+    expect(harness.room.personsAsked, 0);
+  });
 }

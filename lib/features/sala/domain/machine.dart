@@ -1163,7 +1163,9 @@ final class Machine {
   final bool aStretchWaitsForItsPart;
 
   /// A halt met on the scene rehearsal, the external check or the
-  /// back-translation: the person sign shows once the team is back on the Canvas.
+  /// back-translation: the person sign shows once the team is back on the Canvas,
+  /// unless a «terminei» sent again is still out then: the sign stays waiting on the
+  /// Canvas until that send lands (forgotten) or is lost (shown).
   final RoomRaisedAHalt? aHaltWaitsForTheCanvas;
 
   final bool theCanvasEnded;
@@ -1468,6 +1470,10 @@ const _watch = ArmTheWatch();
   TheSceneWentAlready() || TheSceneSendRefused() => (machine, const []),
   TheSceneDoorFailed(readAgain: true) when machine.station is SceneRehearsal =>
     (machine, const [ReadTheSceneRehearsals()]),
+  TheSceneDoorFailed() when machine.aHaltWaitsForTheCanvas != null => _theHalt(
+    machine.copyWith(letTheWaitingHaltGo: true),
+    machine.aHaltWaitsForTheCanvas!,
+  ),
   TheSceneDoorFailed() => (machine, const []),
   TheSceneDiskFailed()
       when switch (machine.station) {
@@ -1823,7 +1829,7 @@ const _watch = ArmTheWatch();
         letTheWaitingHaltGo: true,
       );
   if (machine.aHaltWaitsForTheCanvas case final waiting? when next is Canvas) {
-    if (event is TheSceneRehearsalLeft && machine.inFlight != null) {
+    if (event is TheSceneRehearsalLeft && machine.holdsATurn) {
       return (arrived.copyWith(aHaltWaitsForTheCanvas: waiting), const []);
     }
     return _theHalt(arrived, waiting);

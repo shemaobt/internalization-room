@@ -110,6 +110,7 @@ sent while a person is called is never sent again.
 
 ## Amendment · 2026-11-04 (ENG-2161)
 
-A «terminei» sent again and still in the air when the team returns to the Conversation does
-not raise the waiting sign on arrival: it stays waiting, an accepted resend forgets it, and a
-resend that drops again calls the person at once.
+A «terminei» sent again and still out when the team returns to the Conversation (in the air,
+or in the look that follows a drop) does not raise the waiting sign on arrival: it stays
+waiting on the Conversation. An accepted resend, or a look that finds its reply, forgets it; a
+look that finds nothing, or a code that stops the room, shows it then.

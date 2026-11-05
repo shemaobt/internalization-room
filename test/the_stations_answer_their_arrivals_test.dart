@@ -513,6 +513,67 @@ void main() {
     expect(machine.halt, isNot(isA<Blocking>()));
   });
 
+  group('a scene rehearsal sent again and left while it is still out', () {
+    const turn = Turn('sessao-1', 'turno-8');
+    final (waiting, _) = reduce(
+      _at(const SceneRehearsal()),
+      const TheSceneTurnFoundNothing(generation: _generation),
+    );
+
+    Machine leftWith(List<MachineEvent> events) {
+      var machine = waiting;
+      for (final event in [
+        const TurnSent(turn),
+        ...events,
+        const TheSceneRehearsalLeft(),
+      ]) {
+        (machine, _) = reduce(machine, event);
+      }
+      return machine;
+    }
+
+    test('raises no sign on arrival while the resend is in the air', () {
+      final machine = leftWith(const []);
+
+      expect(machine.station, isA<Canvas>());
+      expect(machine.halt, isNot(isA<Blocking>()));
+    });
+
+    test('raises no sign on arrival while the resend\'s look runs', () {
+      final machine = leftWith(const [TurnGivenUp(turn)]);
+
+      expect(machine.station, isA<Canvas>());
+      expect(machine.halt, isNot(isA<Blocking>()));
+    });
+
+    test('forgets the sign when the resend is accepted', () {
+      final (machine, _) = reduce(leftWith(const []), const TurnAnswered(turn));
+
+      expect(machine.aHaltWaitsForTheCanvas, isNull);
+      expect(machine.halt, isNot(isA<Blocking>()));
+    });
+
+    test('calls a person when the look finds nothing', () {
+      final (machine, effects) = reduce(
+        leftWith(const [TurnGivenUp(turn)]),
+        const LookEmpty(turn, theWaitRanOut: true),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(effects, contains(const CallForAPerson()));
+    });
+
+    test('calls a person when the room refuses with a code that stops it', () {
+      final (machine, effects) = reduce(
+        leftWith(const []),
+        const TheSceneDoorFailed(readAgain: true, generation: _generation),
+      );
+
+      expect(machine.halt, isA<Blocking>());
+      expect(effects, contains(const CallForAPerson()));
+    });
+  });
+
   test('a held sign is forgotten with the passage', () {
     final (held, _) = reduce(
       _at(const SceneRehearsal()),
