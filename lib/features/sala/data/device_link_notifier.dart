@@ -13,6 +13,7 @@ import 'room_answer.dart';
 import 'room_repository.dart';
 import 'session_notifier.dart';
 import 'take_upload_queue.dart';
+import 'work_in_progress.dart';
 
 /// How often the tablet asks whether its code has been spent yet.
 ///
@@ -229,9 +230,9 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
       presented: credential != null,
     );
     if (credential != null) {
-      await ref
-          .read(takeUploadQueueProvider)
-          .beginALife(team: (team ?? state.team)?.projectId);
+      final theTeam = (team ?? state.team)?.projectId;
+      ref.read(workInProgressProvider).linkedTo(theTeam);
+      await ref.read(takeUploadQueueProvider).beginALife(team: theTeam);
     }
   }
 
@@ -259,6 +260,7 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
     final ledger = _ledger;
     final current = _currentSession;
     final takes = ref.read(takeUploadQueueProvider);
+    final open = ref.read(workInProgressProvider);
     switch (await _room.readTheLink(deviceId)) {
       case Answered(value: final team):
         if (_closed) return;
@@ -271,7 +273,10 @@ class DeviceLinkNotifier extends Notifier<DeviceLink> {
           }
           if (_closed) return;
           state = DeviceLink(team: team, presented: _credential != null);
-          if (_credential != null) await takes.beginALife(team: team.projectId);
+          if (_credential != null) {
+            open.linkedTo(team.projectId);
+            await takes.beginALife(team: team.projectId);
+          }
           return _collectTheCredential();
         }
         final showing = state.code;

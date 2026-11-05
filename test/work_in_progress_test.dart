@@ -492,4 +492,136 @@ void main() {
       expect(file().readAsStringSync(), '{}');
     });
   });
+
+  group('a Resume point belongs to the team that wrote it', () {
+    late Directory home;
+    late WorkInProgress ledger;
+    File file() => File('${home.path}/guardadas/em_curso.json');
+
+    setUp(() {
+      home = aTempDir('sala-em-curso-equipe');
+      ledger = WorkInProgress(
+        home: () async => home,
+        recordings: () async => home,
+      )..linkedTo('equipe-a');
+    });
+
+    Future<void> remember(String sessionId) => ledger.remember(
+      'Ruth',
+      'P01',
+      'pt',
+      ResumePoint(sessionId: sessionId, stage: SalaStage.ensaio),
+    );
+
+    test('the other team neither reads, lists nor forgets it, and its own '
+        'place of the same passage leaves it on disk', () async {
+      await remember('sessao-a');
+      final onDisk = file().readAsStringSync();
+
+      ledger.linkedTo('equipe-b');
+      expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      expect(await ledger.startedIn('Ruth', 'pt'), isEmpty);
+      expect(await ledger.forgetTheSession('sessao-a'), isEmpty);
+      expect(file().readAsStringSync(), onDisk);
+
+      await remember('sessao-b');
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-b');
+
+      ledger.linkedTo('equipe-a');
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
+      expect(await ledger.startedIn('Ruth', 'pt'), {'P01'});
+    });
+
+    test(
+      "one team forgetting a passage leaves the other team's place",
+      () async {
+        await remember('sessao-a');
+        ledger.linkedTo('equipe-b');
+        await remember('sessao-b');
+
+        await ledger.forget('Ruth', 'P01', 'pt');
+
+        expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+        ledger.linkedTo('equipe-a');
+        expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
+      },
+    );
+
+    test(
+      'its own team forgetting its session erases the tagged place',
+      () async {
+        await remember('sessao-a');
+
+        final forgotten = await ledger.forgetTheSession('sessao-a');
+
+        expect(forgotten.map((row) => row.sessionId), ['sessao-a']);
+        expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      },
+    );
+
+    test('a write queued under one team lands under it though the link '
+        'changes before it runs', () async {
+      final queued = ledger.pinnedToTheTeamNow();
+      ledger.linkedTo(null);
+
+      await queued.remember(
+        'Ruth',
+        'P01',
+        'pt',
+        const ResumePoint(sessionId: 'sessao-a', stage: SalaStage.ensaio),
+      );
+
+      expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      ledger.linkedTo('equipe-b');
+      expect(await ledger.of('Ruth', 'P01', 'pt'), isNull);
+      ledger.linkedTo('equipe-a');
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
+    });
+
+    test('a write queued under one team and one under another, started '
+        'together, both land', () async {
+      final queued = ledger.pinnedToTheTeamNow();
+      ledger.linkedTo('equipe-b');
+
+      await Future.wait([
+        queued.remember(
+          'Ruth',
+          'P01',
+          'pt',
+          const ResumePoint(sessionId: 'sessao-a', stage: SalaStage.ensaio),
+        ),
+        remember('sessao-b'),
+      ]);
+
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-b');
+      ledger.linkedTo('equipe-a');
+      expect((await ledger.of('Ruth', 'P01', 'pt'))?.sessionId, 'sessao-a');
+    });
+
+    test('a row an older build wrote, with no team, is the current '
+        "team's, whichever it is", () async {
+      Directory('${home.path}/guardadas').createSync(recursive: true);
+      file().writeAsStringSync(
+        '{"Ruth/P01/pt":{"session_id":"sessao-antiga","stage":"ensaio",'
+        '"language":"pt","takes":[]}}',
+      );
+
+      expect(
+        (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
+        'sessao-antiga',
+      );
+      ledger.linkedTo('equipe-b');
+      expect(
+        (await ledger.of('Ruth', 'P01', 'pt'))?.sessionId,
+        'sessao-antiga',
+      );
+      expect(await ledger.startedIn('Ruth', 'pt'), {'P01'});
+      expect(
+        (await ledger.forgetTheSession(
+          'sessao-antiga',
+        )).map((row) => row.sessionId),
+        ['sessao-antiga'],
+      );
+    });
+  });
 }

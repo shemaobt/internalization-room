@@ -56,6 +56,8 @@ class ResumePoint {
 
   final bool hearNewScene;
 
+  final String? team;
+
   const ResumePoint({
     required this.sessionId,
     required this.stage,
@@ -67,13 +69,31 @@ class ResumePoint {
     this.wholeHeldByTheRoom = const [],
     this.grain,
     this.hearNewScene = false,
+    this.team,
   });
+
+  ResumePoint withTeam(String? team) => team == this.team
+      ? this
+      : ResumePoint(
+          sessionId: sessionId,
+          stage: stage,
+          takes: takes,
+          savedAt: savedAt,
+          language: language,
+          passesToGoAbove: passesToGoAbove,
+          listener: listener,
+          wholeHeldByTheRoom: wholeHeldByTheRoom,
+          grain: grain,
+          hearNewScene: hearNewScene,
+          team: team,
+        );
 
   Map<String, Object?> toJson() => {
     'session_id': sessionId,
     'stage': stage.name,
     'saved_at': ?savedAt?.millisecondsSinceEpoch,
     'language': ?language,
+    'team': ?team,
     if (passesToGoAbove.isNotEmpty)
       'passes_to_go_above': {
         for (final MapEntry(:key, :value) in passesToGoAbove.entries)
@@ -112,6 +132,7 @@ class ResumePoint {
           ? DateTime.fromMillisecondsSinceEpoch(json['saved_at'] as int)
           : null,
       language: json['language'] as String?,
+      team: json['team'] as String?,
       passesToGoAbove: {
         for (final MapEntry(:key, :value)
             in (json['passes_to_go_above'] as Map? ?? const {}).entries)
@@ -158,19 +179,36 @@ class ResumePoint {
   }
 }
 
+class _Serial {
+  Future<void> tail = Future<void>.value();
+}
+
 class WorkInProgress {
   final Future<Directory> Function() _home;
 
   /// Where the recordings themselves live, which is not where this ledger lives: the
   /// takes sit under the documents directory, the ledger under application support.
   final Future<Directory> Function() _recordings;
-  Future<void> _writes = Future<void>.value();
+  final _Serial _serial;
+
+  String? _team;
 
   WorkInProgress({
     Future<Directory> Function()? home,
     Future<Directory> Function()? recordings,
   }) : _home = home ?? getApplicationSupportDirectory,
-       _recordings = recordings ?? _recordingsHome;
+       _recordings = recordings ?? _recordingsHome,
+       _serial = _Serial();
+
+  WorkInProgress._pinned(WorkInProgress of, String? team)
+    : _home = of._home,
+      _recordings = of._recordings,
+      _serial = of._serial,
+      _team = team;
+
+  void linkedTo(String? team) => _team = team;
+
+  WorkInProgress pinnedToTheTeamNow() => WorkInProgress._pinned(this, _team);
 
   static Future<Directory> _recordingsHome() async => Directory(
     p.join((await getApplicationDocumentsDirectory()).path, 'recordings'),
@@ -187,14 +225,25 @@ class WorkInProgress {
 
   static String _shipped(String book, String pericope) => '$book/$pericope';
 
+  static String _keyed(String? team, String mark) =>
+      team == null ? mark : '$team|$mark';
+
+  static String _markOf(String key, ResumePoint row) =>
+      row.team == null ? key : key.substring(row.team!.length + 1);
+
+  static bool _mine(ResumePoint row, String? team) =>
+      row.team == null || row.team == team;
+
   static Map<String, ResumePoint> _without(
     Map<String, ResumePoint> rows,
+    String? team,
     String book,
     String pericope,
     String language,
   ) => {
     for (final entry in rows.entries)
       if (entry.key != _mark(book, pericope, language) &&
+          entry.key != _keyed(team, _mark(book, pericope, language)) &&
           !(entry.key == _shipped(book, pericope) &&
               (entry.value.language ?? language) == language))
         entry.key: entry.value,
@@ -224,17 +273,24 @@ class WorkInProgress {
   }
 
   /// The passages of this book with work waiting in them.
-  Future<Set<String>> startedIn(String book, String language) async => {
-    for (final MapEntry(:key, :value) in (await _rows()).entries)
-      if (key.startsWith('$book/') &&
-          (key.endsWith('/$language') || value.language == language))
-        key.split('/')[1],
-  };
+  Future<Set<String>> startedIn(String book, String language) async {
+    final team = _team;
+    return {
+      for (final MapEntry(:key, :value) in (await _rows()).entries)
+        if (_mine(value, team) && _markOf(key, value).startsWith('$book/'))
+          if (_markOf(key, value).endsWith('/$language') ||
+              value.language == language)
+            _markOf(key, value).split('/')[1],
+    };
+  }
 
   Future<ResumePoint?> of(String book, String pericope, String language) async {
+    final team = _team;
     final rows = await _rows();
     final shipped = rows[_shipped(book, pericope)];
-    return rows[_mark(book, pericope, language)] ??
+    final mark = _mark(book, pericope, language);
+    return rows[_keyed(team, mark)] ??
+        rows[mark] ??
         (shipped?.language == language ? shipped : null);
   }
 
@@ -243,23 +299,31 @@ class WorkInProgress {
     String pericope,
     String language,
     ResumePoint point,
-  ) => _write(
-    (rows) => {
-      ..._without(rows, book, pericope, language),
-      _mark(book, pericope, language): point,
-    },
-  );
+  ) {
+    final team = _team;
+    return _write(
+      (rows) => {
+        ..._without(rows, team, book, pericope, language),
+        _keyed(team, _mark(book, pericope, language)): point.withTeam(team),
+      },
+    );
+  }
 
-  Future<void> forget(String book, String pericope, String language) =>
-      _write((rows) => _without(rows, book, pericope, language));
+  Future<void> forget(String book, String pericope, String language) {
+    final team = _team;
+    return _write((rows) => _without(rows, team, book, pericope, language));
+  }
 
   Future<List<ResumePoint>> forgetTheSession(String sessionId) async {
+    final team = _team;
     final forgotten = <ResumePoint>[];
     await _write((rows) {
-      forgotten.addAll(rows.values.where((row) => row.sessionId == sessionId));
+      bool theOne(ResumePoint row) =>
+          row.sessionId == sessionId && _mine(row, team);
+      forgotten.addAll(rows.values.where(theOne));
       return {
         for (final entry in rows.entries)
-          if (entry.value.sessionId != sessionId) entry.key: entry.value,
+          if (!theOne(entry.value)) entry.key: entry.value,
       };
     });
     return forgotten;
@@ -271,7 +335,7 @@ class WorkInProgress {
   Future<void> _write(
     Map<String, ResumePoint> Function(Map<String, ResumePoint>) change,
   ) {
-    final next = _writes.then((_) async {
+    final next = _serial.tail.then((_) async {
       final file = await _file();
       if (await file.exists() && !await _readable(file)) {
         // Not overwritten — the rows of every other passage are in there, and a read that
@@ -288,7 +352,7 @@ class WorkInProgress {
         }),
       );
     });
-    _writes = next.then((_) {}, onError: (_) {});
+    _serial.tail = next.then((_) {}, onError: (_) {});
     return next;
   }
 

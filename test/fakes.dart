@@ -1012,6 +1012,12 @@ class FakeWorkInProgress implements WorkInProgress {
   Exception? startedInFails;
 
   @override
+  void linkedTo(String? team) {}
+
+  @override
+  WorkInProgress pinnedToTheTeamNow() => this;
+
+  @override
   Future<Set<String>> startedIn(String book, String language) async {
     if (startedInFails case final failure?) throw failure;
     return {
