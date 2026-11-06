@@ -1152,7 +1152,7 @@ final class Machine {
 
   final bool aStretchWaitsForItsPart;
 
-  /// A halt met on the scene rehearsal, the external check or the
+  /// A halt met on the scene rehearsal or the
   /// back-translation: the person sign shows once the team is back on the Canvas,
   /// unless a «terminei» sent again is still out then: the sign stays waiting on the
   /// Canvas until that send lands (forgotten) or is lost (shown).

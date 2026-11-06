@@ -113,7 +113,9 @@ class ResumePoint {
     return ResumePoint(
       sessionId: sessionId,
       stage: SalaStage.values.firstWhere(
-        (stage) => stage.name == json['stage'],
+        (stage) =>
+            stage.name ==
+            (json['stage'] == 'checagem' ? 'ensaio' : json['stage']),
         orElse: () => SalaStage.conversa,
       ),
       savedAt: json['saved_at'] is int

@@ -642,8 +642,8 @@ void main() {
     _holds(nothingButHerSixCasesEntersThePersonSign);
   });
 
-  test('generator invariant: no halt is entered over the scene rehearsal, '
-      'the external check or the back-translation', () {
+  test('generator invariant: no halt is entered over the scene rehearsal '
+      'or the back-translation', () {
     _holds(noHaltIsEnteredOffTheCanvasWhereHersNeverShowsIt);
   });
 

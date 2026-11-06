@@ -3,6 +3,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -234,7 +235,7 @@ void main() {
     notifier.gravarACena(1);
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(container.read(salaSessionProvider).microphoneOpen, isTrue);
+    expect(container.read(salaSessionProvider).channel is Microphone, isTrue);
     expect(find.text(_badge(1)), findsOneWidget);
     expect(byLabel(_aprovar), findsOneWidget);
     expect(

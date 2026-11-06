@@ -4,6 +4,7 @@ import 'dart:ui' show SemanticsAction, SemanticsActionEvent, Tristate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -1277,6 +1278,235 @@ void main() {
       closeTheRoom(it.container);
     });
 
+    for (final (what, blockers, failure, text, offered, answer) in [
+      (
+        'not checked',
+        ['telling_back_not_checked'],
+        null,
+        _precisaConferida,
+        true,
+        null,
+      ),
+      ('an unknown code', ['coisa_nova'], null, _naoDeu, true, null),
+      (
+        'neither a version nor a refusal',
+        <String>[],
+        null,
+        _naoDeu,
+        true,
+        ApprovalAnswer(),
+      ),
+      (
+        'an untold stretch before an unheard part',
+        ['playback_did_not_cover_the_clip', 'untold_stretch'],
+        null,
+        _precisaConferida,
+        true,
+        null,
+      ),
+      (
+        'a part unheard',
+        ['playback_did_not_cover_the_clip'],
+        null,
+        _faltaOuvir,
+        true,
+        null,
+      ),
+      (
+        'the server cannot answer',
+        <String>[],
+        NetworkFailed('sem rede'),
+        _naoDeu,
+        true,
+        null,
+      ),
+    ]) {
+      testWidgets('a refusal on the home says one of her three texts: $what', (
+        tester,
+      ) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room
+          ..releaseBlockers = blockers
+          ..failReleaseWith = failure;
+        if (answer != null) it.harness.room.release = answer;
+        final tocadas = it.harness.playback.played.length;
+
+        await _tocar(tester);
+
+        expect(find.text(text), findsOneWidget);
+        expect(byLabel(_aprovar).evaluate().isNotEmpty, offered);
+        expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+        expect(it.harness.playback.played, hasLength(tocadas));
+        closeTheRoom(it.container);
+      });
+    }
+
+    testWidgets(
+      'a refusal on the home because the telling is not conferida writes her reason and keeps the approve button, and its next press asks the room again',
+      (tester) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+
+        await _tocar(tester);
+
+        expect(find.text(_precisaConferida), findsOneWidget);
+        expect(byLabel(_aprovar), findsOneWidget);
+        expect(find.text(_conferida), findsOneWidget);
+        expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
+
+        it.harness.room
+          ..releaseBlockers = const []
+          ..approvedDraft = const ApprovedDraft(version: 1);
+        await _tocar(tester);
+
+        expect(find.text(_ensaioSalvo), findsOneWidget);
+        expect(it.harness.room.releasesAsked, hasLength(2));
+        closeTheRoom(it.container);
+      },
+    );
+
+    testWidgets(
+      'an approval from the home lost on the network writes «não deu para conferir agora — tentem de novo», keeps the button and calls no person; the failure policy decides it at the approval door',
+      (tester) async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        try {
+          final it = await aCasaConferida(tester);
+          it.harness.room.failReleaseWith = const NetworkFailed('sem rede');
+
+          await _tocar(tester);
+
+          expect(find.text(_naoDeu), findsOneWidget);
+          expect(byLabel(_aprovar), findsOneWidget);
+          expect(it.container.read(salaSessionProvider).needsPerson, isFalse);
+          expect(it.harness.room.personsAsked, 0);
+          expect(
+            logged.where((l) => l.contains('Falha decidida na porta approval')),
+            hasLength(1),
+          );
+          closeTheRoom(it.container);
+        } finally {
+          debugPrint = print;
+        }
+      },
+    );
+
+    testWidgets(
+      'a session gone under the home\'s approval still goes to the failure policy and takes the team to the Choice',
+      (tester) async {
+        final it = await aCasaConferida(tester);
+        it.harness.room.failReleaseWith = const SessionGone();
+
+        await _tocar(tester);
+        await tester.pump(const Duration(seconds: 1));
+
+        final state = it.container.read(salaSessionProvider);
+        expect(state.stage, SalaStage.escolha);
+        expect(state.needsPerson, isFalse);
+        closeTheRoom(it.container);
+      },
+    );
+
+    testWidgets(
+      'a revoked device under the home\'s approval is still decided by the failure policy',
+      (tester) async {
+        final logged = <String>[];
+        final print = debugPrint;
+        debugPrint = (message, {wrapWidth}) => logged.add(message ?? '');
+        try {
+          final it = await aCasaConferida(tester);
+          it.harness.room.failReleaseWith = const Refused(
+            RefusalCode.deviceRevoked,
+          );
+
+          await _tocar(tester);
+
+          expect(
+            logged.where(
+              (l) =>
+                  l.contains('Falha decidida') && l.contains('DEVICE_REVOKED'),
+            ),
+            isNotEmpty,
+          );
+          closeTheRoom(it.container);
+        } finally {
+          debugPrint = print;
+        }
+      },
+    );
+
+    testWidgets('a refusal text stays on the home it was said on', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+      await _tocar(tester);
+      expect(find.text(_precisaConferida), findsOneWidget);
+
+      it.container.read(salaSessionProvider.notifier).startRetro();
+      await tester.pump(const Duration(milliseconds: 300));
+      await _assentar(tester);
+
+      expect(find.text(_precisaConferida), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a kept take clears the refusal text on the home', (
+      tester,
+    ) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.releaseBlockers = const ['telling_back_not_checked'];
+      await _tocar(tester);
+      final sala = it.container.read(salaSessionProvider.notifier);
+
+      sala.gravarACena(2);
+      sala.gravarACena(2);
+      await tester.pump(const Duration(milliseconds: 100));
+      sala.takeKeep();
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(find.text(_precisaConferida), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a grain switch takes the offer away', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.holdNextState();
+
+      it.container
+          .read(salaSessionProvider.notifier)
+          .recordTheWholePassageInstead();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsNothing);
+      closeTheRoom(it.container);
+    });
+
+    testWidgets('a draft the room reopens and checks again offers the button '
+        'again', (tester) async {
+      final it = await aCasaConferida(tester);
+      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
+      await _tocar(tester);
+      await _prontoEDeVoltaPeloPonto(tester);
+      expect(byLabel(_aprovar), findsNothing);
+
+      it.harness.room
+        ..approvedDraft = null
+        ..retroSoFar = const BackTranslationProgress();
+      final sala = it.container.read(salaSessionProvider.notifier);
+      sala.goEnsaio();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsNothing);
+
+      it.harness.room.retroSoFar = const BackTranslationProgress(checked: true);
+      sala.goEnsaio();
+      await _assentar(tester);
+
+      expect(byLabel(_aprovar), findsOneWidget);
+      closeTheRoom(it.container);
+    });
     testWidgets('while a take records on a checked home, «$_aprovar» stays '
         'drawn and disabled, and a tap approves nothing', (tester) async {
       final semantics = tester.ensureSemantics();
@@ -1285,7 +1515,10 @@ void main() {
       it.container.read(salaSessionProvider.notifier).gravarACena(2);
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(it.container.read(salaSessionProvider).microphoneOpen, isTrue);
+      expect(
+        it.container.read(salaSessionProvider).channel is Microphone,
+        isTrue,
+      );
       expect(byLabel(_aprovar), findsOneWidget);
       expect(
         tester

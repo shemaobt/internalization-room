@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -220,7 +221,7 @@ void main() {
     sala.gravarACena(1);
     await ate(() => estado().armedTap?.phase == BtRecomeco.pronto);
     sala.gravarACena(1);
-    await ate(() => estado().microphoneOpen);
+    await ate(() => estado().channel is Microphone);
     sala.gravarACena(1);
     await ate(() => estado().ensaio == EnsaioStatus.recorded);
     harness.room.approvedDraft = null;
@@ -497,7 +498,8 @@ void main() {
       'tap in the window records', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
-    bool microfone() => container.read(salaSessionProvider).microphoneOpen;
+    bool microfone() =>
+        container.read(salaSessionProvider).channel is Microphone;
 
     await _tocarNaLinha(tester, 2, _gravarDeNovo);
     expect(microfone(), isFalse);
@@ -522,7 +524,10 @@ void main() {
       await _tocarNaLinha(tester, 2, _parar);
       await _tocarNaLinha(tester, 2, _gravarDeNovo);
       expect(_naLinha(2, _armado), findsOneWidget);
-      expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
+      expect(
+        container.read(salaSessionProvider).channel is Microphone,
+        isFalse,
+      );
       expect(await _aParteDoisSobe(tester, harness), isTrue);
       closeTheRoom(container);
     },
@@ -545,7 +550,7 @@ void main() {
     sala.takeKeep();
     await _ate(tester, () => harness.room.statesRead.length > lidas);
     await _tocarNaLinha(tester, 2, _gravarDeNovo);
-    expect(container.read(salaSessionProvider).microphoneOpen, isTrue);
+    expect(container.read(salaSessionProvider).channel is Microphone, isTrue);
     harness.room
       ..approvedDraft = const ApprovedDraft(version: 1)
       ..finishHeldState();

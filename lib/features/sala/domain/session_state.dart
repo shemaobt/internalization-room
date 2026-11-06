@@ -1682,8 +1682,6 @@ class SalaSessionState {
 
   bool get overAnApprovedDraft => btRascunhoAprovado != null;
 
-  bool get microphoneOpen => channel is Microphone;
-
   /// The approval drawn on the checked telling-back, in place of the approve button and the
   /// Warning mark: only while nothing of this session waits in the Outbox (ADR 0106, 0150).
   ApprovedDraft? get approvedDraftDrawn =>

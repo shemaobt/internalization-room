@@ -345,7 +345,7 @@ void main() {
   });
 
   group('a microphone off the session screen is silent', () {
-    test('a microphone failure on the scene rehearsal, the Rehearsal, the '
+    test('a microphone failure on the scene rehearsal, the Rehearsal '
         'or the Back-translation never shows the sign', () {
       for (final station in const [SceneRehearsal(), Ensaio(), Retro()]) {
         for (final owner in const [

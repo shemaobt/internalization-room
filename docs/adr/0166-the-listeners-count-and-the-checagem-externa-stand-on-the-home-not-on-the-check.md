@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by 0182
 date: 2026-10-29
 amends: 0113 (in part: the Back-translation no longer shows the listeners' count or «Checagem externa»), 0114 (in part: the Station is reached from the recording home, not from the Back-translation)
 ---

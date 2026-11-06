@@ -353,6 +353,45 @@ void main() {
   );
 
   testWidgets(
+    'a resume point an older build saved on the Checagem externa keeps the '
+    'new part it names while its upload waits, as the Rehearsal row does',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      final home = aTempDir('sala-rascunho');
+      final nova = File('${home.path}/p1-nova.m4a')..writeAsBytesSync([7]);
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] =
+          ResumePoint.fromJson({
+            'session_id': 'sessao-antiga',
+            'stage': 'checagem',
+            'takes': [
+              {'name': nova.uri.pathSegments.last, 'scope': KeptScope.parte(1)},
+            ],
+          }, folder: home.path)!;
+      harness.room.openedSessions.add('sessao-antiga');
+      final guardadas = Directory('${harness.takesHome.path}/guardadas')
+        ..createSync(recursive: true);
+      File('${guardadas.path}/fila.json').writeAsStringSync(
+        jsonEncode([
+          PendingTake(
+            id: 'n1',
+            path: nova.path,
+            sessionId: 'sessao-antiga',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            passNumber: 1,
+            chunkIndex: 1,
+          ).toJson(),
+        ]),
+      );
+
+      final room = await _enter(tester, harness);
+
+      expect(_state(room).partes.map((parte) => parte.takeId), [null]);
+      expect(_state(room).needsPerson, isFalse);
+    },
+  );
+
+  testWidgets(
     'a relaunch onto an approved current session lands on its conversation',
     (tester) async {
       final harness = _aRoomHolding(approved: _approvedAs(1));
