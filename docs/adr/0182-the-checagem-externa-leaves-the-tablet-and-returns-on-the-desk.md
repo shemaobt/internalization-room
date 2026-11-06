@@ -22,5 +22,5 @@ The tablet carried the whole Checagem externa: a Station, a listener screen, a b
 
 ## Consequences
 
-- ADR 0114, 0115, 0116 and 0166 are superseded. ADR 0111, 0112, 0113 and 0138 keep their rules for the API and for the armed tap; only the tablet's half of the Checagem externa is gone.
+- ADR 0114, 0115, 0116 and 0166 are superseded. ADR 0111 keeps the listener count per version for the API; ADR 0112 keeps the three refusal texts, and the approval's saved screen without its last line; ADR 0113 keeps the armed tap over an approved draft; ADR 0138 keeps the conversation as where an approved passage reopens, and the dot to the home with its badge. Only the tablet's half of the Checagem externa is gone.
 - The Desk's own Checagem externa is defined elsewhere (ENG-2156).
