@@ -359,14 +359,15 @@ void main() {
       final harness = _aRoomHolding(approved: _approvedAs(1));
       final home = aTempDir('sala-rascunho');
       final nova = File('${home.path}/p1-nova.m4a')..writeAsBytesSync([7]);
-      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] =
-          ResumePoint.fromJson({
-            'session_id': 'sessao-antiga',
-            'stage': 'checagem',
-            'takes': [
-              {'name': nova.uri.pathSegments.last, 'scope': KeptScope.parte(1)},
-            ],
-          }, folder: home.path)!;
+      final point = ResumePoint.fromJson({
+        'session_id': 'sessao-antiga',
+        'stage': 'checagem',
+        'takes': [
+          {'name': nova.uri.pathSegments.last, 'scope': KeptScope.parte(1)},
+        ],
+      }, folder: home.path)!;
+      expect(point.stage, SalaStage.ensaio);
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = point;
       harness.room.openedSessions.add('sessao-antiga');
       final guardadas = Directory('${harness.takesHome.path}/guardadas')
         ..createSync(recursive: true);

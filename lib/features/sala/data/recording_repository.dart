@@ -163,8 +163,9 @@ class RecordingRepository {
     }
   }
 
-  /// Deletes every scene frase, question and retelling recording a killed app left in
-  /// the recordings: at launch none of them is held, so none will be sent again.
+  /// Deletes every scene frase, question, `ouvinte_` retelling and `checagem-` part an
+  /// older build or a killed app left in the recordings: at launch none of them is
+  /// held, so none will be sent again.
   Future<void> sweepTheRecordingsLeftBehind() async {
     try {
       final dir = await _recordingsDir();

@@ -2,7 +2,7 @@
 status: accepted
 date: 2026-11-05
 supersedes: 0114, 0115, 0116, 0166
-amends: 0111, 0112, 0113 (status lines only)
+amends: 0111, 0112, 0113, 0138 (status lines only)
 ---
 
 # The Checagem externa leaves the tablet and returns on the Desk
@@ -17,10 +17,10 @@ The tablet carried the whole Checagem externa: a Station, a listener screen, a b
 
 - **The tablet has no Checagem externa.** No Station, stage, screen, control, script line or route of it remains in the app.
 - **The Back-translation of an approved draft ends on «Aprovado como rascunho final da equipe (vN).»** No button and no listeners count follow it.
-- **A resume point an older build saved on the Checagem externa reads as a resume point on the Rehearsal, so the takes it names are restored as the home restores them**, and a listener it names is ignored. The `checagem-` recordings older builds left in the recordings folder are swept at launch. An approved draft then lands as any other resume point onto it does (ADR 0113).
+- **A resume point an older build saved on the Checagem externa reads as a resume point on the Rehearsal, so the takes it names are restored as the home restores them**, and a listener it names is ignored. The `checagem-` recordings older builds left in the recordings folder are swept at launch. An approved draft then lands as any other resume point onto it does (ADR 0138).
 - **The API keeps its `external-check` routes** for the Desk.
 
 ## Consequences
 
-- ADR 0114, 0115, 0116 and 0166 are superseded. ADR 0111, 0112 and 0113 keep their rules for the API and for the armed tap; only the tablet's half of the Checagem externa is gone.
+- ADR 0114, 0115, 0116 and 0166 are superseded. ADR 0111, 0112, 0113 and 0138 keep their rules for the API and for the armed tap; only the tablet's half of the Checagem externa is gone.
 - The Desk's own Checagem externa is defined elsewhere (ENG-2156).
