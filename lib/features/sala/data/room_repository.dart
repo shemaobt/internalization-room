@@ -14,7 +14,6 @@ import '../domain/coverage_event.dart';
 import '../domain/cut_point.dart';
 import '../domain/device_link.dart';
 import '../domain/escuta_das_partes.dart';
-import '../domain/external_check.dart';
 import '../domain/grain.dart';
 import '../domain/minimum_build.dart';
 import '../domain/passagem.dart';
@@ -697,98 +696,6 @@ class RoomRepository {
         read: readJson(ApprovalAnswer.fromJson),
         asksForTheSession: true,
       );
-
-  Future<RoomAnswer<ExternalCheck>> openTheExternalCheck(String sessionId) =>
-      _room.ask(
-        () async => _client.post(
-          _uri('/sessions/$sessionId/external-check/open'),
-          headers: {..._headers, 'X-Room-Device': await _deviceId()},
-        ),
-        timeout: _stateTimeout,
-        read: readJson(ExternalCheck.fromJson),
-        asksForTheSession: true,
-      );
-
-  /// The next **Outside listener** of [version]'s check, under the [attempt] this tablet
-  /// minted for the tap: the same attempt again answers the listener it already got.
-  Future<RoomAnswer<int>> aNewListener(
-    String sessionId,
-    int version, {
-    required String attempt,
-  }) => _room.ask(
-    () async => _client.post(
-      _uri('/sessions/$sessionId/external-check/$version/listeners'),
-      headers: {..._headers, 'X-Room-Device': await _deviceId()},
-      body: jsonEncode({'attempt': attempt}),
-    ),
-    timeout: _stateTimeout,
-    read: readJson((json) => json['number'] as int),
-    asksForTheSession: true,
-  );
-
-  /// One recording of [listener], sent the moment it stops. The room measures and
-  /// fingerprints it, so neither travels.
-  Future<RoomAnswer<void>> sendTheListenerRecording(
-    String sessionId,
-    int version,
-    int listener,
-    File audio, {
-    required String kind,
-  }) async {
-    final request =
-        http.MultipartRequest(
-            'POST',
-            _uri(
-              '/sessions/$sessionId/external-check/$version/listeners/'
-              '$listener/recordings',
-            ),
-          )
-          ..headers.addAll(_whoWeAre)
-          ..headers['X-Room-Device'] = await _deviceId()
-          ..fields['kind'] = kind
-          ..files.add(await _audioPart(audio));
-    return _room.askStreamed(
-      request,
-      timeout: _longCallTimeout,
-      read: readJson((_) {}),
-      asksForTheSession: true,
-    );
-  }
-
-  /// What the room holds of [listener], so a tablet that reloads knows where they stand.
-  Future<RoomAnswer<ListenerRecord>> theListener(
-    String sessionId,
-    int version,
-    int listener,
-  ) => _room.ask(
-    () async => _client.get(
-      _uri('/sessions/$sessionId/external-check/$version/listeners/$listener'),
-      headers: {..._headers, 'X-Room-Device': await _deviceId()},
-    ),
-    timeout: _stateTimeout,
-    read: readJson(ListenerRecord.fromJson),
-    asksForTheSession: true,
-  );
-
-  /// [listener] is done: [completed] when they went to the end. The room keeps the first.
-  Future<RoomAnswer<void>> finishTheListener(
-    String sessionId,
-    int version,
-    int listener, {
-    required bool completed,
-  }) => _room.ask(
-    () async => _client.post(
-      _uri(
-        '/sessions/$sessionId/external-check/$version/listeners/'
-        '$listener/finish',
-      ),
-      headers: {..._headers, 'X-Room-Device': await _deviceId()},
-      body: jsonEncode({'completed': completed}),
-    ),
-    timeout: _stateTimeout,
-    read: readJson((_) {}),
-    asksForTheSession: true,
-  );
 
   Future<RoomAnswer<void>> askForAPerson(String sessionId) => _room.ask(
     () => _client.post(

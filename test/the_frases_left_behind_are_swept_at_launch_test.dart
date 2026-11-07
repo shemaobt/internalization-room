@@ -98,7 +98,7 @@ void main() {
             .listSync()
             .map((entry) => entry.path.split('/').last)
             .toSet(),
-        {'checagem-t1.m4a', 'conversa_1760900000003.m4a'},
+        {'conversa_1760900000003.m4a'},
       );
     },
   );

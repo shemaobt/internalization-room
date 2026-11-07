@@ -268,7 +268,7 @@ void main() {
 
   group(
     'from that conversation the dot leads to the recording home, with the badge '
-    'naming the version the room read',
+    'naming the version the room read and no Checagem externa',
     () {
       for (final (why, lingua, badge, check) in [
         (
@@ -301,9 +301,94 @@ void main() {
 
           expect(_state(room).station, const Ensaio());
           expect(find.text(badge), findsOneWidget);
-          expect(byLabel(check), findsOneWidget);
+          expect(byLabel(check), findsNothing);
         });
       }
+    },
+  );
+
+  testWidgets(
+    'a resume point an older build saved on the Checagem externa, naming a '
+    'listener, lands on the conversation of the approved draft and its home '
+    'shows no sign of it',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      final home = aTempDir('sala-rascunho');
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] =
+          ResumePoint.fromJson({
+            'session_id': 'sessao-antiga',
+            'stage': 'checagem',
+            'listener': {'version': 1, 'number': 2},
+            'takes': [
+              {
+                'name': (File(
+                  '${home.path}/p1.m4a',
+                )..writeAsBytesSync([1])).uri.pathSegments.last,
+                'scope': KeptScope.parte(1),
+                'take': _gravacao,
+              },
+            ],
+          }, folder: home.path)!;
+      harness.room.openedSessions.add('sessao-antiga');
+
+      final room = await _enter(tester, harness);
+
+      _landsOnTheConversation(room);
+      expect(
+        harness.emAberto.rows['Ruth/P01/${harness.lingua}']?.stage,
+        SalaStage.conversa,
+      );
+
+      await tester.runAsync(() async {
+        room.container.read(salaSessionProvider.notifier).openTheEnsaioFinal();
+        await Future<void>.delayed(const Duration(seconds: 1));
+      });
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(_state(room).station, const Ensaio());
+      expect(_theBadge(1), findsOneWidget);
+      expect(byLabel('Checagem externa'), findsNothing);
+      expect(find.textContaining('ouvinte'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a resume point an older build saved on the Checagem externa keeps the '
+    'new part it names while its upload waits, as the Rehearsal row does',
+    (tester) async {
+      final harness = _aRoomHolding(approved: _approvedAs(1));
+      final home = aTempDir('sala-rascunho');
+      final nova = File('${home.path}/p1-nova.m4a')..writeAsBytesSync([7]);
+      final point = ResumePoint.fromJson({
+        'session_id': 'sessao-antiga',
+        'stage': 'checagem',
+        'takes': [
+          {'name': nova.uri.pathSegments.last, 'scope': KeptScope.parte(1)},
+        ],
+      }, folder: home.path)!;
+      expect(point.stage, SalaStage.ensaio);
+      harness.emAberto.rows['Ruth/P01/${harness.lingua}'] = point;
+      harness.room.openedSessions.add('sessao-antiga');
+      final guardadas = Directory('${harness.takesHome.path}/guardadas')
+        ..createSync(recursive: true);
+      File('${guardadas.path}/fila.json').writeAsStringSync(
+        jsonEncode([
+          PendingTake(
+            id: 'n1',
+            path: nova.path,
+            sessionId: 'sessao-antiga',
+            kind: 'ensaio',
+            scope: 'parte-1',
+            passNumber: 1,
+            chunkIndex: 1,
+          ).toJson(),
+        ]),
+      );
+
+      final room = await _enter(tester, harness);
+
+      expect(_state(room).partes.map((parte) => parte.takeId), [null]);
+      expect(_state(room).needsPerson, isFalse);
     },
   );
 

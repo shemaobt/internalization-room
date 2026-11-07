@@ -2,15 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'cut_point.dart';
 
-enum MicOwner {
-  conversation,
-  rehearsal,
-  capture,
-  question,
-  scene,
-  frase,
-  listener,
-}
+enum MicOwner { conversation, rehearsal, capture, question, scene, frase }
 
 enum LineKind { guide, acknowledgement, reply, approved }
 

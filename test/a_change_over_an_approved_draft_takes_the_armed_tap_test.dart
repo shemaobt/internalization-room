@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/session_snapshot.dart';
@@ -220,7 +221,7 @@ void main() {
     sala.gravarACena(1);
     await ate(() => estado().armedTap?.phase == BtRecomeco.pronto);
     sala.gravarACena(1);
-    await ate(() => estado().microphoneOpen);
+    await ate(() => estado().channel is Microphone);
     sala.gravarACena(1);
     await ate(() => estado().ensaio == EnsaioStatus.recorded);
     harness.room.approvedDraft = null;
@@ -317,69 +318,6 @@ void main() {
       _textoNaLista(_armado),
       findsNothing,
       reason: 'o tablet seguia tomando o rascunho reaberto por aprovado',
-    );
-    closeTheRoom(container);
-  });
-
-  testWidgets('a read of the stretches that went out while the sentence was in '
-      'the air never brings the old sentence back over the kept one', (
-    tester,
-  ) async {
-    final harness = SalaHarness(filaEmMemoria: true);
-    final container = await _aprovada(tester, harness);
-    await tocarNaLista(tester, _regravar(2));
-    await tester.pump(const Duration(seconds: 2));
-    await tocarNaLista(tester, _armado);
-    await gravarAFraseAberta(tester, harness);
-    final segura = harness.room.holdTheSentence = Completer<void>();
-    await tester.tap(_textoNaLista('usar esta'));
-    await _passo(tester);
-    harness.room.approvedDraft = null;
-    harness.room.keptRetellings = const [
-      KeptRetelling(scope: 'parte-1', turnNumber: 1, audioUrl: 'ouvinte.mp3'),
-    ];
-    harness.room.holdTheNextRead();
-    harness.room.holdTheNextRead();
-    container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
-    await waitFor(
-      'a leitura sair e ficar presa',
-      () => harness.room.heldReads.isNotEmpty,
-      step: () => _passo(tester),
-    );
-    segura.complete();
-    await waitFor(
-      'a frase entrar no lugar',
-      () => harness.room.sentencesLaid.isNotEmpty,
-      step: () => _passo(tester),
-    );
-    await waitFor(
-      'a leitura depois da frase sair e ficar presa',
-      () => harness.room.heldReads.length == 2,
-      step: () => _passo(tester),
-    );
-    final nova = harness.room.takes.last.takeId;
-
-    harness.room.answerHeldRead(0);
-    await _passo(tester);
-
-    expect(
-      container
-          .read(salaSessionProvider)
-          .btTrechos
-          .singleWhere((trecho) => trecho.frase == 2)
-          .takeId,
-      nova,
-      reason: 'a leitura de antes da frase voltava a velha por cima da nova',
-    );
-    expect(
-      container.read(salaSessionProvider).btFraseQueAguarda,
-      'trecho-2',
-      reason: 'a leitura de antes da frase apagava a frase que espera tradução',
-    );
-    expect(
-      container.read(salaSessionProvider).keptRetellings,
-      hasLength(1),
-      reason: 'a frase mantida jogava fora o que a leitura em voo trazia',
     );
     closeTheRoom(container);
   });
@@ -560,7 +498,8 @@ void main() {
       'tap in the window records', (tester) async {
     final harness = SalaHarness(filaEmMemoria: true);
     final container = await aprovadaNaCasa(tester, harness);
-    bool microfone() => container.read(salaSessionProvider).microphoneOpen;
+    bool microfone() =>
+        container.read(salaSessionProvider).channel is Microphone;
 
     await _tocarNaLinha(tester, 2, _gravarDeNovo);
     expect(microfone(), isFalse);
@@ -585,7 +524,10 @@ void main() {
       await _tocarNaLinha(tester, 2, _parar);
       await _tocarNaLinha(tester, 2, _gravarDeNovo);
       expect(_naLinha(2, _armado), findsOneWidget);
-      expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
+      expect(
+        container.read(salaSessionProvider).channel is Microphone,
+        isFalse,
+      );
       expect(await _aParteDoisSobe(tester, harness), isTrue);
       closeTheRoom(container);
     },
@@ -608,7 +550,7 @@ void main() {
     sala.takeKeep();
     await _ate(tester, () => harness.room.statesRead.length > lidas);
     await _tocarNaLinha(tester, 2, _gravarDeNovo);
-    expect(container.read(salaSessionProvider).microphoneOpen, isTrue);
+    expect(container.read(salaSessionProvider).channel is Microphone, isTrue);
     harness.room
       ..approvedDraft = const ApprovedDraft(version: 1)
       ..finishHeldState();

@@ -6,18 +6,14 @@ import 'package:internalization_room/core/theme/app_theme.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/halt.dart';
 import 'package:internalization_room/features/sala/domain/session_state.dart';
-import 'package:internalization_room/features/sala/presentation/widgets/checagem_externa_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/circle_glyph.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/codigo_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/escolha_view.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/facilitator_circle.dart';
 import 'package:internalization_room/features/sala/presentation/widgets/retro_view.dart';
 
-import 'a_change_over_an_approved_draft_takes_the_armed_tap_test.dart'
-    show aprovadaNaCasa;
 import 'fakes.dart' show SalaHarness, closeTheRoom;
 import 'sala_screen_test.dart' show pumpSala;
-import 'scenario_helpers.dart' show byLabel;
 import 'the_back_translation_is_told_by_beads_test.dart' show entrarNaTraducao;
 import 'the_circle_glyphs_are_hers_test.dart' show paintedGlyph;
 
@@ -113,30 +109,4 @@ void main() {
     _noLoudspeakerInVoiceTime(tester, RetroView, 'Drafting.tsx:2405');
     closeTheRoom(container);
   });
-  testWidgets(
-    'the external check circle in voice time draws no loudspeaker, as her '
-    'external check circle draws none',
-    (tester) async {
-      final harness = SalaHarness(filaEmMemoria: true);
-      final container = await aprovadaNaCasa(tester, harness);
-      await tester.ensureVisible(byLabel('Checagem externa').first);
-      await tester.tap(byLabel('Checagem externa').first, warnIfMissed: false);
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 300));
-      }
-      expect(container.read(salaSessionProvider).stage, SalaStage.checagem);
-      await tester.ensureVisible(byLabel('Novo ouvinte').first);
-      await tester.tap(byLabel('Novo ouvinte').first, warnIfMissed: false);
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 300));
-      }
-
-      _noLoudspeakerInVoiceTime(
-        tester,
-        ChecagemExternaView,
-        'ExternalCheck.tsx:426',
-      );
-      closeTheRoom(container);
-    },
-  );
 }

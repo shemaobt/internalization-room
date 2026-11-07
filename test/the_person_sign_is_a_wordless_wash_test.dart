@@ -173,7 +173,6 @@ const _everyRefusalThatKeepsTheConversation = <RoomFailure>[
   Refused(RefusalCode.sentenceIdReused),
   Refused(RefusalCode.nothingToBringBack),
   Refused(RefusalCode.draftApproved),
-  Refused(RefusalCode.draftNotApproved),
 ];
 
 void main() {

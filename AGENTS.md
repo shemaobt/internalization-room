@@ -36,9 +36,8 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
   the «PT»/«EN» codes on the Choice, the scene question, her passage menu on the
   Choice, her check screen with its numbered frase list, its part strips, its lines beside
   play and its pause controls, the scene rehearsal on every step, the numerals of her
-  kept-retelling buttons, her recording home with its listeners' count, her approve button
-  and the Checagem externa button, the Ensaio Final plan, her Rehearsal sheet, her Saved
-  screen, her Checagem externa screen, her grain choice, the unsent notice, and the update
+  kept-retelling buttons, her recording home, her approve button, the Ensaio Final plan,
+  her Rehearsal sheet, her Saved screen, her grain choice, the unsent notice, and the update
   screen (ADR 0014), and her «Ouvir tudo» screen with its title and «fim da gravação» (ADR
   0014), and the red microphone's take state with her «parar» (ADR 0131), and the «pensando…»
   under a thinking circle and the mic clock's digits above it (ADR 0014), and the «pensando…»
@@ -66,7 +65,7 @@ Run `git config core.hooksPath tool/git-hooks` once to get the doctrine guard on
 The session lifecycle is one pure machine: `reduce(Machine, MachineEvent)` returns the next
 `Machine` and the effects to run (ADR 0046). Under ADR 0053 its shape is three patterns:
 
-- **State.** Each Station (Menu, Canvas, Panorama, Ensaio Final, Checagem externa) is its own
+- **State.** Each Station (Menu, Canvas, Panorama, Ensaio Final) is its own
   type in its own file and answers the events it understands with a transition. Its Steps are
   substate. The cross-cutting regions (the person sign, the Channel, the Outbox's facts) run
   before it.

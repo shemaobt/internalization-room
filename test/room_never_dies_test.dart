@@ -1231,9 +1231,7 @@ void main() {
       expect(
         await harness.emAberto.startedIn('Ruth', 'pt'),
         contains('P01'),
-        reason:
-            'aprovada, a passagem segue para a checagem externa a partir da '
-            'tradução conferida: o ponto de retomada fica nela',
+        reason: 'aprovada, o ponto de retomada fica na tradução conferida',
       );
     },
   );

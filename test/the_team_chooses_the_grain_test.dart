@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/data/take_upload_queue.dart';
@@ -1388,7 +1389,10 @@ void main() {
 
       await tester.tap(byLabel(_recordAgain));
       await tester.pump(const Duration(milliseconds: 900));
-      expect(container.read(salaSessionProvider).microphoneOpen, isFalse);
+      expect(
+        container.read(salaSessionProvider).channel is Microphone,
+        isFalse,
+      );
       await tester.tap(byLabel(_reopenArmed));
       await tester.pump(const Duration(milliseconds: 200));
       final notifier = container.read(salaSessionProvider.notifier);

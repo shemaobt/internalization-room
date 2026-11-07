@@ -2,7 +2,6 @@ import 'machine.dart';
 import 'session_state.dart';
 
 part 'stations/canvas.dart';
-part 'stations/checagem_externa.dart';
 part 'stations/panorama.dart';
 part 'stations/ensaio.dart';
 part 'stations/menu.dart';
@@ -20,7 +19,6 @@ sealed class Station {
     SalaStage.ensaio => const Ensaio(),
     SalaStage.retro => const Retro(),
     SalaStage.cena => const Canvas(),
-    SalaStage.checagem => const Ensaio(),
   };
 
   /// What the screen shows for this Station.

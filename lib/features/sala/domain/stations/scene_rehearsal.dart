@@ -18,8 +18,6 @@ final class SceneRehearsal extends Station {
     TheBackTranslationOpened() => const Retro(),
     TheSceneRehearsalLeft() => const Canvas(),
     TheSceneRehearsalOpened() => this,
-    TheExternalCheckOpened() ||
-    TheExternalCheckLeft() ||
     TheRecordingLeft() => this,
   };
 }

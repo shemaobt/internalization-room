@@ -573,8 +573,6 @@ class RetroView extends ConsumerWidget {
       BtAviso.pausaSoNaUltima => 'pauseOnlyOnTheLast',
       BtAviso.pausaPassaDoFim => 'pausePastTheEnd',
       BtAviso.pausaNaoFica => 'pauseCannotStandThere',
-      BtAviso.checagemFalhou => 'externalCheckFailed',
-      BtAviso.checagemNaoAbre => 'externalCheckNotFinal',
       BtAviso.tocarFalhou => 'checkFailed',
       null => null,
     };

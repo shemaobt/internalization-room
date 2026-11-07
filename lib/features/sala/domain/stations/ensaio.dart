@@ -50,11 +50,6 @@ final class Ensaio extends Station {
           : this,
     TheSceneRehearsalOpened() => const SceneRehearsal(),
     TheSceneRehearsalLeft() => this,
-    TheExternalCheckOpened(:final version) => ChecagemExterna(
-      version,
-      fromTheHome: true,
-    ),
-    TheExternalCheckLeft() => this,
     TheRecordingLeft() => const Canvas(),
   };
 }

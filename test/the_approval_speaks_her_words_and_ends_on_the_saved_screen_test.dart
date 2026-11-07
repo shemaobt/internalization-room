@@ -4,6 +4,7 @@ import 'dart:ui' show SemanticsAction, SemanticsActionEvent, Tristate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:internalization_room/features/sala/domain/channel.dart';
 import 'package:internalization_room/features/sala/data/room_answer.dart';
 import 'package:internalization_room/features/sala/data/session_notifier.dart';
 import 'package:internalization_room/features/sala/domain/approval_answer.dart';
@@ -36,13 +37,9 @@ const _naoDeuRecomecar = 'não deu para recomeçar agora — tentem de novo';
 const _badge = '✓ aprovado como rascunho final (v1)';
 const _conferida = '✓ traduzida e conferida';
 
-String _aprovado(int v) =>
-    'Aprovado como rascunho final da equipe (v$v). Próximo passo: a checagem '
-    'externa — o botão aqui embaixo.';
+String _aprovado(int v) => 'Aprovado como rascunho final da equipe (v$v).';
 
-String _approved(int v) =>
-    "Approved as the team's final draft (v$v). Next step: the external check "
-    '— the button below.';
+String _approved(int v) => "Approved as the team's final draft (v$v).";
 
 typedef _Sala = ({SalaHarness harness, ProviderContainer container});
 
@@ -1259,7 +1256,7 @@ void main() {
     });
 
     testWidgets('back by the dot after «$_pronto», the home shows its approved '
-        'badge and «Checagem externa»', (tester) async {
+        'badge and no «Checagem externa»', (tester) async {
       final it = await aCasaConferida(tester);
       it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
       await _tocar(tester);
@@ -1276,82 +1273,8 @@ void main() {
         findsOneWidget,
         reason: 'a casa reaberta pelo ponto perdia o selo da aprovação',
       );
-      expect(byLabel('Checagem externa'), findsOneWidget);
+      expect(byLabel('Checagem externa'), findsNothing);
       expect(byLabel(_aprovar), findsNothing);
-      closeTheRoom(it.container);
-    });
-
-    testWidgets('«Checagem externa» on the home opens the external check', (
-      tester,
-    ) async {
-      final it = await aCasaConferida(tester);
-      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
-      await _tocar(tester);
-      await _prontoEDeVoltaPeloPonto(tester);
-
-      await tester.ensureVisible(byLabel('Checagem externa'));
-      await tester.tap(byLabel('Checagem externa'));
-      await tester.pump(const Duration(milliseconds: 300));
-      await _assentar(tester);
-
-      expect(it.harness.room.externalChecksOpened, hasLength(1));
-      expect(byLabel('Novo ouvinte'), findsOneWidget);
-      closeTheRoom(it.container);
-    });
-
-    testWidgets('a VoiceOver double-tap on «Checagem externa» on the home '
-        'opens the external check', (tester) async {
-      final semantics = tester.ensureSemantics();
-      final it = await aCasaConferida(tester);
-      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
-      await _tocar(tester);
-      await _prontoEDeVoltaPeloPonto(tester);
-
-      voiceOverTap(tester, 'Checagem externa');
-      await tester.pump(const Duration(milliseconds: 300));
-      await _assentar(tester);
-
-      expect(
-        it.harness.room.externalChecksOpened,
-        hasLength(1),
-        reason:
-            'o VoiceOver anunciava o botão da casa e o toque duplo não abria '
-            'a checagem',
-      );
-      closeTheRoom(it.container);
-      semantics.dispose();
-    });
-
-    testWidgets('leaving the external check opened from the home returns to '
-        'the home and keeps the home as the resume point', (tester) async {
-      final it = await aCasaConferida(tester);
-      it.harness.room.approvedDraft = const ApprovedDraft(version: 1);
-      await _tocar(tester);
-      await _prontoEDeVoltaPeloPonto(tester);
-      await tester.ensureVisible(byLabel('Checagem externa'));
-      await tester.tap(byLabel('Checagem externa'));
-      await tester.pump(const Duration(milliseconds: 300));
-      await _assentar(tester);
-      expect(
-        it.harness.room.externalChecksOpened,
-        hasLength(1),
-        reason:
-            'o toque caía abaixo da janela e o teste passava pelas chamadas '
-            'ao notifier depois dele',
-      );
-
-      it.harness.room.failStateOnceWith = const NetworkFailed('sem rede');
-      it.container.read(salaSessionProvider.notifier).leaveTheExternalCheck();
-      await _assentar(tester);
-
-      expect(
-        it.harness.room.failStateOnceWith,
-        isNull,
-        reason:
-            'a saída para a casa não relia a sessão, e a dela relê no exitExt',
-      );
-      expect(it.container.read(salaSessionProvider).stage, SalaStage.ensaio);
-      expect(it.harness.emAberto.rows['Ruth/P01/pt']?.stage, SalaStage.ensaio);
       closeTheRoom(it.container);
     });
 
@@ -1584,17 +1507,6 @@ void main() {
       expect(byLabel(_aprovar), findsOneWidget);
       closeTheRoom(it.container);
     });
-
-    testWidgets('no approval, no external check', (tester) async {
-      final it = await aCasaConferida(tester);
-
-      it.container.read(salaSessionProvider.notifier).abrirAChecagemExterna();
-      await _assentar(tester);
-
-      expect(it.harness.room.externalChecksOpened, isEmpty);
-      closeTheRoom(it.container);
-    });
-
     testWidgets('while a take records on a checked home, «$_aprovar» stays '
         'drawn and disabled, and a tap approves nothing', (tester) async {
       final semantics = tester.ensureSemantics();
@@ -1603,7 +1515,10 @@ void main() {
       it.container.read(salaSessionProvider.notifier).gravarACena(2);
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(it.container.read(salaSessionProvider).microphoneOpen, isTrue);
+      expect(
+        it.container.read(salaSessionProvider).channel is Microphone,
+        isTrue,
+      );
       expect(byLabel(_aprovar), findsOneWidget);
       expect(
         tester

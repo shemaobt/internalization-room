@@ -132,14 +132,6 @@ final Map<String, _Request> _everyRequest = {
   'fetchClip': (room, _) => room.fetchClip('/voice/p01'),
   'openClip': (room, _) => room.openClip('/voice/p01', from: 3, ifRange: 'e1'),
   'approveRelease': (room, _) => room.approveRelease('sessao-1'),
-  'openTheExternalCheck': (room, _) => room.openTheExternalCheck('sessao-1'),
-  'aNewListener': (room, _) =>
-      room.aNewListener('sessao-1', 1, attempt: 'tentativa-1'),
-  'sendTheListenerRecording': (room, audio) =>
-      room.sendTheListenerRecording('sessao-1', 1, 1, audio, kind: 'retell'),
-  'theListener': (room, _) => room.theListener('sessao-1', 1, 1),
-  'finishTheListener': (room, _) =>
-      room.finishTheListener('sessao-1', 1, 1, completed: true),
 };
 
 typedef _InboxRequest =

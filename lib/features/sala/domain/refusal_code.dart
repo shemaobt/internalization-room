@@ -32,7 +32,6 @@ abstract final class RefusalCode {
   static const nothingToBringBack = 'NOTHING_TO_BRING_BACK';
   static const partNoLongerItsRehearsal = 'PART_NO_LONGER_ITS_REHEARSAL';
   static const draftApproved = 'DRAFT_APPROVED';
-  static const draftNotApproved = 'DRAFT_NOT_APPROVED';
   static const canonNotKept = 'CANON_NOT_KEPT';
 
   static const stopsTheRoom = {unauthorized, forbidden, deviceRevoked};

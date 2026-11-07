@@ -311,8 +311,6 @@ String describeEvent(MachineEvent event) => switch (event) {
   ThePanoramaChosen(:final id) => 'ThePanoramaChosen($id)',
   TheSceneRehearsalOpened() => 'TheSceneRehearsalOpened',
   TheSceneRehearsalLeft() => 'TheSceneRehearsalLeft',
-  TheExternalCheckOpened(:final version) => 'TheExternalCheckOpened($version)',
-  TheExternalCheckLeft() => 'TheExternalCheckLeft',
   TheRecordingLeft() => 'TheRecordingLeft',
   TheLanguageChosen() => 'TheLanguageChosen',
   ThePanoramaAsked(:final id, :final language) =>
@@ -463,8 +461,6 @@ enum EventKind {
   thePanoramaChosen,
   theSceneRehearsalOpened,
   theSceneRehearsalLeft,
-  theExternalCheckOpened,
-  theExternalCheckLeft,
   theRecordingLeft,
   theLanguageChosen,
   thePanoramaAsked,
@@ -554,8 +550,6 @@ EventKind kindOf(MachineEvent event) => switch (event) {
   ThePanoramaChosen() => EventKind.thePanoramaChosen,
   TheSceneRehearsalOpened() => EventKind.theSceneRehearsalOpened,
   TheSceneRehearsalLeft() => EventKind.theSceneRehearsalLeft,
-  TheExternalCheckOpened() => EventKind.theExternalCheckOpened,
-  TheExternalCheckLeft() => EventKind.theExternalCheckLeft,
   TheRecordingLeft() => EventKind.theRecordingLeft,
   TheLanguageChosen() => EventKind.theLanguageChosen,
   ThePanoramaAsked() => EventKind.thePanoramaAsked,
@@ -644,8 +638,6 @@ bool _theWorldAllows(EventKind kind, World world) => switch (kind) {
   EventKind.thePanoramaChosen ||
   EventKind.theSceneRehearsalOpened ||
   EventKind.theSceneRehearsalLeft ||
-  EventKind.theExternalCheckOpened ||
-  EventKind.theExternalCheckLeft ||
   EventKind.theRecordingLeft => true,
   EventKind.theLanguageChosen ||
   EventKind.thePanoramaAsked ||
@@ -889,10 +881,6 @@ MachineEvent _draw(
   EventKind.theSceneRehearsalLeft => TheSceneRehearsalLeft(
     keepsTheReply: random.nextBool(),
   ),
-  EventKind.theExternalCheckOpened => TheExternalCheckOpened(
-    1 + random.nextInt(3),
-  ),
-  EventKind.theExternalCheckLeft => const TheExternalCheckLeft(),
   EventKind.theRecordingLeft => const TheRecordingLeft(),
   EventKind.theLanguageChosen => const TheLanguageChosen(),
   EventKind.thePanoramaAsked => ThePanoramaAsked(
